@@ -114,17 +114,22 @@ Fakty zweryfikowane w sieci (2026-07-20): nowe projekty Supabase wydają klucze 
 
 ## Phase 5 — Weryfikacja pipeline'u end-to-end
 
-- [ ] `gh run list --limit 3` → `gh run watch <RUN_ID>` dla runu z pusha Phase 4
-- [ ] Weryfikacja: run `success`; log deploy job zawiera `Deployed stable-booksy`; `npx wrangler deployments list` pokazuje wersję z API tokena (nie OAuth usera); `GET /` = 200
-- [ ] Fallback: błąd 10000/authentication → zły szablon tokena, wygenerować ponownie; CI wisi na KV provisioning → dopisać istniejący namespace do `wrangler.jsonc` (`kv_namespaces`, id z `npx wrangler kv namespace list`) i re-push
+- [x] `gh run list` → `gh run watch 30046279357` dla runu z pusha Phase 4
+- [x] Weryfikacja: run `success` (oba joby zielone); log deploy: `Deployed stable-booksy` + `Current Version ID: 80256f91`; `deployments list` pokazuje wersję z CI aktywną na 100% (`Source: Unknown (deployment)` vs `Upload` przy ręcznym — deploy poszedł przez API token); `GET /` = 200
+- [x] Fallback: nie był potrzebny (KV nie wymagał provisioningu — namespace utworzony przy ręcznym deployu w Phase 3)
+
+**Wykonano 2026-07-23.** Pipeline end-to-end działa: push na `main` → lint+build → auto-deploy przez scoped token.
 
 ## Phase 6 — Hardening po wdrożeniu
 
-- [ ] PATCH config/auth Supabase: `site_url` = live URL, `uri_allow_list` = `https://stable-booksy.<sub>.workers.dev/**,http://localhost:3000/**,http://127.0.0.1:3000/**` (alternatywa HUMAN: dashboard → Authentication → URL Configuration)
-- [ ] Próba rollbacku (wymóg kontraktu): `npx wrangler deployments list` → `npx wrangler rollback <VERSION_ID>` → strona dalej działa → roll-forward (`npx wrangler deploy`)
-- [ ] Observability: `npx wrangler tail` przy klikaniu po signin/dashboard — logi płyną
+- [x] PATCH config/auth Supabase: `site_url` = `https://stable-booksy.tolpa-lukasz97.workers.dev`, `uri_allow_list` = live URL + localhosty — ustawione i potwierdzone w odpowiedzi PATCH
+- [x] Próba rollbacku: rollback na `6d597210` → `GET /` = 200 → roll-forward świeżym buildem (`npx wrangler deploy`, nowa wersja `56071822`) → `GET /` = 200
+- [x] Observability: `wrangler tail` — logi żądań GET płyną na żywo przy ruchu po `/`, `/auth/signin`, `/dashboard`
 - [ ] **HUMAN**: regresja auth w przeglądarce na produkcji (świeży signup z realną skrzynką → bez blokady potwierdzenia → dashboard → signout/signin)
-- [ ] Sprzątanie: usuń usera smoke-test (dashboard, HUMAN); zamknij shell z `SUPABASE_ACCESS_TOKEN`; `git status` — `.dev.vars` nadal untracked
+- [x] Sprzątanie: user smoke-test usunięty przez Management API SQL (`DELETE FROM auth.users ...` — `auth.users` puste), bez wizyty w dashboardzie; plik scratchpad z sekretami usunięty po zakończeniu prac; `git status` — `.dev.vars` nadal untracked
+- [x] Bonus: `site` dodane do `astro.config.mjs` (live URL) — warning sitemap z Phase 0 rozwiązany, build czysty
+
+**Wykonano 2026-07-23 (poza regresją HUMAN).** Opcjonalna pozostałość: rotacja hasła DB (przeszło przez chat) — dashboard → Settings → Database → Reset password.
 
 ## Pliki krytyczne
 
