@@ -150,25 +150,23 @@ Route protection is handled in `src/middleware.ts`. Add paths to the `PROTECTED_
 
 ## Deployment
 
-This project deploys to [Cloudflare Workers](https://workers.cloudflare.com/).
+Live: **https://stable-booksy.tolpa-lukasz97.workers.dev** ([Cloudflare Workers](https://workers.cloudflare.com/), worker `stable-booksy`).
 
-1. Build the project:
-
-```bash
-npm run build
-```
-
-2. Deploy with Wrangler:
+Pushes to `main` deploy automatically via GitHub Actions (lint + build, then `wrangler deploy`). Manual operations:
 
 ```bash
-npx wrangler deploy
+npm run build && npx wrangler deploy   # manual deploy
+npx wrangler deployments list          # deployed versions
+npx wrangler rollback <VERSION_ID>     # roll back
+npx wrangler tail stable-booksy        # live logs
+npx wrangler secret put SUPABASE_URL   # update runtime secrets (also: SUPABASE_KEY)
 ```
 
-Set `SUPABASE_URL` and `SUPABASE_KEY` as secrets in your Cloudflare dashboard or via `npx wrangler secret put`.
+Note: the deployed worker name comes from the build artifact (`dist/server/wrangler.json`) — after changing `name` in `wrangler.jsonc`, rebuild before deploying.
 
 ## CI
 
-GitHub Actions runs lint + build on every push and PR to `master`. Configure `SUPABASE_URL` and `SUPABASE_KEY` as repository secrets in GitHub for the build step.
+GitHub Actions (`.github/workflows/ci.yml`) runs lint + build on every push and PR to `main`; pushes to `main` additionally trigger the `deploy` job. Required repository secrets: `SUPABASE_URL`, `SUPABASE_KEY` (build), `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` (deploy).
 
 ## License
 
