@@ -422,34 +422,34 @@ Wycofanie: cała zmiana to kod, więc cofnięcie commitów wystarczy. Wiersze ut
 
 #### Automated
 
-- [x] 3.1 `npm test` przechodzi
-- [x] 3.2 `npm run lint` przechodzi
-- [x] 3.3 `npm run build` przechodzi
+- [x] 3.1 `npm test` przechodzi — c84c132
+- [x] 3.2 `npm run lint` przechodzi — c84c132
+- [x] 3.3 `npm run build` przechodzi — c84c132
 
 #### Manual
 
-- [x] 3.4 Logowanie ośrodkiem ląduje na `/osrodek`, jeźdźcem na `/jezdziec`
-- [x] 3.5 Jeździec na `/osrodek` jest przekierowany do `/jezdziec`, i odwrotnie
-- [x] 3.6 Niezalogowany na `/osrodek` i `/jezdziec` trafia na logowanie
-- [x] 3.7 `/dashboard` przekierowuje do przestrzeni właściwej roli
-- [x] 3.8 Górny pasek pokazuje rolę i prowadzi do właściwej przestrzeni
+- [x] 3.4 Logowanie ośrodkiem ląduje na `/osrodek`, jeźdźcem na `/jezdziec` — c84c132
+- [x] 3.5 Jeździec na `/osrodek` jest przekierowany do `/jezdziec`, i odwrotnie — c84c132
+- [x] 3.6 Niezalogowany na `/osrodek` i `/jezdziec` trafia na logowanie — c84c132
+- [x] 3.7 `/dashboard` przekierowuje do przestrzeni właściwej roli — c84c132
+- [x] 3.8 Górny pasek pokazuje rolę i prowadzi do właściwej przestrzeni — c84c132
 
 ### Phase 4: Zakładanie stadniny
 
 #### Automated
 
-- [ ] 4.1 `npm test` przechodzi
-- [ ] 4.2 `npm run lint` przechodzi
-- [ ] 4.3 `npm run build` przechodzi
-- [ ] 4.4 Wypełnienie formularza tworzy wiersz w `stables` z właściwym `owner_id`
-- [ ] 4.5 `supabase/tests/rls_isolation.sql` nadal przechodzi
+- [x] 4.1 `npm test` przechodzi
+- [x] 4.2 `npm run lint` przechodzi
+- [x] 4.3 `npm run build` przechodzi
+- [x] 4.4 Wypełnienie formularza tworzy wiersz w `stables` z właściwym `owner_id`
+- [x] 4.5 `supabase/tests/rls_isolation.sql` nadal przechodzi
 
 #### Manual
 
-- [ ] 4.6 Świeże konto ośrodka nie wychodzi poza ekran zakładania stadniny
-- [ ] 4.7 Po założeniu stadniny konto wpada do `/osrodek` i widzi jej nazwę
-- [ ] 4.8 Ponowne wysłanie formularza pokazuje komunikat, nie surowy błąd bazy
-- [ ] 4.9 Konto jeźdźca nigdy nie widzi ekranu zakładania stadniny
+- [x] 4.6 Świeże konto ośrodka nie wychodzi poza ekran zakładania stadniny
+- [x] 4.7 Po założeniu stadniny konto wpada do `/osrodek` i widzi jej nazwę
+- [x] 4.8 Ponowne wysłanie formularza pokazuje komunikat, nie surowy błąd bazy
+- [x] 4.9 Konto jeźdźca nigdy nie widzi ekranu zakładania stadniny
 
 ### Phase 5: Polonizacja zastanych ekranów
 

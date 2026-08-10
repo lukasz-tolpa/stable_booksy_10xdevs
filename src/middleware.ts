@@ -1,6 +1,14 @@
 import { defineMiddleware } from "astro:middleware";
 import { createClient } from "@/lib/supabase";
-import { SIGN_IN_ROUTE, homeRouteForRole, isLegacyHomeRoute, isUserRole, routeGuardFor } from "@/lib/auth/roles";
+import {
+  NEW_STABLE_ROUTE,
+  SIGN_IN_ROUTE,
+  homeRouteForRole,
+  isLegacyHomeRoute,
+  isStableSetupPath,
+  isUserRole,
+  routeGuardFor,
+} from "@/lib/auth/roles";
 
 const BROKEN_SESSION_MESSAGE = "Nie udało się ustalić rodzaju Twojego konta. Zaloguj się ponownie.";
 
@@ -50,6 +58,26 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
     if (guard.role && guard.role !== role) {
       return context.redirect(homeRouteForRole(role));
+    }
+
+    // Konto ośrodka bez stadniny nie może zrobić nic sensownego: bez wiersza w `stables`
+    // funkcja private.current_stable_id() zwraca NULL, więc RLS odetnie mu grafik i konie.
+    // Trzymamy je na ekranie zakładania - i odwrotnie, konto ze stadniną z niego zawracamy.
+    if (role === "stable" && supabase) {
+      const onSetupPath = isStableSetupPath(context.url.pathname);
+      const { count } = await supabase
+        .from("stables")
+        .select("id", { count: "exact", head: true })
+        .eq("owner_id", context.locals.user.id);
+      const hasStable = (count ?? 0) > 0;
+
+      if (!hasStable && !onSetupPath) {
+        return context.redirect(NEW_STABLE_ROUTE);
+      }
+
+      if (hasStable && onSetupPath) {
+        return context.redirect(homeRouteForRole(role));
+      }
     }
   }
 
