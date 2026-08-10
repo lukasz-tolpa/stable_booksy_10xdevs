@@ -407,12 +407,12 @@ Baza jest pusta, więc nie ma danych do przeniesienia — obie migracje to czyst
 
 #### Automated
 
-- [x] 4.1 `supabase gen types` generuje plik zawierający wszystkie pięć tabel
-- [x] 4.2 `npm run lint` przechodzi
-- [x] 4.3 `npm run build` przechodzi
-- [x] 4.4 `npx supabase db push` kończy się sukcesem, `migration list` pokazuje obie migracje lokalnie i zdalnie
+- [x] 4.1 `supabase gen types` generuje plik zawierający wszystkie pięć tabel — e5ab684
+- [x] 4.2 `npm run lint` przechodzi — e5ab684
+- [x] 4.3 `npm run build` przechodzi — e5ab684
+- [x] 4.4 `npx supabase db push` kończy się sukcesem, `migration list` pokazuje obie migracje lokalnie i zdalnie — e5ab684
 
 #### Manual
 
-- [x] 4.5 Import `Booking` z `@/types` podpowiada się z właściwymi polami
-- [x] 4.6 Tabele widoczne w panelu zdalnego projektu, RLS włączone na każdej
+- [x] 4.5 Import `Booking` z `@/types` podpowiada się z właściwymi polami — e5ab684
+- [x] 4.6 Tabele widoczne w panelu zdalnego projektu, RLS włączone na każdej — e5ab684

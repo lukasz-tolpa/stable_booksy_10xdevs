@@ -1,7 +1,7 @@
 ---
 change_id: booking-data-schema
 title: Model danych rezerwacji z twardą regułą braku dubla konia
-status: implementing
+status: implemented
 created: 2026-08-10
 updated: 2026-08-10
 archived_at: null
