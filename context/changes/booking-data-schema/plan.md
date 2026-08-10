@@ -395,24 +395,24 @@ Baza jest pusta, więc nie ma danych do przeniesienia — obie migracje to czyst
 
 #### Automated
 
-- [x] 3.1 `npx supabase db reset` ładuje `seed.sql` i tworzy profile zasianych użytkowników
-- [x] 3.2 `supabase/tests/concurrent_double_booking.sh` kończy się kodem 0
-- [x] 3.3 `supabase/tests/rls_isolation.sql` przechodzi bez wyjątku
+- [x] 3.1 `npx supabase db reset` ładuje `seed.sql` i tworzy profile zasianych użytkowników — 10a5786
+- [x] 3.2 `supabase/tests/concurrent_double_booking.sh` kończy się kodem 0 — 10a5786
+- [x] 3.3 `supabase/tests/rls_isolation.sql` przechodzi bez wyjątku — 10a5786
 
 #### Manual
 
-- [x] 3.4 Logowanie kontem ośrodka z seeda działa w `npm run dev`
+- [x] 3.4 Logowanie kontem ośrodka z seeda działa w `npm run dev` — 10a5786
 
 ### Phase 4: Typy, wypchnięcie na zdalny projekt i dokumentacja
 
 #### Automated
 
-- [ ] 4.1 `supabase gen types` generuje plik zawierający wszystkie pięć tabel
-- [ ] 4.2 `npm run lint` przechodzi
-- [ ] 4.3 `npm run build` przechodzi
-- [ ] 4.4 `npx supabase db push` kończy się sukcesem, `migration list` pokazuje obie migracje lokalnie i zdalnie
+- [x] 4.1 `supabase gen types` generuje plik zawierający wszystkie pięć tabel
+- [x] 4.2 `npm run lint` przechodzi
+- [x] 4.3 `npm run build` przechodzi
+- [x] 4.4 `npx supabase db push` kończy się sukcesem, `migration list` pokazuje obie migracje lokalnie i zdalnie
 
 #### Manual
 
-- [ ] 4.5 Import `Booking` z `@/types` podpowiada się z właściwymi polami
-- [ ] 4.6 Tabele widoczne w panelu zdalnego projektu, RLS włączone na każdej
+- [x] 4.5 Import `Booking` z `@/types` podpowiada się z właściwymi polami
+- [x] 4.6 Tabele widoczne w panelu zdalnego projektu, RLS włączone na każdej

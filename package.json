@@ -7,6 +7,7 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
+    "db:types": "supabase gen types typescript --local > src/db/database.types.ts && node -e \"const fs=require('fs'),f='src/db/database.types.ts';fs.writeFileSync(f,'// GENEROWANY PLIK - nie edytowac recznie.\\n// Regeneracja po kazdej zmianie schematu: npm run db:types\\n// (wymaga uruchomionego lokalnego stacku: npx supabase start)\\n\\n'+fs.readFileSync(f,'utf8'))\"",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write ."

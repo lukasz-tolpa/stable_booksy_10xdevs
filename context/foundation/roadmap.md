@@ -29,7 +29,7 @@ Stadniny prowadzą zapisy na jazdy i przydział koni ręcznie — w zeszycie lub
 
 | ID   | Change ID                 | Outcome (user can …)                                                    | Prerequisites    | PRD refs                       | Status   |
 | ---- | ------------------------- | ----------------------------------------------------------------------- | ---------------- | ------------------------------ | -------- |
-| F-01 | booking-data-schema       | (foundation) model danych rezerwacji z twardą regułą braku dubla konia  | —                | §Business Logic, §NFR, §Guardrails | ready    |
+| F-01 | booking-data-schema       | (foundation) model danych rezerwacji z twardą regułą braku dubla konia  | —                | §Business Logic, §NFR, §Guardrails | done     |
 | S-01 | role-aware-auth           | użytkownik zakłada konto jako Ośrodek albo Jeździec i loguje się        | F-01             | FR-001, FR-002                 | proposed |
 | S-02 | daily-schedule-management | ośrodek ustawia zakres godzin i konie pracujące danego dnia             | F-01, S-01       | US-02, FR-003, FR-004          | blocked  |
 | S-03 | stable-directory          | jeździec przegląda i filtruje listę ośrodków                            | S-01             | FR-006                         | proposed |
@@ -62,7 +62,7 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Blockers:** —
 - **Unknowns:** —
 - **Risk:** sekwencjonowany pierwszy, bo każdy plasterek konsumuje ten model, a guardrail współbieżności musi żyć w bazie, nie w kodzie aplikacji; główne ryzyko to przekombinowanie modelu slotów — PRD ustala stałą długość 1 h i brak limitu godzin konia w v1, trzymać się tego.
-- **Status:** ready
+- **Status:** done
 
 ## Slices
 
@@ -145,7 +145,7 @@ Zmigrowane do GitHub Issues 2026-08-07 (tracking: [#1](https://github.com/lukasz
 
 | Roadmap ID | Change ID                 | Suggested issue title                                     | Ready for `/10x-plan` | Notes                              |
 | ---------- | ------------------------- | --------------------------------------------------------- | --------------------- | ---------------------------------- |
-| F-01       | booking-data-schema       | Model danych rezerwacji + reguła braku dubla konia        | yes                   | GH #2 — Run `/10x-plan booking-data-schema` |
+| F-01       | booking-data-schema       | Model danych rezerwacji + reguła braku dubla konia        | done                  | GH #2 — zaimplementowany, patrz `context/changes/booking-data-schema/` |
 | S-01       | role-aware-auth           | Rejestracja i logowanie z wyborem roli Ośrodek/Jeździec   | no                    | GH #3 — czeka na F-01              |
 | S-02       | daily-schedule-management | Grafik dnia: godziny pracy + konie pracujące              | no                    | GH #4 — zablokowany otwartym pytaniem #2 |
 | S-03       | stable-directory          | Katalog ośrodków z filtrowaniem                           | no                    | GH #5 — czeka na S-01              |

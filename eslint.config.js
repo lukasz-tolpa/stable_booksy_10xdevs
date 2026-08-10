@@ -70,6 +70,9 @@ const astroConfig = tseslint.config({
 
 export default tseslint.config(
   includeIgnoreFile(gitignorePath),
+  // Plik generowany przez `npm run db:types` - formatowania nie da sie w nim utrzymac,
+  // bo kazda regeneracja nadpisuje recznie naniesione poprawki.
+  { ignores: ["src/db/database.types.ts"] },
   baseConfig,
   reactConfig,
   eslintPluginAstro.configs["flat/recommended"],
