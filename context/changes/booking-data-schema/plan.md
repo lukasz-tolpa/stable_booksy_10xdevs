@@ -380,28 +380,28 @@ Baza jest pusta, więc nie ma danych do przeniesienia — obie migracje to czyst
 
 #### Automated
 
-- [x] 2.1 `npx supabase db reset` stosuje obie migracje po kolei
-- [x] 2.2 Drugi `insert` tego samego aktywnego slotu kończy się błędem `23505`
-- [x] 2.3 Zapis na godzinę spoza `[open_hour, close_hour)` jest odrzucany przez trigger
-- [x] 2.4 Zapis na konia nieprzypisanego do dnia jest odrzucany przez klucz obcy (`23503`)
-- [x] 2.5 Po odwołaniu zapisu ten sam slot da się zapisać ponownie
-- [x] 2.6 `npm run lint` przechodzi
+- [x] 2.1 `npx supabase db reset` stosuje obie migracje po kolei — d92456a
+- [x] 2.2 Drugi `insert` tego samego aktywnego slotu kończy się błędem `23505` — d92456a
+- [x] 2.3 Zapis na godzinę spoza `[open_hour, close_hour)` jest odrzucany przez trigger — d92456a
+- [x] 2.4 Zapis na konia nieprzypisanego do dnia jest odrzucany przez klucz obcy (`23503`) — d92456a
+- [x] 2.5 Po odwołaniu zapisu ten sam slot da się zapisać ponownie — d92456a
+- [x] 2.6 `npm run lint` przechodzi — d92456a
 
 #### Manual
 
-- [x] 2.7 Próba usunięcia konia z dnia mającego aktywny zapis jest odrzucana (`restrict`)
+- [x] 2.7 Próba usunięcia konia z dnia mającego aktywny zapis jest odrzucana (`restrict`) — d92456a
 
 ### Phase 3: Dane demo i dowód guardrailów
 
 #### Automated
 
-- [ ] 3.1 `npx supabase db reset` ładuje `seed.sql` i tworzy profile zasianych użytkowników
-- [ ] 3.2 `supabase/tests/concurrent_double_booking.sh` kończy się kodem 0
-- [ ] 3.3 `supabase/tests/rls_isolation.sql` przechodzi bez wyjątku
+- [x] 3.1 `npx supabase db reset` ładuje `seed.sql` i tworzy profile zasianych użytkowników
+- [x] 3.2 `supabase/tests/concurrent_double_booking.sh` kończy się kodem 0
+- [x] 3.3 `supabase/tests/rls_isolation.sql` przechodzi bez wyjątku
 
 #### Manual
 
-- [ ] 3.4 Logowanie kontem ośrodka z seeda działa w `npm run dev`
+- [x] 3.4 Logowanie kontem ośrodka z seeda działa w `npm run dev`
 
 ### Phase 4: Typy, wypchnięcie na zdalny projekt i dokumentacja
 
