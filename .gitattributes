@@ -1,0 +1,14 @@
+# Katalog roboczy trzyma LF niezaleznie od globalnego core.autocrlf.
+# Bez tego na Windowsie pliki laduja jako CRLF, a prettier (endOfLine: "lf")
+# zglasza blad "Delete CR" w kazdej linii kazdego pliku.
+* text=auto eol=lf
+
+# Pliki binarne - bez konwersji koncow linii.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
