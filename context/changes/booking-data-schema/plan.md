@@ -367,29 +367,29 @@ Baza jest pusta, więc nie ma danych do przeniesienia — obie migracje to czyst
 
 #### Automated
 
-- [x] 1.1 `npx supabase db reset` przechodzi bez błędów i stosuje migrację
-- [x] 1.2 Rejestracja użytkownika tworzy wiersz w `public.profiles` z rolą `rider`
-- [x] 1.3 `npm run lint` przechodzi
+- [x] 1.1 `npx supabase db reset` przechodzi bez błędów i stosuje migrację — e2e3adc
+- [x] 1.2 Rejestracja użytkownika tworzy wiersz w `public.profiles` z rolą `rider` — e2e3adc
+- [x] 1.3 `npm run lint` przechodzi — e2e3adc
 
 #### Manual
 
-- [x] 1.4 Zmiana `role` we własnym profilu jest odrzucana przez trigger
-- [x] 1.5 Konto z rolą `rider` nie jest w stanie wstawić wiersza do `stables`
+- [x] 1.4 Zmiana `role` we własnym profilu jest odrzucana przez trigger — e2e3adc
+- [x] 1.5 Konto z rolą `rider` nie jest w stanie wstawić wiersza do `stables` — e2e3adc
 
 ### Phase 2: Grafik dnia i rezerwacje
 
 #### Automated
 
-- [ ] 2.1 `npx supabase db reset` stosuje obie migracje po kolei
-- [ ] 2.2 Drugi `insert` tego samego aktywnego slotu kończy się błędem `23505`
-- [ ] 2.3 Zapis na godzinę spoza `[open_hour, close_hour)` jest odrzucany przez trigger
-- [ ] 2.4 Zapis na konia nieprzypisanego do dnia jest odrzucany przez klucz obcy (`23503`)
-- [ ] 2.5 Po odwołaniu zapisu ten sam slot da się zapisać ponownie
-- [ ] 2.6 `npm run lint` przechodzi
+- [x] 2.1 `npx supabase db reset` stosuje obie migracje po kolei
+- [x] 2.2 Drugi `insert` tego samego aktywnego slotu kończy się błędem `23505`
+- [x] 2.3 Zapis na godzinę spoza `[open_hour, close_hour)` jest odrzucany przez trigger
+- [x] 2.4 Zapis na konia nieprzypisanego do dnia jest odrzucany przez klucz obcy (`23503`)
+- [x] 2.5 Po odwołaniu zapisu ten sam slot da się zapisać ponownie
+- [x] 2.6 `npm run lint` przechodzi
 
 #### Manual
 
-- [ ] 2.7 Próba usunięcia konia z dnia mającego aktywny zapis jest odrzucana (`restrict`)
+- [x] 2.7 Próba usunięcia konia z dnia mającego aktywny zapis jest odrzucana (`restrict`)
 
 ### Phase 3: Dane demo i dowód guardrailów
 
