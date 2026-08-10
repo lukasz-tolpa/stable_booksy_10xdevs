@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { homeRouteForRole, isStableSetupPath, routeGuardFor } from "@/lib/auth/roles";
+import { homeRouteForRole, isLegacyHomeRoute, isStableSetupPath, isUserRole, routeGuardFor } from "@/lib/auth/roles";
 
 describe("homeRouteForRole", () => {
   it("kieruje ośrodek do jego przestrzeni", () => {
@@ -41,6 +41,32 @@ describe("routeGuardFor", () => {
 
   it("wymaga sesji bez konkretnej roli na starym adresie panelu", () => {
     expect(routeGuardFor("/dashboard")).toEqual({ prefix: "/dashboard", role: null });
+  });
+});
+
+describe("isLegacyHomeRoute", () => {
+  it("rozpoznaje stary adres panelu", () => {
+    expect(isLegacyHomeRoute("/dashboard")).toBe(true);
+    expect(isLegacyHomeRoute("/dashboard/")).toBe(true);
+  });
+
+  it("nie łapie przestrzeni ról ani ścieżki o podobnej nazwie", () => {
+    expect(isLegacyHomeRoute("/osrodek")).toBe(false);
+    expect(isLegacyHomeRoute("/dashboards")).toBe(false);
+  });
+});
+
+describe("isUserRole", () => {
+  it("rozpoznaje obie znane role", () => {
+    expect(isUserRole("stable")).toBe(true);
+    expect(isUserRole("rider")).toBe(true);
+  });
+
+  it("odrzuca wartość, której aplikacja nie zna", () => {
+    expect(isUserRole("admin")).toBe(false);
+    expect(isUserRole("")).toBe(false);
+    expect(isUserRole(null)).toBe(false);
+    expect(isUserRole(undefined)).toBe(false);
   });
 });
 

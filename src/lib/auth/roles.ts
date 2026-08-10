@@ -1,3 +1,4 @@
+import { USER_ROLES } from "@/lib/auth/constants";
 import type { UserRole } from "@/types";
 
 /**
@@ -16,6 +17,13 @@ export const ROLE_HOME: Record<UserRole, string> = {
 
 export const SIGN_IN_ROUTE = "/auth/signin";
 
+/**
+ * Adres panelu ze scaffolda. Nie ma już strony pod tym adresem - middleware przenosi
+ * z niego do przestrzeni roli, żeby stare linki nie prowadziły donikąd i żeby nie
+ * istniały dwa równoległe panele.
+ */
+export const LEGACY_HOME_ROUTE = "/dashboard";
+
 /** Ekran zakładania stadniny — konto ośrodka bez stadniny nie wychodzi poza niego. */
 export const NEW_STABLE_ROUTE = "/osrodek/nowa-stadnina";
 
@@ -29,13 +37,22 @@ export interface RouteGuard {
 }
 
 const PROTECTED_PREFIXES: readonly RouteGuard[] = [
-  { prefix: "/osrodek", role: "stable" },
-  { prefix: "/jezdziec", role: "rider" },
-  { prefix: "/dashboard", role: null },
+  { prefix: ROLE_HOME.stable, role: "stable" },
+  { prefix: ROLE_HOME.rider, role: "rider" },
+  { prefix: LEGACY_HOME_ROUTE, role: null },
 ];
 
 export function homeRouteForRole(role: UserRole): string {
   return ROLE_HOME[role];
+}
+
+/**
+ * Kolumna `profiles.role` jest w bazie zwykłym tekstem z ograniczeniem CHECK, więc
+ * wygenerowany typ to `string`. Ta straż zamienia go w rolę bez rzutowania i daje
+ * miejsce na obsługę wartości, której aplikacja nie zna.
+ */
+export function isUserRole(value: string | null | undefined): value is UserRole {
+  return USER_ROLES.some((role) => role === value);
 }
 
 /**
@@ -49,6 +66,11 @@ function matchesPrefix(pathname: string, prefix: string): boolean {
 /** Zwraca regułę chroniącą podaną ścieżkę albo `null`, gdy ścieżka jest publiczna. */
 export function routeGuardFor(pathname: string): RouteGuard | null {
   return PROTECTED_PREFIXES.find((entry) => matchesPrefix(pathname, entry.prefix)) ?? null;
+}
+
+/** Czy to stary adres panelu, z którego trzeba przenieść użytkownika do jego przestrzeni. */
+export function isLegacyHomeRoute(pathname: string): boolean {
+  return matchesPrefix(pathname, LEGACY_HOME_ROUTE);
 }
 
 /**

@@ -1,20 +1,44 @@
-import type { APIRoute } from "astro";
+import type { APIContext, APIRoute } from "astro";
 import { createClient } from "@/lib/supabase";
+import { homeRouteForRole, isUserRole } from "@/lib/auth/roles";
+import { firstErrorMessage, signInSchema } from "@/lib/auth/schemas";
+import { formValue } from "@/lib/form-data";
+
+function backToForm(context: APIContext, message: string) {
+  return context.redirect(`/auth/signin?error=${encodeURIComponent(message)}`);
+}
 
 export const POST: APIRoute = async (context) => {
   const form = await context.request.formData();
-  const email = form.get("email") as string;
-  const password = form.get("password") as string;
+
+  const parsed = signInSchema.safeParse({
+    email: formValue(form, "email"),
+    password: formValue(form, "password"),
+  });
+
+  if (!parsed.success) {
+    return backToForm(context, firstErrorMessage(parsed.error));
+  }
 
   const supabase = createClient(context.request.headers, context.cookies);
   if (!supabase) {
-    return context.redirect(`/auth/signin?error=${encodeURIComponent("Supabase is not configured")}`);
+    return backToForm(context, "Supabase nie jest skonfigurowany");
   }
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+  const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
 
   if (error) {
-    return context.redirect(`/auth/signin?error=${encodeURIComponent(error.message)}`);
+    return backToForm(context, error.message);
   }
 
-  return context.redirect("/");
+  // Rolę czytamy z profilu, a nie z metadanych tokenu - metadane użytkownik może
+  // sam nadpisać przez API Auth, więc nie nadają się na podstawę decyzji o dostępie.
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", data.user.id).maybeSingle();
+
+  if (!isUserRole(profile?.role)) {
+    await supabase.auth.signOut();
+    return backToForm(context, "Nie udało się ustalić rodzaju Twojego konta. Skontaktuj się z obsługą.");
+  }
+
+  return context.redirect(homeRouteForRole(profile.role));
 };

@@ -406,33 +406,33 @@ Wycofanie: cała zmiana to kod, więc cofnięcie commitów wystarczy. Wiersze ut
 
 #### Automated
 
-- [x] 2.1 `npm test` przechodzi
-- [x] 2.2 `npm run lint` przechodzi
-- [x] 2.3 `npm run build` przechodzi
-- [x] 2.4 Rejestracja z rolą `stable` tworzy profil z `role = 'stable'`
-- [x] 2.5 Rejestracja z rolą `rider` tworzy profil z `role = 'rider'`
-- [x] 2.6 Rola spoza dozwolonego zbioru jest odrzucona przez walidację i nie tworzy konta
+- [x] 2.1 `npm test` przechodzi — 798023d
+- [x] 2.2 `npm run lint` przechodzi — 798023d
+- [x] 2.3 `npm run build` przechodzi — 798023d
+- [x] 2.4 Rejestracja z rolą `stable` tworzy profil z `role = 'stable'` — 798023d
+- [x] 2.5 Rejestracja z rolą `rider` tworzy profil z `role = 'rider'` — 798023d
+- [x] 2.6 Rola spoza dozwolonego zbioru jest odrzucona przez walidację i nie tworzy konta — 798023d
 
 #### Manual
 
-- [x] 2.7 Formularz pokazuje oba warianty roli z opisem i nie da się wysłać bez wyboru
-- [x] 2.8 Rejestracja działa przy wyłączonym JavaScripcie
+- [x] 2.7 Formularz pokazuje oba warianty roli z opisem i nie da się wysłać bez wyboru — 798023d
+- [x] 2.8 Rejestracja działa przy wyłączonym JavaScripcie — 798023d
 
 ### Phase 3: Routing wg roli i ochrona tras
 
 #### Automated
 
-- [ ] 3.1 `npm test` przechodzi
-- [ ] 3.2 `npm run lint` przechodzi
-- [ ] 3.3 `npm run build` przechodzi
+- [x] 3.1 `npm test` przechodzi
+- [x] 3.2 `npm run lint` przechodzi
+- [x] 3.3 `npm run build` przechodzi
 
 #### Manual
 
-- [ ] 3.4 Logowanie ośrodkiem ląduje na `/osrodek`, jeźdźcem na `/jezdziec`
-- [ ] 3.5 Jeździec na `/osrodek` jest przekierowany do `/jezdziec`, i odwrotnie
-- [ ] 3.6 Niezalogowany na `/osrodek` i `/jezdziec` trafia na logowanie
-- [ ] 3.7 `/dashboard` przekierowuje do przestrzeni właściwej roli
-- [ ] 3.8 Górny pasek pokazuje rolę i prowadzi do właściwej przestrzeni
+- [x] 3.4 Logowanie ośrodkiem ląduje na `/osrodek`, jeźdźcem na `/jezdziec`
+- [x] 3.5 Jeździec na `/osrodek` jest przekierowany do `/jezdziec`, i odwrotnie
+- [x] 3.6 Niezalogowany na `/osrodek` i `/jezdziec` trafia na logowanie
+- [x] 3.7 `/dashboard` przekierowuje do przestrzeni właściwej roli
+- [x] 3.8 Górny pasek pokazuje rolę i prowadzi do właściwej przestrzeni
 
 ### Phase 4: Zakładanie stadniny
 

@@ -1,5 +1,13 @@
 ---
-const { user } = Astro.locals;
+import { ROLE_LABELS } from "@/lib/auth/constants";
+import { homeRouteForRole, isUserRole } from "@/lib/auth/roles";
+
+const { user, profile } = Astro.locals;
+
+// Górny pasek prowadzi do przestrzeni roli, a nie do wspólnego panelu - adres i etykieta
+// pochodzą z tabeli decyzyjnej, więc nie rozjadą się z regułami middleware.
+const role = isUserRole(profile?.role) ? profile.role : null;
+const homeRoute = role ? homeRouteForRole(role) : null;
 ---
 
 <div
@@ -8,27 +16,32 @@ const { user } = Astro.locals;
   {
     user ? (
       <>
-        <span class="text-blue-100/70">{user.email}</span>
+        <span class="text-blue-100/70">
+          {user.email}
+          {role && <span class="ml-2 rounded-full bg-white/10 px-2 py-0.5 text-xs">{ROLE_LABELS[role]}</span>}
+        </span>
         <div class="flex items-center gap-3">
-          <a href="/dashboard" class="text-purple-300 transition-colors hover:text-purple-100 hover:underline">
-            Dashboard
-          </a>
+          {homeRoute && (
+            <a href={homeRoute} class="text-purple-300 transition-colors hover:text-purple-100 hover:underline">
+              Mój panel
+            </a>
+          )}
           <form method="POST" action="/api/auth/signout">
             <button type="submit" class="text-purple-300 transition-colors hover:text-purple-100 hover:underline">
-              Sign out
+              Wyloguj się
             </button>
           </form>
         </div>
       </>
     ) : (
       <>
-        <span class="text-blue-100/70">Not signed in</span>
+        <span class="text-blue-100/70">Nie jesteś zalogowany</span>
         <div class="flex gap-3">
           <a href="/auth/signin" class="text-purple-300 transition-colors hover:text-purple-100 hover:underline">
-            Sign in
+            Zaloguj się
           </a>
           <a href="/auth/signup" class="text-purple-300 transition-colors hover:text-purple-100 hover:underline">
-            Sign up
+            Załóż konto
           </a>
         </div>
       </>
