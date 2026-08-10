@@ -398,25 +398,25 @@ Wycofanie: cała zmiana to kod, więc cofnięcie commitów wystarczy. Wiersze ut
 
 #### Automated
 
-- [x] 1.1 `npm test` przechodzi
-- [x] 1.2 `npm run lint` przechodzi
-- [x] 1.3 `npm run build` przechodzi
+- [x] 1.1 `npm test` przechodzi — c9f16df
+- [x] 1.2 `npm run lint` przechodzi — c9f16df
+- [x] 1.3 `npm run build` przechodzi — c9f16df
 
 ### Phase 2: Rola w rejestracji i w sesji
 
 #### Automated
 
-- [ ] 2.1 `npm test` przechodzi
-- [ ] 2.2 `npm run lint` przechodzi
-- [ ] 2.3 `npm run build` przechodzi
-- [ ] 2.4 Rejestracja z rolą `stable` tworzy profil z `role = 'stable'`
-- [ ] 2.5 Rejestracja z rolą `rider` tworzy profil z `role = 'rider'`
-- [ ] 2.6 Rola spoza dozwolonego zbioru jest odrzucona przez walidację i nie tworzy konta
+- [x] 2.1 `npm test` przechodzi
+- [x] 2.2 `npm run lint` przechodzi
+- [x] 2.3 `npm run build` przechodzi
+- [x] 2.4 Rejestracja z rolą `stable` tworzy profil z `role = 'stable'`
+- [x] 2.5 Rejestracja z rolą `rider` tworzy profil z `role = 'rider'`
+- [x] 2.6 Rola spoza dozwolonego zbioru jest odrzucona przez walidację i nie tworzy konta
 
 #### Manual
 
-- [ ] 2.7 Formularz pokazuje oba warianty roli z opisem i nie da się wysłać bez wyboru
-- [ ] 2.8 Rejestracja działa przy wyłączonym JavaScripcie
+- [x] 2.7 Formularz pokazuje oba warianty roli z opisem i nie da się wysłać bez wyboru
+- [x] 2.8 Rejestracja działa przy wyłączonym JavaScripcie
 
 ### Phase 3: Routing wg roli i ochrona tras
 

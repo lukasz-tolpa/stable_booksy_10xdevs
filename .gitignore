@@ -18,7 +18,9 @@ pnpm-debug.log*
 .env.production
 
 # cloudflare
-.dev.vars
+# Wzorzec obejmuje takze kopie w rodzaju .dev.vars.remote - trzymaja te same sekrety
+# co plik glowny i nie moga trafic do repozytorium.
+.dev.vars*
 .wrangler/
 
 # macOS-specific files

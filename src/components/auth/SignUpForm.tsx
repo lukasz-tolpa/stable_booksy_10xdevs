@@ -2,10 +2,11 @@ import React, { useState } from "react";
 import { Mail, Lock, UserPlus } from "lucide-react";
 import { FormField } from "@/components/auth/FormField";
 import { PasswordToggle } from "@/components/auth/PasswordToggle";
+import { RoleSelect } from "@/components/auth/RoleSelect";
 import { SubmitButton } from "@/components/auth/SubmitButton";
 import { ServerError } from "@/components/auth/ServerError";
-
-const MIN_PASSWORD_LENGTH = 6;
+import { MIN_PASSWORD_LENGTH } from "@/lib/auth/constants";
+import type { UserRole } from "@/types";
 
 interface Props {
   serverError?: string | null;
@@ -15,12 +16,24 @@ export default function SignUpForm({ serverError }: Props) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [role, setRole] = useState<UserRole | "">("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string; confirmPassword?: string }>({});
+  const [errors, setErrors] = useState<{
+    email?: string;
+    password?: string;
+    confirmPassword?: string;
+    role?: string;
+  }>({});
 
   function validate() {
     const next: typeof errors = {};
+
+    // Komunikat musi brzmieć tak samo jak w schemacie zod - inaczej użytkownik zobaczy
+    // inne zdanie zależnie od tego, czy ma włączony JavaScript.
+    if (!role) {
+      next.role = "Wybierz rodzaj konta";
+    }
 
     if (!email.trim()) {
       next.email = "Email is required";
@@ -64,6 +77,15 @@ export default function SignUpForm({ serverError }: Props) {
 
   return (
     <form method="POST" action="/api/auth/signup" className="space-y-4" onSubmit={handleSubmit} noValidate>
+      <RoleSelect
+        value={role}
+        onChange={(v) => {
+          setRole(v);
+          clearError("role");
+        }}
+        error={errors.role}
+      />
+
       <FormField
         id="email"
         type="email"
