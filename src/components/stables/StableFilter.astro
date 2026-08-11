@@ -1,0 +1,46 @@
+---
+import { Search } from "lucide-react";
+
+interface Props {
+  /** Fraza wpisana przez użytkownika (surowa, nie przygotowana do zapytania). */
+  value: string;
+  /** Trasa, na którą wraca formularz. */
+  action: string;
+}
+
+const { value, action } = Astro.props;
+---
+
+{
+  /* Formularz GET: fraza ląduje w adresie, więc odświeżenie i wysłanie linku działa,
+    a całość nie wymaga JavaScriptu - tak jak pozostałe formularze w tej aplikacji. */
+}
+<form method="GET" action={action} class="mb-6 flex flex-wrap items-center gap-2">
+  <label for="q" class="sr-only">Szukaj ośrodka</label>
+  <div class="relative min-w-0 flex-1">
+    <span class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-white/40">
+      <Search className="size-4" />
+    </span>
+    <input
+      id="q"
+      name="q"
+      type="search"
+      value={value}
+      placeholder="Nazwa ośrodka albo miejscowość"
+      class="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 pl-10 text-white placeholder-white/40 transition-colors focus:ring-2 focus:ring-purple-400 focus:outline-none"
+    />
+  </div>
+  <button
+    type="submit"
+    class="rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-purple-500"
+  >
+    Szukaj
+  </button>
+  {
+    value && (
+      <a href={action} class="px-2 text-sm text-purple-300 transition-colors hover:text-purple-100 hover:underline">
+        Wyczyść
+      </a>
+    )
+  }
+</form>
