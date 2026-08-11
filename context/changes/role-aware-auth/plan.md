@@ -438,29 +438,29 @@ Wycofanie: cała zmiana to kod, więc cofnięcie commitów wystarczy. Wiersze ut
 
 #### Automated
 
-- [x] 4.1 `npm test` przechodzi
-- [x] 4.2 `npm run lint` przechodzi
-- [x] 4.3 `npm run build` przechodzi
-- [x] 4.4 Wypełnienie formularza tworzy wiersz w `stables` z właściwym `owner_id`
-- [x] 4.5 `supabase/tests/rls_isolation.sql` nadal przechodzi
+- [x] 4.1 `npm test` przechodzi — 2c58f27
+- [x] 4.2 `npm run lint` przechodzi — 2c58f27
+- [x] 4.3 `npm run build` przechodzi — 2c58f27
+- [x] 4.4 Wypełnienie formularza tworzy wiersz w `stables` z właściwym `owner_id` — 2c58f27
+- [x] 4.5 `supabase/tests/rls_isolation.sql` nadal przechodzi — 2c58f27
 
 #### Manual
 
-- [x] 4.6 Świeże konto ośrodka nie wychodzi poza ekran zakładania stadniny
-- [x] 4.7 Po założeniu stadniny konto wpada do `/osrodek` i widzi jej nazwę
-- [x] 4.8 Ponowne wysłanie formularza pokazuje komunikat, nie surowy błąd bazy
-- [x] 4.9 Konto jeźdźca nigdy nie widzi ekranu zakładania stadniny
+- [x] 4.6 Świeże konto ośrodka nie wychodzi poza ekran zakładania stadniny — 2c58f27
+- [x] 4.7 Po założeniu stadniny konto wpada do `/osrodek` i widzi jej nazwę — 2c58f27
+- [x] 4.8 Ponowne wysłanie formularza pokazuje komunikat, nie surowy błąd bazy — 2c58f27
+- [x] 4.9 Konto jeźdźca nigdy nie widzi ekranu zakładania stadniny — 2c58f27
 
 ### Phase 5: Polonizacja zastanych ekranów
 
 #### Automated
 
-- [ ] 5.1 `npm test` przechodzi
-- [ ] 5.2 `npm run lint` przechodzi
-- [ ] 5.3 `npm run build` przechodzi
-- [ ] 5.4 Brak angielskich tekstów widocznych dla użytkownika w przepływie auth
+- [x] 5.1 `npm test` przechodzi
+- [x] 5.2 `npm run lint` przechodzi
+- [x] 5.3 `npm run build` przechodzi
+- [x] 5.4 Brak angielskich tekstów widocznych dla użytkownika w przepływie auth
 
 #### Manual
 
-- [ ] 5.5 Przejście rejestracja → logowanie → panel obu ról jest w całości po polsku
-- [ ] 5.6 Komunikat walidacji brzmi tak samo z JavaScriptem i bez
+- [x] 5.5 Przejście rejestracja → logowanie → panel obu ról jest w całości po polsku
+- [x] 5.6 Komunikat walidacji brzmi tak samo z JavaScriptem i bez
