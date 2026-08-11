@@ -1,9 +1,9 @@
 ---
 change_id: role-aware-auth
 title: Rejestracja z wyborem roli i routing po zalogowaniu
-status: implementing
+status: implemented
 created: 2026-08-10
-updated: 2026-08-10
+updated: 2026-08-11
 archived_at: null
 ---
 

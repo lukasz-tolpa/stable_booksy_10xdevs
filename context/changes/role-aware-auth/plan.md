@@ -455,12 +455,12 @@ Wycofanie: cała zmiana to kod, więc cofnięcie commitów wystarczy. Wiersze ut
 
 #### Automated
 
-- [x] 5.1 `npm test` przechodzi
-- [x] 5.2 `npm run lint` przechodzi
-- [x] 5.3 `npm run build` przechodzi
-- [x] 5.4 Brak angielskich tekstów widocznych dla użytkownika w przepływie auth
+- [x] 5.1 `npm test` przechodzi — 6d6b6a7
+- [x] 5.2 `npm run lint` przechodzi — 6d6b6a7
+- [x] 5.3 `npm run build` przechodzi — 6d6b6a7
+- [x] 5.4 Brak angielskich tekstów widocznych dla użytkownika w przepływie auth — 6d6b6a7
 
 #### Manual
 
-- [x] 5.5 Przejście rejestracja → logowanie → panel obu ról jest w całości po polsku
-- [x] 5.6 Komunikat walidacji brzmi tak samo z JavaScriptem i bez
+- [x] 5.5 Przejście rejestracja → logowanie → panel obu ról jest w całości po polsku — 6d6b6a7
+- [x] 5.6 Komunikat walidacji brzmi tak samo z JavaScriptem i bez — 6d6b6a7
