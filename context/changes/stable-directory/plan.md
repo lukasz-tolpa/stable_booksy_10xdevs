@@ -271,14 +271,14 @@ Brak. Slice nie dotyka schematu, polityk ani danych; wycofanie to cofnięcie com
 
 #### Automated
 
-- [x] 2.1 `npm test` przechodzi
-- [x] 2.2 `npm run lint` przechodzi
-- [x] 2.3 `npm run build` przechodzi
-- [x] 2.4 Strona istniejącego ośrodka zwraca 200 i zawiera jego nazwę
-- [x] 2.5 `/jezdziec/osrodki/999999` i `/jezdziec/osrodki/abc` dają stan „nie znaleziono", nie błąd
-- [x] 2.6 Konto ośrodka na stronie ośrodka jest przekierowywane do `/osrodek`
+- [x] 2.1 `npm test` przechodzi — 9663183
+- [x] 2.2 `npm run lint` przechodzi — 9663183
+- [x] 2.3 `npm run build` przechodzi — 9663183
+- [x] 2.4 Strona istniejącego ośrodka zwraca 200 i zawiera jego nazwę — 9663183
+- [x] 2.5 `/jezdziec/osrodki/999999` i `/jezdziec/osrodki/abc` dają stan „nie znaleziono", nie błąd — 9663183
+- [x] 2.6 Konto ośrodka na stronie ośrodka jest przekierowywane do `/osrodek` — 9663183
 
 #### Manual
 
-- [x] 2.7 Kliknięcie karty prowadzi na właściwy ośrodek, powrót wraca do katalogu
-- [x] 2.8 Karta daje się wybrać klawiaturą i ma widoczne zaznaczenie
+- [x] 2.7 Kliknięcie karty prowadzi na właściwy ośrodek, powrót wraca do katalogu — 9663183
+- [x] 2.8 Karta daje się wybrać klawiaturą i ma widoczne zaznaczenie — 9663183
