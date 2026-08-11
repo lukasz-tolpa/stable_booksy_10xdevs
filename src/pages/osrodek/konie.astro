@@ -1,0 +1,122 @@
+---
+import { PawPrint } from "lucide-react";
+import Layout from "@/layouts/Layout.astro";
+import Topbar from "@/components/Topbar.astro";
+import HorseForm from "@/components/stables/HorseForm";
+import { getOwnedStableId, listStableHorses, type HorseListItem } from "@/lib/stables/queries";
+import { createClient } from "@/lib/supabase";
+
+// Dostęp pilnuje middleware (mapa tras w @/lib/auth/roles), a konto ośrodka ma
+// gwarantowaną stadninę dzięki wymuszeniu z S-01 - stąd brak gałęzi "brak stadniny".
+const { profile } = Astro.locals;
+const error = Astro.url.searchParams.get("error");
+
+const supabase = createClient(Astro.request.headers, Astro.cookies);
+
+let horses: HorseListItem[] = [];
+let loadFailed = false;
+
+if (supabase && profile) {
+  try {
+    const stableId = await getOwnedStableId(supabase, profile.id);
+    horses = stableId === null ? [] : await listStableHorses(supabase, stableId);
+  } catch {
+    loadFailed = true;
+  }
+}
+
+const active = horses.filter((horse) => horse.active);
+const retired = horses.filter((horse) => !horse.active);
+---
+
+<Layout title="Konie">
+  <div class="bg-cosmic min-h-screen p-4">
+    <div class="mx-auto max-w-3xl">
+      <Topbar />
+
+      <h1 class="mb-1 bg-gradient-to-r from-blue-200 to-purple-200 bg-clip-text text-3xl font-bold text-transparent">
+        Konie
+      </h1>
+      <p class="mb-6 text-sm text-blue-100/70">
+        Stado Twojej stadniny. Z tej listy wybierasz konie pracujące w danym dniu.
+      </p>
+
+      <div class="grid gap-6 md:grid-cols-[1fr_20rem]">
+        <div class="space-y-3">
+          {
+            loadFailed ? (
+              <div class="rounded-2xl border border-red-500/30 bg-red-900/20 p-6 text-center text-white">
+                <p class="text-red-200">Nie udało się wczytać stada.</p>
+                <p class="mt-2 text-sm text-blue-100/50">Odśwież stronę za chwilę.</p>
+              </div>
+            ) : horses.length === 0 ? (
+              <div class="rounded-2xl border border-white/10 bg-white/5 p-6 text-center text-white">
+                <p class="text-blue-100/80">Nie masz jeszcze żadnych koni.</p>
+                <p class="mt-2 text-sm text-blue-100/50">
+                  Dodaj pierwszego konia — bez tego nie da się ułożyć grafiku dnia, bo nie będzie czego przydzielić do
+                  godzin.
+                </p>
+              </div>
+            ) : (
+              <>
+                {active.map((horse) => (
+                  <article class="flex items-start justify-between gap-4 rounded-xl border border-white/10 bg-white/5 p-4 text-white">
+                    <div>
+                      <h2 class="flex items-center gap-2 font-semibold">
+                        <PawPrint className="size-4" />
+                        {horse.name}
+                      </h2>
+                      {horse.notes && <p class="mt-1 text-sm text-blue-100/60">{horse.notes}</p>}
+                    </div>
+                    <form method="POST" action="/api/horses/toggle-active">
+                      <input type="hidden" name="horseId" value={horse.id} />
+                      <input type="hidden" name="active" value="false" />
+                      <button
+                        type="submit"
+                        class="rounded-lg border border-white/20 px-3 py-1.5 text-xs whitespace-nowrap text-blue-100/80 transition-colors hover:bg-white/10"
+                      >
+                        Wycofaj ze służby
+                      </button>
+                    </form>
+                  </article>
+                ))}
+
+                {retired.length > 0 && (
+                  <>
+                    <h2 class="pt-2 text-sm font-medium text-blue-100/50">Wycofane ze służby</h2>
+                    {retired.map((horse) => (
+                      <article class="flex items-start justify-between gap-4 rounded-xl border border-white/5 bg-white/[0.02] p-4 text-white/60">
+                        <div>
+                          <h3 class="flex items-center gap-2 font-semibold">
+                            <PawPrint className="size-4" />
+                            {horse.name}
+                          </h3>
+                          {horse.notes && <p class="mt-1 text-sm text-blue-100/40">{horse.notes}</p>}
+                        </div>
+                        <form method="POST" action="/api/horses/toggle-active">
+                          <input type="hidden" name="horseId" value={horse.id} />
+                          <input type="hidden" name="active" value="true" />
+                          <button
+                            type="submit"
+                            class="rounded-lg border border-white/20 px-3 py-1.5 text-xs whitespace-nowrap text-purple-300 transition-colors hover:bg-white/10"
+                          >
+                            Przywróć
+                          </button>
+                        </form>
+                      </article>
+                    ))}
+                  </>
+                )}
+              </>
+            )
+          }
+        </div>
+
+        <div class="rounded-2xl border border-white/10 bg-white/10 p-6 text-white backdrop-blur-xl">
+          <h2 class="mb-4 font-semibold">Dodaj konia</h2>
+          <HorseForm serverError={error} client:load />
+        </div>
+      </div>
+    </div>
+  </div>
+</Layout>

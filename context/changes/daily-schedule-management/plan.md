@@ -315,29 +315,29 @@ Wycofanie: `drop trigger` + `drop function` w nowej migracji. Reszta slice'a to 
 
 #### Automated
 
-- [x] 1.1 `npx supabase db reset` stosuje wszystkie migracje bez błędów
-- [x] 1.2 `supabase/tests/schedule_change_guardrails.sql` przechodzi bez wyjątku
-- [x] 1.3 `supabase/tests/rls_isolation.sql` nadal przechodzi
-- [x] 1.4 `npm test` przechodzi
-- [x] 1.5 `npm run lint` przechodzi
-- [x] 1.6 `npm run build` przechodzi
+- [x] 1.1 `npx supabase db reset` stosuje wszystkie migracje bez błędów — 08e9962
+- [x] 1.2 `supabase/tests/schedule_change_guardrails.sql` przechodzi bez wyjątku — 08e9962
+- [x] 1.3 `supabase/tests/rls_isolation.sql` nadal przechodzi — 08e9962
+- [x] 1.4 `npm test` przechodzi — 08e9962
+- [x] 1.5 `npm run lint` przechodzi — 08e9962
+- [x] 1.6 `npm run build` przechodzi — 08e9962
 
 ### Phase 2: Stado — lista koni i dodawanie
 
 #### Automated
 
-- [ ] 2.1 `npm test` przechodzi
-- [ ] 2.2 `npm run lint` przechodzi
-- [ ] 2.3 `npm run build` przechodzi
-- [ ] 2.4 Dodanie konia tworzy wiersz w `horses` z `stable_id` zalogowanego ośrodka
-- [ ] 2.5 Koń z pustym imieniem jest odrzucony i nie tworzy wiersza
-- [ ] 2.6 Konto ośrodka nie widzi na liście koni innej stadniny
+- [x] 2.1 `npm test` przechodzi
+- [x] 2.2 `npm run lint` przechodzi
+- [x] 2.3 `npm run build` przechodzi
+- [x] 2.4 Dodanie konia tworzy wiersz w `horses` z `stable_id` zalogowanego ośrodka
+- [x] 2.5 Koń z pustym imieniem jest odrzucony i nie tworzy wiersza
+- [x] 2.6 Konto ośrodka nie widzi na liście koni innej stadniny
 
 #### Manual
 
-- [ ] 2.7 Wycofany koń jest odróżniony na liście i da się go przywrócić
-- [ ] 2.8 Pusta lista tłumaczy, po co dodać konia
-- [ ] 2.9 Dodanie konia działa przy wyłączonym JavaScripcie
+- [x] 2.7 Wycofany koń jest odróżniony na liście i da się go przywrócić
+- [x] 2.8 Pusta lista tłumaczy, po co dodać konia
+- [x] 2.9 Dodanie konia działa przy wyłączonym JavaScripcie
 
 ### Phase 3: Grafik dnia
 
