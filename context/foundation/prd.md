@@ -128,4 +128,8 @@ Niezalogowany użytkownik trafiający na zasób wymagający dostępu jest kierow
 ## Open Questions
 
 1. **Dzienny limit godzin pracy konia** — czy v2 wprowadza ograniczenie maks. N godzin/dzień na konia? Owner: user. Poza zakresem v1.
-2. **Konflikt grafiku z istniejącymi zapisami** — co dzieje się z zapisami, gdy ośrodek zmieni godziny/konie po fakcie? Owner: user. Do rozstrzygnięcia przed implementacją grafiku.
+2. ~~**Konflikt grafiku z istniejącymi zapisami** — co dzieje się z zapisami, gdy ośrodek zmieni godziny/konie po fakcie?~~ **ROZSTRZYGNIĘTE 2026-08-11.** Zmiana grafiku kolidująca z aktywnym zapisem jest **odrzucana z czytelnym komunikatem** — istniejące zapisy nigdy nie są kasowane ani unieważniane przez edycję grafiku. Dotyczy obu połówek:
+   - **Konie** — wypisanie konia z dnia, w którym ma aktywny zapis, nie przechodzi. Egzekwowane już dziś przez `on delete restrict` z F-01 (kod `23503`).
+   - **Godziny** — zawężenie zakresu godzin poniżej istniejącego zapisu nie przechodzi. Wymaga triggera na `schedule_days`; dziś **nie jest pilnowane** i przechodzi po cichu, osierocając zapis. Do domknięcia w S-02.
+
+   Konsekwencja dla ośrodka: żeby zwolnić konia albo skrócić dzień, musi najpierw doprowadzić do odwołania kolidujących zapisów. Odwoływanie cudzych zapisów przez ośrodek nie jest częścią v1 (FR-009 daje to prawo wyłącznie jeźdźcowi) — jeśli okaże się potrzebne, to osobne wymaganie.

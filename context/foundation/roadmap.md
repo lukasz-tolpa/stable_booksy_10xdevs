@@ -31,7 +31,7 @@ Stadniny prowadzą zapisy na jazdy i przydział koni ręcznie — w zeszycie lub
 | ---- | ------------------------- | ----------------------------------------------------------------------- | ---------------- | ------------------------------ | -------- |
 | F-01 | booking-data-schema       | (foundation) model danych rezerwacji z twardą regułą braku dubla konia  | —                | §Business Logic, §NFR, §Guardrails | done     |
 | S-01 | role-aware-auth           | użytkownik zakłada konto jako Ośrodek albo Jeździec i loguje się        | F-01             | FR-001, FR-002                 | done     |
-| S-02 | daily-schedule-management | ośrodek ustawia zakres godzin i konie pracujące danego dnia             | F-01, S-01       | US-02, FR-003, FR-004          | blocked  |
+| S-02 | daily-schedule-management | ośrodek ustawia zakres godzin i konie pracujące danego dnia             | F-01, S-01       | US-02, FR-003, FR-004          | ready    |
 | S-03 | stable-directory          | jeździec przegląda i filtruje listę ośrodków                            | S-01             | FR-006                         | done     |
 | S-04 | slot-booking-flow         | jeździec widzi wolne sloty (godzina × koń) i rezerwuje jazdę            | F-01, S-02, S-03 | US-01, FR-007, FR-008          | proposed |
 | S-05 | daily-bookings-list       | ośrodek widzi listę zapisów (godzina–koń–jeździec) na dany dzień        | S-02, S-04       | FR-005                         | proposed |
@@ -86,10 +86,9 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Prerequisites:** F-01, S-01
 - **Parallel with:** S-03
 - **Blockers:** —
-- **Unknowns:**
-  - Co dzieje się z istniejącymi zapisami, gdy ośrodek zmieni godziny/konie po fakcie? (Otwarte pytanie #2 PRD; kryterium akceptacji US-02 wymaga co najmniej ostrzeżenia przed utratą zapisów) — Owner: user. Block: yes.
-- **Risk:** to jedyny plasterek z otwartą decyzją produktową na ścieżce krytycznej do gwiazdy przewodniej — rozstrzygnięcie pytania jest tańsze niż przeróbka gotowej edycji grafiku.
-- **Status:** blocked
+- **Unknowns:** — (rozstrzygnięte 2026-08-11)
+- **Risk:** decyzja produktowa zapadła: kolidująca zmiana grafiku jest odrzucana z komunikatem, zapisy nigdy nie giną. Połowa reguły (konie) jest już w bazie od F-01; druga połowa (zawężanie godzin) wymaga triggera na `schedule_days` i dziś przechodzi po cichu — to jest główne ryzyko tego plasterka, bo wygląda na działające, a nie jest.
+- **Status:** ready
 
 ### S-03: Katalog ośrodków
 
@@ -147,7 +146,7 @@ Zmigrowane do GitHub Issues 2026-08-07 (tracking: [#1](https://github.com/lukasz
 | ---------- | ------------------------- | --------------------------------------------------------- | --------------------- | ---------------------------------- |
 | F-01       | booking-data-schema       | Model danych rezerwacji + reguła braku dubla konia        | done                  | GH #2 — zaimplementowany, patrz `context/changes/booking-data-schema/` |
 | S-01       | role-aware-auth           | Rejestracja i logowanie z wyborem roli Ośrodek/Jeździec   | done                  | GH #3 — zaimplementowany, patrz `context/changes/role-aware-auth/` |
-| S-02       | daily-schedule-management | Grafik dnia: godziny pracy + konie pracujące              | no                    | GH #4 — zależności spełnione, blokuje otwarte pytanie #2 |
+| S-02       | daily-schedule-management | Grafik dnia: godziny pracy + konie pracujące              | yes                   | GH #4 — Run `/10x-plan daily-schedule-management` |
 | S-03       | stable-directory          | Katalog ośrodków z filtrowaniem                           | done                  | GH #5 — zaimplementowany, patrz `context/changes/stable-directory/` |
 | S-04       | slot-booking-flow         | Rezerwacja jazdy: wolne sloty godzina × koń               | no                    | GH #6 — S-03 gotowe, czeka wyłącznie na S-02 |
 | S-05       | daily-bookings-list       | Lista zapisów dnia dla ośrodka                            | no                    | GH #7 — czeka na S-02, S-04        |
@@ -155,7 +154,7 @@ Zmigrowane do GitHub Issues 2026-08-07 (tracking: [#1](https://github.com/lukasz
 
 ## Open Roadmap Questions
 
-1. **Konflikt grafiku z istniejącymi zapisami** — co dzieje się z zapisami, gdy ośrodek zmieni godziny/konie po fakcie? — Owner: user. Block: S-02 (a przez to S-04, S-05).
+1. ~~**Konflikt grafiku z istniejącymi zapisami**~~ — **ROZSTRZYGNIĘTE 2026-08-11**: kolidująca zmiana grafiku jest odrzucana z komunikatem, zapisy nie są kasowane. Konie pilnuje `on delete restrict` z F-01; zawężanie godzin wymaga triggera na `schedule_days` do dołożenia w S-02. Szczegóły w PRD, Open Questions #2.
 2. **Dzienny limit godzin pracy konia** — czy v2 wprowadza ograniczenie maks. N godzin/dzień na konia? — Owner: user. Block: żaden plasterek v1 (kandydat na v2; patrz Parked).
 
 ## Parked
