@@ -1,0 +1,69 @@
+---
+import { ArrowLeft, MapPin } from "lucide-react";
+import Layout from "@/layouts/Layout.astro";
+import Topbar from "@/components/Topbar.astro";
+import { ROLE_HOME } from "@/lib/auth/roles";
+import { getStableById, type StableListItem } from "@/lib/stables/queries";
+import { parseStableId } from "@/lib/stables/search";
+import { createClient } from "@/lib/supabase";
+
+// Trasa leży pod prefiksem /jezdziec, więc dziedziczy ochronę z mapy w @/lib/auth/roles -
+// konto ośrodka jest stąd przekierowywane do siebie. Wolne sloty i zapis na jazdę dołoży S-04.
+const id = parseStableId(Astro.params.id);
+
+const supabase = createClient(Astro.request.headers, Astro.cookies);
+
+let stable: StableListItem | null = null;
+let loadFailed = false;
+
+if (id !== null && supabase) {
+  try {
+    stable = await getStableById(supabase, id);
+  } catch {
+    loadFailed = true;
+  }
+}
+---
+
+<Layout title={stable ? stable.name : "Nie znaleziono ośrodka"}>
+  <div class="bg-cosmic min-h-screen p-4">
+    <div class="mx-auto max-w-3xl">
+      <Topbar />
+
+      <a
+        href={ROLE_HOME.rider}
+        class="mb-4 inline-flex items-center gap-1.5 text-sm text-purple-300 transition-colors hover:text-purple-100 hover:underline"
+      >
+        <ArrowLeft className="size-4" />
+        Wróć do listy ośrodków
+      </a>
+
+      {
+        loadFailed ? (
+          <div class="rounded-2xl border border-red-500/30 bg-red-900/20 p-8 text-center text-white">
+            <p class="text-red-200">Nie udało się wczytać ośrodka.</p>
+            <p class="mt-2 text-sm text-blue-100/50">Odśwież stronę za chwilę.</p>
+          </div>
+        ) : stable ? (
+          <div class="rounded-2xl border border-white/10 bg-white/10 p-8 text-white backdrop-blur-xl">
+            <h1 class="bg-gradient-to-r from-blue-200 to-purple-200 bg-clip-text text-3xl font-bold text-transparent">
+              {stable.name}
+            </h1>
+            <p class="mt-2 flex items-center gap-1.5 text-sm text-blue-100/70">
+              <MapPin className="size-4" />
+              {stable.city}
+            </p>
+            {stable.description && <p class="mt-4 text-blue-100/80">{stable.description}</p>}
+          </div>
+        ) : (
+          /* Niepoprawny identyfikator i brak wiersza to dla użytkownika ta sama sytuacja,
+             więc nie rozróżniamy ich w komunikacie. */
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-8 text-center text-white">
+            <p class="text-blue-100/80">Nie znaleziono takiego ośrodka.</p>
+            <p class="mt-2 text-sm text-blue-100/50">Być może został usunięty albo adres jest nieprawidłowy.</p>
+          </div>
+        )
+      }
+    </div>
+  </div>
+</Layout>

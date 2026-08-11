@@ -254,31 +254,31 @@ Brak. Slice nie dotyka schematu, polityk ani danych; wycofanie to cofnięcie com
 
 #### Automated
 
-- [x] 1.1 `npm test` przechodzi
-- [x] 1.2 `npm run lint` przechodzi
-- [x] 1.3 `npm run build` przechodzi
-- [x] 1.4 Katalog bez filtra zwraca oba ośrodki z seeda
-- [x] 1.5 Filtr `Debem` i filtr `Wieliczka` zwracają po jednym właściwym ośrodku
-- [x] 1.6 Filtr `%` nie zwraca wszystkiego
+- [x] 1.1 `npm test` przechodzi — d2576c6
+- [x] 1.2 `npm run lint` przechodzi — d2576c6
+- [x] 1.3 `npm run build` przechodzi — d2576c6
+- [x] 1.4 Katalog bez filtra zwraca oba ośrodki z seeda — d2576c6
+- [x] 1.5 Filtr `Debem` i filtr `Wieliczka` zwracają po jednym właściwym ośrodku — d2576c6
+- [x] 1.6 Filtr `%` nie zwraca wszystkiego — d2576c6
 
 #### Manual
 
-- [x] 1.7 Filtr działa bez JavaScriptu, fraza zostaje w adresie po odświeżeniu
-- [x] 1.8 Komunikat przy braku dopasowań różni się od komunikatu przy pustym systemie
-- [x] 1.9 Konto ośrodka na `/jezdziec` nadal jest przekierowywane do siebie
+- [x] 1.7 Filtr działa bez JavaScriptu, fraza zostaje w adresie po odświeżeniu — d2576c6
+- [x] 1.8 Komunikat przy braku dopasowań różni się od komunikatu przy pustym systemie — d2576c6
+- [x] 1.9 Konto ośrodka na `/jezdziec` nadal jest przekierowywane do siebie — d2576c6
 
 ### Phase 2: Strona ośrodka
 
 #### Automated
 
-- [ ] 2.1 `npm test` przechodzi
-- [ ] 2.2 `npm run lint` przechodzi
-- [ ] 2.3 `npm run build` przechodzi
-- [ ] 2.4 Strona istniejącego ośrodka zwraca 200 i zawiera jego nazwę
-- [ ] 2.5 `/jezdziec/osrodki/999999` i `/jezdziec/osrodki/abc` dają stan „nie znaleziono", nie błąd
-- [ ] 2.6 Konto ośrodka na stronie ośrodka jest przekierowywane do `/osrodek`
+- [x] 2.1 `npm test` przechodzi
+- [x] 2.2 `npm run lint` przechodzi
+- [x] 2.3 `npm run build` przechodzi
+- [x] 2.4 Strona istniejącego ośrodka zwraca 200 i zawiera jego nazwę
+- [x] 2.5 `/jezdziec/osrodki/999999` i `/jezdziec/osrodki/abc` dają stan „nie znaleziono", nie błąd
+- [x] 2.6 Konto ośrodka na stronie ośrodka jest przekierowywane do `/osrodek`
 
 #### Manual
 
-- [ ] 2.7 Kliknięcie karty prowadzi na właściwy ośrodek, powrót wraca do katalogu
-- [ ] 2.8 Karta daje się wybrać klawiaturą i ma widoczne zaznaczenie
+- [x] 2.7 Kliknięcie karty prowadzi na właściwy ośrodek, powrót wraca do katalogu
+- [x] 2.8 Karta daje się wybrać klawiaturą i ma widoczne zaznaczenie

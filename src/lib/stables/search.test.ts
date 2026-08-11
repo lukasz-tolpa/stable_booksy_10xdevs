@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAX_SEARCH_LENGTH, prepareSearchTerm } from "@/lib/stables/search";
+import { MAX_SEARCH_LENGTH, parseStableId, prepareSearchTerm } from "@/lib/stables/search";
 
 describe("prepareSearchTerm", () => {
   it("traktuje brak parametru jako brak filtra", () => {
@@ -47,5 +47,38 @@ describe("prepareSearchTerm", () => {
   it("obcina frazę dłuższą niż limit", () => {
     const long = "a".repeat(MAX_SEARCH_LENGTH + 50);
     expect(prepareSearchTerm(long)).toHaveLength(MAX_SEARCH_LENGTH);
+  });
+});
+
+describe("parseStableId", () => {
+  it("przepuszcza dodatnie liczby całkowite", () => {
+    expect(parseStableId("1")).toBe(1);
+    expect(parseStableId("42")).toBe(42);
+  });
+
+  it("odrzuca brak wartości", () => {
+    expect(parseStableId(undefined)).toBeNull();
+    expect(parseStableId(null)).toBeNull();
+    expect(parseStableId("")).toBeNull();
+  });
+
+  it("odrzuca wartości niebędące liczbą", () => {
+    expect(parseStableId("abc")).toBeNull();
+    expect(parseStableId("1abc")).toBeNull();
+    expect(parseStableId(" 1")).toBeNull();
+  });
+
+  it("odrzuca zero i wartości ujemne", () => {
+    expect(parseStableId("0")).toBeNull();
+    expect(parseStableId("-3")).toBeNull();
+  });
+
+  it("odrzuca wartości ułamkowe i wykładnicze", () => {
+    expect(parseStableId("1.5")).toBeNull();
+    expect(parseStableId("1e3")).toBeNull();
+  });
+
+  it("odrzuca ciąg cyfr poza bezpiecznym zakresem liczb", () => {
+    expect(parseStableId("9".repeat(30))).toBeNull();
   });
 });

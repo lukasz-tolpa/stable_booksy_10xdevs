@@ -31,3 +31,19 @@ export async function listStables(client: Client, term: string | null): Promise<
 
   return data;
 }
+
+/**
+ * Pojedynczy ośrodek albo `null`, gdy nie istnieje.
+ *
+ * Brak wiersza to normalny wynik, nie błąd — strona zamienia go na stan „nie znaleziono".
+ * Błąd zapytania nadal leci wyjątkiem i jest łapany po stronie widoku.
+ */
+export async function getStableById(client: Client, id: number): Promise<StableListItem | null> {
+  const { data, error } = await client.from("stables").select(LIST_COLUMNS).eq("id", id).maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}

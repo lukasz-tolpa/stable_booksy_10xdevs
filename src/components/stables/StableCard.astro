@@ -9,11 +9,18 @@ interface Props {
 const { stable } = Astro.props;
 ---
 
-<article class="rounded-xl border border-white/10 bg-white/5 p-5 text-white">
+{
+  /* Cała karta jest odnośnikiem - kliknięcie w dowolne jej miejsce prowadzi do ośrodka.
+    focus-visible daje widoczne zaznaczenie przy nawigacji klawiaturą. */
+}
+<a
+  href={`/jezdziec/osrodki/${stable.id}`}
+  class="block rounded-xl border border-white/10 bg-white/5 p-5 text-white transition-colors hover:border-white/25 hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:outline-none"
+>
   <h2 class="text-lg font-semibold">{stable.name}</h2>
   <p class="mt-1 flex items-center gap-1.5 text-sm text-blue-100/70">
     <MapPin className="size-3.5" />
     {stable.city}
   </p>
   {stable.description && <p class="mt-3 line-clamp-3 text-sm text-blue-100/60">{stable.description}</p>}
-</article>
+</a>

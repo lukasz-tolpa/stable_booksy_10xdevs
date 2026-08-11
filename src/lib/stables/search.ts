@@ -34,3 +34,21 @@ export function prepareSearchTerm(raw: string | null | undefined): string | null
   // podwoiłaby ukośniki dodane w krokach późniejszych.
   return withoutFilterSyntax.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
 }
+
+/**
+ * Segment trasy `/jezdziec/osrodki/[id]` zamieniony na identyfikator albo `null`.
+ *
+ * Klucze `stables` są typu `bigint`, więc do zapytania nie może trafić nic poza dodatnią
+ * liczbą całkowitą - inaczej `/jezdziec/osrodki/abc` kończy się błędem bazy zamiast
+ * czytelnym „nie znaleziono". Wyrażenie odrzuca zero, wartości ujemne, ułamkowe
+ * i zapisane wykładniczo, a `Number.isSafeInteger` odcina ciągi cyfr poza zakresem
+ * bezpiecznym dla liczb JavaScriptu.
+ */
+export function parseStableId(raw: string | undefined | null): number | null {
+  if (!raw || !/^[1-9]\d*$/.test(raw)) {
+    return null;
+  }
+
+  const parsed = Number(raw);
+  return Number.isSafeInteger(parsed) ? parsed : null;
+}
