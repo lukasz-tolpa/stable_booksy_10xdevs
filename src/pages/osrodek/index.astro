@@ -27,6 +27,21 @@ const { data: stable } = supabase
         <h1 class="mb-2 bg-gradient-to-r from-blue-200 to-purple-200 bg-clip-text text-3xl font-bold text-transparent">
           Panel ośrodka
         </h1>
+        <nav class="mb-6 flex flex-wrap gap-3">
+          <a
+            href="/osrodek/grafik"
+            class="rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm text-purple-200 transition-colors hover:bg-white/10"
+          >
+            Grafik dnia
+          </a>
+          <a
+            href="/osrodek/konie"
+            class="rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm text-purple-200 transition-colors hover:bg-white/10"
+          >
+            Konie
+          </a>
+        </nav>
+
         {
           stable ? (
             <p class="text-blue-100/80">

@@ -326,38 +326,38 @@ Wycofanie: `drop trigger` + `drop function` w nowej migracji. Reszta slice'a to 
 
 #### Automated
 
-- [x] 2.1 `npm test` przechodzi
-- [x] 2.2 `npm run lint` przechodzi
-- [x] 2.3 `npm run build` przechodzi
-- [x] 2.4 Dodanie konia tworzy wiersz w `horses` z `stable_id` zalogowanego ośrodka
-- [x] 2.5 Koń z pustym imieniem jest odrzucony i nie tworzy wiersza
-- [x] 2.6 Konto ośrodka nie widzi na liście koni innej stadniny
+- [x] 2.1 `npm test` przechodzi — b58ca82
+- [x] 2.2 `npm run lint` przechodzi — b58ca82
+- [x] 2.3 `npm run build` przechodzi — b58ca82
+- [x] 2.4 Dodanie konia tworzy wiersz w `horses` z `stable_id` zalogowanego ośrodka — b58ca82
+- [x] 2.5 Koń z pustym imieniem jest odrzucony i nie tworzy wiersza — b58ca82
+- [x] 2.6 Konto ośrodka nie widzi na liście koni innej stadniny — b58ca82
 
 #### Manual
 
-- [x] 2.7 Wycofany koń jest odróżniony na liście i da się go przywrócić
-- [x] 2.8 Pusta lista tłumaczy, po co dodać konia
-- [x] 2.9 Dodanie konia działa przy wyłączonym JavaScripcie
+- [x] 2.7 Wycofany koń jest odróżniony na liście i da się go przywrócić — b58ca82
+- [x] 2.8 Pusta lista tłumaczy, po co dodać konia — b58ca82
+- [x] 2.9 Dodanie konia działa przy wyłączonym JavaScripcie — b58ca82
 
 ### Phase 3: Grafik dnia
 
 #### Automated
 
-- [ ] 3.1 `npm test` przechodzi
-- [ ] 3.2 `npm run lint` przechodzi
-- [ ] 3.3 `npm run build` przechodzi
-- [ ] 3.4 Zapis nowego dnia tworzy wiersz w `schedule_days` i wiersze w `schedule_day_horses`
-- [ ] 3.5 Ponowny zapis podmienia przypisania koni, nie duplikuje ich
-- [ ] 3.6 Zawężenie godzin pod istniejącym zapisem kończy się komunikatem, dane bez zmian
-- [ ] 3.7 Odpięcie konia z zapisem daje komunikat inny niż konflikt godzin
-- [ ] 3.8 Data przeszła jest odrzucana przez endpoint
-- [ ] 3.9 `supabase/tests/schedule_change_guardrails.sql` nadal przechodzi
+- [x] 3.1 `npm test` przechodzi
+- [x] 3.2 `npm run lint` przechodzi
+- [x] 3.3 `npm run build` przechodzi
+- [x] 3.4 Zapis nowego dnia tworzy wiersz w `schedule_days` i wiersze w `schedule_day_horses`
+- [x] 3.5 Ponowny zapis podmienia przypisania koni, nie duplikuje ich
+- [x] 3.6 Zawężenie godzin pod istniejącym zapisem kończy się komunikatem, dane bez zmian
+- [x] 3.7 Odpięcie konia z zapisem daje komunikat inny niż konflikt godzin
+- [x] 3.8 Data przeszła jest odrzucana przez endpoint
+- [x] 3.9 `supabase/tests/schedule_change_guardrails.sql` nadal przechodzi
 
 #### Manual
 
-- [ ] 3.10 Ułożenie dnia od zera działa end-to-end
-- [ ] 3.11 Nowy dzień ma podpowiedziane godziny i konie z ostatniego dnia
-- [ ] 3.12 Rozszerzenie godzin przy istniejących zapisach przechodzi
-- [ ] 3.13 Dzień przeszły jest tylko do odczytu
-- [ ] 3.14 Ośrodek bez koni widzi odnośnik do dodania konia
-- [ ] 3.15 Formularz działa przy wyłączonym JavaScripcie
+- [x] 3.10 Ułożenie dnia od zera działa end-to-end
+- [x] 3.11 Nowy dzień ma podpowiedziane godziny i konie z ostatniego dnia
+- [x] 3.12 Rozszerzenie godzin przy istniejących zapisach przechodzi
+- [x] 3.13 Dzień przeszły jest tylko do odczytu
+- [x] 3.14 Ośrodek bez koni widzi odnośnik do dodania konia
+- [x] 3.15 Formularz działa przy wyłączonym JavaScripcie

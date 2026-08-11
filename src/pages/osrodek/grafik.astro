@@ -1,0 +1,159 @@
+---
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import Layout from "@/layouts/Layout.astro";
+import Topbar from "@/components/Topbar.astro";
+import ScheduleDayForm from "@/components/schedule/ScheduleDayForm";
+import { addDays, defaultScheduleDate, isPastDate, parseScheduleDate } from "@/lib/schedule/dates";
+import { getLatestScheduleDay, getScheduleDay, type ScheduleDayData } from "@/lib/schedule/queries";
+import { getOwnedStableId, listStableHorses, type HorseListItem } from "@/lib/stables/queries";
+import { createClient } from "@/lib/supabase";
+
+// Dostęp pilnuje middleware (mapa tras w @/lib/auth/roles). Konto ośrodka ma
+// gwarantowaną stadninę dzięki wymuszeniu z S-01.
+const { profile } = Astro.locals;
+const error = Astro.url.searchParams.get("error");
+
+const day = parseScheduleDate(Astro.url.searchParams.get("dzien")) ?? defaultScheduleDate();
+const readOnly = isPastDate(day);
+
+const supabase = createClient(Astro.request.headers, Astro.cookies);
+
+let scheduleDay: ScheduleDayData | null = null;
+let latestDay: ScheduleDayData | null = null;
+let horses: HorseListItem[] = [];
+let loadFailed = false;
+
+if (supabase && profile) {
+  try {
+    const stableId = await getOwnedStableId(supabase, profile.id);
+    if (stableId !== null) {
+      [scheduleDay, latestDay, horses] = await Promise.all([
+        getScheduleDay(supabase, stableId, day),
+        getLatestScheduleDay(supabase, stableId),
+        listStableHorses(supabase, stableId),
+      ]);
+    }
+  } catch {
+    loadFailed = true;
+  }
+}
+
+// Nowy dzień dostaje podpowiedź z ostatnio ułożonego dnia - ośrodki pracują w rytmie,
+// więc przepisywanie tego samego zakresu to najczęstsza czynność na tym ekranie.
+const hint = scheduleDay ?? latestDay;
+const openHour = hint?.openHour ?? "";
+const closeHour = hint?.closeHour ?? "";
+const selectedHorseIds = hint?.horseIds ?? [];
+
+// Wycofane konie pokazujemy tylko wtedy, gdy są już przypisane do tego dnia.
+const selectableHorses = horses.filter((horse) => horse.active || selectedHorseIds.includes(horse.id));
+
+const dayLabel = new Date(`${day}T00:00:00`).toLocaleDateString("pl-PL", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+---
+
+<Layout title={`Grafik ${day}`}>
+  <div class="bg-cosmic min-h-screen p-4">
+    <div class="mx-auto max-w-2xl">
+      <Topbar />
+
+      <h1 class="mb-1 bg-gradient-to-r from-blue-200 to-purple-200 bg-clip-text text-3xl font-bold text-transparent">
+        Grafik dnia
+      </h1>
+      <p class="mb-6 text-sm text-blue-100/70">
+        Zakres godzin i konie pracujące danego dnia. Zakres 10–16 oznacza jazdy od 10:00 do 15:00.
+      </p>
+
+      <nav class="mb-6 flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+        <a
+          href={`/osrodek/grafik?dzien=${addDays(day, -1)}`}
+          class="flex items-center gap-1 text-sm text-purple-300 transition-colors hover:text-purple-100"
+        >
+          <ChevronLeft className="size-4" />
+          Poprzedni
+        </a>
+        <span class="text-sm font-medium text-white">{dayLabel}</span>
+        <a
+          href={`/osrodek/grafik?dzien=${addDays(day, 1)}`}
+          class="flex items-center gap-1 text-sm text-purple-300 transition-colors hover:text-purple-100"
+        >
+          Następny
+          <ChevronRight className="size-4" />
+        </a>
+      </nav>
+
+      <div class="rounded-2xl border border-white/10 bg-white/10 p-6 text-white backdrop-blur-xl">
+        {
+          loadFailed ? (
+            <div class="text-center">
+              <p class="text-red-200">Nie udało się wczytać grafiku.</p>
+              <p class="mt-2 text-sm text-blue-100/50">Odśwież stronę za chwilę.</p>
+            </div>
+          ) : readOnly ? (
+            <div>
+              <p class="mb-4 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-blue-100/60">
+                Dzień miniony — tylko do odczytu.
+              </p>
+              {scheduleDay ? (
+                <>
+                  <p class="text-blue-100/80">
+                    Godziny pracy:{" "}
+                    <span class="font-semibold text-white">
+                      {scheduleDay.openHour}–{scheduleDay.closeHour}
+                    </span>
+                  </p>
+                  <p class="mt-2 text-blue-100/80">
+                    Konie:{" "}
+                    <span class="font-semibold text-white">
+                      {horses
+                        .filter((horse) => scheduleDay.horseIds.includes(horse.id))
+                        .map((horse) => horse.name)
+                        .join(", ") || "brak"}
+                    </span>
+                  </p>
+                </>
+              ) : (
+                <p class="text-blue-100/60">Tego dnia nie było ułożonego grafiku.</p>
+              )}
+            </div>
+          ) : horses.length === 0 ? (
+            <div class="text-center">
+              <p class="text-blue-100/80">Nie masz jeszcze żadnych koni.</p>
+              <p class="mt-2 text-sm text-blue-100/50">
+                Grafik przydziela konie do godzin, więc bez stada nie ma czego układać.
+              </p>
+              <a
+                href="/osrodek/konie"
+                class="mt-4 inline-block text-sm text-purple-300 transition-colors hover:text-purple-100 hover:underline"
+              >
+                Dodaj pierwszego konia
+              </a>
+            </div>
+          ) : (
+            <ScheduleDayForm
+              day={day}
+              openHour={openHour}
+              closeHour={closeHour}
+              selectedHorseIds={selectedHorseIds}
+              horses={selectableHorses}
+              serverError={error}
+              client:load
+            />
+          )
+        }
+      </div>
+
+      {
+        !scheduleDay && latestDay && !readOnly && (
+          <p class="mt-3 text-center text-xs text-blue-100/50">
+            Pola wypełniono wartościami z ostatnio ułożonego dnia ({latestDay.day}).
+          </p>
+        )
+      }
+    </div>
+  </div>
+</Layout>
