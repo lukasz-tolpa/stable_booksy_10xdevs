@@ -343,21 +343,21 @@ Wycofanie: `drop trigger` + `drop function` w nowej migracji. Reszta slice'a to 
 
 #### Automated
 
-- [x] 3.1 `npm test` przechodzi
-- [x] 3.2 `npm run lint` przechodzi
-- [x] 3.3 `npm run build` przechodzi
-- [x] 3.4 Zapis nowego dnia tworzy wiersz w `schedule_days` i wiersze w `schedule_day_horses`
-- [x] 3.5 Ponowny zapis podmienia przypisania koni, nie duplikuje ich
-- [x] 3.6 Zawężenie godzin pod istniejącym zapisem kończy się komunikatem, dane bez zmian
-- [x] 3.7 Odpięcie konia z zapisem daje komunikat inny niż konflikt godzin
-- [x] 3.8 Data przeszła jest odrzucana przez endpoint
-- [x] 3.9 `supabase/tests/schedule_change_guardrails.sql` nadal przechodzi
+- [x] 3.1 `npm test` przechodzi — bbcbb90
+- [x] 3.2 `npm run lint` przechodzi — bbcbb90
+- [x] 3.3 `npm run build` przechodzi — bbcbb90
+- [x] 3.4 Zapis nowego dnia tworzy wiersz w `schedule_days` i wiersze w `schedule_day_horses` — bbcbb90
+- [x] 3.5 Ponowny zapis podmienia przypisania koni, nie duplikuje ich — bbcbb90
+- [x] 3.6 Zawężenie godzin pod istniejącym zapisem kończy się komunikatem, dane bez zmian — bbcbb90
+- [x] 3.7 Odpięcie konia z zapisem daje komunikat inny niż konflikt godzin — bbcbb90
+- [x] 3.8 Data przeszła jest odrzucana przez endpoint — bbcbb90
+- [x] 3.9 `supabase/tests/schedule_change_guardrails.sql` nadal przechodzi — bbcbb90
 
 #### Manual
 
-- [x] 3.10 Ułożenie dnia od zera działa end-to-end
-- [x] 3.11 Nowy dzień ma podpowiedziane godziny i konie z ostatniego dnia
-- [x] 3.12 Rozszerzenie godzin przy istniejących zapisach przechodzi
-- [x] 3.13 Dzień przeszły jest tylko do odczytu
-- [x] 3.14 Ośrodek bez koni widzi odnośnik do dodania konia
-- [x] 3.15 Formularz działa przy wyłączonym JavaScripcie
+- [x] 3.10 Ułożenie dnia od zera działa end-to-end — bbcbb90
+- [x] 3.11 Nowy dzień ma podpowiedziane godziny i konie z ostatniego dnia — bbcbb90
+- [x] 3.12 Rozszerzenie godzin przy istniejących zapisach przechodzi — bbcbb90
+- [x] 3.13 Dzień przeszły jest tylko do odczytu — bbcbb90
+- [x] 3.14 Ośrodek bez koni widzi odnośnik do dodania konia — bbcbb90
+- [x] 3.15 Formularz działa przy wyłączonym JavaScripcie — bbcbb90
