@@ -32,7 +32,7 @@ Stadniny prowadzą zapisy na jazdy i przydział koni ręcznie — w zeszycie lub
 | F-01 | booking-data-schema       | (foundation) model danych rezerwacji z twardą regułą braku dubla konia  | —                | §Business Logic, §NFR, §Guardrails | done     |
 | S-01 | role-aware-auth           | użytkownik zakłada konto jako Ośrodek albo Jeździec i loguje się        | F-01             | FR-001, FR-002                 | done     |
 | S-02 | daily-schedule-management | ośrodek ustawia zakres godzin i konie pracujące danego dnia             | F-01, S-01       | US-02, FR-003, FR-004          | blocked  |
-| S-03 | stable-directory          | jeździec przegląda i filtruje listę ośrodków                            | S-01             | FR-006                         | ready    |
+| S-03 | stable-directory          | jeździec przegląda i filtruje listę ośrodków                            | S-01             | FR-006                         | done     |
 | S-04 | slot-booking-flow         | jeździec widzi wolne sloty (godzina × koń) i rezerwuje jazdę            | F-01, S-02, S-03 | US-01, FR-007, FR-008          | proposed |
 | S-05 | daily-bookings-list       | ośrodek widzi listę zapisów (godzina–koń–jeździec) na dany dzień        | S-02, S-04       | FR-005                         | proposed |
 | S-06 | booking-cancellation      | jeździec odwołuje swój zapis, zwalniając slot konia                     | S-04             | FR-009                         | proposed |
@@ -101,7 +101,7 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Blockers:** —
 - **Unknowns:** —
 - **Risk:** prosty plasterek, celowo równoległy do S-02 (żadna z gałęzi nie zależy od drugiej); ryzykiem jest przeinwestowanie w filtrowanie — przy celu „szybkie dowiezienie" wystarczy filtr prosty, zgodny z literą FR-006.
-- **Status:** ready
+- **Status:** done
 
 ### S-04: Rezerwacja jazdy
 
@@ -148,8 +148,8 @@ Zmigrowane do GitHub Issues 2026-08-07 (tracking: [#1](https://github.com/lukasz
 | F-01       | booking-data-schema       | Model danych rezerwacji + reguła braku dubla konia        | done                  | GH #2 — zaimplementowany, patrz `context/changes/booking-data-schema/` |
 | S-01       | role-aware-auth           | Rejestracja i logowanie z wyborem roli Ośrodek/Jeździec   | done                  | GH #3 — zaimplementowany, patrz `context/changes/role-aware-auth/` |
 | S-02       | daily-schedule-management | Grafik dnia: godziny pracy + konie pracujące              | no                    | GH #4 — zależności spełnione, blokuje otwarte pytanie #2 |
-| S-03       | stable-directory          | Katalog ośrodków z filtrowaniem                           | yes                   | GH #5 — Run `/10x-plan stable-directory` |
-| S-04       | slot-booking-flow         | Rezerwacja jazdy: wolne sloty godzina × koń               | no                    | GH #6 — czeka na S-02, S-03        |
+| S-03       | stable-directory          | Katalog ośrodków z filtrowaniem                           | done                  | GH #5 — zaimplementowany, patrz `context/changes/stable-directory/` |
+| S-04       | slot-booking-flow         | Rezerwacja jazdy: wolne sloty godzina × koń               | no                    | GH #6 — S-03 gotowe, czeka wyłącznie na S-02 |
 | S-05       | daily-bookings-list       | Lista zapisów dnia dla ośrodka                            | no                    | GH #7 — czeka na S-02, S-04        |
 | S-06       | booking-cancellation      | Odwołanie zapisu przez jeźdźca                            | no                    | GH #8 — czeka na S-04              |
 
