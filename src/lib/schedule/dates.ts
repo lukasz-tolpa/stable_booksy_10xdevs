@@ -2,20 +2,32 @@
  * Daty grafiku jako czyste ciągi `RRRR-MM-DD`.
  *
  * Dzień grafiku jest datą kalendarzową, nie punktem w czasie — dlatego arytmetyka idzie
- * przez UTC (przesunięcie o dobę nigdy nie zgubi ani nie doda godziny przy zmianie czasu),
- * ale porównanie z „dziś" liczone jest w strefie LOKALNEJ. Gdyby liczyć je w UTC, po 22:00
- * czasu polskiego dzisiejsza data wypadałaby jako wczorajsza i ośrodek nie ułożyłby
- * grafiku na dziś.
+ * przez UTC (przesunięcie o dobę nigdy nie zgubi ani nie doda godziny przy zmianie czasu).
+ *
+ * „Dziś" liczymy jawnie w strefie `Europe/Warsaw`, a NIE w strefie środowiska
+ * uruchomieniowego. Poleganie na strefie lokalnej działa na maszynie w Polsce, ale
+ * aplikacja stoi na Cloudflare Workers, gdzie środowisko ma UTC — granica doby
+ * przesunęłaby się wtedy o dwie godziny względem tego, co widzi ośrodek, i przez
+ * pierwsze godziny po północy „dziś" oznaczałoby wczoraj.
  */
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-/** Data w formacie `RRRR-MM-DD` odczytana w strefie lokalnej. */
-export function formatIsoDate(date: Date): string {
-  const year = String(date.getFullYear()).padStart(4, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+/** Strefa, w której ośrodek myśli o dobie. Jedyne miejsce, gdzie to założenie żyje. */
+export const SCHEDULE_TIME_ZONE = "Europe/Warsaw";
+
+/**
+ * Data w formacie `RRRR-MM-DD` odczytana w podanej strefie.
+ *
+ * `en-CA` daje dokładnie układ `RRRR-MM-DD`, więc nie trzeba sklejać części ręcznie.
+ */
+export function formatIsoDate(date: Date, timeZone: string = SCHEDULE_TIME_ZONE): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
 }
 
 export function todayIso(now: Date = new Date()): string {

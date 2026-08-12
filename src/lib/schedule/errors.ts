@@ -12,6 +12,26 @@ export const SCHEDULE_HOURS_CONFLICT = "SB002";
 /** Odpięcie konia mającego zapis w tym dniu (ON DELETE RESTRICT z F-01). */
 export const FOREIGN_KEY_VIOLATION = "23503";
 
+/**
+ * Kody walidacji wykonywanej PRZED zapisem. Baza wyłapałaby oba przypadki, ale dopiero
+ * w połowie wielokrokowej operacji — a wtedy wcześniejsze kroki są już wykonane.
+ * `23503` w dodatku oznacza obie sytuacje naraz, więc bez tego rozróżnienia ośrodek
+ * dostawał komunikat o zapisach także wtedy, gdy problemem był cudzy koń.
+ */
+export const HORSE_NOT_IN_STABLE = "APP001";
+export const HORSE_HAS_BOOKINGS = "APP002";
+
+/** Błąd walidacji przed zapisem; niesie `code` czytany tak samo jak kod Postgresa. */
+export class ScheduleSaveError extends Error {
+  readonly code: string;
+
+  constructor(code: string) {
+    super(code);
+    this.name = "ScheduleSaveError";
+    this.code = code;
+  }
+}
+
 const FALLBACK = "Nie udało się zapisać grafiku. Spróbuj ponownie.";
 
 /**
@@ -64,6 +84,9 @@ export function scheduleErrorMessage(code: string | undefined, dbMessage?: strin
       return `Nie można zawęzić godzin pracy — poza nowym zakresem znalazłoby się${howMany}. Najpierw doprowadź do ${theirCancellation}.`;
     case SCHEDULE_DATE_CONFLICT:
       return `Nie można zmienić daty dnia, który ma${howMany || " aktywne zapisy"}.`;
+    case HORSE_NOT_IN_STABLE:
+      return "Wybrany koń nie należy do Twojej stadniny.";
+    case HORSE_HAS_BOOKINGS:
     case FOREIGN_KEY_VIOLATION:
       return "Nie można wypisać konia, który ma zapisy w tym dniu. Najpierw doprowadź do ich odwołania.";
     default:

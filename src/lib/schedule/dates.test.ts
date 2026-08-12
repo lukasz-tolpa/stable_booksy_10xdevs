@@ -89,15 +89,28 @@ describe("parseScheduleDate", () => {
 });
 
 describe("formatIsoDate", () => {
-  it("formatuje datę w strefie lokalnej", () => {
-    // Konstruktor z komponentami lokalnymi - wynik nie zalezy od strefy testu.
-    expect(formatIsoDate(new Date(2026, 7, 11))).toBe("2026-08-11");
-    expect(formatIsoDate(new Date(2026, 0, 5))).toBe("2026-01-05");
+  it("formatuje datę w strefie polskiej niezależnie od strefy środowiska", () => {
+    // Momenty podane jawnie w UTC - wynik nie zalezy od tego, gdzie biegnie test
+    // ani gdzie stoi serwer. To jest sedno poprawki: Cloudflare Workers ma UTC.
+    expect(formatIsoDate(new Date("2026-08-11T10:00:00Z"))).toBe("2026-08-11");
+    expect(formatIsoDate(new Date("2026-01-05T12:00:00Z"))).toBe("2026-01-05");
   });
 
-  it("nie przesuwa daty tuż przed północą", () => {
-    // O 23:30 czasu lokalnego data w UTC bywa juz nastepna - to wlasnie ten przypadek
-    // sprawia, ze porownania z "dzis" musza isc przez strefe lokalna.
-    expect(formatIsoDate(new Date(2026, 7, 11, 23, 30))).toBe("2026-08-11");
+  it("po polnocy czasu polskiego pokazuje juz nowy dzien, choc w UTC trwa poprzedni", () => {
+    // 00:30 czasu polskiego (lato, UTC+2) to 22:30 UTC dnia poprzedniego.
+    // Bez wymuszenia strefy osrodek nie moglby ulozyc grafiku na "dzis".
+    expect(formatIsoDate(new Date("2026-08-11T22:30:00Z"))).toBe("2026-08-12");
+  });
+
+  it("przed polnoca czasu polskiego trzyma sie biezacego dnia", () => {
+    // 23:30 czasu polskiego to 21:30 UTC tego samego dnia.
+    expect(formatIsoDate(new Date("2026-08-11T21:30:00Z"))).toBe("2026-08-11");
+  });
+
+  it("uwzglednia zmiane czasu - zima UTC+1, latem UTC+2", () => {
+    // 00:30 czasu zimowego to 23:30 UTC dnia poprzedniego.
+    expect(formatIsoDate(new Date("2026-01-14T23:30:00Z"))).toBe("2026-01-15");
+    // Ta sama godzina UTC latem wypada juz po 01:00 czasu polskiego.
+    expect(formatIsoDate(new Date("2026-07-14T23:30:00Z"))).toBe("2026-07-15");
   });
 });

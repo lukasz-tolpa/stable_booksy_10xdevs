@@ -87,7 +87,10 @@ begin
     select sd.id, h.id, 13, '44444444-4444-4444-4444-444444444444'
     from public.schedule_days sd
     join public.stables s on s.id = sd.stable_id and s.name = 'Stadnina Pod Debem'
-    join public.horses h on h.stable_id = s.id and h.name = 'Bella';
+    join public.horses h on h.stable_id = s.id and h.name = 'Bella'
+    -- Filtr po dacie jest konieczny: od S-02 stadnina moze miec wiele ulozonych dni,
+    -- a bez niego zapytanie wstawia po jednym zapisie na kazdy z nich.
+    where sd.day = current_date + 1;
     raise exception 'FAIL: jezdziec zapisal na jazde kogos innego';
   exception when insufficient_privilege then
     raise notice 'PASS: zapis w cudzym imieniu odrzucony przez RLS';
@@ -97,7 +100,8 @@ begin
   select sd.id, h.id, 13, '33333333-3333-3333-3333-333333333333'
   from public.schedule_days sd
   join public.stables s on s.id = sd.stable_id and s.name = 'Stadnina Pod Debem'
-  join public.horses h on h.stable_id = s.id and h.name = 'Bella';
+  join public.horses h on h.stable_id = s.id and h.name = 'Bella'
+  where sd.day = current_date + 1;
   get diagnostics v = row_count;
   if v <> 1 then
     raise exception 'FAIL: jezdziec nie mogl zapisac sie na wolny slot';
