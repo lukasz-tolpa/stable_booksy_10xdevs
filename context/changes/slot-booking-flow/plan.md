@@ -243,20 +243,20 @@ Migracja czysto addytywna (jedna funkcja) — zero zmian w istniejących tabelac
 
 #### Automated
 
-- [x] 1.1 Migracja przechodzi od zera (`npx supabase db reset` + seed)
-- [x] 1.2 Typy zregenerowane z funkcją `get_taken_slots`, `npm run lint` zielony
-- [x] 1.3 `rls_isolation.sql` — wszystkie asercje PASS, w tym nowe dla RPC
+- [x] 1.1 Migracja przechodzi od zera (`npx supabase db reset` + seed) — b69a30d
+- [x] 1.2 Typy zregenerowane z funkcją `get_taken_slots`, `npm run lint` zielony — b69a30d
+- [x] 1.3 `rls_isolation.sql` — wszystkie asercje PASS, w tym nowe dla RPC — b69a30d
 
 #### Manual
 
-- [x] 1.4 Przegląd migracji: `security definer` + `search_path=''` + revoke/grant komplet
+- [x] 1.4 Przegląd migracji: `security definer` + `search_path=''` + revoke/grant komplet — b69a30d
 
 ### Phase 2: Czysta logika rezerwacji
 
 #### Automated
 
-- [ ] 2.1 `npm test` — nowe testy `slots`/`schema`/`errors` przechodzą
-- [ ] 2.2 `npm run lint` zielony
+- [x] 2.1 `npm test` — nowe testy `slots`/`schema`/`errors` przechodzą
+- [x] 2.2 `npm run lint` zielony
 
 ### Phase 3: Strona ośrodka i endpoint zapisu
 
