@@ -169,5 +169,6 @@ Zmigrowane do GitHub Issues 2026-08-07 (tracking: [#1](https://github.com/lukasz
 
 (Empty on first generation — `/10x-archive` appends entries here and flips item Status to `done` when a matching change is archived.)
 
+- **F-01: (foundation) model danych domeny — ośrodki, konie, grafik dnia (zakres godzin + konie pracujące), zapisy — osadzony w bazie, wraz z twardą regułą integralności: jeden koń w jednym slocie ma najwyżej jeden zapis, egzekwowaną przez bazę niezależnie od współbieżności, oraz izolacją danych: konto ośrodka modyfikuje wyłącznie dane własnej stadniny.** — Archived 2026-08-19 → `context/archive/2026-08-10-booking-data-schema/`. Lesson: —.
 - **S-02: ośrodek może ustawić zakres godzin pracy na dany dzień i wskazać konie pracujące tego dnia; z tego generują się dostępne sloty dla jeźdźców.** — Archived 2026-08-19 → `context/archive/2026-08-11-daily-schedule-management/`. Lesson: —.
 - **S-04: jeździec widzi wyłącznie wolne sloty (godzina × koń) zgodne z regułą alokacji i może zapisać się na jazdę; zapis pojawia się po stronie ośrodka, a próba zapisu na zajęty slot jest odrzucana z czytelnym komunikatem.** — Archived 2026-08-19 → `context/archive/2026-08-19-slot-booking-flow/`. Lesson: —.
