@@ -136,4 +136,94 @@ end $$;
 
 rollback;
 
+\echo '=== Zajetosc slotow (S-04): funkcja get_taken_slots ==='
+
+begin;
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"33333333-3333-3333-3333-333333333333","role":"authenticated"}';
+
+do $$
+declare
+  v int;
+begin
+  -- Funkcja security definer pokazuje zajetosc slotow cudzej stadniny
+  -- (zapis Piotra: Grom o 10 w Stajni Nad Rzeka), ale wylacznie pary
+  -- (kon, godzina) - zadnej tozsamosci jezdzca.
+  select count(*) into v
+  from public.get_taken_slots(
+    (select id from public.stables where name = 'Stajnia Nad Rzeka'),
+    current_date + 1
+  );
+  if v <> 1 then
+    raise exception 'FAIL: jezdziec widzi % zajetych slotow Stajni Nad Rzeka zamiast 1', v;
+  end if;
+  raise notice 'PASS: funkcja pokazuje zajetosc cudzej stadniny (1 slot)';
+
+  -- ...podczas gdy bezposredni odczyt bookings tej samej stadniny nadal daje
+  -- 0 wierszy - polityka SELECT z F-01 pozostaje nienaruszona.
+  select count(*) into v
+  from public.bookings b
+  join public.schedule_days sd on sd.id = b.schedule_day_id
+  join public.stables s on s.id = sd.stable_id
+  where s.name = 'Stajnia Nad Rzeka';
+  if v <> 0 then
+    raise exception 'FAIL: jezdziec widzi % cudzych wierszy bookings bezposrednio', v;
+  end if;
+  raise notice 'PASS: bezposredni odczyt cudzych bookings nadal pusty';
+
+  -- Odwolany zapis znika z zajetosci: funkcja filtruje status='active'.
+  -- Anna odwoluje wlasny zapis (Bella o 11 w Pod Debem) w tej transakcji;
+  -- rollback na koncu bloku przywraca stan seeda.
+  select count(*) into v
+  from public.get_taken_slots(
+    (select id from public.stables where name = 'Stadnina Pod Debem'),
+    current_date + 1
+  );
+  if v <> 1 then
+    raise exception 'FAIL: przed odwolaniem funkcja widzi % slotow Pod Debem zamiast 1', v;
+  end if;
+
+  update public.bookings
+     set status = 'cancelled', cancelled_at = now()
+   where rider_id = '33333333-3333-3333-3333-333333333333';
+  get diagnostics v = row_count;
+  if v <> 1 then
+    raise exception 'FAIL: Anna nie mogla odwolac wlasnego zapisu (row_count=%)', v;
+  end if;
+
+  select count(*) into v
+  from public.get_taken_slots(
+    (select id from public.stables where name = 'Stadnina Pod Debem'),
+    current_date + 1
+  );
+  if v <> 0 then
+    raise exception 'FAIL: odwolany zapis nadal widoczny w zajetosci (% wierszy)', v;
+  end if;
+  raise notice 'PASS: odwolany zapis znika z zajetosci (filtr status=active)';
+
+  -- Nieistniejacy osrodek: pusty zbior, nie blad.
+  select count(*) into v from public.get_taken_slots(999999, current_date + 1);
+  if v <> 0 then
+    raise exception 'FAIL: nieistniejacy osrodek zwraca % wierszy', v;
+  end if;
+  raise notice 'PASS: nieistniejacy osrodek daje pusty zbior';
+end $$;
+
+rollback;
+
+begin;
+set local role anon;
+
+do $$
+begin
+  begin
+    perform * from public.get_taken_slots(1, current_date + 1);
+    raise exception 'FAIL: anon wywolal get_taken_slots';
+  exception when insufficient_privilege then
+    raise notice 'PASS: anon nie moze wywolac get_taken_slots';
+  end;
+end $$;
+
+rollback;
+
 \echo '--- WSZYSTKIE ASERCJE IZOLACJI PRZESZLY ---'
