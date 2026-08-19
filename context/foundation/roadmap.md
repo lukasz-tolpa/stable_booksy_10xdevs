@@ -169,4 +169,5 @@ Zmigrowane do GitHub Issues 2026-08-07 (tracking: [#1](https://github.com/lukasz
 
 (Empty on first generation — `/10x-archive` appends entries here and flips item Status to `done` when a matching change is archived.)
 
+- **S-02: ośrodek może ustawić zakres godzin pracy na dany dzień i wskazać konie pracujące tego dnia; z tego generują się dostępne sloty dla jeźdźców.** — Archived 2026-08-19 → `context/archive/2026-08-11-daily-schedule-management/`. Lesson: —.
 - **S-04: jeździec widzi wyłącznie wolne sloty (godzina × koń) zgodne z regułą alokacji i może zapisać się na jazdę; zapis pojawia się po stronie ośrodka, a próba zapisu na zajęty slot jest odrzucana z czytelnym komunikatem.** — Archived 2026-08-19 → `context/archive/2026-08-19-slot-booking-flow/`. Lesson: —.
