@@ -262,15 +262,15 @@ Migracja czysto addytywna (jedna funkcja) — zero zmian w istniejących tabelac
 
 #### Automated
 
-- [x] 3.1 `npm test`, `npm run lint`, `npm run build` zielone
-- [x] 3.2 `concurrent_double_booking.sh` — dokładnie jeden sukces na 5 prób
-- [x] 3.3 `rls_isolation.sql` — wszystkie asercje PASS
+- [x] 3.1 `npm test`, `npm run lint`, `npm run build` zielone — 8079f71
+- [x] 3.2 `concurrent_double_booking.sh` — dokładnie jeden sukces na 5 prób — 8079f71
+- [x] 3.3 `rls_isolation.sql` — wszystkie asercje PASS — 8079f71
 
 #### Manual
 
-- [x] 3.4 Pełna pętla rezerwacji Anny na seedzie (sloty, „Twój zapis", zapis na Kasztana 12:00)
-- [x] 3.5 Odmowa zajętości dla Piotra na tym samym slocie z odświeżoną listą
-- [x] 3.6 Stany puste i nawigacja datami bez JavaScriptu
-- [x] 3.7 Filtr minionych godzin dnia dzisiejszego
-- [x] 3.8 Redirect konta ośrodka poza `/jezdziec` (sanity middleware)
-- [x] 3.9 Czytelność mobilna (~390px)
+- [x] 3.4 Pełna pętla rezerwacji Anny na seedzie (sloty, „Twój zapis", zapis na Kasztana 12:00) — 8079f71
+- [x] 3.5 Odmowa zajętości dla Piotra na tym samym slocie z odświeżoną listą — 8079f71
+- [x] 3.6 Stany puste i nawigacja datami bez JavaScriptu — 8079f71
+- [x] 3.7 Filtr minionych godzin dnia dzisiejszego — 8079f71
+- [x] 3.8 Redirect konta ośrodka poza `/jezdziec` (sanity middleware) — 8079f71
+- [x] 3.9 Czytelność mobilna (~390px) — 8079f71

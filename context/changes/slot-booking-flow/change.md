@@ -1,7 +1,7 @@
 ---
 change_id: slot-booking-flow
 title: Slot booking flow
-status: impl_reviewed
+status: implemented
 created: 2026-08-19
 updated: 2026-08-19
 archived_at: null
