@@ -20,14 +20,18 @@ export async function getTakenSlots(client: Client, stableId: number, day: strin
 }
 
 /**
- * Własne aktywne zapisy w danym dniu grafiku. Jawny filtr po statusie i dniu;
- * do własnych wierszy przycina RLS (`rider_id = auth.uid()`).
+ * Własne aktywne zapisy jeźdźca w danym dniu grafiku.
+ *
+ * Filtr po `rider_id` jest jawny, a nie zostawiony RLS: polityka SELECT na
+ * `bookings` to own-OR-my-stable, więc sesja OŚRODKA widziałaby tu zapisy
+ * wszystkich jeźdźców swojego dnia i funkcja zgłosiłaby je jako „moje".
  */
-export async function getMyBookings(client: Client, scheduleDayId: number): Promise<SlotKey[]> {
+export async function getMyBookings(client: Client, scheduleDayId: number, riderId: string): Promise<SlotKey[]> {
   const { data, error } = await client
     .from("bookings")
     .select("horse_id, hour")
     .eq("schedule_day_id", scheduleDayId)
+    .eq("rider_id", riderId)
     .eq("status", "active");
 
   if (error) {

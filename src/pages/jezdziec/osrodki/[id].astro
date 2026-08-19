@@ -43,7 +43,7 @@ if (id !== null && supabase && user) {
       const [horses, takenSlots, myBookings] = await Promise.all([
         listStableHorses(supabase, id),
         getTakenSlots(supabase, id, day),
-        getMyBookings(supabase, scheduleDay.id),
+        getMyBookings(supabase, scheduleDay.id, user.id),
       ]);
 
       // Konie wg przydziału do dnia (kontrakt bazy - FK sprawdza przydział, nie flagę
@@ -65,6 +65,10 @@ if (id !== null && supabase && user) {
   } catch {
     loadFailed = true;
   }
+} else if (id !== null) {
+  // Brak klienta Supabase lub sesji przy poprawnym identyfikatorze to awaria
+  // konfiguracji, nie brak ośrodka - "nie znaleziono" byłoby kłamstwem.
+  loadFailed = true;
 }
 
 const previousDay = addDays(day, -1);
