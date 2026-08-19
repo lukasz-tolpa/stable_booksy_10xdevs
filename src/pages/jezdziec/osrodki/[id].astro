@@ -1,28 +1,81 @@
 ---
-import { ArrowLeft, MapPin } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, MapPin } from "lucide-react";
 import Layout from "@/layouts/Layout.astro";
 import Topbar from "@/components/Topbar.astro";
 import { ROLE_HOME } from "@/lib/auth/roles";
-import { getStableById, type StableListItem } from "@/lib/stables/queries";
+import { getMyBookings, getTakenSlots } from "@/lib/bookings/queries";
+import { computeSlotSections, currentWarsawHour, type SlotSection } from "@/lib/bookings/slots";
+import { addDays, defaultScheduleDate, isPastDate, parseScheduleDate, todayIso } from "@/lib/schedule/dates";
+import { getScheduleDay, type ScheduleDayData } from "@/lib/schedule/queries";
+import { getStableById, listStableHorses, type StableListItem } from "@/lib/stables/queries";
 import { parseStableId } from "@/lib/stables/search";
 import { createClient } from "@/lib/supabase";
 
-// Trasa leży pod prefiksem /jezdziec, więc dziedziczy ochronę z mapy w @/lib/auth/roles -
-// konto ośrodka jest stąd przekierowywane do siebie. Wolne sloty i zapis na jazdę dołoży S-04.
+// Trasa leży pod prefiksem /jezdziec, więc dostęp pilnuje middleware (mapa tras
+// w @/lib/auth/roles) - konto ośrodka jest stąd przekierowywane do siebie.
+const { user } = Astro.locals;
 const id = parseStableId(Astro.params.id);
+const error = Astro.url.searchParams.get("error");
+const success = Astro.url.searchParams.get("sukces") === "1";
+
+// Data przeszła jest traktowana jak niepoprawna - nie ma czego rezerwować wstecz,
+// więc wracamy do domyślnego jutra zamiast pokazywać martwy dzień.
+const requestedDay = parseScheduleDate(Astro.url.searchParams.get("dzien"));
+const day = requestedDay !== null && !isPastDate(requestedDay) ? requestedDay : defaultScheduleDate();
+const today = todayIso();
 
 const supabase = createClient(Astro.request.headers, Astro.cookies);
 
 let stable: StableListItem | null = null;
+let scheduleDay: ScheduleDayData | null = null;
+let sections: SlotSection[] = [];
 let loadFailed = false;
 
-if (id !== null && supabase) {
+if (id !== null && supabase && user) {
   try {
     stable = await getStableById(supabase, id);
+
+    if (stable) {
+      scheduleDay = await getScheduleDay(supabase, id, day);
+    }
+
+    if (stable && scheduleDay) {
+      const [horses, takenSlots, myBookings] = await Promise.all([
+        listStableHorses(supabase, id),
+        getTakenSlots(supabase, id, day),
+        getMyBookings(supabase, scheduleDay.id),
+      ]);
+
+      // Konie wg przydziału do dnia (kontrakt bazy - FK sprawdza przydział, nie flagę
+      // `active`); nazwy dokłada lista stada.
+      const assignedIds = new Set(scheduleDay.horseIds);
+      const dayHorses = horses
+        .filter((horse) => assignedIds.has(horse.id))
+        .map(({ id: horseId, name }) => ({ id: horseId, name }));
+
+      sections = computeSlotSections({
+        openHour: scheduleDay.openHour,
+        closeHour: scheduleDay.closeHour,
+        horses: dayHorses,
+        takenSlots,
+        myBookings,
+        currentHour: day === today ? currentWarsawHour() : null,
+      });
+    }
   } catch {
     loadFailed = true;
   }
 }
+
+const previousDay = addDays(day, -1);
+const canGoBack = !isPastDate(previousDay);
+
+const dayLabel = new Date(`${day}T00:00:00`).toLocaleDateString("pl-PL", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
 ---
 
 <Layout title={stable ? stable.name : "Nie znaleziono ośrodka"}>
@@ -45,15 +98,118 @@ if (id !== null && supabase) {
             <p class="mt-2 text-sm text-blue-100/50">Odśwież stronę za chwilę.</p>
           </div>
         ) : stable ? (
-          <div class="rounded-2xl border border-white/10 bg-white/10 p-8 text-white backdrop-blur-xl">
-            <h1 class="bg-gradient-to-r from-blue-200 to-purple-200 bg-clip-text text-3xl font-bold text-transparent">
-              {stable.name}
-            </h1>
-            <p class="mt-2 flex items-center gap-1.5 text-sm text-blue-100/70">
-              <MapPin className="size-4" />
-              {stable.city}
-            </p>
-            {stable.description && <p class="mt-4 text-blue-100/80">{stable.description}</p>}
+          <div>
+            <div class="rounded-2xl border border-white/10 bg-white/10 p-8 text-white backdrop-blur-xl">
+              <h1 class="bg-gradient-to-r from-blue-200 to-purple-200 bg-clip-text text-3xl font-bold text-transparent">
+                {stable.name}
+              </h1>
+              <p class="mt-2 flex items-center gap-1.5 text-sm text-blue-100/70">
+                <MapPin className="size-4" />
+                {stable.city}
+              </p>
+              {stable.description && <p class="mt-4 text-blue-100/80">{stable.description}</p>}
+            </div>
+
+            {success && (
+              <p class="mt-4 rounded-lg border border-emerald-500/30 bg-emerald-900/20 px-4 py-3 text-sm text-emerald-200">
+                Zapisano na jazdę. Twój slot jest oznaczony poniżej.
+              </p>
+            )}
+            {error && (
+              <p class="mt-4 rounded-lg border border-red-500/30 bg-red-900/20 px-4 py-3 text-sm text-red-200">
+                {error}
+              </p>
+            )}
+
+            <nav class="mt-6 mb-4 flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+              {canGoBack ? (
+                <a
+                  href={`/jezdziec/osrodki/${id}?dzien=${previousDay}`}
+                  class="flex items-center gap-1 text-sm text-purple-300 transition-colors hover:text-purple-100"
+                >
+                  <ChevronLeft className="size-4" />
+                  Poprzedni
+                </a>
+              ) : (
+                <span class="flex items-center gap-1 text-sm text-white/20">
+                  <ChevronLeft className="size-4" />
+                  Poprzedni
+                </span>
+              )}
+              <span class="text-sm font-medium text-white">{dayLabel}</span>
+              <a
+                href={`/jezdziec/osrodki/${id}?dzien=${addDays(day, 1)}`}
+                class="flex items-center gap-1 text-sm text-purple-300 transition-colors hover:text-purple-100"
+              >
+                Następny
+                <ChevronRight className="size-4" />
+              </a>
+            </nav>
+
+            <form method="get" class="mb-6 flex items-center gap-2">
+              <label for="dzien" class="text-sm text-blue-100/70">
+                Wybierz dzień:
+              </label>
+              <input
+                type="date"
+                id="dzien"
+                name="dzien"
+                value={day}
+                min={today}
+                class="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white [color-scheme:dark]"
+              />
+              <button
+                type="submit"
+                class="rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-sm text-purple-200 transition-colors hover:bg-white/20"
+              >
+                Pokaż
+              </button>
+            </form>
+
+            <div class="rounded-2xl border border-white/10 bg-white/10 p-6 text-white backdrop-blur-xl">
+              <h2 class="mb-4 text-lg font-semibold text-white">Wolne sloty</h2>
+              {!scheduleDay ? (
+                <div class="py-4 text-center">
+                  <p class="text-blue-100/80">Ośrodek nie ułożył grafiku na ten dzień.</p>
+                  <p class="mt-2 text-sm text-blue-100/50">Wybierz inny dzień albo zajrzyj tu później.</p>
+                </div>
+              ) : sections.length === 0 ? (
+                <div class="py-4 text-center">
+                  <p class="text-blue-100/80">Brak wolnych slotów tego dnia.</p>
+                  <p class="mt-2 text-sm text-blue-100/50">Wszystkie terminy są zajęte albo już minęły.</p>
+                </div>
+              ) : (
+                <ul class="space-y-4">
+                  {sections.map((section) => (
+                    <li class="rounded-xl border border-white/10 bg-white/5 p-4">
+                      <p class="mb-3 text-sm font-semibold text-purple-200">{section.hour}:00</p>
+                      <div class="flex flex-wrap gap-2">
+                        {section.horses.map((horse) =>
+                          horse.status === "mine" ? (
+                            <span class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-900/30 px-3 py-2 text-sm text-emerald-200">
+                              {horse.name} — Twój zapis
+                            </span>
+                          ) : (
+                            <form method="post" action="/api/bookings/create">
+                              <input type="hidden" name="stableId" value={id} />
+                              <input type="hidden" name="day" value={day} />
+                              <input type="hidden" name="horseId" value={horse.id} />
+                              <input type="hidden" name="hour" value={section.hour} />
+                              <button
+                                type="submit"
+                                class="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white transition-colors hover:border-purple-400/40 hover:bg-purple-500/20"
+                              >
+                                {horse.name}
+                              </button>
+                            </form>
+                          ),
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
         ) : (
           /* Niepoprawny identyfikator i brak wiersza to dla użytkownika ta sama sytuacja,

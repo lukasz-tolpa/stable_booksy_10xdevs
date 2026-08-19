@@ -5,7 +5,7 @@ Stable Booksy is an MVP booking system for horse-riding stables (roles: Ośrodek
 ## Hard rules
 
 - `.github/workflows/ci.yml` triggers on push/PR to `main`. CI runs lint + build only — no database, so nothing under `supabase/tests/` runs there.
-- No test framework is configured. Database guarantees are verified by scripts in `supabase/tests/`, run by hand against a local stack — see "Database" below. Run them after ANY change to migrations or RLS policies; nothing else will catch a regression.
+- Vitest (`npm test`) covers pure logic under `src/lib/**` only — no DB, server, or component tests. Database guarantees are verified by scripts in `supabase/tests/`, run by hand against a local stack — see "Database" below. Run them after ANY change to migrations or RLS policies; nothing else will catch a regression.
 - `src/db/database.types.ts` is generated. Never edit it by hand — run `npm run db:types` (needs a running local stack). It is excluded from ESLint in `eslint.config.js` for that reason.
 - `claude.md` is the generic 10xDevs toolkit meta-doc, not project rules. The real project-specific architecture rules live in `@CLAUDE.md.scaffold` (sidelined during bootstrap because `claude.md` already existed) — read it for auth-flow file map, rendering mode, and conventions below.
 - `context/foundation/` holds living docs (PRD, tech-stack, roadmap) edited in place; `context/changes/<id>/` holds in-flight change folders. Never write to `context/archive/`.
@@ -31,7 +31,8 @@ Stable Booksy is an MVP booking system for horse-riding stables (roles: Ośrodek
 ### Database
 
 - Slots are `(schedule_day, horse, hour)`; `hour` is a `smallint`, working hours are the half-open range `[open_hour, close_hour)` — 10–16 means slots 10…15.
-- The no-double-booking guarantee is the partial unique index `bookings_active_slot_key`, not application code. A rejected concurrent write surfaces as `23505`; "outside working hours" surfaces as `23514` from a trigger. Map both to user-facing messages at the call site.
+- The no-double-booking guarantee is the partial unique index `bookings_active_slot_key`, not application code. A rejected concurrent write surfaces as `23505`; "outside working hours" surfaces as `23514` from a trigger; "horse no longer assigned that day" as `23503`. Rider-facing messages for these live in `src/lib/bookings/errors.ts`; stable-facing schedule codes (`SB001`/`SB002`/`APP001`/`APP002`) in `src/lib/schedule/errors.ts`.
+- Riders cannot SELECT other riders' bookings (RLS). Slot occupancy comes from the project's single RPC, `public.get_taken_slots(stable_id, day)` — a `security definer` function returning only (horse_id, hour) of active bookings, no rider identity. Call it via `client.rpc(...)`; wrapper in `src/lib/bookings/queries.ts`.
 - Verification (local stack must be running, seed loaded):
   - `bash supabase/tests/concurrent_double_booking.sh` — 5 parallel writes to one slot, expects exactly one success.
   - `docker exec -i supabase_db_10x-astro-starter psql -U postgres -d postgres -q < supabase/tests/rls_isolation.sql` — cross-stable and cross-rider isolation.
@@ -47,7 +48,7 @@ Stable Booksy is an MVP booking system for horse-riding stables (roles: Ośrodek
 
 ## Testing
 
-No test framework is set up yet — establish one before assuming an existing pattern.
+Vitest, colocated `*.test.ts` next to the module under `src/lib/**` (node environment, `@` alias). Polish `it()` descriptions, no mocks or fake timers — inject time/values as defaulted parameters (`todayIso(now)`, `currentWarsawHour(now)`).
 
 ## Security & Configuration
 
