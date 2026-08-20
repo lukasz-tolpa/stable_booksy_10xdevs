@@ -1,7 +1,7 @@
 import type { APIContext, APIRoute } from "astro";
 import { SIGN_IN_ROUTE } from "@/lib/auth/roles";
 import { firstErrorMessage } from "@/lib/auth/schemas";
-import { cancelBooking, getRiderBookings } from "@/lib/bookings/queries";
+import { cancelBooking, getRiderBookingForCancel } from "@/lib/bookings/queries";
 import { cancelSchema } from "@/lib/bookings/schema";
 import { currentWarsawHour } from "@/lib/bookings/slots";
 import { formValue } from "@/lib/form-data";
@@ -48,10 +48,9 @@ export const POST: APIRoute = async (context) => {
     // Odczyt PRZED mutacją: guard progu potrzebuje dnia i godziny slotu, a tym
     // danym nie może być źródłem formularz. Rozróżnia też "nie znaleziono"
     // (cudzy/nieistniejący zapis) od "jazda już się zaczęła".
-    const bookings = await getRiderBookings(supabase, user.id);
-    const booking = bookings.find((entry) => entry.id === parsed.data.bookingId && entry.status === "active");
+    const booking = await getRiderBookingForCancel(supabase, parsed.data.bookingId, user.id);
 
-    if (!booking) {
+    if (booking?.status !== "active") {
       return backToMyBookings(context, { error: NOT_FOUND_MESSAGE });
     }
 

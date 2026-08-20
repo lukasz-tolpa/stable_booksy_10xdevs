@@ -167,6 +167,10 @@ Dwa zapytania na render (zapisy z embedded, nazwy koni po `in()`) po indeksie `b
 
 Brak migracji — mutacja na istniejącym schemacie; rollback odwołania = ponowny zapis przez S-04 (slot wraca do puli).
 
+## Addendum (post-implementacja, 2026-08-20)
+
+Korekta faktu z Key Discoveries i kontraktów fazy 1: `bookings` **nie ma** bezpośredniego FK do `schedule_days` (tylko `rider_id → profiles` i złożony FK do `schedule_day_horses`). Embed idzie łańcuchem `schedule_day_horses(schedule_days(day, stables(name)), horses(name))` — zweryfikowane na runtime; dzięki temu `getHorseNames` okazało się zbędne, a `splitRiderBookings` przyjmuje dwa argumenty (bez mapy nazw koni). Po przeglądzie implementacji endpoint używa celowanego `getRiderBookingForCancel` zamiast pełnego `getRiderBookings`.
+
 ## References
 
 - Roadmapa S-06: `context/foundation/roadmap.md:129`

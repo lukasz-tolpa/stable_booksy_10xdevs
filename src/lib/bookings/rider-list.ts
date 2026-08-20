@@ -27,7 +27,11 @@ export interface RiderBookingSections {
 }
 
 function byDayHourAsc(a: RiderBookingRow, b: RiderBookingRow): number {
-  return a.day.localeCompare(b.day) || a.hour - b.hour;
+  // Daty ISO porównują się poprawnie jako ciągi - ten sam idiom co `isPastDate`.
+  if (a.day !== b.day) {
+    return a.day < b.day ? -1 : 1;
+  }
+  return a.hour - b.hour;
 }
 
 export function splitRiderBookings(

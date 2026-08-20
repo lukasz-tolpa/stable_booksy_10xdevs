@@ -127,11 +127,54 @@ export async function getRiderBookings(client: Client, riderId: string): Promise
   }));
 }
 
+/** Dane potrzebne do decyzji o odwołaniu — celowany odczyt jednego zapisu. */
+export interface CancellableBooking {
+  day: string;
+  hour: number;
+  status: string;
+}
+
+/**
+ * Pojedynczy zapis jeźdźca pod decyzję o odwołaniu: tylko dzień, godzina
+ * i status — bez embedów ośrodka i konia, których endpoint nie potrzebuje.
+ * Wołać wyłącznie z sesji jeźdźca z jego własnym id (jak getRiderBookings).
+ */
+export async function getRiderBookingForCancel(
+  client: Client,
+  bookingId: number,
+  riderId: string,
+): Promise<CancellableBooking | null> {
+  const { data, error } = await client
+    .from("bookings")
+    .select("hour, status, schedule_day_horses(schedule_days(day))")
+    .eq("id", bookingId)
+    .eq("rider_id", riderId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  return {
+    hour: data.hour,
+    status: data.status,
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    day: data.schedule_day_horses?.schedule_days?.day ?? "",
+  };
+}
+
 /**
  * Odwołanie własnego zapisu: jeden UPDATE obu pól naraz — check constraint
- * `bookings_cancelled_at_matches_status` wymusza spójność `status` i
+ * `bookings_cancelled_at_consistency_check` wymusza spójność `status` i
  * `cancelled_at`. Filtr `status = 'active'` rozstrzyga wyścig dwóch odwołań:
  * drugi UPDATE trafia w 0 wierszy i zwraca `false` zamiast błędu.
+ *
+ * Wołać wyłącznie z sesji jeźdźca z jego własnym `riderId` — polityka UPDATE
+ * jest own-OR-my-stable, więc sesja ośrodka z cudzym `riderId` też by przeszła.
  */
 export async function cancelBooking(client: Client, bookingId: number, riderId: string): Promise<boolean> {
   const { data, error } = await client
