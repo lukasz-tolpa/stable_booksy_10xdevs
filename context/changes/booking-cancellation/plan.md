@@ -190,13 +190,13 @@ Brak migracji — mutacja na istniejącym schemacie; rollback odwołania = ponow
 
 #### Automated
 
-- [x] 2.1 `npm test`, `npm run lint`, `npm run build` — zielone
+- [x] 2.1 `npm test`, `npm run lint`, `npm run build` — zielone — e315cbd
 
 #### Manual
 
-- [x] 2.2 Cykl Anny: „Moje zapisy" → odwołanie → baner sukcesu → zapis w historii
-- [x] 2.3 Zwolniony slot znów wolny na stronie ośrodka; ponowny zapis przechodzi
-- [x] 2.4 Lista ośrodka (S-05) bez odwołanego zapisu
-- [x] 2.5 Guard progu: rozpoczętej jazdy nie da się odwołać (UI + ręczny POST)
-- [x] 2.6 Stan pusty z odnośnikiem do katalogu
-- [x] 2.7 Czytelność mobilna (~390px)
+- [x] 2.2 Cykl Anny: „Moje zapisy" → odwołanie → baner sukcesu → zapis w historii — e315cbd
+- [x] 2.3 Zwolniony slot znów wolny na stronie ośrodka; ponowny zapis przechodzi — e315cbd
+- [x] 2.4 Lista ośrodka (S-05) bez odwołanego zapisu — e315cbd
+- [x] 2.5 Guard progu: rozpoczętej jazdy nie da się odwołać (UI + ręczny POST) — e315cbd
+- [x] 2.6 Stan pusty z odnośnikiem do katalogu — e315cbd
+- [x] 2.7 Czytelność mobilna (~390px) — e315cbd

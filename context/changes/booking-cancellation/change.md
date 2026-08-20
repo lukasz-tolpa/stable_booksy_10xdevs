@@ -1,7 +1,7 @@
 ---
 change_id: booking-cancellation
 title: Booking cancellation
-status: implementing
+status: implemented
 created: 2026-08-20
 updated: 2026-08-20
 archived_at: null
