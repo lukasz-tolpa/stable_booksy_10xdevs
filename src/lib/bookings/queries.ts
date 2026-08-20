@@ -41,6 +41,43 @@ export async function getMyBookings(client: Client, scheduleDayId: number, rider
   return data.map((row) => ({ horseId: row.horse_id, hour: row.hour }));
 }
 
+/** Zapis dnia z perspektywy ośrodka: slot plus nazwisko jeźdźca (FR-005). */
+export interface DayBooking {
+  horseId: number;
+  hour: number;
+  riderName: string | null;
+}
+
+/**
+ * Aktywne zapisy dnia grafiku wraz z nazwiskiem jeźdźca — widok ośrodka (S-05).
+ *
+ * Nazwisko dociąga embedded select przez bezpośredni FK `rider_id → profiles`;
+ * polityka RLS na `profiles` (`is_rider_of_my_stable`) wpuszcza ośrodek do
+ * profili jeźdźców mających zapis w jego stadninie, więc dla własnych dni
+ * nazwisko zawsze się rozwiąże. `null` zostaje `null` — fallback tekstowy
+ * należy do warstwy czystej (`composeBookingRows`), nie do zapytania.
+ */
+export async function getDayBookings(client: Client, scheduleDayId: number): Promise<DayBooking[]> {
+  const { data, error } = await client
+    .from("bookings")
+    .select("horse_id, hour, profiles(full_name)")
+    .eq("schedule_day_id", scheduleDayId)
+    .eq("status", "active");
+
+  if (error) {
+    throw error;
+  }
+
+  return data.map((row) => ({
+    horseId: row.horse_id,
+    hour: row.hour,
+    // Wygenerowany typ obiecuje niepusty `profiles` (FK not-null), ale w runtime
+    // RLS może ukryć wiersz nadrzędny i PostgREST odda `null` — ochrona zostaje.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    riderName: row.profiles?.full_name ?? null,
+  }));
+}
+
 export interface CreateBookingInput {
   scheduleDayId: number;
   horseId: number;
