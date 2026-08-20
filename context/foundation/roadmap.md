@@ -3,7 +3,7 @@ project: "Stable Booksy"
 version: 1
 status: draft
 created: 2026-08-06
-updated: 2026-08-19
+updated: 2026-08-20
 prd_version: 1
 main_goal: speed
 top_blocker: decisions
@@ -34,7 +34,7 @@ Stadniny prowadzą zapisy na jazdy i przydział koni ręcznie — w zeszycie lub
 | S-02 | daily-schedule-management | ośrodek ustawia zakres godzin i konie pracujące danego dnia             | F-01, S-01       | US-02, FR-003, FR-004          | done     |
 | S-03 | stable-directory          | jeździec przegląda i filtruje listę ośrodków                            | S-01             | FR-006                         | done     |
 | S-04 | slot-booking-flow         | jeździec widzi wolne sloty (godzina × koń) i rezerwuje jazdę            | F-01, S-02, S-03 | US-01, FR-007, FR-008          | done     |
-| S-05 | daily-bookings-list       | ośrodek widzi listę zapisów (godzina–koń–jeździec) na dany dzień        | S-02, S-04       | FR-005                         | proposed |
+| S-05 | daily-bookings-list       | ośrodek widzi listę zapisów (godzina–koń–jeździec) na dany dzień        | S-02, S-04       | FR-005                         | done     |
 | S-06 | booking-cancellation      | jeździec odwołuje swój zapis, zwalniając slot konia                     | S-04             | FR-009                         | proposed |
 
 ## Baseline
@@ -124,7 +124,7 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Blockers:** —
 - **Unknowns:** —
 - **Risk:** mały plasterek konsumujący dane zapisów; ryzykiem jest pokusa siatki godzina×koń — PRD świadomie zawęża v1 do prostej listy na wybrany dzień.
-- **Status:** proposed
+- **Status:** done
 
 ### S-06: Odwołanie zapisu
 
@@ -174,3 +174,4 @@ Zmigrowane do GitHub Issues 2026-08-07 (tracking: [#1](https://github.com/lukasz
 - **S-02: ośrodek może ustawić zakres godzin pracy na dany dzień i wskazać konie pracujące tego dnia; z tego generują się dostępne sloty dla jeźdźców.** — Archived 2026-08-19 → `context/archive/2026-08-11-daily-schedule-management/`. Lesson: —.
 - **S-03: jeździec może przeglądać i filtrować listę ośrodków i wybrać ośrodek, do którego chce się zapisać.** — Archived 2026-08-19 → `context/archive/2026-08-11-stable-directory/`. Lesson: —.
 - **S-04: jeździec widzi wyłącznie wolne sloty (godzina × koń) zgodne z regułą alokacji i może zapisać się na jazdę; zapis pojawia się po stronie ośrodka, a próba zapisu na zajęty slot jest odrzucana z czytelnym komunikatem.** — Archived 2026-08-19 → `context/archive/2026-08-19-slot-booking-flow/`. Lesson: —.
+- **S-05: ośrodek widzi prostą listę zapisów (godzina–koń–jeździec) na wybrany dzień.** — Archived 2026-08-20 → `context/archive/2026-08-20-daily-bookings-list/`. Lesson: —.

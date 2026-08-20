@@ -1,10 +1,10 @@
 ---
 change_id: daily-bookings-list
 title: Daily bookings list
-status: impl_reviewed
+status: archived
 created: 2026-08-20
 updated: 2026-08-20
-archived_at: null
+archived_at: 2026-08-20T10:55:16Z
 ---
 
 ## Notes
