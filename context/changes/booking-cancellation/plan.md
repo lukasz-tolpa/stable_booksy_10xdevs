@@ -183,20 +183,20 @@ Brak migracji — mutacja na istniejącym schemacie; rollback odwołania = ponow
 
 #### Automated
 
-- [x] 1.1 `npm test` — nowe testy `rider-list` + rozszerzone `schema` przechodzą
-- [x] 1.2 `npm run lint` zielony
+- [x] 1.1 `npm test` — nowe testy `rider-list` + rozszerzone `schema` przechodzą — 4000193
+- [x] 1.2 `npm run lint` zielony — 4000193
 
 ### Phase 2: Strona i endpoint
 
 #### Automated
 
-- [ ] 2.1 `npm test`, `npm run lint`, `npm run build` — zielone
+- [x] 2.1 `npm test`, `npm run lint`, `npm run build` — zielone
 
 #### Manual
 
-- [ ] 2.2 Cykl Anny: „Moje zapisy" → odwołanie → baner sukcesu → zapis w historii
-- [ ] 2.3 Zwolniony slot znów wolny na stronie ośrodka; ponowny zapis przechodzi
-- [ ] 2.4 Lista ośrodka (S-05) bez odwołanego zapisu
-- [ ] 2.5 Guard progu: rozpoczętej jazdy nie da się odwołać (UI + ręczny POST)
-- [ ] 2.6 Stan pusty z odnośnikiem do katalogu
-- [ ] 2.7 Czytelność mobilna (~390px)
+- [x] 2.2 Cykl Anny: „Moje zapisy" → odwołanie → baner sukcesu → zapis w historii
+- [x] 2.3 Zwolniony slot znów wolny na stronie ośrodka; ponowny zapis przechodzi
+- [x] 2.4 Lista ośrodka (S-05) bez odwołanego zapisu
+- [x] 2.5 Guard progu: rozpoczętej jazdy nie da się odwołać (UI + ręczny POST)
+- [x] 2.6 Stan pusty z odnośnikiem do katalogu
+- [x] 2.7 Czytelność mobilna (~390px)
