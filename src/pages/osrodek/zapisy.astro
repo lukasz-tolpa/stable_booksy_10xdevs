@@ -1,0 +1,123 @@
+---
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import Layout from "@/layouts/Layout.astro";
+import Topbar from "@/components/Topbar.astro";
+import { getDayBookings } from "@/lib/bookings/queries";
+import { composeBookingRows, type BookingRow } from "@/lib/bookings/rows";
+import { addDays, parseScheduleDate, todayIso } from "@/lib/schedule/dates";
+import { getScheduleDay, type ScheduleDayData } from "@/lib/schedule/queries";
+import { getOwnedStableId, listStableHorses } from "@/lib/stables/queries";
+import { createClient } from "@/lib/supabase";
+
+// Dostęp pilnuje middleware (mapa tras w @/lib/auth/roles). Strona jest czysto
+// odczytowa - dni przeszłe są dozwolone bez żadnego guardu, bo nie ma tu akcji,
+// które ograniczenie grafiku ("dziś i w przód") chroniło.
+const { profile } = Astro.locals;
+
+// Domyślnie dziś, nie jutro jak grafik: operacyjne pytanie ośrodka przy odczycie
+// to "kto dziś jeździ", a przy układaniu - "co ustawić na jutro".
+const day = parseScheduleDate(Astro.url.searchParams.get("dzien")) ?? todayIso();
+
+const supabase = createClient(Astro.request.headers, Astro.cookies);
+
+let scheduleDay: ScheduleDayData | null = null;
+let rows: BookingRow[] = [];
+let loadFailed = false;
+
+if (supabase && profile) {
+  try {
+    const stableId = await getOwnedStableId(supabase, profile.id);
+    if (stableId !== null) {
+      scheduleDay = await getScheduleDay(supabase, stableId, day);
+      if (scheduleDay) {
+        const [bookings, horses] = await Promise.all([
+          getDayBookings(supabase, scheduleDay.id),
+          listStableHorses(supabase, stableId),
+        ]);
+        rows = composeBookingRows(bookings, horses);
+      }
+    }
+  } catch {
+    loadFailed = true;
+  }
+} else {
+  // Brak klienta Supabase lub profilu to awaria konfiguracji, nie pusty dzień.
+  loadFailed = true;
+}
+
+const dayLabel = new Date(`${day}T00:00:00`).toLocaleDateString("pl-PL", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+---
+
+<Layout title={`Zapisy ${day}`}>
+  <div class="bg-cosmic min-h-screen p-4">
+    <div class="mx-auto max-w-2xl">
+      <Topbar />
+
+      <h1 class="mb-1 bg-gradient-to-r from-blue-200 to-purple-200 bg-clip-text text-3xl font-bold text-transparent">
+        Zapisy dnia
+      </h1>
+      <p class="mb-6 text-sm text-blue-100/70">Kto i na którym koniu jeździ wybranego dnia.</p>
+
+      <nav class="mb-6 flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+        <a
+          href={`/osrodek/zapisy?dzien=${addDays(day, -1)}`}
+          class="flex items-center gap-1 text-sm text-purple-300 transition-colors hover:text-purple-100"
+        >
+          <ChevronLeft className="size-4" />
+          Poprzedni
+        </a>
+        <span class="text-sm font-medium text-white">{dayLabel}</span>
+        <a
+          href={`/osrodek/zapisy?dzien=${addDays(day, 1)}`}
+          class="flex items-center gap-1 text-sm text-purple-300 transition-colors hover:text-purple-100"
+        >
+          Następny
+          <ChevronRight className="size-4" />
+        </a>
+      </nav>
+
+      <div class="rounded-2xl border border-white/10 bg-white/10 p-6 text-white backdrop-blur-xl">
+        {
+          loadFailed ? (
+            <div class="text-center">
+              <p class="text-red-200">Nie udało się wczytać zapisów.</p>
+              <p class="mt-2 text-sm text-blue-100/50">Odśwież stronę za chwilę.</p>
+            </div>
+          ) : !scheduleDay ? (
+            <div class="text-center">
+              <p class="text-blue-100/80">Ten dzień nie ma ułożonego grafiku.</p>
+              <a
+                href={`/osrodek/grafik?dzien=${day}`}
+                class="mt-3 inline-block text-sm text-purple-300 transition-colors hover:text-purple-100 hover:underline"
+              >
+                Przejdź do grafiku dnia
+              </a>
+            </div>
+          ) : rows.length === 0 ? (
+            <div class="text-center">
+              <p class="text-blue-100/80">Brak zapisów tego dnia.</p>
+              <p class="mt-2 text-sm text-blue-100/50">
+                Grafik jest ułożony ({scheduleDay.openHour}–{scheduleDay.closeHour}), ale nikt się jeszcze nie zapisał.
+              </p>
+            </div>
+          ) : (
+            <ul class="divide-y divide-white/10">
+              {rows.map((row) => (
+                <li class="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-3">
+                  <span class="w-14 shrink-0 font-semibold text-purple-200">{row.hour}:00</span>
+                  <span class="font-medium text-white">{row.horseName}</span>
+                  <span class="text-blue-100/70">{row.riderName}</span>
+                </li>
+              ))}
+            </ul>
+          )
+        }
+      </div>
+    </div>
+  </div>
+</Layout>

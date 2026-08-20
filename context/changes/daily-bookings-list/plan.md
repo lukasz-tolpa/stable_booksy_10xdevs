@@ -151,19 +151,19 @@ Brak migracji — slice czysto odczytowy na istniejącym schemacie i politykach.
 
 #### Automated
 
-- [x] 1.1 `npm test` — nowe testy `rows` przechodzą, opisy `it(...)` po polsku
-- [x] 1.2 `npm run lint` zielony
+- [x] 1.1 `npm test` — nowe testy `rows` przechodzą, opisy `it(...)` po polsku — 0f7c71d
+- [x] 1.2 `npm run lint` zielony — 0f7c71d
 
 ### Phase 2: Strona i nawigacja
 
 #### Automated
 
-- [ ] 2.1 `npm test`, `npm run lint`, `npm run build` — zielone
+- [x] 2.1 `npm test`, `npm run lint`, `npm run build` — zielone
 
 #### Manual
 
-- [ ] 2.2 Pod Dębem: pulpit → Zapisy → dziś (pusty) → jutro: „11:00 · Bella · Anna Kowalska"
-- [ ] 2.3 Nad Rzeką: jutro wyłącznie „10:00 · Grom · Piotr Nowak" (izolacja)
-- [ ] 2.4 Dzień przeszły wybieralny, bez błędu
-- [ ] 2.5 Dwa różne stany puste + działający odnośnik do grafiku
-- [ ] 2.6 Czytelność mobilna (~390px)
+- [x] 2.2 Pod Dębem: pulpit → Zapisy → dziś (pusty) → jutro: „11:00 · Bella · Anna Kowalska"
+- [x] 2.3 Nad Rzeką: jutro wyłącznie „10:00 · Grom · Piotr Nowak" (izolacja)
+- [x] 2.4 Dzień przeszły wybieralny, bez błędu
+- [x] 2.5 Dwa różne stany puste + działający odnośnik do grafiku
+- [x] 2.6 Czytelność mobilna (~390px)

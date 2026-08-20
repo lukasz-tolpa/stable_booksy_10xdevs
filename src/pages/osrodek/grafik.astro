@@ -36,6 +36,10 @@ if (supabase && profile) {
   } catch {
     loadFailed = true;
   }
+} else {
+  // Brak klienta Supabase lub profilu to awaria konfiguracji - bez tej gałęzi
+  // strona pokazywałaby mylące "Nie masz jeszcze żadnych koni".
+  loadFailed = true;
 }
 
 // Nowy dzień dostaje podpowiedź z ostatnio ułożonego dnia - ośrodki pracują w rytmie,

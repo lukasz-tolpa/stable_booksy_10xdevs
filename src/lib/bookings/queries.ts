@@ -56,6 +56,9 @@ export interface DayBooking {
  * profili jeźdźców mających zapis w jego stadninie, więc dla własnych dni
  * nazwisko zawsze się rozwiąże. `null` zostaje `null` — fallback tekstowy
  * należy do warstwy czystej (`composeBookingRows`), nie do zapytania.
+ *
+ * Wołać wyłącznie z sesji ośrodka dla jego własnego dnia — sesja jeźdźca
+ * zobaczyłaby przez RLS tylko własne zapisy i po cichu zaniżyła listę.
  */
 export async function getDayBookings(client: Client, scheduleDayId: number): Promise<DayBooking[]> {
   const { data, error } = await client
