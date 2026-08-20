@@ -15,3 +15,10 @@ export const bookingSchema = z.object({
 });
 
 export type BookingInput = z.infer<typeof bookingSchema>;
+
+/** Formularz odwołania zapisu (S-06) — jedyne pole to identyfikator zapisu. */
+export const cancelSchema = z.object({
+  bookingId: z.coerce.number().int().positive({ error: "Nieprawidłowy zapis" }),
+});
+
+export type CancelInput = z.infer<typeof cancelSchema>;

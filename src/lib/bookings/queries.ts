@@ -81,6 +81,75 @@ export async function getDayBookings(client: Client, scheduleDayId: number): Pro
   }));
 }
 
+/** Zapis jeźdźca z kontekstem dnia, ośrodka i konia — widok „Moje zapisy" (S-06). */
+export interface RiderBooking {
+  id: number;
+  horseId: number;
+  hour: number;
+  day: string;
+  stableName: string;
+  horseName: string | null;
+  status: string;
+}
+
+/**
+ * Wszystkie zapisy jeźdźca (każdy status) z dniem, ośrodkiem i koniem.
+ *
+ * `bookings` nie ma FK wprost do `schedule_days` ani `horses` — łańcuch
+ * embedded idzie przez złożony FK do `schedule_day_horses`, który ma FK
+ * i do `schedule_days` (stamtąd `stables`), i do `horses`. Filtr po
+ * `rider_id` jest jawny (lekcja S-04): polityka SELECT jest szersza niż
+ * intencja tej funkcji.
+ */
+export async function getRiderBookings(client: Client, riderId: string): Promise<RiderBooking[]> {
+  const { data, error } = await client
+    .from("bookings")
+    .select("id, horse_id, hour, status, schedule_day_horses(schedule_days(day, stables(name)), horses(name))")
+    .eq("rider_id", riderId);
+
+  if (error) {
+    throw error;
+  }
+
+  return data.map((row) => ({
+    id: row.id,
+    horseId: row.horse_id,
+    hour: row.hour,
+    status: row.status,
+    // Wygenerowane typy obiecuja niepuste obiekty (FK not-null), ale w runtime
+    // RLS moglby ukryc wiersz posredni - ochrona zostaje, jak w getDayBookings.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    day: row.schedule_day_horses?.schedule_days?.day ?? "",
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    stableName: row.schedule_day_horses?.schedule_days?.stables?.name ?? "(ośrodek)",
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    horseName: row.schedule_day_horses?.horses?.name ?? null,
+  }));
+}
+
+/**
+ * Odwołanie własnego zapisu: jeden UPDATE obu pól naraz — check constraint
+ * `bookings_cancelled_at_matches_status` wymusza spójność `status` i
+ * `cancelled_at`. Filtr `status = 'active'` rozstrzyga wyścig dwóch odwołań:
+ * drugi UPDATE trafia w 0 wierszy i zwraca `false` zamiast błędu.
+ */
+export async function cancelBooking(client: Client, bookingId: number, riderId: string): Promise<boolean> {
+  const { data, error } = await client
+    .from("bookings")
+    .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
+    .eq("id", bookingId)
+    .eq("rider_id", riderId)
+    .eq("status", "active")
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data !== null;
+}
+
 export interface CreateBookingInput {
   scheduleDayId: number;
   horseId: number;

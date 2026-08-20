@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bookingSchema } from "@/lib/bookings/schema";
+import { bookingSchema, cancelSchema } from "@/lib/bookings/schema";
 
 const VALID = { stableId: "1", day: "2026-08-20", horseId: "2", hour: "12" };
 
@@ -32,6 +32,23 @@ describe("bookingSchema", () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error.issues[0].message).toBe("Nieprawidłowa data");
+    }
+  });
+});
+
+describe("cancelSchema", () => {
+  it("koercjuje identyfikator ze stringa formularza", () => {
+    expect(cancelSchema.parse({ bookingId: "7" })).toEqual({ bookingId: 7 });
+  });
+
+  it("odrzuca niedodatnie i nieliczbowe identyfikatory z polskim komunikatem", () => {
+    expect(cancelSchema.safeParse({ bookingId: "0" }).success).toBe(false);
+    expect(cancelSchema.safeParse({ bookingId: "abc" }).success).toBe(false);
+
+    const result = cancelSchema.safeParse({ bookingId: "-1" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].message).toBe("Nieprawidłowy zapis");
     }
   });
 });
