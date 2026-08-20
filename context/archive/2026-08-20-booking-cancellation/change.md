@@ -1,10 +1,10 @@
 ---
 change_id: booking-cancellation
 title: Booking cancellation
-status: impl_reviewed
+status: archived
 created: 2026-08-20
 updated: 2026-08-20
-archived_at: null
+archived_at: 2026-08-20T12:39:59Z
 ---
 
 ## Notes

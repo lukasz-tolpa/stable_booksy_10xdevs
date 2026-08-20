@@ -35,7 +35,7 @@ Stadniny prowadzą zapisy na jazdy i przydział koni ręcznie — w zeszycie lub
 | S-03 | stable-directory          | jeździec przegląda i filtruje listę ośrodków                            | S-01             | FR-006                         | done     |
 | S-04 | slot-booking-flow         | jeździec widzi wolne sloty (godzina × koń) i rezerwuje jazdę            | F-01, S-02, S-03 | US-01, FR-007, FR-008          | done     |
 | S-05 | daily-bookings-list       | ośrodek widzi listę zapisów (godzina–koń–jeździec) na dany dzień        | S-02, S-04       | FR-005                         | done     |
-| S-06 | booking-cancellation      | jeździec odwołuje swój zapis, zwalniając slot konia                     | S-04             | FR-009                         | proposed |
+| S-06 | booking-cancellation      | jeździec odwołuje swój zapis, zwalniając slot konia                     | S-04             | FR-009                         | done     |
 
 ## Baseline
 
@@ -136,7 +136,7 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Blockers:** —
 - **Unknowns:** —
 - **Risk:** jedyne wymaganie o priorytecie „miło mieć" — celowo ostatni, żeby nie zjadał czasu ścieżki wymagań koniecznych; PRD wprost: „robimy, jeśli starczy czasu, nie blokuje v1".
-- **Status:** proposed
+- **Status:** done
 
 ## Backlog Handoff
 
@@ -175,3 +175,4 @@ Zmigrowane do GitHub Issues 2026-08-07 (tracking: [#1](https://github.com/lukasz
 - **S-03: jeździec może przeglądać i filtrować listę ośrodków i wybrać ośrodek, do którego chce się zapisać.** — Archived 2026-08-19 → `context/archive/2026-08-11-stable-directory/`. Lesson: —.
 - **S-04: jeździec widzi wyłącznie wolne sloty (godzina × koń) zgodne z regułą alokacji i może zapisać się na jazdę; zapis pojawia się po stronie ośrodka, a próba zapisu na zajęty slot jest odrzucana z czytelnym komunikatem.** — Archived 2026-08-19 → `context/archive/2026-08-19-slot-booking-flow/`. Lesson: —.
 - **S-05: ośrodek widzi prostą listę zapisów (godzina–koń–jeździec) na wybrany dzień.** — Archived 2026-08-20 → `context/archive/2026-08-20-daily-bookings-list/`. Lesson: —.
+- **S-06: jeździec może odwołać swój zapis, co zwalnia slot konia do ponownej rezerwacji.** — Archived 2026-08-20 → `context/archive/2026-08-20-booking-cancellation/`. Lesson: —.
