@@ -35,8 +35,20 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      # Ten sam obraz Postgresa co lokalnie. CLI czyta tag z supabase/.temp/postgres-version
+      # (plik gitignored, zapisany przez `supabase link`); bez niego bierze swoj domyslny
+      # tag - w pierwszym runie 17.6.1.106 padl ("database system is in recovery mode")
+      # na bloku `set local role anon` w rls_isolation.sql, ktory na 17.6.1.147 przechodzi.
+      # Przy zmianie wersji lokalnie (cat supabase/.temp/postgres-version) zaktualizuj tutaj.
+      - run: mkdir -p supabase/.temp && echo "$SUPABASE_POSTGRES_VERSION" > supabase/.temp/postgres-version
+        env:
+          SUPABASE_POSTGRES_VERSION: 17.6.1.147
       - run: npx supabase db start
       - run: npm run test:db
+      # Przy porazce log Postgresa z kontenera - bez niego crash bazy (np. "database
+      # system is in recovery mode") jest nie do zdiagnozowania z samego wyjscia psql.
+      - if: failure()
+        run: docker logs --tail 300 supabase_db_10x-astro-starter
 
   deploy:
     needs: [ci, db-tests]

@@ -22,19 +22,28 @@ source "$SCRIPT_DIR/_psql.sh" || exit 1
 
 echo "Klient psql: $PSQL_MODE${PSQL_CONTAINER:+ ($PSQL_CONTAINER)}"
 
-# 1. Gotowosc bazy - na zimnym runnerze pierwsze polaczenie po starcie bywa odrzucane.
+# 1. Gotowosc bazy - na zimnym runnerze pierwsze polaczenie po starcie bywa odrzucane,
+#    a tuz po inicjalizacji serwer moze jeszcze robic restart. Wymagamy trzech kolejnych
+#    udanych polaczen w odstepie sekundy, zeby nie wystartowac w srodku restartu.
 ready=0
-for _ in $(seq 1 30); do
-  if psql_run -tAq -c 'select 1' >/dev/null 2>&1; then
-    ready=1
-    break
+streak=0
+for _ in $(seq 1 60); do
+  if psql_run -tAq -c "select case when pg_is_in_recovery() then 'recovery' else 'ok' end" 2>/dev/null | grep -q '^ok'; then
+    streak=$((streak + 1))
+    if [ "$streak" -ge 3 ]; then
+      ready=1
+      break
+    fi
+  else
+    streak=0
   fi
   sleep 1
 done
 if [ "$ready" -ne 1 ]; then
-  echo "BLAD: baza nie odpowiada (DB_URL=$DB_URL). Uruchom 'npx supabase start' albo 'npx supabase db start'." >&2
+  echo "BLAD: baza nie odpowiada stabilnie (DB_URL=$DB_URL). Uruchom 'npx supabase start' albo 'npx supabase db start'." >&2
   exit 1
 fi
+echo "Baza gotowa: $(q "select 'PostgreSQL ' || current_setting('server_version') || ', start ' || to_char(pg_postmaster_start_time(), 'HH24:MI:SS')")"
 
 # 2. Swiezosc seeda.
 fresh="$(q "select exists (select 1 from public.schedule_days where day = current_date + 1)")"
