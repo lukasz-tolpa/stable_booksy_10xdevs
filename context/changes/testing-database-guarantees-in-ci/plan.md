@@ -386,21 +386,21 @@ Brak migracji. Żadna zmiana schematu ani polityk RLS. Zmiany w aplikacji są zg
 
 #### Automated
 
-- [x] 1.1 `npm run test:db` lokalnie — kod 0, trzy PASS
-- [x] 1.2 `npm run lint` zielony
-- [ ] 1.3 Push → `ci`, `db-tests`, `deploy` zielone; `db-tests` ≤ ~3 min
+- [x] 1.1 `npm run test:db` lokalnie — kod 0, trzy PASS — 027bc04
+- [x] 1.2 `npm run lint` zielony — 027bc04
+- [x] 1.3 Push → `ci`, `db-tests`, `deploy` zielone; `db-tests` ≤ ~3 min — e4411c5
 
 #### Manual
 
-- [ ] 1.4 Log `db-tests` pokazuje migracje + seed i trzy nagłówki skryptów
-- [ ] 1.5 Celowo zepsuty skrypt daje kod ≠ 0, pozostałe i tak się wykonały
+- [x] 1.4 Log `db-tests` pokazuje migracje + seed i trzy nagłówki skryptów — e4411c5
+- [x] 1.5 Celowo zepsuty skrypt daje kod ≠ 0, pozostałe i tak się wykonały — e4411c5
 
 ### Phase 2: Ryzyko #1 — współbieżność pod RLS
 
 #### Automated
 
-- [ ] 2.1 `npm run test:db` PASS (ATTEMPTS=5)
-- [ ] 2.2 `ATTEMPTS=20` PASS
+- [x] 2.1 `npm run test:db` PASS (ATTEMPTS=5)
+- [x] 2.2 `ATTEMPTS=20` PASS
 - [ ] 2.3 Push → `db-tests` zielony
 
 #### Manual
