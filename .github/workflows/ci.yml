@@ -24,8 +24,22 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
 
+  # Dowody gwarancji bazodanowych (test-plan §3 faza 1): sam Postgres z migracjami
+  # i seedem, potem skrypty z supabase/tests/. Rownolegle do `ci`, deploy czeka na oba.
+  db-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx supabase db start
+      - run: npm run test:db
+
   deploy:
-    needs: [ci]
+    needs: [ci, db-tests]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:

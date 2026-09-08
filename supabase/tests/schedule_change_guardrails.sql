@@ -5,8 +5,9 @@
 -- cztery plus dwie granice, ktore MUSZA przechodzic - inaczej straznik bylby za ciasny
 -- i osrodek nie moglby wydluzyc dnia ani poprawic daty pustego grafiku.
 --
--- Wymaga zaladowanego seeda (`npx supabase db reset`).
--- Uzycie:  docker exec -i supabase_db_<project_id> psql -U postgres -d postgres -q < supabase/tests/schedule_change_guardrails.sql
+-- Wymaga swiezego seeda (`npx supabase db reset` tego samego dnia - dni z seeda musza byc na jutro).
+-- Uzycie:  npm run test:db   (wszystkie dowody; runner sam dobiera psql z hosta albo z kontenera)
+--          docker exec -i supabase_db_<project_id> psql -U postgres -d postgres -q < supabase/tests/schedule_change_guardrails.sql
 --
 -- Calosc w jednej transakcji zakonczonej ROLLBACK - skrypt nie zostawia zmian.
 

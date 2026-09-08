@@ -4,8 +4,9 @@
 -- Realizuje guardrail PRD (sekcja Access Control) i sprawdza go od strony,
 -- z ktorej korzysta aplikacja - jako rola `authenticated` z sesja uzytkownika.
 --
--- Wymaga zaladowanego seeda (`npx supabase db reset`).
--- Uzycie:  docker exec -i supabase_db_<project_id> psql -U postgres -d postgres -q < supabase/tests/rls_isolation.sql
+-- Wymaga swiezego seeda (`npx supabase db reset` tego samego dnia - dni z seeda musza byc na jutro).
+-- Uzycie:  npm run test:db   (wszystkie dowody; runner sam dobiera psql z hosta albo z kontenera)
+--          docker exec -i supabase_db_<project_id> psql -U postgres -d postgres -q < supabase/tests/rls_isolation.sql
 --
 -- Kazda persona dziala we wlasnej transakcji zakonczonej ROLLBACK - skrypt nie
 -- zostawia po sobie zadnych zmian.

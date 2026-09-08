@@ -6,31 +6,19 @@
 # Weryfikacja w jednej sesji dowodzi tylko, ze indeks istnieje. Ten skrypt dowodzi
 # wymagania z PRD - odpornosci na rownolegle zadania z osobnych polaczen.
 #
-# Wymaga uruchomionego lokalnego stacku (`npx supabase start`) i zaladowanego seeda.
-# Uzycie:  bash supabase/tests/concurrent_double_booking.sh
-# Zmienne: ATTEMPTS (domyslnie 5), DB_URL
+# Wymaga uruchomionego lokalnego stacku (`npx supabase start`) i swiezego seeda.
+# Uzycie:  npm run test:db                                   (wszystkie dowody, z runnerem)
+#          bash supabase/tests/concurrent_double_booking.sh  (tylko ten skrypt)
+# Zmienne: ATTEMPTS (domyslnie 5), DB_URL (patrz _psql.sh)
 
 set -uo pipefail
 
 ATTEMPTS="${ATTEMPTS:-5}"
-DB_URL="${DB_URL:-postgresql://postgres:postgres@127.0.0.1:54322/postgres}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Klient psql: najpierw host, w razie braku kontener lokalnego stacku.
-# Nazwa kontenera pochodzi od project_id z config.toml.
-if command -v psql >/dev/null 2>&1; then
-  psql_run() { psql "$DB_URL" "$@"; }
-else
-  PROJECT_ID="$(sed -nE 's/^project_id[[:space:]]*=[[:space:]]*"(.*)".*/\1/p' "$SCRIPT_DIR/../config.toml" | head -1)"
-  CONTAINER="supabase_db_${PROJECT_ID}"
-  if ! docker inspect "$CONTAINER" >/dev/null 2>&1; then
-    echo "BLAD: brak psql na hoscie i brak kontenera $CONTAINER. Uruchom 'npx supabase start'." >&2
-    exit 1
-  fi
-  psql_run() { docker exec -i "$CONTAINER" psql -U postgres -d postgres "$@"; }
-fi
-
-q() { psql_run -tAq -c "$1" | tr -d '\r\n'; }
+# Klient psql (host albo kontener lokalnego stacku) - wspolna detekcja w _psql.sh.
+# shellcheck source=_psql.sh
+source "$SCRIPT_DIR/_psql.sh" || exit 1
 
 DAY_ID="$(q "select sd.id from public.schedule_days sd join public.stables s on s.id = sd.stable_id where s.name = 'Stadnina Pod Debem' order by sd.day limit 1")"
 HORSE_ID="$(q "select h.id from public.horses h join public.stables s on s.id = h.stable_id where s.name = 'Stadnina Pod Debem' and h.name = 'Kasztan'")"
