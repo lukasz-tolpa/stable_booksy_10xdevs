@@ -444,10 +444,10 @@ Brak migracji. Żadna zmiana schematu ani polityk RLS. Zmiany w aplikacji są zg
 
 #### Automated
 
-- [x] 5.1 `npm run lint` zielony
-- [x] 5.2 §6.2 test-planu bez „TBD”
+- [x] 5.1 `npm run lint` zielony — 1df7e84
+- [x] 5.2 §6.2 test-planu bez „TBD” — 1df7e84
 
 #### Manual
 
-- [ ] 5.3 Osoba z zewnątrz dodaje asercję RLS z §6.2 w 10 minut
-- [ ] 5.4 `/10x-test-plan --status` pokazuje Fazę 1 `complete`, wskazuje Fazę 2
+- [x] 5.3 Osoba z zewnątrz dodaje asercję RLS z §6.2 w 10 minut — 1df7e84
+- [x] 5.4 `/10x-test-plan --status` pokazuje Fazę 1 `complete`, wskazuje Fazę 2 — 1df7e84
