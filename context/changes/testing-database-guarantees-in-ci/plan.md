@@ -86,6 +86,7 @@ Zebrać trzy istniejące skrypty pod jedną komendą i uruchomić ją w nowym jo
 **Intent**: Jedno wejście dla lokalnego użycia i CI: czeka na bazę, odpala trzy skrypty po kolei tym samym `DB_URL`, raportuje PASS/FAIL per skrypt i kończy kodem ≠ 0, jeśli którykolwiek padł (uruchamia wszystkie, nie przerywa na pierwszym — żeby log z CI pokazał pełny obraz).
 
 **Contract**: bash, `set -uo pipefail`; `DB_URL` z domyślną `postgresql://postgres:postgres@127.0.0.1:54322/postgres` (jak w `concurrent_double_booking.sh:16`).
+
 - **Detekcja klienta** (plan-review F1): ta sama logika co w `concurrent_double_booking.sh:19-31` — hostowy `psql "$DB_URL"`, a w razie jego braku `docker exec -i supabase_db_<project_id> psql -U postgres -d postgres` (project_id z `config.toml`). Wyodrębnić ją do `supabase/tests/_psql.sh` source'owanego przez runner i skrypt współbieżności, żeby była w jednym miejscu. Na maszynie autora nie ma hostowego `psql` (zweryfikowane), więc lokalnie idzie gałąź kontenerowa; w CI hostowa. Pliki `.sql` podawać przez **stdin** (`psql_run -v ON_ERROR_STOP=1 -q < <plik>`), nie `-f` — działa identycznie w obu gałęziach i omija mangling ścieżek w Git Bash.
 - **Pętla gotowości** (do ~30 s) na `select 1`.
 - **Strażnik świeżości seeda** (plan-review F2): przed testami `select exists (select 1 from public.schedule_days where day = current_date + 1)`; gdy `false` — komunikat „Seed jest nieaktualny (dni z seeda nie są na jutro). Uruchom `npx supabase db reset`.” i `exit 1`. Powód: seed liczy `current_date + 1` w momencie ładowania, a lokalna baza po dobie ma dni na „dziś” — filtry `current_date + 1` w skryptach zwracają wtedy 0 wierszy (zweryfikowane 2026-09-08 na lokalnym stacku). W CI wolumen jest zawsze świeży.
@@ -147,6 +148,7 @@ Skrypt współbieżności wstawia jako dwoje różnych jeźdźców przez RLS, as
 **Intent**: Każdy z N procesów `psql` działa jako jeździec (nieparzyste próby Anna `3333…`, parzyste Piotr `4444…`) przez `set role authenticated` + `request.jwt.claims`, z `rider_id` równym `sub` z claims — tak jak wymaga polityka `bookings_insert_own_as_rider`. Setup i odczyt kontrolny zostają jako `postgres`.
 
 **Contract**:
+
 - Zachować: wybór slotu (Pod Dębem, Kasztan, 12 — wolny w seedzie), czyszczenie slotu przed i po, `pg_sleep(0.5)` jako barierę, `wait` per PID, zliczanie sukcesów/odmów, `exit "$status"`.
 - Zmienić string `-c` każdej próby na sekwencję: `set role authenticated; set request.jwt.claims = '<json z sub jeźdźca>'; select pg_sleep(0.5); insert … rider_id = '<ten sam uuid>'`. Dodać `-v VERBOSITY=verbose`, żeby stderr niósł SQLSTATE.
 - Asercje: `successes == 1`; `active == 1` (jako `postgres`); każda odmowa ma w stderr **zarówno** `23505` **jak i** `bookings_active_slot_key` — odmowa z innym kodem (`42501`, `23503`, `23514`) to błąd konfiguracji testu i FAIL z wypisaniem stderr.
@@ -185,6 +187,7 @@ Skrypt strażnika grafiku edytuje jako właściciel Pod Dębem przez RLS na dete
 **Intent**: Przepisać strukturę na: setup jako `postgres` → mutacje jako właściciel `1111…` → jedna próba jako obcy właściciel `2222…` → `rollback`. Zastąpić `limit 1` deterministycznym wyborem dnia Pod Dębem na `current_date + 1` przez `stables.owner_id = '1111…'`.
 
 **Contract**:
+
 - Jedna transakcja `begin … rollback`, `\set ON_ERROR_STOP on`, licznik porażek i końcowy `raise exception` jak dziś.
 - Setup (`postgres`): id dnia, id Belli i Kasztana, id zapisu Anny (Bella@11); **wstawić odwołany zapis** Anny na Kasztan@12 (`status='cancelled', cancelled_at=now()`); zapamiętać id-y przez `set_config('app.<nazwa>', …, true)` (widoczne po zmianie roli przez `current_setting`).
 - Blok właściciela (`set local role authenticated` + claims `1111…`), przypadki:
@@ -265,6 +268,7 @@ Rozszerzyć `rls_isolation.sql` o scenariusze, których dziś brakuje (jeździec
 **Intent**: Każdy wektor „podmień identyfikator” z briefu zmiany ma asercję na SQLSTATE `42501` (INSERT z `with check`) albo `row_count = 0` (UPDATE/DELETE odfiltrowane).
 
 **Contract** (przed pierwszym `set local role` w każdym bloku zapamiętać potrzebne id przez `set_config('app.<nazwa>', …, true)`, np. id zapisu Piotra, id dnia i przydziału Grom w Nad Rzeką, id Luny):
+
 - Blok ośrodka A (`1111…`), dopisać: `update schedule_days` dnia Nad Rzeką → `row_count = 0` bez wyjątku; `delete schedule_day_horses` przydziału Grom → `row_count = 0`; `insert schedule_day_horses` (dzień B, koń B, `stable_id` B) → `42501`; `insert bookings` z `rider_id = '1111…'` → `42501` (brama roli `current_role() = 'rider'`) — **na istniejący dzień Pod Dębem i godzinę w zakresie (np. Kasztan@12)**, bo trigger BEFORE INSERT sprawdza dzień i godziny przed WITH CHECK polityki; z niepoprawnym slotem test dostałby `23503`/`23514` i mierzyłby coś innego (zweryfikowane: poprawny slot → `42501`; plan-review F4).
 - Blok Anny (`3333…`), dopisać: `update bookings … where id = current_setting('app.piotr_booking')::bigint` → `row_count = 0` (odwołanie cudzego zapisu **po id**, nie po `rider_id`); `insert horses` do stadniny A → `42501`; `insert schedule_days` dla stadniny A → `42501`; `update horses set active = false where id = <Bella>` → `row_count = 0` (SQL-owy bliźniak `toggle-active`).
 - Istniejące asercje bez zmian; `rollback` na końcu każdego bloku zostaje.
@@ -427,21 +431,21 @@ Brak migracji. Żadna zmiana schematu ani polityk RLS. Zmiany w aplikacji są zg
 
 #### Automated
 
-- [x] 4.1 `npm run test:db` PASS z nowymi asercjami
-- [x] 4.2 `npm run lint` i `npm run build` zielone
-- [ ] 4.3 Push → wszystkie joby zielone
+- [x] 4.1 `npm run test:db` PASS z nowymi asercjami — e081039
+- [x] 4.2 `npm run lint` i `npm run build` zielone — e081039
+- [x] 4.3 Push → wszystkie joby zielone — e081039
 
 #### Manual
 
-- [ ] 4.4 Sabotaż: RLS off na `horses` → asercje `active`/Luna FAIL; `db reset`
-- [ ] 4.5 POST `toggle-active` z obcym `horseId` → `?error=`, Luna nietknięta, własny koń działa
+- [x] 4.4 Sabotaż: RLS off na `horses` → asercje `active`/Luna FAIL; `db reset` — e081039
+- [x] 4.5 POST `toggle-active` z obcym `horseId` → `?error=`, Luna nietknięta, własny koń działa — e081039
 
 ### Phase 5: Cookbook i synchronizacja dokumentów
 
 #### Automated
 
-- [ ] 5.1 `npm run lint` zielony
-- [ ] 5.2 §6.2 test-planu bez „TBD”
+- [x] 5.1 `npm run lint` zielony
+- [x] 5.2 §6.2 test-planu bez „TBD”
 
 #### Manual
 
