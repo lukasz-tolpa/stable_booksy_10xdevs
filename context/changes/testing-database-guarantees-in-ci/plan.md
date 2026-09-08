@@ -412,23 +412,23 @@ Brak migracji. Żadna zmiana schematu ani polityk RLS. Zmiany w aplikacji są zg
 
 #### Automated
 
-- [x] 3.1 `npm run test:db` PASS (przypadki 1–8 + obcy właściciel)
-- [x] 3.2 `npm test` zielony z testami `APP001`/`APP002`
-- [x] 3.3 `npm run lint` zielony
-- [ ] 3.4 Push → `db-tests` i `ci` zielone
+- [x] 3.1 `npm run test:db` PASS (przypadki 1–8 + obcy właściciel) — 755aa84
+- [x] 3.2 `npm test` zielony z testami `APP001`/`APP002` — 755aa84
+- [x] 3.3 `npm run lint` zielony — 755aa84
+- [x] 3.4 Push → `db-tests` i `ci` zielone — 755aa84
 
 #### Manual
 
-- [ ] 3.5 Sabotaż: drop triggera → przypadki 1 i 3 FAIL; `db reset`
-- [ ] 3.6 Sabotaż: RLS off na `schedule_days` → blok obcego właściciela FAIL; `db reset`
-- [ ] 3.7 UI ośrodka: wypisanie konia z odwołanym zapisem odmówione przed zapisem godzin, komunikat nie każe odwoływać
+- [x] 3.5 Sabotaż: drop triggera → przypadki 1 i 3 FAIL; `db reset` — 755aa84
+- [x] 3.6 Sabotaż: RLS off na `schedule_days` → blok obcego właściciela FAIL; `db reset` — 755aa84
+- [x] 3.7 UI ośrodka: wypisanie konia z odwołanym zapisem odmówione przed zapisem godzin, komunikat nie każe odwoływać — 755aa84
 
 ### Phase 4: Ryzyko #4 — domknięcie izolacji i widoczna odmowa
 
 #### Automated
 
-- [ ] 4.1 `npm run test:db` PASS z nowymi asercjami
-- [ ] 4.2 `npm run lint` i `npm run build` zielone
+- [x] 4.1 `npm run test:db` PASS z nowymi asercjami
+- [x] 4.2 `npm run lint` i `npm run build` zielone
 - [ ] 4.3 Push → wszystkie joby zielone
 
 #### Manual

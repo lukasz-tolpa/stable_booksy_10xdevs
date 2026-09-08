@@ -43,14 +43,25 @@ export const POST: APIRoute = async (context) => {
 
   // Jawny warunek po stadninie, mimo że polityka `horses_update_own_stable` i tak
   // odrzuciłaby cudzego konia - bez niego zapytanie wyglądałoby na szersze, niż jest.
-  const { error } = await supabase
+  //
+  // `.select().maybeSingle()` jest konieczne: UPDATE odfiltrowany przez RLS lub warunek
+  // po stadninie kończy się bez błędu i z zerem wierszy - bez odczytu wyglądałby jak sukces
+  // (ten sam wzorzec co `cancelBooking`). Cudzy, nieistniejący i już usunięty koń dostają
+  // jeden komunikat - bez wyroczni istnienia.
+  const { data, error } = await supabase
     .from("horses")
     .update({ active: parsed.data.active })
     .eq("id", parsed.data.horseId)
-    .eq("stable_id", stableId);
+    .eq("stable_id", stableId)
+    .select("id")
+    .maybeSingle();
 
   if (error) {
     return backToList(context, "Nie udało się zmienić stanu konia. Spróbuj ponownie.");
+  }
+
+  if (data === null) {
+    return backToList(context, "Nie znaleziono konia w Twojej stadninie.");
   }
 
   return backToList(context);

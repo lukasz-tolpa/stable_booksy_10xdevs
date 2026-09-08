@@ -16,12 +16,36 @@
 \echo '=== Izolacja RLS: osrodek "Stadnina Pod Debem" ==='
 
 begin;
+
+-- Id-y z seeda zapisane jako postgres (przed zmiana roli) w GUC transakcji - persona
+-- nie widzi cudzych wierszy, wiec sama by ich nie znalazla, a test "podmien identyfikator"
+-- potrzebuje konkretnych obcych id.
+do $$
+begin
+  perform set_config('app.stable_a', (select id::text from public.stables where owner_id = '11111111-1111-1111-1111-111111111111'), true);
+  perform set_config('app.stable_b', (select id::text from public.stables where owner_id = '22222222-2222-2222-2222-222222222222'), true);
+  perform set_config('app.day_a', (select sd.id::text from public.schedule_days sd join public.stables s on s.id = sd.stable_id where s.owner_id = '11111111-1111-1111-1111-111111111111' and sd.day = current_date + 1), true);
+  perform set_config('app.day_b', (select sd.id::text from public.schedule_days sd join public.stables s on s.id = sd.stable_id where s.owner_id = '22222222-2222-2222-2222-222222222222' and sd.day = current_date + 1), true);
+  perform set_config('app.kasztan', (select h.id::text from public.horses h join public.stables s on s.id = h.stable_id where s.owner_id = '11111111-1111-1111-1111-111111111111' and h.name = 'Kasztan'), true);
+  perform set_config('app.grom', (select h.id::text from public.horses h join public.stables s on s.id = h.stable_id where s.owner_id = '22222222-2222-2222-2222-222222222222' and h.name = 'Grom'), true);
+  perform set_config('app.luna', (select h.id::text from public.horses h join public.stables s on s.id = h.stable_id where s.owner_id = '22222222-2222-2222-2222-222222222222' and h.name = 'Luna'), true);
+  if current_setting('app.day_a') = '' or current_setting('app.day_b') = '' then
+    raise exception 'Brak danych demo albo seed nieaktualny - uruchom npx supabase db reset';
+  end if;
+end $$;
+
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
 
 do $$
 declare
   v int;
+  v_day_b bigint := current_setting('app.day_b')::bigint;
+  v_day_a bigint := current_setting('app.day_a')::bigint;
+  v_kasztan bigint := current_setting('app.kasztan')::bigint;
+  v_grom bigint := current_setting('app.grom')::bigint;
+  v_luna bigint := current_setting('app.luna')::bigint;
+  v_stable_b bigint := current_setting('app.stable_b')::bigint;
 begin
   select count(*) into v from public.bookings;
   if v <> 1 then
@@ -44,6 +68,42 @@ begin
     raise notice 'PASS: insert grafiku do cudzej stadniny odrzucony przez RLS';
   end;
 
+  -- Podmiana identyfikatora dnia: UPDATE cudzego dnia (rozszerzenie, zeby trigger nie
+  -- odmowil pierwszy) i DELETE cudzego przydzialu konia maja dotknac 0 wierszy.
+  update public.schedule_days set open_hour = 8 where id = v_day_b;
+  get diagnostics v = row_count;
+  if v <> 0 then
+    raise exception 'FAIL: osrodek A zmienil % wierszy cudzego dnia (id=%)', v, v_day_b;
+  end if;
+  raise notice 'PASS: update cudzego dnia po id dotknal 0 wierszy';
+
+  delete from public.schedule_day_horses where schedule_day_id = v_day_b and horse_id = v_grom;
+  get diagnostics v = row_count;
+  if v <> 0 then
+    raise exception 'FAIL: osrodek A usunal % cudzych przydzialow koni', v;
+  end if;
+  raise notice 'PASS: delete cudzego przydzialu konia dotknal 0 wierszy';
+
+  -- Dopisanie konia do cudzego dnia (Luna nie jest przydzielona u B) - WITH CHECK odrzuca.
+  begin
+    insert into public.schedule_day_horses (schedule_day_id, horse_id, stable_id)
+    values (v_day_b, v_luna, v_stable_b);
+    raise exception 'FAIL: osrodek A dopisal konia do cudzego dnia';
+  exception when insufficient_privilege then
+    raise notice 'PASS: insert przydzialu do cudzego dnia odrzucony przez RLS';
+  end;
+
+  -- Brama roli: konto osrodka nie zapisze sie na jazde nawet we wlasnym imieniu.
+  -- Slot poprawny (dzien istnieje, godzina w zakresie), zeby jedyna odmowa byla RLS,
+  -- a nie 23503/23514 z triggera BEFORE INSERT.
+  begin
+    insert into public.bookings (schedule_day_id, horse_id, hour, rider_id)
+    values (v_day_a, v_kasztan, 12, '11111111-1111-1111-1111-111111111111');
+    raise exception 'FAIL: konto osrodka zapisalo sie na jazde';
+  exception when insufficient_privilege then
+    raise notice 'PASS: insert zapisu przez konto osrodka odrzucony przez RLS (brama roli)';
+  end;
+
   select count(*) into v from public.profiles where full_name = 'Piotr Nowak';
   if v <> 0 then
     raise exception 'FAIL: osrodek A widzi profil jezdzca z cudzej stadniny';
@@ -61,12 +121,26 @@ rollback;
 \echo '=== Izolacja RLS: jezdziec Anna Kowalska ==='
 
 begin;
+
+do $$
+begin
+  perform set_config('app.stable_a', (select id::text from public.stables where owner_id = '11111111-1111-1111-1111-111111111111'), true);
+  perform set_config('app.bella', (select h.id::text from public.horses h join public.stables s on s.id = h.stable_id where s.owner_id = '11111111-1111-1111-1111-111111111111' and h.name = 'Bella'), true);
+  perform set_config('app.piotr_booking', (select id::text from public.bookings where rider_id = '44444444-4444-4444-4444-444444444444' and status = 'active' order by id limit 1), true);
+  if current_setting('app.piotr_booking') = '' then
+    raise exception 'Brak danych demo albo seed nieaktualny - uruchom npx supabase db reset';
+  end if;
+end $$;
+
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"33333333-3333-3333-3333-333333333333","role":"authenticated"}';
 
 do $$
 declare
   v int;
+  v_stable_a bigint := current_setting('app.stable_a')::bigint;
+  v_bella bigint := current_setting('app.bella')::bigint;
+  v_piotr_booking bigint := current_setting('app.piotr_booking')::bigint;
 begin
   select count(*) into v from public.bookings;
   if v <> 1 then
@@ -82,6 +156,41 @@ begin
     raise exception 'FAIL: jezdziec odwolal % cudzych zapisow', v;
   end if;
   raise notice 'PASS: proba odwolania cudzego zapisu dotknela 0 wierszy';
+
+  -- Podmiana identyfikatora: odwolanie cudzego zapisu PO ID (tak wola endpoint cancel),
+  -- nie po rider_id - tez 0 wierszy.
+  update public.bookings
+     set status = 'cancelled', cancelled_at = now()
+   where id = v_piotr_booking;
+  get diagnostics v = row_count;
+  if v <> 0 then
+    raise exception 'FAIL: jezdziec odwolal cudzy zapis po id (%)', v_piotr_booking;
+  end if;
+  raise notice 'PASS: odwolanie cudzego zapisu po id dotknelo 0 wierszy';
+
+  -- Jezdziec wola tabele osrodka: current_stable_id() jest NULL, wiec WITH CHECK odrzuca.
+  begin
+    insert into public.horses (stable_id, name) values (v_stable_a, 'Podstawiony');
+    raise exception 'FAIL: jezdziec dodal konia do stadniny';
+  exception when insufficient_privilege then
+    raise notice 'PASS: insert konia przez jezdzca odrzucony przez RLS';
+  end;
+
+  begin
+    insert into public.schedule_days (stable_id, day, open_hour, close_hour)
+    values (v_stable_a, current_date + 9, 8, 12);
+    raise exception 'FAIL: jezdziec ulozyl grafik stadniny';
+  exception when insufficient_privilege then
+    raise notice 'PASS: insert grafiku przez jezdzca odrzucony przez RLS';
+  end;
+
+  -- SQL-owy bliznak endpointu /api/horses/toggle-active z obcym horseId.
+  update public.horses set active = false where id = v_bella;
+  get diagnostics v = row_count;
+  if v <> 0 then
+    raise exception 'FAIL: jezdziec zmienil stan % koni', v;
+  end if;
+  raise notice 'PASS: zmiana stanu konia przez jezdzca dotknela 0 wierszy';
 
   begin
     insert into public.bookings (schedule_day_id, horse_id, hour, rider_id)
