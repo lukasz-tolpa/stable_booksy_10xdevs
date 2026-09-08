@@ -399,22 +399,22 @@ Brak migracji. Żadna zmiana schematu ani polityk RLS. Zmiany w aplikacji są zg
 
 #### Automated
 
-- [x] 2.1 `npm run test:db` PASS (ATTEMPTS=5)
-- [x] 2.2 `ATTEMPTS=20` PASS
-- [ ] 2.3 Push → `db-tests` zielony
+- [x] 2.1 `npm run test:db` PASS (ATTEMPTS=5) — c811e58
+- [x] 2.2 `ATTEMPTS=20` PASS — c811e58
+- [x] 2.3 Push → `db-tests` zielony — c811e58
 
 #### Manual
 
-- [ ] 2.4 Sabotaż: drop indeksu → FAIL; `db reset`
-- [ ] 2.5 Sabotaż: claims ośrodka w jednej próbie → FAIL „odmowa z innego powodu” (42501)
+- [x] 2.4 Sabotaż: drop indeksu → FAIL; `db reset` — c811e58
+- [x] 2.5 Sabotaż: claims ośrodka w jednej próbie → FAIL „odmowa z innego powodu” (42501) — c811e58
 
 ### Phase 3: Ryzyko #2 — strażnik grafiku pod RLS i domknięcie asymetrii
 
 #### Automated
 
-- [ ] 3.1 `npm run test:db` PASS (przypadki 1–8 + obcy właściciel)
-- [ ] 3.2 `npm test` zielony z testami `APP001`/`APP002`
-- [ ] 3.3 `npm run lint` zielony
+- [x] 3.1 `npm run test:db` PASS (przypadki 1–8 + obcy właściciel)
+- [x] 3.2 `npm test` zielony z testami `APP001`/`APP002`
+- [x] 3.3 `npm run lint` zielony
 - [ ] 3.4 Push → `db-tests` i `ci` zielone
 
 #### Manual

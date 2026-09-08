@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   FOREIGN_KEY_VIOLATION,
+  HORSE_HAS_BOOKINGS,
+  HORSE_NOT_IN_STABLE,
   SCHEDULE_DATE_CONFLICT,
   SCHEDULE_HOURS_CONFLICT,
   extractConflictCount,
@@ -62,6 +64,25 @@ describe("scheduleErrorMessage", () => {
     const kon = scheduleErrorMessage(FOREIGN_KEY_VIOLATION, "violates foreign key constraint");
     expect(kon).toContain("konia");
     expect(kon).not.toBe(scheduleErrorMessage(SCHEDULE_HOURS_CONFLICT, "... 1 ..."));
+  });
+
+  it("cudzy koń i koń z zapisami mają różne komunikaty", () => {
+    const cudzy = scheduleErrorMessage(HORSE_NOT_IN_STABLE);
+    const zapisy = scheduleErrorMessage(HORSE_HAS_BOOKINGS);
+
+    expect(cudzy).toContain("nie należy do Twojej stadniny");
+    expect(zapisy).toContain("konia");
+    expect(cudzy).not.toBe(zapisy);
+  });
+
+  it("koń z zapisami: ten sam komunikat z pre-checku i z FK, bez obietnicy, że odwołanie odblokuje", () => {
+    // Oracle: PRD Open Question #2 (2026-09-08) - odwołany zapis też przypina konia do dnia,
+    // więc rada „doprowadź do odwołania" byłaby fałszywa.
+    const preCheck = scheduleErrorMessage(HORSE_HAS_BOOKINGS);
+
+    expect(preCheck).toBe(scheduleErrorMessage(FOREIGN_KEY_VIOLATION, "violates foreign key constraint"));
+    expect(preCheck).toContain("także odwołane");
+    expect(preCheck).not.toContain("doprowadź");
   });
 
   it("nierozpoznany kod daje wariant domyślny", () => {

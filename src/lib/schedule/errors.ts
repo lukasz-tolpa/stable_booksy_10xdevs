@@ -9,7 +9,11 @@
 export const SCHEDULE_DATE_CONFLICT = "SB001";
 /** Zawężenie godzin pod istniejącym zapisem (trigger z S-02). */
 export const SCHEDULE_HOURS_CONFLICT = "SB002";
-/** Odpięcie konia mającego zapis w tym dniu (ON DELETE RESTRICT z F-01). */
+/**
+ * Odpięcie konia mającego zapis w tym dniu (ON DELETE RESTRICT z F-01). FK nie filtruje po
+ * statusie: odwołany zapis też przypina konia do dnia — historia zapisów zostaje przy koniu
+ * (decyzja 2026-09-08, PRD Open Question #2).
+ */
 export const FOREIGN_KEY_VIOLATION = "23503";
 
 /**
@@ -88,7 +92,9 @@ export function scheduleErrorMessage(code: string | undefined, dbMessage?: strin
       return "Wybrany koń nie należy do Twojej stadniny.";
     case HORSE_HAS_BOOKINGS:
     case FOREIGN_KEY_VIOLATION:
-      return "Nie można wypisać konia, który ma zapisy w tym dniu. Najpierw doprowadź do ich odwołania.";
+      // Bez rady „doprowadź do odwołania": odwołany zapis też przypina konia, więc odwołanie
+      // niczego tu nie odblokuje — mówimy, co jest, i co da się zrobić.
+      return "Nie można wypisać konia, który ma zapisy w tym dniu — także odwołane, bo historia zapisów zostaje przy koniu. Wypisać można tylko konia bez zapisów tego dnia.";
     default:
       return FALLBACK;
   }

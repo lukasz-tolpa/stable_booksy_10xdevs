@@ -91,13 +91,21 @@ async function assertHorsesBelongToStable(client: Client, stableId: number, hors
   }
 }
 
-/** Żaden z odpinanych koni nie może mieć aktywnego zapisu w tym dniu. */
+/**
+ * Żaden z odpinanych koni nie może mieć zapisu w tym dniu — także odwołanego.
+ *
+ * Liczymy WSZYSTKIE zapisy, bo tak liczy baza: FK `bookings_scheduled_horse_fkey`
+ * (ON DELETE RESTRICT) nie filtruje po statusie, więc przydział konia z samym odwołanym
+ * zapisem też nie da się usunąć (decyzja 2026-09-08: historia zapisów zostaje przy koniu).
+ * Gdyby pre-check liczył tylko aktywne, przepuszczałby taki przypadek do zapisu godzin
+ * (krok 3), a odmowa padałaby dopiero przy odpinaniu (krok 4) — po częściowym zapisie.
+ */
 async function assertRemovedHorsesHaveNoBookings(
   client: Client,
   scheduleDayId: number,
   keepHorseIds: number[],
 ): Promise<void> {
-  const query = client.from("bookings").select("horse_id").eq("schedule_day_id", scheduleDayId).eq("status", "active");
+  const query = client.from("bookings").select("horse_id").eq("schedule_day_id", scheduleDayId);
 
   const { data, error } =
     keepHorseIds.length === 0 ? await query : await query.not("horse_id", "in", `(${keepHorseIds.join(",")})`);
