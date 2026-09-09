@@ -18,6 +18,11 @@ export const STABLE_STATE = `${AUTH_DIR}/stable.json`;
 
 export const SEED_HINT = "Seed nieaktualny albo stack nie działa — uruchom: npx supabase db reset";
 
+/** Rzucona wartość jako `Error` — reguła `only-throw-error` przy ponownym rzucie po sprzątaniu. */
+export function asError(value: unknown): Error {
+  return value instanceof Error ? value : new Error(String(value));
+}
+
 /**
  * Formularze logowania i rejestracji to wyspy React z kontrolowanymi polami.
  * `fill` wykonany przed hydracją zostaje nadpisany pustym stanem Reacta, gdy
@@ -83,13 +88,25 @@ export async function assertSlotsRendered(page: Page): Promise<void> {
 export interface OpenedStable {
   /** Ścieżka strony ośrodka bez query — do powrotu z jawnym `?dzien=`. */
   path: string;
-  /** Dzień pokazany domyślnie (jutro wg aplikacji, Europe/Warsaw), ISO `YYYY-MM-DD`. */
+  /** Dzień z grafikiem w seedzie (jutro wg reguły seeda), ISO `YYYY-MM-DD`. */
   day: string;
 }
 
 /**
- * Z katalogu przez filtr do strony ośrodka. Dzień czytamy z pola „Wybierz dzień",
- * czyli tak, jak liczy go aplikacja — test nie ma własnego kalendarza.
+ * Dzień, na który seed układa grafik: `current_date + 1` liczone w strefie
+ * kontenera Postgresa (UTC). Strona ośrodka domyślnie pokazuje jutro w
+ * Europe/Warsaw, a to między 22:00 a 24:00 UTC jest o dzień dalej niż dzień
+ * seeda — test nie może więc polegać na domyślnym dniu strony i podaje go jawnie.
+ * UTC-jutro nigdy nie jest dla aplikacji dniem minionym (Warszawa wyprzedza UTC).
+ */
+export function seedDay(now: Date = new Date()): string {
+  const day = new Date(now);
+  day.setUTCDate(day.getUTCDate() + 1);
+  return day.toISOString().slice(0, 10);
+}
+
+/**
+ * Z katalogu przez filtr do strony ośrodka, potem jawnie na dzień seeda.
  */
 export async function openStable(page: Page, name: string): Promise<OpenedStable> {
   await page.goto("/jezdziec");
@@ -98,9 +115,12 @@ export async function openStable(page: Page, name: string): Promise<OpenedStable
   await page.getByRole("button", { name: "Szukaj" }).click();
   await page.getByRole("link", { name }).click();
   await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
+
+  const path = new URL(page.url()).pathname;
+  const day = seedDay();
+  await page.goto(`${path}?dzien=${day}`);
+  await expect(page.getByLabel("Wybierz dzień")).toHaveValue(day);
   await assertSlotsRendered(page);
 
-  const url = new URL(page.url());
-  const day = await page.getByLabel("Wybierz dzień").inputValue();
-  return { path: url.pathname, day };
+  return { path, day };
 }

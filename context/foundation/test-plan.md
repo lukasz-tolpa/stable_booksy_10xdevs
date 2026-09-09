@@ -87,17 +87,20 @@ orchestrator updates Status as artifacts appear on disk.
 The classic test base for this project. AI-native tools (if any) carry a
 `checked:` date so future readers can see which lines need re-verification.
 
-Test-base profile: **sparse** — Vitest configured, 11 test files, all under
-`src/lib/` (auth, bookings, schedule, stables), 114 tests green. No server,
-component or browser tests. Database guarantees are verified by hand-run
-scripts under `supabase/tests/` against a local stack (see AGENTS.md).
+Test-base profile (at rollout start, 2026-09-08): **sparse** — Vitest
+configured, 11 test files, all under `src/lib/`, 114 tests green; no server,
+component or browser tests; database guarantees verified by hand-run scripts.
+After §3 Phases 1–2 (2026-09-09): **meaningful** — Vitest 12 files / 157
+tests (`src/lib/**`), database guarantees run in CI (`db-tests`), and two
+Playwright scenarios cover the rider loop in CI (`e2e`). Still no component
+tests by design (§7).
 
 | Layer                  | Tool                                                                                                    | Version                                                                                                                        | Notes                                                                                                               |
 | ---------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
 | unit                   | Vitest                                                                                                  | 4.x                                                                                                                            | `src/**/*.test.ts`, node environment, pure logic only                                                               |
 | integration (database) | local Supabase (Postgres) via Supabase CLI + psql scripts (`supabase/tests/`, runner `npm run test:db`) | CLI 2.98, Postgres image 17.6.1.147 (pinned by the committed `supabase/postgres-version`, copied into `supabase/.temp/` in CI) | automated since §3 Phase 1: CI job `db-tests` (`supabase db start` + `npm run test:db`), `deploy` waits on it       |
 | e2e                    | Playwright (`e2e/`, runner `npm run test:e2e`)                                                          | 1.63.0 (pinned exact), Chromium                                                                                                | since §3 Phase 2: against local Supabase with the auth stack (`npx supabase start`) + `astro preview`; CI job `e2e` |
-| lint + typecheck       | ESLint (type-aware) + `astro check`                                                                     | current                                                                                                                        | wired in CI and Husky pre-commit                                                                                    |
+| lint + typecheck       | ESLint (type-aware via `projectService`); `astro check` installed but not wired                         | current                                                                                                                        | CI runs `npm run lint`; Husky pre-commit runs lint-staged (`eslint --fix` on staged files only, no `astro check`)   |
 | (optional) AI-native   | none                                                                                                    | n/a                                                                                                                            | no AI-native layer planned; deterministic tests cover every mapped risk cheaply                                     |
 
 **Stack grounding tools (current session):**
@@ -115,7 +118,7 @@ phase lands; before that, the gate is `planned`.
 
 | Gate                              | Where                                                                                                        | Required?                                    | Catches                                                  |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------ | -------------------------------------------- | -------------------------------------------------------- |
-| lint + typecheck                  | local (Husky pre-commit) + CI                                                                                | required                                     | syntactic / type drift                                   |
+| lint + typecheck                  | local (Husky pre-commit: lint-staged, staged files only) + CI (`npm run lint`, type-aware)                   | required                                     | syntactic / type drift                                   |
 | unit (Vitest)                     | local + CI                                                                                                   | required                                     | pure-logic regressions (slot rule, validation, messages) |
 | integration (database guarantees) | CI job `db-tests` (Postgres from Supabase CLI on the runner) + local `npm run test:db`                       | required (since §3 Phase 1; blocks `deploy`) | double booking, silent booking loss, cross-tenant access |
 | e2e on the rider loop             | CI job `e2e` on PR and push (Supabase auth stack + `astro preview` on the runner) + local `npm run test:e2e` | required (since §3 Phase 2; blocks `deploy`) | broken critical user path, unreadable refusal            |
@@ -245,7 +248,9 @@ local role authenticated; set local request.jwt.claims =
   (`.select('id').single()` / `.maybeSingle()`, as in `createBooking`,
   `cancelBooking`, `toggle-active`) and the endpoint redirects to success only
   when a row came back. A read-back after INSERT depends on the caller's
-  own-row SELECT policy — re-run `npm run test:e2e` after any RLS change on
+  own-row SELECT policy: Postgres applies it to the `RETURNING` rows, so a
+  narrowed policy makes the whole INSERT fail (42501, no orphan row) and the
+  feature stops working — re-run `npm run test:e2e` after any RLS change on
   that table.
 - **Assert post-state, not the 302**: through a page the user can reach
   (e2e, §6.3) or a DB read (SQL, §6.2). Test the refusal path in a browser

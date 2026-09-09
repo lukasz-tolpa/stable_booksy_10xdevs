@@ -77,11 +77,22 @@ describe("cancelSchema", () => {
   it("odrzuca niedodatnie i nieliczbowe identyfikatory z polskim komunikatem", () => {
     expect(cancelSchema.safeParse({ bookingId: "0" }).success).toBe(false);
     expect(cancelSchema.safeParse({ bookingId: "abc" }).success).toBe(false);
-    expect(cancelSchema.safeParse({ bookingId: "" }).success).toBe(false);
 
     const result = cancelSchema.safeParse({ bookingId: "-1" });
     expect(result.success).toBe(false);
     if (!result.success) {
+      expect(result.error.issues[0].message).toBe("Nieprawidłowy zapis");
+    }
+  });
+
+  // Ten sam oracle co dla formularza zapisu: brak / puste pole to błąd walidacji
+  // z komunikatem tego pola, nigdy `0` przepuszczone do bazy.
+  it.each([[""], ["   "]])("puste pole bookingId (%j) daje komunikat tego pola", (blank) => {
+    const result = cancelSchema.safeParse({ bookingId: blank });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].path).toEqual(["bookingId"]);
       expect(result.error.issues[0].message).toBe("Nieprawidłowy zapis");
     }
   });

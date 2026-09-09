@@ -1,5 +1,14 @@
 import { expect, test } from "@playwright/test";
-import { RIDER_A_STATE, RIDER_B_STATE, STABLE_NAME, bookButton, hourSection, openStable, upcomingRow } from "./helpers";
+import {
+  RIDER_A_STATE,
+  RIDER_B_STATE,
+  STABLE_NAME,
+  asError,
+  bookButton,
+  hourSection,
+  openStable,
+  upcomingRow,
+} from "./helpers";
 
 /**
  * Ryzyko #3 (odmowa) i klauzula „nie jest już zajęta" z ryzyka #5. Zdanie z PRD:
@@ -81,7 +90,3 @@ test("jeździec klikający nieświeży slot dostaje polską odmowę i nie ma zap
     throw failure;
   }
 });
-
-function asError(value: unknown): Error {
-  return value instanceof Error ? value : new Error(String(value));
-}

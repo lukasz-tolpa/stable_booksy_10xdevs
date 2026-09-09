@@ -210,9 +210,10 @@ export interface CreateBookingInput {
  * sukces endpointu ma być niemożliwy bez utrwalonego wiersza — przekierowanie
  * samo w sobie niczego nie dowodzi (test-plan, ryzyko #3). Odczyt działa, bo
  * polityka `bookings_select_own_or_my_stable` pozwala jeźdźcowi czytać własny
- * wiersz. Gdyby ją kiedyś zawęzić, INSERT by przeszedł, a odczyt padł — jeździec
- * zobaczyłby komunikat błędu, mając zapis w bazie. Każda zmiana RLS na `bookings`
- * wymaga więc ponownego przebiegu `npm run test:e2e`.
+ * wiersz. Postgres stosuje politykę SELECT do wierszy zwracanych przez `RETURNING`,
+ * więc gdyby ją kiedyś zawęzić, cały INSERT padłby z 42501 (bez osieroconego
+ * wiersza) i zapisy przestałyby działać. Każda zmiana RLS na `bookings` wymaga
+ * więc ponownego przebiegu `npm run test:e2e`.
  */
 export async function createBooking(client: Client, input: CreateBookingInput): Promise<{ id: number }> {
   const { data, error } = await client
