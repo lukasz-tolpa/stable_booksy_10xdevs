@@ -21,11 +21,20 @@
 # Wymaga uruchomionego lokalnego stacku (`npx supabase start`) i swiezego seeda.
 # Uzycie:  npm run test:db                                   (wszystkie dowody, z runnerem)
 #          bash supabase/tests/concurrent_double_booking.sh  (tylko ten skrypt)
-# Zmienne: ATTEMPTS (domyslnie 5), DB_URL (patrz _psql.sh)
+# Zmienne: ATTEMPTS (domyslnie 5), BARRIER_SECONDS (domyslnie 0.5; CI: 1), DB_URL (patrz _psql.sh)
 
 set -uo pipefail
 
 ATTEMPTS="${ATTEMPTS:-5}"
+# Bariera (sekundy) - ile kazde polaczenie czeka przed INSERT, zeby wszystkie N procesow
+# psql zdazylo sie zestawic i proby naprawde sie nakladaly. Na zimnym runnerze CI spawn
+# bywa wolniejszy, stad tam 1 s (ci.yml). Asercja jest prawdziwa takze przy
+# zserializowanych probach (indeks odrzuca spoznionych), ale wtedy test nie dowodzi
+# wspolbieznosci - dlatego bariera ma byc dluzsza niz spawn, nie krotsza.
+BARRIER_SECONDS="${BARRIER_SECONDS:-0.5}"
+case "$BARRIER_SECONDS" in
+  ''|*[!0-9.]*|*.*.*) echo "BLAD: BARRIER_SECONDS musi byc liczba (np. 0.5 albo 1), jest: '$BARRIER_SECONDS'" >&2; exit 1 ;;
+esac
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Klient psql (host albo kontener lokalnego stacku) - wspolna detekcja w _psql.sh.
@@ -33,7 +42,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/_psql.sh" || exit 1
 
 STABLE_ID="$(q "select id from public.stables where name = 'Stadnina Pod Debem'")"
-DAY_ID="$(q "select id from public.schedule_days where stable_id = ${STABLE_ID:-0} order by day limit 1")"
+DAY_ID="$(q "select id from public.schedule_days where stable_id = ${STABLE_ID:-0} and day = current_date + 1")"
 DAY_DATE="$(q "select day from public.schedule_days where id = ${DAY_ID:-0}")"
 HORSE_ID="$(q "select id from public.horses where stable_id = ${STABLE_ID:-0} and name = 'Kasztan'")"
 ANNA_ID="$(q "select id from public.profiles where full_name = 'Anna Kowalska'")"
@@ -75,7 +84,7 @@ pids=()
 for i in $(seq 1 "$ATTEMPTS"); do
   if [ $((i % 2)) -eq 1 ]; then rider="$ANNA_ID"; else rider="$PIOTR_ID"; fi
   psql_run -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -q -c \
-    "$(as_rider_sql "$rider" "select pg_sleep(0.5); $(insert_sql "$rider")")" \
+    "$(as_rider_sql "$rider" "select pg_sleep($BARRIER_SECONDS); $(insert_sql "$rider")")" \
     >"$TMP/out_$i" 2>"$TMP/err_$i" &
   pids+=("$!")
 done

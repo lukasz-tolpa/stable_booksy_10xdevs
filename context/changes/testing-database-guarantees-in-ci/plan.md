@@ -100,6 +100,8 @@ Zebrać trzy istniejące skrypty pod jedną komendą i uruchomić ją w nowym jo
 
 **Contract**: `"test:db": "bash supabase/tests/run_all.sh"` obok istniejącego `"test"`. `npm test` pozostaje bez usług (`vitest.config.ts:4-6`).
 
+> **Addendum 2026-09-08 (implementacja):** `test:db` woła `node supabase/tests/run_all.mjs`, nie `bash …` bezpośrednio — na Windows `bash` widziany z `npm run` bywa launcherem WSL bez dystrybucji, więc shim szuka Git Bash i uruchamia nim `run_all.sh`. Na Linux/CI woła `bash` z PATH. Szczegóły: test-plan §6.5.
+
 #### 3. Job CI
 
 **File**: `.github/workflows/ci.yml`

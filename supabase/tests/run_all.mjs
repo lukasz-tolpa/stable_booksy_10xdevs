@@ -20,8 +20,11 @@ function findGitBash() {
   const where = spawnSync("where.exe", ["git"], { encoding: "utf8" });
   if (where.status === 0) {
     for (const gitExe of where.stdout.split(/\r?\n/).filter(Boolean)) {
-      // <Git>\cmd\git.exe -> <Git>\bin\bash.exe
+      // <Git>\cmd\git.exe          -> <Git>\bin\bash.exe
+      // <Git>\mingw64\bin\git.exe  -> <Git>\bin\bash.exe (tak `where git` odpowiada, gdy
+      //                               w PATH jest mingw64\bin, np. z terminala Git Bash)
       candidates.push(resolve(gitExe, "..", "..", "bin", "bash.exe"));
+      candidates.push(resolve(gitExe, "..", "..", "..", "bin", "bash.exe"));
     }
   }
 

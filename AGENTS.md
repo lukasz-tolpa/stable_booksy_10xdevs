@@ -4,7 +4,7 @@ Stable Booksy is an MVP booking system for horse-riding stables (roles: Ośrodek
 
 ## Hard rules
 
-- `.github/workflows/ci.yml` triggers on push/PR to `main`. Job `ci` runs lint, unit tests and build; job `db-tests` starts Postgres from the Supabase CLI (`npx supabase db start`, image pinned to `supabase/.temp/postgres-version`) and runs `npm run test:db`; `deploy` waits on both.
+- `.github/workflows/ci.yml` triggers on push/PR to `main`. Job `ci` runs lint, unit tests and build; job `db-tests` starts Postgres from the Supabase CLI (`npx supabase db start`, image pinned by the committed `supabase/postgres-version`, which CI copies to `supabase/.temp/`) and runs `npm run test:db`; `deploy` waits on both. After `npx supabase link` compare `supabase/.temp/postgres-version` with the committed file and update the committed one if they differ.
 - Vitest (`npm test`) covers pure logic under `src/lib/**` only — no DB, server, or component tests. Database guarantees are verified by the psql scripts in `supabase/tests/` via `npm run test:db` — see "Database" below. Run it locally after ANY change to migrations or RLS policies (CI runs it too, but locally is faster); nothing else will catch a regression.
 - `src/db/database.types.ts` is generated. Never edit it by hand — run `npm run db:types` (needs a running local stack). It is excluded from ESLint in `eslint.config.js` for that reason.
 - `claude.md` is the generic 10xDevs toolkit meta-doc, not project rules. The real project-specific architecture rules live in `@CLAUDE.md.scaffold` (sidelined during bootstrap because `claude.md` already existed) — read it for auth-flow file map, rendering mode, and conventions below.

@@ -28,6 +28,7 @@ jobs:
   # i seedem, potem skrypty z supabase/tests/. Rownolegle do `ci`, deploy czeka na oba.
   db-tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -36,19 +37,22 @@ jobs:
           cache: npm
       - run: npm ci
       # Ten sam obraz Postgresa co lokalnie. CLI czyta tag z supabase/.temp/postgres-version
-      # (plik gitignored, zapisany przez `supabase link`); bez niego bierze swoj domyslny
-      # tag - w pierwszym runie 17.6.1.106 padl ("database system is in recovery mode")
-      # na bloku `set local role anon` w rls_isolation.sql, ktory na 17.6.1.147 przechodzi.
-      # Przy zmianie wersji lokalnie (cat supabase/.temp/postgres-version) zaktualizuj tutaj.
-      - run: mkdir -p supabase/.temp && echo "$SUPABASE_POSTGRES_VERSION" > supabase/.temp/postgres-version
-        env:
-          SUPABASE_POSTGRES_VERSION: 17.6.1.147
+      # (plik gitignored, lokalnie zapisany przez `supabase link`); bez niego bierze swoj
+      # domyslny tag - w pierwszym runie 17.6.1.106 padl ("database system is in recovery
+      # mode") na bloku `set local role anon` w rls_isolation.sql, ktory na 17.6.1.147
+      # przechodzi. Zrodlo prawdy to commitowany supabase/postgres-version - po zmianie
+      # wersji lokalnie (po `supabase link`) zaktualizuj ten plik, nie ten workflow.
+      - run: mkdir -p supabase/.temp && cp supabase/postgres-version supabase/.temp/postgres-version
       - run: npx supabase db start
       - run: npm run test:db
+        env:
+          # Dluzsza bariera w skrypcie wspolbieznosci: zimny runner spawnuje psql wolniej.
+          BARRIER_SECONDS: "1"
       # Przy porazce log Postgresa z kontenera - bez niego crash bazy (np. "database
       # system is in recovery mode") jest nie do zdiagnozowania z samego wyjscia psql.
+      # Nazwa kontenera z project_id w config.toml, tak jak w supabase/tests/_psql.sh.
       - if: failure()
-        run: docker logs --tail 300 supabase_db_10x-astro-starter
+        run: docker logs --tail 300 "supabase_db_$(sed -nE 's/^project_id *= *"(.*)".*/\1/p' supabase/config.toml)"
 
   deploy:
     needs: [ci, db-tests]

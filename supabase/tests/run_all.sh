@@ -8,7 +8,7 @@
 # Uzycie:  npm run test:db
 #   lokalnie: dzialajacy stack (`npx supabase start`) i seed z DZISIAJ (`npx supabase db reset`)
 #   w CI:     po `npx supabase db start` (sam Postgres z migracjami i seedem)
-# Zmienne:  DB_URL (patrz _psql.sh), ATTEMPTS (skrypt wspolbieznosci)
+# Zmienne:  DB_URL (patrz _psql.sh), ATTEMPTS i BARRIER_SECONDS (skrypt wspolbieznosci)
 #
 # Seed liczy `current_date + 1` w chwili ladowania; po dobie dni z seeda to "dzis"
 # i filtry `current_date + 1` w skryptach nic nie znajduja. Dlatego runner sprawdza
@@ -40,7 +40,7 @@ for _ in $(seq 1 60); do
   sleep 1
 done
 if [ "$ready" -ne 1 ]; then
-  echo "BLAD: baza nie odpowiada stabilnie (DB_URL=$DB_URL). Uruchom 'npx supabase start' albo 'npx supabase db start'." >&2
+  echo "BLAD: baza nie odpowiada stabilnie ($PSQL_TARGET). Uruchom 'npx supabase start' albo 'npx supabase db start'." >&2
   exit 1
 fi
 echo "Baza gotowa: $(q "select 'PostgreSQL ' || current_setting('server_version') || ', start ' || to_char(pg_postmaster_start_time(), 'HH24:MI:SS')")"

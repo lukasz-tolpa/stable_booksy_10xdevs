@@ -1,7 +1,7 @@
 ---
 change_id: testing-database-guarantees-in-ci
 title: Database guarantees in CI (test-plan rollout Phase 1)
-status: implemented
+status: impl_reviewed
 created: 2026-09-08
 updated: 2026-09-09
 archived_at: null
