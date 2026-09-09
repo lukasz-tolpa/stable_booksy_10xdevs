@@ -12,7 +12,10 @@
 // kosztuje 7-9 s na plik i biegnie w lint-staged (commit) oraz w CI.
 //
 // Budzet: <= 5 s na pliku z obszaru ryzyka, <= 2 s poza nim. Nigdy cala suita e2e/db.
-// Plik jest lintowany typowo (tsconfig include), stad JSDoc i zawezanie `unknown`.
+// Plik jest lintowany typowo przez ESLint (projectService; tsconfig include wpuszcza go do
+// programu TS, ale astro/tsconfigs ma allowJs bez checkJs), stad JSDoc i zawezanie `unknown`.
+// Komunikaty sa po angielsku, bo ich czytelnikiem jest agent (AGENTS.md jest po angielsku);
+// skrypty dla ludzi (supabase/tests/run_all.mjs) mowia po polsku.
 
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
@@ -50,6 +53,10 @@ function runNode(root, args) {
     cwd: root,
     env: { ...process.env, NO_COLOR: "1", FORCE_COLOR: "0" },
     encoding: "utf8",
+    // Wlasny limit ponizej 60 s z settings.json: zawieszony vitest/prettier ma zginac tutaj
+    // (ETIMEDOUT -> throw -> exit 1 z nazwa kroku), a nie zostac sierota po ubiciu hooka.
+    timeout: 25_000,
+    killSignal: "SIGKILL",
   });
   if (result.error) throw result.error;
   return { status: result.status, output: `${result.stdout}${result.stderr}` };
@@ -79,23 +86,26 @@ function main() {
   const absolute = path.resolve(root, filePath);
   const relative = path.relative(root, absolute).split(path.sep).join("/");
 
-  const outsideProject = relative.startsWith("..") || path.isAbsolute(relative);
+  const outsideProject = relative === ".." || relative.startsWith("../") || path.isAbsolute(relative);
   if (outsideProject || SKIP_FILES.has(relative) || !existsSync(absolute)) return 0;
 
+  // Brak zaleznosci to problem srodowiska, nie pliku: exit 1 (widoczny, nieblokujacy),
+  // a nie exit 2, ktory agent odczytalby jako blad formatowania/testu.
+  const prettierBin = path.join(root, "node_modules/prettier/bin/prettier.cjs");
+  const vitest = path.join(root, "node_modules/vitest/vitest.mjs");
+  if (!existsSync(prettierBin) || !existsSync(vitest)) {
+    process.stderr.write(`[post-edit hook] node_modules missing in ${root} (run npm install); checks skipped\n`);
+    return 1;
+  }
+
   // (A) Formatowanie. Prettier honoruje .gitignore; --ignore-unknown = brak parsera to nie blad.
-  const prettier = runNode(root, [
-    path.join(root, "node_modules/prettier/bin/prettier.cjs"),
-    "--write",
-    "--ignore-unknown",
-    relative,
-  ]);
+  const prettier = runNode(root, [prettierBin, "--write", "--ignore-unknown", relative]);
   if (prettier.status !== 0) return fail("prettier", relative, prettier.output);
 
   // (B) Testy powiazane - tylko obszary ryzyka i tylko .ts (vitest.config: src/**/*.test.ts).
   const inRiskArea = RISK_AREAS.some((area) => relative.startsWith(area)) && relative.endsWith(".ts");
   if (!inRiskArea) return 0;
 
-  const vitest = path.join(root, "node_modules/vitest/vitest.mjs");
   const related = runNode(root, [vitest, "related", relative, "--run"]);
   if (related.status !== 0) return fail("vitest related", relative, related.output);
   if (!related.output.includes("No test files found")) return 0;
@@ -115,10 +125,12 @@ function main() {
   return 0;
 }
 
+// exitCode zamiast process.exit(): na Windows zapis do potoku jest asynchroniczny,
+// a exit() tuz po write() moglby uciac komunikat, ktory ma zobaczyc agent.
 try {
-  process.exit(main());
+  process.exitCode = main();
 } catch (error) {
   // Blad samego hooka: widoczny, ale nieblokujacy (kod 1). Nigdy nie udajemy sukcesu.
   process.stderr.write(`[post-edit hook] internal error: ${error instanceof Error ? error.stack : String(error)}\n`);
-  process.exit(1);
+  process.exitCode = 1;
 }

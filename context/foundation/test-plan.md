@@ -330,7 +330,7 @@ authenticated` + `request.jwt.claims`). The CLI's default Postgres image on
   that is why ESLint is not in the hook (7–9 s per file with `projectService`);
   the same rules run at commit and in CI.
 - **Agent hook** (Claude Code): `.claude/settings.json` registers a `PostToolUse`
-  hook (matcher `Write|Edit`, timeout 60 s) that runs
+  hook (matcher `^(Write|Edit)$`, timeout 60 s) that runs
   `node "$CLAUDE_PROJECT_DIR/.claude/hooks/post-edit.mjs"`. The handler reads the
   hook JSON from stdin, runs `prettier --write --ignore-unknown` on the file and,
   when the path starts with an entry of `RISK_AREAS` (`src/lib/bookings/`,
@@ -362,7 +362,10 @@ authenticated` + `request.jwt.claims`). The CLI's default Postgres image on
   `pull_request` rule is what forces PRs; GitHub adds default parameters to
   `pull_request` (keep the file complete so live == file); with no bypass actors
   a CI outage freezes `main` until the owner edits the ruleset — do that, not
-  `--no-verify`.
+  `--no-verify`. The required checks carry no `integration_id` and
+  `strict_required_status_checks_policy` is `false` — fine for one author; pin
+  `integration_id: 15368` (GitHub Actions) and consider `strict: true` once
+  collaborators or apps with `checks: write` appear.
 - **Production**: Cloudflare Workers Builds deploys `main` from the Git
   integration (dashboard → Worker → Settings → Build); other branches get preview
   URLs. The check-run "Workers Builds: stable-booksy" is informational. Verify a
@@ -371,8 +374,11 @@ authenticated` + `request.jwt.claims`). The CLI's default Postgres image on
 - **Sabotage checks** (repeat after touching any layer): a staged ESLint error
   must be rejected at commit; a failing assertion must be rejected at push; a
   failing assertion edited through the agent must show the Vitest output in the
-  agent's next turn; an empty commit pushed straight to `main` must be rejected
-  with "Changes must be made through a pull request".
+  agent's next turn; an edit to a file under `src/pages/api/` must return the
+  `additionalContext` note naming `npm run test:e2e` (the whole-suite fallback
+  keys on Vitest's "No test files found" text — a Vitest upgrade can silently
+  disable it); an empty commit pushed straight to `main` must be rejected with
+  "Changes must be made through a pull request".
 
 ## 7. What We Deliberately Don't Test
 
