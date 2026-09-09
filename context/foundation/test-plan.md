@@ -6,7 +6,7 @@
 >
 > Refresh: re-run `/10x-test-plan --refresh` when stale (see §8).
 >
-> Last updated: 2026-09-08
+> Last updated: 2026-09-09
 
 ## 1. Strategy
 
@@ -76,11 +76,11 @@ Each row is a discrete rollout phase that will open its own change folder
 via `/10x-new`. Status moves left-to-right through the values below; the
 orchestrator updates Status as artifacts appear on disk.
 
-| #   | Phase name                   | Goal (one line)                                                                                                                          | Risks covered | Test types              | Status      | Change folder                                      |
-| --- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------- | ----------------------- | ----------- | -------------------------------------------------- |
-| 1   | Database guarantees in CI    | Prove no double booking, no silent booking loss on schedule edits and no cross-tenant access — automatically, on every push, not by hand | #1, #2, #4    | integration (database)  | complete    | context/changes/testing-database-guarantees-in-ci/ |
-| 2   | Rider loop in the browser    | Prove the end-to-end booking loop and its refusal paths work as a user sees them, with the slot rule checked against the PRD oracle      | #6, #3, #5    | e2e (Playwright) + unit | not started | —                                                  |
-| 3   | Quality gates and agent loop | Lock the floor: lint + typecheck at edit time for the agent, and every test layer above wired as a required CI gate                      | cross-cutting | post-edit hook, gates   | not started | —                                                  |
+| #   | Phase name                   | Goal (one line)                                                                                                                          | Risks covered | Test types              | Status      | Change folder                                                 |
+| --- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------- | ----------------------- | ----------- | ------------------------------------------------------------- |
+| 1   | Database guarantees in CI    | Prove no double booking, no silent booking loss on schedule edits and no cross-tenant access — automatically, on every push, not by hand | #1, #2, #4    | integration (database)  | complete    | context/archive/2026-09-08-testing-database-guarantees-in-ci/ |
+| 2   | Rider loop in the browser    | Prove the end-to-end booking loop and its refusal paths work as a user sees them, with the slot rule checked against the PRD oracle      | #6, #3, #5    | e2e (Playwright) + unit | complete    | context/changes/testing-rider-loop-in-the-browser/            |
+| 3   | Quality gates and agent loop | Lock the floor: lint + typecheck at edit time for the agent, and every test layer above wired as a required CI gate                      | cross-cutting | post-edit hook, gates   | not started | —                                                             |
 
 ## 4. Stack
 
@@ -92,13 +92,13 @@ Test-base profile: **sparse** — Vitest configured, 11 test files, all under
 component or browser tests. Database guarantees are verified by hand-run
 scripts under `supabase/tests/` against a local stack (see AGENTS.md).
 
-| Layer                  | Tool                                                                                                    | Version                                                                                                                        | Notes                                                                                                         |
-| ---------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
-| unit                   | Vitest                                                                                                  | 4.x                                                                                                                            | `src/**/*.test.ts`, node environment, pure logic only                                                         |
-| integration (database) | local Supabase (Postgres) via Supabase CLI + psql scripts (`supabase/tests/`, runner `npm run test:db`) | CLI 2.98, Postgres image 17.6.1.147 (pinned by the committed `supabase/postgres-version`, copied into `supabase/.temp/` in CI) | automated since §3 Phase 1: CI job `db-tests` (`supabase db start` + `npm run test:db`), `deploy` waits on it |
-| e2e                    | Playwright                                                                                              | none yet — see §3 Phase 2                                                                                                      | against local Supabase seed + Astro dev server                                                                |
-| lint + typecheck       | ESLint (type-aware) + `astro check`                                                                     | current                                                                                                                        | wired in CI and Husky pre-commit                                                                              |
-| (optional) AI-native   | none                                                                                                    | n/a                                                                                                                            | no AI-native layer planned; deterministic tests cover every mapped risk cheaply                               |
+| Layer                  | Tool                                                                                                    | Version                                                                                                                        | Notes                                                                                                               |
+| ---------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| unit                   | Vitest                                                                                                  | 4.x                                                                                                                            | `src/**/*.test.ts`, node environment, pure logic only                                                               |
+| integration (database) | local Supabase (Postgres) via Supabase CLI + psql scripts (`supabase/tests/`, runner `npm run test:db`) | CLI 2.98, Postgres image 17.6.1.147 (pinned by the committed `supabase/postgres-version`, copied into `supabase/.temp/` in CI) | automated since §3 Phase 1: CI job `db-tests` (`supabase db start` + `npm run test:db`), `deploy` waits on it       |
+| e2e                    | Playwright (`e2e/`, runner `npm run test:e2e`)                                                          | 1.63.0 (pinned exact), Chromium                                                                                                | since §3 Phase 2: against local Supabase with the auth stack (`npx supabase start`) + `astro preview`; CI job `e2e` |
+| lint + typecheck       | ESLint (type-aware) + `astro check`                                                                     | current                                                                                                                        | wired in CI and Husky pre-commit                                                                                    |
+| (optional) AI-native   | none                                                                                                    | n/a                                                                                                                            | no AI-native layer planned; deterministic tests cover every mapped risk cheaply                                     |
 
 **Stack grounding tools (current session):**
 
@@ -113,14 +113,14 @@ The full set of gates that must pass before a change reaches production.
 "Required for §3 Phase <N>" means the gate is enforced once that rollout
 phase lands; before that, the gate is `planned`.
 
-| Gate                              | Where                                                                                  | Required?                                    | Catches                                                  |
-| --------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------- | -------------------------------------------------------- |
-| lint + typecheck                  | local (Husky pre-commit) + CI                                                          | required                                     | syntactic / type drift                                   |
-| unit (Vitest)                     | local + CI                                                                             | required                                     | pure-logic regressions (slot rule, validation, messages) |
-| integration (database guarantees) | CI job `db-tests` (Postgres from Supabase CLI on the runner) + local `npm run test:db` | required (since §3 Phase 1; blocks `deploy`) | double booking, silent booking loss, cross-tenant access |
-| e2e on the rider loop             | CI on PR (or local gate if CI cost is prohibitive — decided in Phase 2)                | required after §3 Phase 2                    | broken critical user path, unreadable refusal            |
-| post-edit hook (lint + typecheck) | local (agent loop)                                                                     | recommended after §3 Phase 3                 | regressions at edit time                                 |
-| auto-deploy on merge              | CI (Cloudflare Workers)                                                                | required (exists)                            | build breakage before production                         |
+| Gate                              | Where                                                                                                        | Required?                                    | Catches                                                  |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------ | -------------------------------------------- | -------------------------------------------------------- |
+| lint + typecheck                  | local (Husky pre-commit) + CI                                                                                | required                                     | syntactic / type drift                                   |
+| unit (Vitest)                     | local + CI                                                                                                   | required                                     | pure-logic regressions (slot rule, validation, messages) |
+| integration (database guarantees) | CI job `db-tests` (Postgres from Supabase CLI on the runner) + local `npm run test:db`                       | required (since §3 Phase 1; blocks `deploy`) | double booking, silent booking loss, cross-tenant access |
+| e2e on the rider loop             | CI job `e2e` on PR and push (Supabase auth stack + `astro preview` on the runner) + local `npm run test:e2e` | required (since §3 Phase 2; blocks `deploy`) | broken critical user path, unreadable refusal            |
+| post-edit hook (lint + typecheck) | local (agent loop)                                                                                           | recommended after §3 Phase 3                 | regressions at edit time                                 |
+| auto-deploy on merge              | CI (Cloudflare Workers)                                                                                      | required (exists)                            | build breakage before production                         |
 
 ## 6. Cookbook Patterns
 
@@ -187,13 +187,82 @@ local role authenticated; set local request.jwt.claims =
 
 ### 6.3 Adding an e2e test
 
-- TBD — see §3 Phase 2 for the rider-loop pattern (seeded accounts,
-  storage state, data isolation per run, refusal-path assertions).
+- **Location**: `e2e/`. Config `playwright.config.ts` (root); shared
+  locators and steps in `e2e/helpers.ts`; sessions in `e2e/auth.setup.ts`
+  (project `setup`, runs before `chromium`).
+- **Naming**: `<scenario>.spec.ts`, one `test` per user-visible outcome, split
+  into `test.step`s named after what the user sees.
+- **Reference tests**: `rider-loop.spec.ts` — the full loop (catalogue →
+  slot list vs. PRD → book → "Twój zapis" badge → stable's day list → "Moje
+  zapisy" → cancel → slot freed); `booking-refusal.spec.ts` — two browser
+  contexts racing on one slot, refusal text, no row, flag-guarded cleanup.
+- **Run locally**: `npx supabase start` → `npx supabase db reset` (seed days
+  are `current_date + 1`; a stale seed fails fast with the hint "Seed
+  nieaktualny…") → `npm run test:e2e`. Root `.dev.vars` must point at
+  `http://127.0.0.1:54321` + the local anon key **before** the run: the
+  `webServer` command is `npm run build && npm run preview`, and the built
+  worker reads secrets only from the `.dev.vars` snapshot taken at build
+  (`dist/server/.dev.vars`) — never from `process.env` or `webServer.env`.
+  `npm run test:e2e:ui` opens the UI mode; failures write `test-results/`
+  (trace on first retry in CI; `--trace on` locally, view with
+  `npx playwright show-trace <zip>`).
+- **Run in CI**: job `e2e` in `.github/workflows/ci.yml` — `npx supabase start
+-x realtime,storage-api,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor`
+  (keeps kong + gotrue + postgrest; `db start` has no GoTrue, so no login) →
+  writes `.dev.vars` from `supabase status -o env` → `playwright install
+--with-deps chromium` → `npx playwright test`; on failure uploads
+  `playwright-report` and prints the auth/db container logs. `deploy` waits on
+  it. Measured: 3m40s on a cold runner.
+- **Pattern**: sessions are established through the real UI once per run —
+  two **fresh riders** signed up as `e2e-rider-<a|b>-<timestamp>@example.com`
+  (confirmations are off locally) and the seeded stable signed in read-only;
+  saved as storage states under `playwright/.auth/` (gitignored). Selectors
+  are role / label / text only, scoped to the hour `listitem`
+  (`hourSection(page, 13).getByRole('button', { name: 'Kasztan', exact: true })`)
+  because a booking button is named by the horse alone and "1:00" is a
+  substring of "11:00". Waits are `waitForURL(/sukces=1/)` / `(/error=/)` —
+  every mutation is a plain form POST + 302. Before filling a React island
+  form call `waitForIslands(page)` (waits for `astro-island[ssr]` to vanish;
+  a pre-hydration `fill` is wiped by the island's controlled state). The
+  oracle of persistence is the badge, "Moje zapisy" and the stable's day
+  list — never the success banner (query-param driven) nor the redirect.
+  Every scenario cancels what it booked; a run that dies mid-way leaves an
+  active booking and the next run goes red on "slot free" — repair with
+  `npx supabase db reset`.
+- **Seed slots reserved**: Kasztan@13 (rider loop), Bella@14 (refusal),
+  Kasztan@12 (`test:db` concurrency script) — all at Stadnina Pod Debem,
+  tomorrow. Do not run `npm run test:db` and `npm run test:e2e` against the
+  same database at the same time.
+- **Sabotage check**: before trusting a new assertion break its guard (drop
+  the insert, rename `?sukces=`, relabel the button, remap a code to the
+  fallback) and watch the scenario go red at that step; revert.
 
 ### 6.4 Adding a test for a new API endpoint
 
-- TBD — see §3 Phase 2 for the "redirect is not persistence" and error
-  translation pattern; ownership checks follow the Phase 1 RLS pattern.
+- **Redirect is not persistence.** Every endpoint answers 302 with
+  `?error=<Polish text>` or `?sukces=1`; the page renders both from the query
+  string, so neither proves a row exists. A mutating query reads back the row
+  (`.select('id').single()` / `.maybeSingle()`, as in `createBooking`,
+  `cancelBooking`, `toggle-active`) and the endpoint redirects to success only
+  when a row came back. A read-back after INSERT depends on the caller's
+  own-row SELECT policy — re-run `npm run test:e2e` after any RLS change on
+  that table.
+- **Assert post-state, not the 302**: through a page the user can reach
+  (e2e, §6.3) or a DB read (SQL, §6.2). Test the refusal path in a browser
+  only when a browser can reach it (stale page, second context); refusals no
+  UI can produce (role refusal, forged ids) belong to unit + §6.2.
+- **Error translation**: read the thrown value with `@/lib/db-errors`
+  (`errorCode` / `errorMessage`, tested once in `src/lib/db-errors.test.ts` —
+  `{}`, `TypeError`, numeric codes never leak), map it through the area's
+  table (`src/lib/<area>/errors.ts`) and pin that table as a **closed Polish
+  set** in `src/lib/<area>/errors.test.ts` (`it.each` over odd inputs; no
+  provider text such as `fetch`, `duplicate key`, `violates`).
+- **Validation before the first mutation**: numeric form fields go through
+  the digit-only helper in the area's `schema.ts` (`formInt`) so a missing or
+  blank field is a per-field validation message, never `0` refused by the
+  database with a misleading text. Cover blanks with `it.each` per field.
+- **Ownership** follows the Phase 1 RLS pattern (§6.2): explicit
+  `rider_id` / `stable_id` filters in the query plus the SQL proof.
 
 ### 6.5 Per-rollout-phase notes
 
@@ -211,6 +280,18 @@ authenticated` + `request.jwt.claims`). The CLI's default Postgres image on
   Open Question #2, not fixed as a bug; the app pre-check now agrees with the
   FK. On Windows `npm run` sees WSL's `bash`, hence the `run_all.mjs` shim that
   finds Git Bash.
+- **Phase 2 (2026-09-09, Rider loop in the browser).** The Cloudflare worker
+  under `astro preview` reads secrets only from the `.dev.vars` snapshot made
+  at `astro build` — `process.env`, `webServer.env` and `$GITHUB_ENV` never
+  reach it, so CI writes `.dev.vars` before building. React islands with
+  controlled inputs wipe a pre-hydration `fill`; wait for `astro-island[ssr]`
+  to disappear (`waitForIslands`). A scenario that dies after booking leaves
+  an active booking and turns the next run red on "slot free" — the repair is
+  `npx supabase db reset`, same as for `test:db`. The `e2e` job takes 3m40s on
+  a cold runner (ci 1m36s, db-tests 2m31s), well under the 8-minute fallback
+  threshold; a forced failure published the `playwright-report` artifact.
+  Cloudflare's own "Workers Builds" check also appears on PRs — it is not part
+  of the workflow and not a gate.
 
 ## 7. What We Deliberately Don't Test
 

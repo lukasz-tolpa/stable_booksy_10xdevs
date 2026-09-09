@@ -55,6 +55,9 @@ npm run dev
 - `npm run lint` - Run ESLint with type-checked rules
 - `npm run lint:fix` - Auto-fix ESLint issues
 - `npm run format` - Run Prettier
+- `npm test` - Vitest unit tests (`src/**/*.test.ts`)
+- `npm run test:db` - Database guarantee scripts against the local Supabase stack (seed loaded today)
+- `npm run test:e2e` - Playwright browser tests against the local Supabase stack + `astro preview` (`test:e2e:ui` for UI mode; `.dev.vars` must point at the local stack)
 
 ## Project Structure
 
@@ -111,7 +114,7 @@ npx supabase stop
 
 The local Studio UI is available at `http://localhost:54323`.
 
-No database tables or migrations are required — this project uses Supabase Auth's built-in `auth.users` table only.
+The schema lives in `supabase/migrations/` and the local demo data in `supabase/seed.sql`; `npx supabase db reset` rebuilds both. The seed's schedule days are computed as "tomorrow" at load time, so reset it on the day you run `npm run test:db` or `npm run test:e2e`.
 
 ### Using a cloud Supabase project instead
 
@@ -166,7 +169,7 @@ Note: the deployed worker name comes from the build artifact (`dist/server/wrang
 
 ## CI
 
-GitHub Actions (`.github/workflows/ci.yml`) runs lint + build on every push and PR to `main`; pushes to `main` additionally trigger the `deploy` job. Required repository secrets: `SUPABASE_URL`, `SUPABASE_KEY` (build), `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` (deploy).
+GitHub Actions (`.github/workflows/ci.yml`) runs three jobs on every push and PR to `main`: `ci` (lint, unit tests, build), `db-tests` (Postgres from the Supabase CLI + `npm run test:db`) and `e2e` (Supabase auth stack + `astro preview` + Playwright, report uploaded on failure); pushes to `main` additionally trigger the `deploy` job, which waits on all three. Required repository secrets: `SUPABASE_URL`, `SUPABASE_KEY` (build), `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` (deploy).
 
 ## License
 
