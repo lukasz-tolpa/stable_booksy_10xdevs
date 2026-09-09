@@ -689,32 +689,32 @@ None for data. `createBooking`'s return type changes from `void` to
 
 #### Automated
 
-- [x] 1.1 Unit tests pass with the new cases: `npm test`
-- [x] 1.2 Type-aware lint passes (no duplicated `errorCode`, no unused imports): `npm run lint`
-- [x] 1.3 Production build passes: `npm run build`
+- [x] 1.1 Unit tests pass with the new cases: `npm test` — e8765f6
+- [x] 1.2 Type-aware lint passes (no duplicated `errorCode`, no unused imports): `npm run lint` — e8765f6
+- [x] 1.3 Production build passes: `npm run build` — e8765f6
 
 #### Manual
 
-- [x] 1.4 Sabotage: change `hour < input.closeHour` to `<=` in `slots.ts` → boundary test red; revert.
-- [x] 1.5 Sabotage: make `errorCode` return `String(error)` → `errorCode({})` test red; revert.
-- [x] 1.6 Sabotage: revert the schema helper to `z.coerce.number()` → missing-`hour` test red; revert.
-- [x] 1.7 With the local stack running, submit the booking form with `hour` removed via devtools → "Nieprawidłowa godzina" shown.
+- [x] 1.4 Sabotage: change `hour < input.closeHour` to `<=` in `slots.ts` → boundary test red; revert. — e8765f6
+- [x] 1.5 Sabotage: make `errorCode` return `String(error)` → `errorCode({})` test red; revert. — e8765f6
+- [x] 1.6 Sabotage: revert the schema helper to `z.coerce.number()` → missing-`hour` test red; revert. — e8765f6
+- [x] 1.7 With the local stack running, submit the booking form with `hour` removed via devtools → "Nieprawidłowa godzina" shown. — e8765f6
 
 ### Phase 2: Playwright harness + rider loop scenario
 
 #### Automated
 
-- [ ] 2.1 `npx playwright test e2e/rider-loop.spec.ts` green locally against a fresh seed
-- [ ] 2.2 `npm run lint` passes including `e2e/**`
-- [ ] 2.3 `npm test` and `npm run build` still pass
+- [x] 2.1 `npx playwright test e2e/rider-loop.spec.ts` green locally against a fresh seed
+- [x] 2.2 `npm run lint` passes including `e2e/**`
+- [x] 2.3 `npm test` and `npm run build` still pass
 
 #### Manual
 
-- [ ] 2.4 Sabotage: `createBooking` swallows the error and returns `{ id: 0 }` → scenario red at the badge; revert.
-- [ ] 2.5 Sabotage: rename the success param in `backToStable` → scenario red at `waitForURL`; revert.
-- [ ] 2.6 Sabotage: hide the "Odwołaj" form → scenario red at cancel; revert.
-- [ ] 2.7 Run the suite twice without a reset → second run green.
-- [ ] 2.8 Trace viewer for a forced failure shows the Polish pages.
+- [x] 2.4 Sabotage: `createBooking` swallows the error and returns `{ id: 0 }` → scenario red at the badge; revert.
+- [x] 2.5 Sabotage: rename the success param in `backToStable` → scenario red at `waitForURL`; revert.
+- [x] 2.6 Sabotage: hide the "Odwołaj" form → scenario red at cancel; revert.
+- [x] 2.7 Run the suite twice without a reset → second run green.
+- [x] 2.8 Trace viewer for a forced failure shows the Polish pages.
 
 ### Phase 3: Refusal scenario — stale page, two contexts
 

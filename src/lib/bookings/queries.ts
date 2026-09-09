@@ -205,16 +205,30 @@ export interface CreateBookingInput {
  * Pojedynczy INSERT — atomowy, więc nie ma tu problemu częściowego zapisu z S-02.
  * Odmowy podnosi baza: 23505 (slot zajęty), 23514 (poza godzinami), 23503 (koń nie
  * pracuje tego dnia); wołający tłumaczy je przez `bookingErrorMessage`.
+ *
+ * Odczyt zwrotny (`select("id").single()`) to ten sam wzorzec co w `cancelBooking`:
+ * sukces endpointu ma być niemożliwy bez utrwalonego wiersza — przekierowanie
+ * samo w sobie niczego nie dowodzi (test-plan, ryzyko #3). Odczyt działa, bo
+ * polityka `bookings_select_own_or_my_stable` pozwala jeźdźcowi czytać własny
+ * wiersz. Gdyby ją kiedyś zawęzić, INSERT by przeszedł, a odczyt padł — jeździec
+ * zobaczyłby komunikat błędu, mając zapis w bazie. Każda zmiana RLS na `bookings`
+ * wymaga więc ponownego przebiegu `npm run test:e2e`.
  */
-export async function createBooking(client: Client, input: CreateBookingInput): Promise<void> {
-  const { error } = await client.from("bookings").insert({
-    schedule_day_id: input.scheduleDayId,
-    horse_id: input.horseId,
-    hour: input.hour,
-    rider_id: input.riderId,
-  });
+export async function createBooking(client: Client, input: CreateBookingInput): Promise<{ id: number }> {
+  const { data, error } = await client
+    .from("bookings")
+    .insert({
+      schedule_day_id: input.scheduleDayId,
+      horse_id: input.horseId,
+      hour: input.hour,
+      rider_id: input.riderId,
+    })
+    .select("id")
+    .single();
 
   if (error) {
     throw error;
   }
+
+  return { id: data.id };
 }
