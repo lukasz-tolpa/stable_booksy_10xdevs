@@ -255,6 +255,10 @@ areas, never swallow a failure, never block on advice.
 
 #### 3. Ignore file hygiene
 
+> Implementation note (2026-09-09): TypeScript's `**/*` include skips dot-directories,
+> so `tsconfig.json` gained `.claude/hooks/*.mjs` (instead of an ESLint `ignores`
+> entry) and the handler carries JSDoc types to satisfy the strict typed rules.
+
 **File**: `.gitignore`
 
 **Intent**: Keep per-machine Claude settings out of the repo.
@@ -403,6 +407,8 @@ reproducibility (documentation, not applied automatically).
   `9719f42` pushed to `main`) was rejected: "3 of 3 required status checks are expected"
   and "Changes must be made through a pull request"; rule-suite:
   `required_status_checks=fail, pull_request=fail`.
+- The `pull_request` rule is pinned with `allowed_merge_methods: ["merge"]` (merge
+  commits only, PR #9 style) — a history-style decision recorded in test-plan §6.6.
 - **Side effect of the first sabotage:** while `a352688` sat on `main`, GitHub
   auto-marked PR #11 as _merged_ (its commits were contained in `main`); restoring
   `main` does not un-merge it, so the PR stopped syncing (head frozen at `f5e066d`,

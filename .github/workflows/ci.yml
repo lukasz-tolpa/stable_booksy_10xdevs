@@ -27,7 +27,8 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
 
   # Dowody gwarancji bazodanowych (test-plan §3 faza 1): sam Postgres z migracjami
-  # i seedem, potem skrypty z supabase/tests/. Rownolegle do `ci`, deploy czeka na oba.
+  # i seedem, potem skrypty z supabase/tests/. Rownolegle do `ci`; oba sa wymaganymi
+  # checkami w rulesecie `main` (test-plan §6.6).
   db-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 15
