@@ -734,20 +734,20 @@ None for data. `createBooking`'s return type changes from `void` to
 #### Automated
 
 - [x] 4.1 Workflow run for the PR shows `e2e` green (`gh run view`) — 072b9c8
-- [ ] 4.2 `deploy` on the merge commit waited on `e2e` (`gh run view <id> --json jobs`)
+- [x] 4.2 `deploy` on the merge commit waited on `e2e` (`gh run view <id> --json jobs`) — aec2b84
 
 #### Manual
 
-- [x] 4.3 Job wall-clock recorded in §6.5 (target under 8 min; note fallback if over).
+- [x] 4.3 Job wall-clock recorded in §6.5 (target under 8 min; note fallback if over). — 83f4c06
 - [x] 4.4 Forced failure on a throwaway branch → `e2e` red, `playwright-report` artifact shows the failing step. — 072b9c8
 
 ### Phase 5: Cookbook and docs sync
 
 #### Automated
 
-- [x] 5.1 `npm run lint` and `npx prettier --check context/foundation/test-plan.md AGENTS.md README.md`
-- [x] 5.2 `/10x-test-plan --status` reports Phase 2 `complete` and Phase 3 as next
+- [x] 5.1 `npm run lint` and `npx prettier --check context/foundation/test-plan.md AGENTS.md README.md` — 83f4c06
+- [x] 5.2 `/10x-test-plan --status` reports Phase 2 `complete` and Phase 3 as next — 83f4c06
 
 #### Manual
 
-- [x] 5.3 A reader following §6.3 alone can run the suite locally without asking.
+- [x] 5.3 A reader following §6.3 alone can run the suite locally without asking. — 83f4c06

@@ -1,7 +1,7 @@
 ---
 change_id: testing-rider-loop-in-the-browser
 title: Test rollout Phase 2 - rider loop in the browser (e2e + slot unit tests)
-status: implementing
+status: implemented
 created: 2026-09-09
 updated: 2026-09-09
 archived_at: null
