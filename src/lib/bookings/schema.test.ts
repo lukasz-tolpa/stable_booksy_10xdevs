@@ -34,6 +34,39 @@ describe("bookingSchema", () => {
       expect(result.error.issues[0].message).toBe("Nieprawidłowa data");
     }
   });
+
+  // Oracle (decyzja z planowania Fazy 2): brakujące pole liczbowe to błąd walidacji
+  // z komunikatem TEGO pola, a nie `0` przepuszczone do bazy. Regresja, którą łapie:
+  // powrót do `z.coerce.number()`, gdzie `""` staje się `0`, a brak `hour` odbija się
+  // od triggera godzin pracy z mylącym komunikatem.
+  it.each([
+    ["stableId", "", "Nieprawidłowy ośrodek"],
+    ["stableId", "   ", "Nieprawidłowy ośrodek"],
+    ["horseId", "", "Nieprawidłowy koń"],
+    ["horseId", "   ", "Nieprawidłowy koń"],
+    ["hour", "", "Nieprawidłowa godzina"],
+    ["hour", "   ", "Nieprawidłowa godzina"],
+  ])("puste pole %s (%j) daje komunikat tego pola", (field, blank, message) => {
+    const result = bookingSchema.safeParse({ ...VALID, [field]: blank });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].path).toEqual([field]);
+      expect(result.error.issues[0].message).toBe(message);
+    }
+  });
+
+  it("brak pola hour nigdy nie przechodzi jako godzina 0", () => {
+    const { hour: _hour, ...withoutHour } = VALID;
+
+    expect(bookingSchema.safeParse(withoutHour).success).toBe(false);
+    expect(bookingSchema.safeParse({ ...VALID, hour: "0" }).success).toBe(true);
+  });
+
+  it("przycina białe znaki wokół cyfr, ale nie przyjmuje zapisu wykładniczego", () => {
+    expect(bookingSchema.parse({ ...VALID, hour: " 12 " }).hour).toBe(12);
+    expect(bookingSchema.safeParse({ ...VALID, hour: "1e1" }).success).toBe(false);
+  });
 });
 
 describe("cancelSchema", () => {
@@ -44,6 +77,7 @@ describe("cancelSchema", () => {
   it("odrzuca niedodatnie i nieliczbowe identyfikatory z polskim komunikatem", () => {
     expect(cancelSchema.safeParse({ bookingId: "0" }).success).toBe(false);
     expect(cancelSchema.safeParse({ bookingId: "abc" }).success).toBe(false);
+    expect(cancelSchema.safeParse({ bookingId: "" }).success).toBe(false);
 
     const result = cancelSchema.safeParse({ bookingId: "-1" });
     expect(result.success).toBe(false);
