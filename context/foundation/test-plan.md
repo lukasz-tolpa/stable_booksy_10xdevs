@@ -76,11 +76,11 @@ Each row is a discrete rollout phase that will open its own change folder
 via `/10x-new`. Status moves left-to-right through the values below; the
 orchestrator updates Status as artifacts appear on disk.
 
-| #   | Phase name                   | Goal (one line)                                                                                                                          | Risks covered | Test types              | Status      | Change folder                                                 |
-| --- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------- | ----------------------- | ----------- | ------------------------------------------------------------- |
-| 1   | Database guarantees in CI    | Prove no double booking, no silent booking loss on schedule edits and no cross-tenant access — automatically, on every push, not by hand | #1, #2, #4    | integration (database)  | complete    | context/archive/2026-09-08-testing-database-guarantees-in-ci/ |
-| 2   | Rider loop in the browser    | Prove the end-to-end booking loop and its refusal paths work as a user sees them, with the slot rule checked against the PRD oracle      | #6, #3, #5    | e2e (Playwright) + unit | complete    | context/changes/testing-rider-loop-in-the-browser/            |
-| 3   | Quality gates and agent loop | Lock the floor: lint + typecheck at edit time for the agent, and every test layer above wired as a required CI gate                      | cross-cutting | post-edit hook, gates   | not started | —                                                             |
+| #   | Phase name                   | Goal (one line)                                                                                                                          | Risks covered | Test types              | Status        | Change folder                                                 |
+| --- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------- | ----------------------- | ------------- | ------------------------------------------------------------- |
+| 1   | Database guarantees in CI    | Prove no double booking, no silent booking loss on schedule edits and no cross-tenant access — automatically, on every push, not by hand | #1, #2, #4    | integration (database)  | complete      | context/archive/2026-09-08-testing-database-guarantees-in-ci/ |
+| 2   | Rider loop in the browser    | Prove the end-to-end booking loop and its refusal paths work as a user sees them, with the slot rule checked against the PRD oracle      | #6, #3, #5    | e2e (Playwright) + unit | complete      | context/archive/2026-09-09-testing-rider-loop-in-the-browser/ |
+| 3   | Quality gates and agent loop | Lock the floor: lint + typecheck at edit time for the agent, and every test layer above wired as a required CI gate                      | cross-cutting | post-edit hook, gates   | change opened | context/changes/testing-quality-gates-and-agent-loop/         |
 
 ## 4. Stack
 

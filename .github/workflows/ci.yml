@@ -17,6 +17,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx astro sync
+      # Typecheck (test-plan §3 faza 3): ta sama komenda co w hooku pre-push.
+      - run: npm run check
       - run: npm run lint
       - run: npm test
       - run: npm run build
