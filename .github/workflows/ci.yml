@@ -17,6 +17,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx astro sync
+      # Typecheck (test-plan §3 faza 3): ta sama komenda co w hooku pre-push.
+      - run: npm run check
       - run: npm run lint
       - run: npm test
       - run: npm run build
@@ -95,20 +97,7 @@ jobs:
           docker logs --tail 200 "supabase_auth_$PROJECT" || true
           docker logs --tail 200 "supabase_db_$PROJECT" || true
 
-  deploy:
-    needs: [ci, db-tests, e2e]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci
-      - run: npx astro build
-      - uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy
+  # Brak joba deploy (test-plan §3 faza 3, decyzja 2026-09-09): produkcje wdraza wylacznie
+  # Cloudflare Workers Builds z galezi `main` (integracja Git w panelu). Bramka produkcji
+  # to ruleset na `main`: na main laduje tylko merge PR-a z zielonymi `ci`, `db-tests`,
+  # `e2e`; push bezposredni jest odrzucany. Sekrety Cloudflare w GitHub Secrets sa juz nieuzywane.

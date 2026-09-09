@@ -155,7 +155,7 @@ Route protection is handled in `src/middleware.ts`. Add paths to the `PROTECTED_
 
 Live: **https://stable-booksy.tolpa-lukasz97.workers.dev** ([Cloudflare Workers](https://workers.cloudflare.com/), worker `stable-booksy`).
 
-Pushes to `main` deploy automatically via GitHub Actions (lint + build, then `wrangler deploy`). Manual operations:
+`main` is deployed automatically by Cloudflare Workers Builds (Git integration in the Cloudflare dashboard); other branches get preview URLs. `main` itself changes only through pull requests whose `ci`, `db-tests` and `e2e` checks are green (repository ruleset, `.github/rulesets/main-gates.json`). Manual operations:
 
 ```bash
 npm run build && npx wrangler deploy   # manual deploy
@@ -169,7 +169,9 @@ Note: the deployed worker name comes from the build artifact (`dist/server/wrang
 
 ## CI
 
-GitHub Actions (`.github/workflows/ci.yml`) runs three jobs on every push and PR to `main`: `ci` (lint, unit tests, build), `db-tests` (Postgres from the Supabase CLI + `npm run test:db`) and `e2e` (Supabase auth stack + `astro preview` + Playwright, report uploaded on failure); pushes to `main` additionally trigger the `deploy` job, which waits on all three. Required repository secrets: `SUPABASE_URL`, `SUPABASE_KEY` (build), `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` (deploy).
+GitHub Actions (`.github/workflows/ci.yml`) runs three jobs on every push and PR to `main`: `ci` (typecheck, lint, unit tests, build), `db-tests` (Postgres from the Supabase CLI + `npm run test:db`) and `e2e` (Supabase auth stack + `astro preview` + Playwright, report uploaded on failure). All three are required status checks on `main`, so a pull request merges only when they are green and direct pushes to `main` are rejected. Required repository secrets: `SUPABASE_URL`, `SUPABASE_KEY` (build).
+
+Locally, Husky (installed by `npm install`) runs lint-staged at commit and `npm test` + `npm run check` at push. Agents using Claude Code get a per-edit hook (`.claude/settings.json`) that formats the file and runs the related unit tests — see `context/foundation/test-plan.md` §6.6.
 
 ## License
 

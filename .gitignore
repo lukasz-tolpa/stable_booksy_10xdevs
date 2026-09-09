@@ -34,3 +34,6 @@ playwright/.auth/
 
 # jetbrains setting folder
 .idea/
+
+# claude code (ustawienia per maszyna; .claude/settings.json i .claude/hooks/ sa wspolne)
+.claude/settings.local.json
