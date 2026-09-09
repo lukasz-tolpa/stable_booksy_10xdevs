@@ -1,6 +1,7 @@
 import type { APIContext, APIRoute } from "astro";
 import { SIGN_IN_ROUTE } from "@/lib/auth/roles";
 import { firstErrorMessage } from "@/lib/auth/schemas";
+import { errorCode, errorMessage } from "@/lib/db-errors";
 import { formValue, formValues } from "@/lib/form-data";
 import { isPastDate, parseScheduleDate } from "@/lib/schedule/dates";
 import { scheduleErrorMessage } from "@/lib/schedule/errors";
@@ -22,19 +23,6 @@ function backToDay(context: APIContext, day: string | null, message?: string) {
 
   const query = params.toString();
   return context.redirect(query ? `${SCHEDULE_ROUTE}?${query}` : SCHEDULE_ROUTE);
-}
-
-/** Kod błędu Postgresa z odpowiedzi Supabase, jeśli w ogóle go niesie. */
-function errorCode(error: unknown): string | undefined {
-  return typeof error === "object" && error !== null && "code" in error && typeof error.code === "string"
-    ? error.code
-    : undefined;
-}
-
-function errorMessage(error: unknown): string | undefined {
-  return typeof error === "object" && error !== null && "message" in error && typeof error.message === "string"
-    ? error.message
-    : undefined;
 }
 
 export const POST: APIRoute = async (context) => {

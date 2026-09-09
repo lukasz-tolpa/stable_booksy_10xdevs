@@ -49,6 +49,24 @@ export interface SlotSectionsInput {
   currentHour: number | null;
 }
 
+/**
+ * Konie ofiarowane jeźdźcowi danego dnia: reguła PRD „koń przydzielony do pracy
+ * tego dnia". Jedynym kryterium jest przydział (`schedule_day_horses`) — flaga
+ * `active` jest celowo ignorowana, zgodnie z kontraktem bazy (FK sprawdza przydział,
+ * nie flagę) i decyzją z S-04: emerytowany koń, który wciąż jest przydzielony do
+ * dnia, pozostaje do wzięcia; `active` steruje wyłącznie widokiem stada ośrodka.
+ *
+ * Kolejność wejścia jest zachowana (strona podaje `active desc, name asc`);
+ * identyfikatory przydziału bez konia w stadzie są pomijane.
+ */
+export function assignedHorses(
+  horses: readonly { id: number; name: string; active?: boolean }[],
+  assignedIds: readonly number[],
+): { id: number; name: string }[] {
+  const assigned = new Set(assignedIds);
+  return horses.filter((horse) => assigned.has(horse.id)).map(({ id, name }) => ({ id, name }));
+}
+
 function slotKeySet(slots: SlotKey[]): Set<string> {
   return new Set(slots.map((slot) => `${String(slot.horseId)}:${String(slot.hour)}`));
 }

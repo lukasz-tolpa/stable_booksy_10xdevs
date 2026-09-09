@@ -5,6 +5,7 @@ import { bookingErrorMessage } from "@/lib/bookings/errors";
 import { createBooking } from "@/lib/bookings/queries";
 import { bookingSchema } from "@/lib/bookings/schema";
 import { currentWarsawHour } from "@/lib/bookings/slots";
+import { errorCode } from "@/lib/db-errors";
 import { formValue } from "@/lib/form-data";
 import { isPastDate, parseScheduleDate, todayIso } from "@/lib/schedule/dates";
 import { getScheduleDay } from "@/lib/schedule/queries";
@@ -36,13 +37,6 @@ function backToStable(
   const query = params.toString();
   const route = `/jezdziec/osrodki/${String(stableId)}`;
   return context.redirect(query ? `${route}?${query}` : route);
-}
-
-/** Kod błędu Postgresa z odpowiedzi Supabase, jeśli w ogóle go niesie. */
-function errorCode(error: unknown): string | undefined {
-  return typeof error === "object" && error !== null && "code" in error && typeof error.code === "string"
-    ? error.code
-    : undefined;
 }
 
 export const POST: APIRoute = async (context) => {

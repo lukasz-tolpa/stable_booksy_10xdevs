@@ -4,7 +4,7 @@ import Layout from "@/layouts/Layout.astro";
 import Topbar from "@/components/Topbar.astro";
 import { ROLE_HOME } from "@/lib/auth/roles";
 import { getMyBookings, getTakenSlots } from "@/lib/bookings/queries";
-import { computeSlotSections, currentWarsawHour, type SlotSection } from "@/lib/bookings/slots";
+import { assignedHorses, computeSlotSections, currentWarsawHour, type SlotSection } from "@/lib/bookings/slots";
 import { addDays, defaultScheduleDate, isPastDate, parseScheduleDate, todayIso } from "@/lib/schedule/dates";
 import { getScheduleDay, type ScheduleDayData } from "@/lib/schedule/queries";
 import { getStableById, listStableHorses, type StableListItem } from "@/lib/stables/queries";
@@ -46,17 +46,12 @@ if (id !== null && supabase && user) {
         getMyBookings(supabase, scheduleDay.id, user.id),
       ]);
 
-      // Konie wg przydziału do dnia (kontrakt bazy - FK sprawdza przydział, nie flagę
-      // `active`); nazwy dokłada lista stada.
-      const assignedIds = new Set(scheduleDay.horseIds);
-      const dayHorses = horses
-        .filter((horse) => assignedIds.has(horse.id))
-        .map(({ id: horseId, name }) => ({ id: horseId, name }));
-
+      // Konie wg przydziału do dnia — reguła żyje w `assignedHorses` (czysta, testowana
+      // jednostkowo); nazwy dokłada lista stada.
       sections = computeSlotSections({
         openHour: scheduleDay.openHour,
         closeHour: scheduleDay.closeHour,
-        horses: dayHorses,
+        horses: assignedHorses(horses, scheduleDay.horseIds),
         takenSlots,
         myBookings,
         currentHour: day === today ? currentWarsawHour() : null,
