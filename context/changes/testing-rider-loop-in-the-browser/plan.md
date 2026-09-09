@@ -704,30 +704,30 @@ None for data. `createBooking`'s return type changes from `void` to
 
 #### Automated
 
-- [x] 2.1 `npx playwright test e2e/rider-loop.spec.ts` green locally against a fresh seed
-- [x] 2.2 `npm run lint` passes including `e2e/**`
-- [x] 2.3 `npm test` and `npm run build` still pass
+- [x] 2.1 `npx playwright test e2e/rider-loop.spec.ts` green locally against a fresh seed — 6c1fe47
+- [x] 2.2 `npm run lint` passes including `e2e/**` — 6c1fe47
+- [x] 2.3 `npm test` and `npm run build` still pass — 6c1fe47
 
 #### Manual
 
-- [x] 2.4 Sabotage: `createBooking` swallows the error and returns `{ id: 0 }` → scenario red at the badge; revert.
-- [x] 2.5 Sabotage: rename the success param in `backToStable` → scenario red at `waitForURL`; revert.
-- [x] 2.6 Sabotage: hide the "Odwołaj" form → scenario red at cancel; revert.
-- [x] 2.7 Run the suite twice without a reset → second run green.
-- [x] 2.8 Trace viewer for a forced failure shows the Polish pages.
+- [x] 2.4 Sabotage: `createBooking` swallows the error and returns `{ id: 0 }` → scenario red at the badge; revert. — 6c1fe47
+- [x] 2.5 Sabotage: rename the success param in `backToStable` → scenario red at `waitForURL`; revert. — 6c1fe47
+- [x] 2.6 Sabotage: hide the "Odwołaj" form → scenario red at cancel; revert. — 6c1fe47
+- [x] 2.7 Run the suite twice without a reset → second run green. — 6c1fe47
+- [x] 2.8 Trace viewer for a forced failure shows the Polish pages. — 6c1fe47
 
 ### Phase 3: Refusal scenario — stale page, two contexts
 
 #### Automated
 
-- [ ] 3.1 `npx playwright test` (both scenarios) green locally against a fresh seed
-- [ ] 3.2 `npm run lint` passes
+- [x] 3.1 `npx playwright test` (both scenarios) green locally against a fresh seed
+- [x] 3.2 `npm run lint` passes
 
 #### Manual
 
-- [ ] 3.3 Sabotage: map `23505` to the fallback in `errors.ts` → scenario red at the message; revert.
-- [ ] 3.4 Sabotage: cancel B before A clicks → A succeeds (scenario depends on the active booking); restore order.
-- [ ] 3.5 Run the suite twice without reset → green both times (B's cleanup worked).
+- [x] 3.3 Sabotage: map `23505` to the fallback in `errors.ts` → scenario red at the message; revert.
+- [x] 3.4 Sabotage: cancel B before A clicks → A succeeds (scenario depends on the active booking); restore order.
+- [x] 3.5 Run the suite twice without reset → green both times (B's cleanup worked).
 
 ### Phase 4: CI gate
 
