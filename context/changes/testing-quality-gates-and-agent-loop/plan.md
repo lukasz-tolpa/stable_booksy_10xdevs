@@ -318,6 +318,25 @@ Phase 5 cites facts.
 
 **Contract**: a short "Observed" note under this phase (dates, setting values).
 
+### Observed (2026-09-09) and adaptation
+
+- **Evidence.** `wrangler deployments list` (after `npx wrangler login`) shows two
+  production deployments for every push to `main` today: one ~1 min after the push
+  (13:28:47Z, 13:33:27Z, 14:31:03Z, 15:08:15Z), before `e2e` (3m20s) could finish, and one
+  inside the Actions `deploy` job window (13:31:20Z, 14:34:36Z, 15:11:39Z …). The early
+  deployment's Version ID (`3d35bd69…` for the 15:07:22Z push) equals the Version ID in
+  the `Workers Builds: stable-booksy` check-run on `main`. Conclusion: Workers Builds
+  deployed production from `main` on every push, ignoring the CI gates; Actions deployed
+  the same version a second time ~3 minutes later.
+- **Decision (user, 2026-09-09): keep Cloudflare Workers Builds as the only production
+  path and remove the Actions `deploy` job** — the reverse of the plan's first choice.
+  Consequence: the production gate becomes the Phase 4 ruleset on `main` (only a PR
+  merge with green `ci`, `db-tests`, `e2e` lands on `main`; direct pushes are rejected).
+  Between this phase and Phase 4 a direct push to `main` would still deploy ungated.
+  GitHub secrets `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` are now unused (removal
+  is optional, owner's call). Changes Required item 1 (dashboard) is not performed; item 2
+  is this note. Success criteria 3.1–3.3 are superseded by 3.4–3.6 in `## Progress`.
+
 ### Success Criteria:
 
 #### Automated Verification:
@@ -527,29 +546,26 @@ edit builds a TypeScript program.
 
 #### Automated
 
-- [x] 2.1 Handler on `src/lib/bookings/slots.ts` exits 0 and runs the 27 related tests
-- [x] 2.2 Handler on `src/pages/api/bookings/create.ts` exits 0 with the JSON note naming `test:e2e`
-- [x] 2.3 Handler on `src/db/database.types.ts` exits 0 silently and leaves the file untouched
-- [x] 2.4 Handler with a broken assertion exits 2 with the Vitest failure on stderr
-- [x] 2.5 `npm run lint` passes with `.claude/hooks/post-edit.mjs` present
-- [x] 2.6 Handler wall time ≤ 5 s on a risk-area file, ≤ 2 s on a non-risk file
+- [x] 2.1 Handler on `src/lib/bookings/slots.ts` exits 0 and runs the 27 related tests — c9ad47f
+- [x] 2.2 Handler on `src/pages/api/bookings/create.ts` exits 0 with the JSON note naming `test:e2e` — c9ad47f
+- [x] 2.3 Handler on `src/db/database.types.ts` exits 0 silently and leaves the file untouched — c9ad47f
+- [x] 2.4 Handler with a broken assertion exits 2 with the Vitest failure on stderr — c9ad47f
+- [x] 2.5 `npm run lint` passes with `.claude/hooks/post-edit.mjs` present — c9ad47f
+- [x] 2.6 Handler wall time ≤ 5 s on a risk-area file, ≤ 2 s on a non-risk file — c9ad47f
 
 #### Manual
 
-- [x] 2.7 Failing assertion edited through Claude Code surfaces in the agent's next turn; fix is silent
-- [x] 2.8 Three consecutive agent edits ≤ 15 s total hook overhead
-- [x] 2.9 Badly formatted `.astro`/`.md` edit comes back formatted
+- [x] 2.7 Failing assertion edited through Claude Code surfaces in the agent's next turn; fix is silent — c9ad47f
+- [x] 2.8 Three consecutive agent edits ≤ 15 s total hook overhead — c9ad47f
+- [x] 2.9 Badly formatted `.astro`/`.md` edit comes back formatted — c9ad47f
 
 ### Phase 3: Single production deploy path
 
 #### Automated
 
-- [ ] 3.1 `main` Workers Builds check summary carries a Preview URL after the next `main` push
-- [ ] 3.2 `wrangler deployments list` shows the latest production deployment from the Actions job
-
-#### Manual
-
-- [ ] 3.3 Dashboard: production branch/deploy command no longer deploys `main`; previews still built
+- [x] 3.4 `.github/workflows/ci.yml` has no `deploy` job and no `CLOUDFLARE_*` / `wrangler-action` references
+- [ ] 3.5 PR run after the push shows exactly the jobs `ci`, `db-tests`, `e2e`, all green
+- [ ] 3.6 After the Phase 5 merge, `wrangler deployments list` shows exactly one production deployment for the merge commit, created by Workers Builds (Version ID equals the `main` check-run summary)
 
 ### Phase 4: Public repo and ruleset on `main`
 
