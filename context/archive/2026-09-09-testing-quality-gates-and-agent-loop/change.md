@@ -1,10 +1,10 @@
 ---
 change_id: testing-quality-gates-and-agent-loop
 title: Test rollout Phase 3 - quality gates and the per-edit agent loop
-status: impl_reviewed
+status: archived
 created: 2026-09-09
 updated: 2026-09-09
-archived_at: null
+archived_at: 2026-09-09T21:22:50Z
 ---
 
 ## Notes
