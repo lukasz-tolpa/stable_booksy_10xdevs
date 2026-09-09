@@ -720,14 +720,14 @@ None for data. `createBooking`'s return type changes from `void` to
 
 #### Automated
 
-- [x] 3.1 `npx playwright test` (both scenarios) green locally against a fresh seed
-- [x] 3.2 `npm run lint` passes
+- [x] 3.1 `npx playwright test` (both scenarios) green locally against a fresh seed — 905c5bb
+- [x] 3.2 `npm run lint` passes — 905c5bb
 
 #### Manual
 
-- [x] 3.3 Sabotage: map `23505` to the fallback in `errors.ts` → scenario red at the message; revert.
-- [x] 3.4 Sabotage: cancel B before A clicks → A succeeds (scenario depends on the active booking); restore order.
-- [x] 3.5 Run the suite twice without reset → green both times (B's cleanup worked).
+- [x] 3.3 Sabotage: map `23505` to the fallback in `errors.ts` → scenario red at the message; revert. — 905c5bb
+- [x] 3.4 Sabotage: cancel B before A clicks → A succeeds (scenario depends on the active booking); restore order. — 905c5bb
+- [x] 3.5 Run the suite twice without reset → green both times (B's cleanup worked). — 905c5bb
 
 ### Phase 4: CI gate
 

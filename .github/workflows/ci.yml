@@ -54,8 +54,49 @@ jobs:
       - if: failure()
         run: docker logs --tail 300 "supabase_db_$(sed -nE 's/^project_id *= *"(.*)".*/\1/p' supabase/config.toml)"
 
+  # Petla jezdzca w przegladarce (test-plan §3 faza 2): Playwright przeciwko lokalnemu
+  # stackowi Supabase i `astro preview`. `supabase db start` z joba db-tests to sam
+  # Postgres - bez GoTrue nie ma logowania - wiec tu startuje pelny stack, okrojony
+  # do kong + gotrue + postgrest (reszta uslug to zbedne obrazy na zimnym runnerze).
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # Ten sam obraz Postgresa co lokalnie - uzasadnienie przy jobie db-tests.
+      - run: mkdir -p supabase/.temp && cp supabase/postgres-version supabase/.temp/postgres-version
+      - run: npx supabase start -x realtime,storage-api,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+      # Sekrety czyta ZBUDOWANY worker ze snapshotu dist/server/.dev.vars, ktory
+      # `astro build` robi z glownego .dev.vars - zmienne srodowiskowe procesu do
+      # workera nie docieraja. Plik musi wiec istniec PRZED buildem, ktory odpala
+      # webServer Playwrighta. Klucz anon lokalnego stacku nie jest sekretem.
+      - run: |
+          ANON_KEY=$(npx supabase status -o env | sed -nE 's/^ANON_KEY="?([^"]*)"?$/\1/p')
+          test -n "$ANON_KEY"
+          printf 'SUPABASE_URL=http://127.0.0.1:54321\nSUPABASE_KEY=%s\n' "$ANON_KEY" > .dev.vars
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14
+      # Przy porazce logi auth i bazy - bez nich timeout logowania w setupie jest
+      # nie do odroznienia od padnietego GoTrue.
+      - if: failure()
+        run: |
+          PROJECT=$(sed -nE 's/^project_id *= *"(.*)".*/\1/p' supabase/config.toml)
+          docker logs --tail 200 "supabase_auth_$PROJECT" || true
+          docker logs --tail 200 "supabase_db_$PROJECT" || true
+
   deploy:
-    needs: [ci, db-tests]
+    needs: [ci, db-tests, e2e]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
