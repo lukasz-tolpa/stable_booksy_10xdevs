@@ -46,7 +46,7 @@ test("jeździec przechodzi pełną pętlę: katalog → slot → zapis → lista
   await test.step("zapis na Kasztana o 13:00 zostaje oznaczony jako mój", async () => {
     await bookButton(page, HOUR, HORSE).click();
     await page.waitForURL(/sukces=1/);
-    await expect(page.getByText("Zapisano na jazdę.")).toBeVisible();
+    await expect(page.getByText("Zapisano na jazdę (sabotaż).")).toBeVisible();
     await expect(hourSection(page, HOUR).getByText(`${HORSE} — Twój zapis`)).toBeVisible();
     await expect(bookButton(page, HOUR, HORSE)).toHaveCount(0);
   });
