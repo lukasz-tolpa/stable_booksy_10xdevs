@@ -512,33 +512,33 @@ edit builds a TypeScript program.
 
 #### Automated
 
-- [x] 1.1 `core.hooksPath` is `.husky/_` after `npm install`
-- [x] 1.2 `npm run check` exits 0
-- [x] 1.3 `npm test` exits 0
-- [x] 1.4 Sabotage: pre-commit rejects a staged ESLint error, passes after revert
-- [x] 1.5 Sabotage: pre-push rejects a failing unit assertion in under ~30 s, passes after revert
-- [ ] 1.6 PR run of job `ci` shows the `npm run check` step green
+- [x] 1.1 `core.hooksPath` is `.husky/_` after `npm install` — 8b64425
+- [x] 1.2 `npm run check` exits 0 — 8b64425
+- [x] 1.3 `npm test` exits 0 — 8b64425
+- [x] 1.4 Sabotage: pre-commit rejects a staged ESLint error, passes after revert — 8b64425
+- [x] 1.5 Sabotage: pre-push rejects a failing unit assertion in under ~30 s, passes after revert — 8b64425
+- [x] 1.6 PR run of job `ci` shows the `npm run check` step green — 8b64425
 
 #### Manual
 
-- [ ] 1.7 Branch pushed, draft PR open, three jobs green
+- [x] 1.7 Branch pushed, draft PR open, three jobs green — 8b64425
 
 ### Phase 2: Per-edit agent hook
 
 #### Automated
 
-- [ ] 2.1 Handler on `src/lib/bookings/slots.ts` exits 0 and runs the 27 related tests
-- [ ] 2.2 Handler on `src/pages/api/bookings/create.ts` exits 0 with the JSON note naming `test:e2e`
-- [ ] 2.3 Handler on `src/db/database.types.ts` exits 0 silently and leaves the file untouched
-- [ ] 2.4 Handler with a broken assertion exits 2 with the Vitest failure on stderr
-- [ ] 2.5 `npm run lint` passes with `.claude/hooks/post-edit.mjs` present
-- [ ] 2.6 Handler wall time ≤ 5 s on a risk-area file, ≤ 2 s on a non-risk file
+- [x] 2.1 Handler on `src/lib/bookings/slots.ts` exits 0 and runs the 27 related tests
+- [x] 2.2 Handler on `src/pages/api/bookings/create.ts` exits 0 with the JSON note naming `test:e2e`
+- [x] 2.3 Handler on `src/db/database.types.ts` exits 0 silently and leaves the file untouched
+- [x] 2.4 Handler with a broken assertion exits 2 with the Vitest failure on stderr
+- [x] 2.5 `npm run lint` passes with `.claude/hooks/post-edit.mjs` present
+- [x] 2.6 Handler wall time ≤ 5 s on a risk-area file, ≤ 2 s on a non-risk file
 
 #### Manual
 
-- [ ] 2.7 Failing assertion edited through Claude Code surfaces in the agent's next turn; fix is silent
-- [ ] 2.8 Three consecutive agent edits ≤ 15 s total hook overhead
-- [ ] 2.9 Badly formatted `.astro`/`.md` edit comes back formatted
+- [x] 2.7 Failing assertion edited through Claude Code surfaces in the agent's next turn; fix is silent
+- [x] 2.8 Three consecutive agent edits ≤ 15 s total hook overhead
+- [x] 2.9 Badly formatted `.astro`/`.md` edit comes back formatted
 
 ### Phase 3: Single production deploy path
 
