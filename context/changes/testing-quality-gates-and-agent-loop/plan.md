@@ -385,6 +385,25 @@ body: `name: "main gates"`, `target: "branch"`, `enforcement: "active"`,
 Keep the request body as `.github/rulesets/main-gates.json` in the repo for
 reproducibility (documentation, not applied automatically).
 
+### Observed (2026-09-09) and adaptation
+
+- Visibility flipped to public (`gh repo edit --visibility public`); history scan found no
+  `service_role`/`sb_secret_`/Cloudflare tokens, only the Supabase project URL and the
+  `sb_publishable_` key in `context/changes/deployment/deployment-plan.md` (public by
+  Supabase's design; RLS proven by `db-tests`). Accepted by the user.
+- Ruleset `main gates` (id 22684713) created. **A ruleset with only
+  `required_status_checks` did not block a direct push**: the sabotage commit `a352688`
+  landed on `main` and GitHub's rule-suite log recorded `required_status_checks=pass`
+  for a commit with no checks. The rule is evaluated at PR merge; pushes are blocked
+  only when a `pull_request` rule is present. Adaptation (user-approved): add
+  `pull_request` with `required_approving_review_count: 0` (forces a PR, not a
+  reviewer) — the plan's "no pull_request rule" exclusion meant "no required reviewers".
+  `main` was restored to `84d2cbc` by force-push with the ruleset temporarily disabled,
+  then the ruleset was re-enabled with the PR rule. The repeated sabotage (empty commit
+  `9719f42` pushed to `main`) was rejected: "3 of 3 required status checks are expected"
+  and "Changes must be made through a pull request"; rule-suite:
+  `required_status_checks=fail, pull_request=fail`.
+
 ### Success Criteria:
 
 #### Automated Verification:
@@ -563,21 +582,21 @@ edit builds a TypeScript program.
 
 #### Automated
 
-- [x] 3.4 `.github/workflows/ci.yml` has no `deploy` job and no `CLOUDFLARE_*` / `wrangler-action` references
-- [ ] 3.5 PR run after the push shows exactly the jobs `ci`, `db-tests`, `e2e`, all green
+- [x] 3.4 `.github/workflows/ci.yml` has no `deploy` job and no `CLOUDFLARE_*` / `wrangler-action` references — f5e066d
+- [x] 3.5 PR run after the push shows exactly the jobs `ci`, `db-tests`, `e2e`, all green — f5e066d
 - [ ] 3.6 After the Phase 5 merge, `wrangler deployments list` shows exactly one production deployment for the merge commit, created by Workers Builds (Version ID equals the `main` check-run summary)
 
 ### Phase 4: Public repo and ruleset on `main`
 
 #### Automated
 
-- [ ] 4.1 `rules/branches/main` lists deletion, non_fast_forward and the three required contexts
-- [ ] 4.2 Sabotage: direct `git push origin HEAD:main` is rejected by the ruleset
+- [x] 4.1 `rules/branches/main` lists deletion, non_fast_forward and the three required contexts
+- [x] 4.2 Sabotage: direct `git push origin HEAD:main` is rejected by the ruleset
 - [ ] 4.3 PR `mergeStateStatus` is `BLOCKED` until checks pass, then `CLEAN`
 
 #### Manual
 
-- [ ] 4.4 PR merge box lists `ci`, `db-tests`, `e2e` as required
+- [x] 4.4 PR merge box lists `ci`, `db-tests`, `e2e` as required
 
 ### Phase 5: Docs and cookbook sync, merge
 
