@@ -43,7 +43,7 @@
 - **Location**: PR #11 (API: mergeable_state=unknown, head f5e066d, no CI run for b23da53)
 - **Detail**: origin branch is at b23da53 but the PR still reports head f5e066d and no workflow run exists for b23da53 (a Workers Builds check-run does). Looks like GitHub lag after the main force-push and the visibility change. Row 4.3 stays unchecked; not a phase defect.
 - **Fix**: Re-poll in a few minutes; if still stale, an empty commit on the branch (or close/reopen the PR) forces recomputation. Close 4.3 when the PR is marked ready in Phase 5.
-- **Decision**: FIXED — review-fix commit pushed to the branch to re-trigger CI and the PR sync; 4.3 to be closed when the PR is marked ready (Phase 5)
+- **Decision**: FIXED — root cause was not lag: GitHub had auto-marked PR #11 as merged when the sabotage push put its commits on main, so it stopped syncing. Replaced by PR #12 from the same branch; 4.3 to be closed when PR #12 is marked ready (Phase 5)
 
 ### F3 — Restoring main by force-push re-ran the old workflow with the deploy job
 

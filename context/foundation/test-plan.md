@@ -95,13 +95,13 @@ tests (`src/lib/**`), database guarantees run in CI (`db-tests`), and two
 Playwright scenarios cover the rider loop in CI (`e2e`). Still no component
 tests by design (§7).
 
-| Layer                  | Tool                                                                                                    | Version                                                                                                                        | Notes                                                                                                               |
-| ---------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
-| unit                   | Vitest                                                                                                  | 4.x                                                                                                                            | `src/**/*.test.ts`, node environment, pure logic only                                                               |
-| integration (database) | local Supabase (Postgres) via Supabase CLI + psql scripts (`supabase/tests/`, runner `npm run test:db`) | CLI 2.98, Postgres image 17.6.1.147 (pinned by the committed `supabase/postgres-version`, copied into `supabase/.temp/` in CI) | automated since §3 Phase 1: CI job `db-tests` (`supabase db start` + `npm run test:db`), `deploy` waits on it       |
-| e2e                    | Playwright (`e2e/`, runner `npm run test:e2e`)                                                          | 1.63.0 (pinned exact), Chromium                                                                                                | since §3 Phase 2: against local Supabase with the auth stack (`npx supabase start`) + `astro preview`; CI job `e2e` |
-| lint + typecheck       | ESLint (type-aware via `projectService`); `astro check` installed but not wired                         | current                                                                                                                        | CI runs `npm run lint`; Husky pre-commit runs lint-staged (`eslint --fix` on staged files only, no `astro check`)   |
-| (optional) AI-native   | none                                                                                                    | n/a                                                                                                                            | no AI-native layer planned; deterministic tests cover every mapped risk cheaply                                     |
+| Layer                  | Tool                                                                                                    | Version                                                                                                                        | Notes                                                                                                                                                                                                                                                  |
+| ---------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| unit                   | Vitest                                                                                                  | 4.x                                                                                                                            | `src/**/*.test.ts`, node environment, pure logic only                                                                                                                                                                                                  |
+| integration (database) | local Supabase (Postgres) via Supabase CLI + psql scripts (`supabase/tests/`, runner `npm run test:db`) | CLI 2.98, Postgres image 17.6.1.147 (pinned by the committed `supabase/postgres-version`, copied into `supabase/.temp/` in CI) | automated since §3 Phase 1: CI job `db-tests` (`supabase db start` + `npm run test:db`); required for merging to `main` (ruleset, §6.6)                                                                                                                |
+| e2e                    | Playwright (`e2e/`, runner `npm run test:e2e`)                                                          | 1.63.0 (pinned exact), Chromium                                                                                                | since §3 Phase 2: against local Supabase with the auth stack (`npx supabase start`) + `astro preview`; CI job `e2e`, required for merging to `main` (ruleset, §6.6)                                                                                    |
+| lint + typecheck       | ESLint (type-aware via `projectService`); `astro check` as `npm run check`                              | current                                                                                                                        | since §3 Phase 3: CI job `ci` runs `npm run check` + `npm run lint`; Husky (activated by `prepare`) pre-commit runs lint-staged (`eslint --fix` on staged files), pre-push runs `npm test` + `npm run check`; the agent hook formats every edit (§6.6) |
+| (optional) AI-native   | none                                                                                                    | n/a                                                                                                                            | no AI-native layer planned; deterministic tests cover every mapped risk cheaply                                                                                                                                                                        |
 
 **Stack grounding tools (current session):**
 
@@ -114,16 +114,21 @@ tests by design (§7).
 
 The full set of gates that must pass before a change reaches production.
 "Required for §3 Phase <N>" means the gate is enforced once that rollout
-phase lands; before that, the gate is `planned`.
+phase lands; before that, the gate is `planned`. Since §3 Phase 3 "required"
+means a required status check in the `main` ruleset
+(`.github/rulesets/main-gates.json`, applied via API — see §6.6): direct pushes to
+`main` are rejected and a pull request merges only when `ci`, `db-tests` and `e2e`
+are green. Production is deployed by Cloudflare Workers Builds from `main`, so the
+ruleset is the production gate.
 
-| Gate                              | Where                                                                                                        | Required?                                    | Catches                                                  |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------ | -------------------------------------------- | -------------------------------------------------------- |
-| lint + typecheck                  | local (Husky pre-commit: lint-staged, staged files only) + CI (`npm run lint`, type-aware)                   | required                                     | syntactic / type drift                                   |
-| unit (Vitest)                     | local + CI                                                                                                   | required                                     | pure-logic regressions (slot rule, validation, messages) |
-| integration (database guarantees) | CI job `db-tests` (Postgres from Supabase CLI on the runner) + local `npm run test:db`                       | required (since §3 Phase 1; blocks `deploy`) | double booking, silent booking loss, cross-tenant access |
-| e2e on the rider loop             | CI job `e2e` on PR and push (Supabase auth stack + `astro preview` on the runner) + local `npm run test:e2e` | required (since §3 Phase 2; blocks `deploy`) | broken critical user path, unreadable refusal            |
-| post-edit hook (lint + typecheck) | local (agent loop)                                                                                           | recommended after §3 Phase 3                 | regressions at edit time                                 |
-| auto-deploy on merge              | CI (Cloudflare Workers)                                                                                      | required (exists)                            | build breakage before production                         |
+| Gate                                    | Where                                                                                                                                   | Required?                                                                                                            | Catches                                                                                                        |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| lint + typecheck                        | local (Husky pre-commit: lint-staged on staged files; pre-push: `npm run check`) + CI job `ci` (`npm run check`, `npm run lint`)        | required — `ci` is a required check in the `main` ruleset (since §3 Phase 3)                                         | syntactic / type drift, `.astro` template types                                                                |
+| unit (Vitest)                           | local (agent hook: related tests per edit; pre-push: `npm test`) + CI job `ci`                                                          | required — via `ci` in the `main` ruleset                                                                            | pure-logic regressions (slot rule, validation, messages)                                                       |
+| integration (database guarantees)       | CI job `db-tests` (Postgres from Supabase CLI on the runner) + local `npm run test:db`                                                  | required (since §3 Phase 1) — `db-tests` is a required check in the `main` ruleset                                   | double booking, silent booking loss, cross-tenant access                                                       |
+| e2e on the rider loop                   | CI job `e2e` on PR and push (Supabase auth stack + `astro preview` on the runner) + local `npm run test:e2e`                            | required (since §3 Phase 2) — `e2e` is a required check in the `main` ruleset                                        | broken critical user path, unreadable refusal                                                                  |
+| post-edit hook (format + related tests) | local (agent loop): committed `.claude/settings.json` → `.claude/hooks/post-edit.mjs`                                                   | recommended local (final since §3 Phase 3 — a hook cannot be enforced outside the agent; runs after workspace trust) | format drift and failing related unit tests seconds after an edit; type errors surface at commit (lint-staged) |
+| auto-deploy on merge                    | Cloudflare Workers Builds from `main` (Git integration in the Cloudflare dashboard); the Actions `deploy` job was removed in §3 Phase 3 | required (exists) — gated by the ruleset: only a PR merge with green `ci`/`db-tests`/`e2e` reaches `main`            | build breakage before production                                                                               |
 
 ## 6. Cookbook Patterns
 
@@ -164,8 +169,8 @@ start`) and a seed loaded **today** (`npx supabase db reset`) — the runner
 - **Run in CI**: job `db-tests` in `.github/workflows/ci.yml` — `npx supabase
 db start` (Postgres only, migrations + seed; image pinned through
   `supabase/.temp/postgres-version` to the same tag as locally) → `npm run
-test:db`; on failure the job prints `docker logs` of the database. `deploy`
-  waits on `ci` and `db-tests`.
+test:db`; on failure the job prints `docker logs` of the database. `db-tests`
+  is a required check for merging to `main` (ruleset, §6.6).
 - **Pattern** (one transaction, rolled back): `begin;` → setup as `postgres`,
   passing ids to later blocks with `set_config('app.<name>', …, true)` → `set
 local role authenticated; set local request.jwt.claims =
@@ -214,8 +219,9 @@ local role authenticated; set local request.jwt.claims =
   (keeps kong + gotrue + postgrest; `db start` has no GoTrue, so no login) →
   writes `.dev.vars` from `supabase status -o env` → `playwright install
 --with-deps chromium` → `npx playwright test`; on failure uploads
-  `playwright-report` and prints the auth/db container logs. `deploy` waits on
-  it. Measured: 3m40s on a cold runner.
+  `playwright-report` and prints the auth/db container logs. `e2e` is a
+  required check for merging to `main` (ruleset, §6.6). Measured: 3m40s on a
+  cold runner.
 - **Pattern**: sessions are established through the real UI once per run —
   two **fresh riders** signed up as `e2e-rider-<a|b>-<timestamp>@example.com`
   (confirmations are off locally) and the seeded stable signed in read-only;
@@ -296,7 +302,77 @@ authenticated` + `request.jwt.claims`). The CLI's default Postgres image on
   a cold runner (ci 1m36s, db-tests 2m31s), well under the 8-minute fallback
   threshold; a forced failure published the `playwright-report` artifact.
   Cloudflare's own "Workers Builds" check also appears on PRs — it is not part
-  of the workflow and not a gate.
+  of the workflow and not a gate (Phase 3 found it _was_ the production deploy).
+- **Phase 3 (2026-09-09, Quality gates and agent loop).** Husky had never been
+  active (no `prepare` script, no `core.hooksPath`): every earlier commit skipped
+  lint-staged. Type-aware ESLint costs 7–9 s per file, so the agent hook formats
+  and runs related tests and leaves lint to commit and CI. On `PostToolUse` Claude
+  reads **stderr** on exit 2 — exit-0 stdout is invisible. `vitest related` sees
+  nothing for `src/pages/api/**`, both `queries.ts` and `schedule/schema.ts`
+  (type-only imports), hence the whole-suite fallback plus a note naming the real
+  gate. Rulesets need a public repo on GitHub Free, and `required_status_checks`
+  alone does **not** block a direct push: the first sabotage landed on `main`,
+  GitHub auto-marked PR #11 as merged, `main` was force-restored to `84d2cbc`
+  (which re-ran the old workflow with its `deploy` job once) and PR #12 replaced
+  #11; the `pull_request` rule with 0 approvals is what rejects pushes. Workers
+  Builds had been deploying `main` ~1 min after every push, before CI finished,
+  while Actions deployed the same version again 3 min later — the Actions job
+  was removed and the ruleset became the production gate. `astro check` passed on
+  adoption (0 errors) and regenerates `.astro/` itself.
+
+### 6.6 Running the gates and the agent hook
+
+- **Layers and measured cost** (2026-09-09, Windows 11): per edit ≈ 1.5 s
+  (Prettier) + 1–2 s (`vitest related`), ≤ 5 s on a risk-area file; commit:
+  lint-staged runs type-aware `eslint --fix` on staged files (≈ 7 s for the first
+  file); push: `npm test` (2 s) + `npm run check` (19 s); CI: `ci` 1m36s,
+  `db-tests` 2m31s, `e2e` 3m20s. Nothing per edit builds a TypeScript program —
+  that is why ESLint is not in the hook (7–9 s per file with `projectService`);
+  the same rules run at commit and in CI.
+- **Agent hook** (Claude Code): `.claude/settings.json` registers a `PostToolUse`
+  hook (matcher `Write|Edit`, timeout 60 s) that runs
+  `node "$CLAUDE_PROJECT_DIR/.claude/hooks/post-edit.mjs"`. The handler reads the
+  hook JSON from stdin, runs `prettier --write --ignore-unknown` on the file and,
+  when the path starts with an entry of `RISK_AREAS` (`src/lib/bookings/`,
+  `src/lib/schedule/`, `src/pages/api/`) and ends with `.ts`, `vitest related
+<file> --run`; when Vitest reports "No test files found" it runs the whole unit
+  suite instead and returns a JSON `additionalContext` note naming the gate that
+  really covers the file (`npm run test:e2e` for `src/pages/api/**`, `test:db` +
+  `test:e2e` for `queries.ts`/`schema.ts`). Any failure goes to **stderr with exit
+  2** (that is the channel Claude sees); a crash of the hook itself exits 1
+  (visible, non-blocking). It skips `src/db/database.types.ts`, deleted files and
+  paths outside the project. Project hooks run after the workspace-trust dialog;
+  `/hooks` lists them. To add a risk area, extend `RISK_AREAS`. Run it by hand:
+  `printf '{"cwd":"<repo>","tool_input":{"file_path":"<repo>/src/lib/bookings/slots.ts"}}' | node .claude/hooks/post-edit.mjs`
+  (on Windows escape backslashes in the JSON, or use forward slashes).
+- **Git hooks**: `npm install` runs `prepare` → `husky`, which sets
+  `core.hooksPath=.husky/_` (check with `git config --get core.hooksPath`).
+  `.husky/pre-commit` = `npx lint-staged`; `.husky/pre-push` = `npm test` +
+  `npm run check`. `HUSKY=0` or `--no-verify` skip them locally only — CI and the
+  ruleset still block.
+- **Ruleset**: `.github/rulesets/main-gates.json` is the committed record of
+  ruleset `22684713` on `main` (deletion, non_fast_forward, pull_request with 0
+  approvals and merge-commit only, required checks `ci`/`db-tests`/`e2e`, no
+  bypass actors). It is not applied automatically. Read the live ruleset with
+  `gh api repos/lukasz-tolpa/stable_booksy_10xdevs/rulesets/22684713`, apply the
+  file with `gh api -X PUT repos/lukasz-tolpa/stable_booksy_10xdevs/rulesets/22684713 --input .github/rulesets/main-gates.json`,
+  list effective rules with `gh api repos/lukasz-tolpa/stable_booksy_10xdevs/rules/branches/main`,
+  and inspect why a push was rejected under `…/rulesets/rule-suites?ref=main`.
+  Gotchas: `required_status_checks` alone lets a direct push through — the
+  `pull_request` rule is what forces PRs; GitHub adds default parameters to
+  `pull_request` (keep the file complete so live == file); with no bypass actors
+  a CI outage freezes `main` until the owner edits the ruleset — do that, not
+  `--no-verify`.
+- **Production**: Cloudflare Workers Builds deploys `main` from the Git
+  integration (dashboard → Worker → Settings → Build); other branches get preview
+  URLs. The check-run "Workers Builds: stable-booksy" is informational. Verify a
+  deployment with `npx wrangler deployments list` (after `npx wrangler login`);
+  the Version ID matches the check-run summary on the `main` commit.
+- **Sabotage checks** (repeat after touching any layer): a staged ESLint error
+  must be rejected at commit; a failing assertion must be rejected at push; a
+  failing assertion edited through the agent must show the Vitest output in the
+  agent's next turn; an empty commit pushed straight to `main` must be rejected
+  with "Changes must be made through a pull request".
 
 ## 7. What We Deliberately Don't Test
 
@@ -313,8 +389,8 @@ contributors should respect these unless the underlying assumption changes.
 
 ## 8. Freshness Ledger
 
-- Strategy (§1–§5) last reviewed: 2026-09-08
-- Stack versions last verified: 2026-09-08
+- Strategy (§1–§5) last reviewed: 2026-09-09
+- Stack versions last verified: 2026-09-09
 - AI-native tool references last verified: 2026-09-08
 
 Refresh (`/10x-test-plan --refresh`) when:

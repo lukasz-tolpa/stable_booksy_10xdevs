@@ -403,6 +403,11 @@ reproducibility (documentation, not applied automatically).
   `9719f42` pushed to `main`) was rejected: "3 of 3 required status checks are expected"
   and "Changes must be made through a pull request"; rule-suite:
   `required_status_checks=fail, pull_request=fail`.
+- **Side effect of the first sabotage:** while `a352688` sat on `main`, GitHub
+  auto-marked PR #11 as _merged_ (its commits were contained in `main`); restoring
+  `main` does not un-merge it, so the PR stopped syncing (head frozen at `f5e066d`,
+  no `pull_request` runs for later pushes). Replaced by PR #12 from the same branch.
+  Rows 4.3 / 1.7 now refer to PR #12.
 
 ### Success Criteria:
 
@@ -482,6 +487,14 @@ states Actions is the only production path and Workers Builds produces previews.
 
 **Contract**: mark the PR ready, wait for `ci`, `db-tests`, `e2e`, merge (regular
 merge, as PR #9). Then the Phase 3 automated checks on `main` can be completed.
+
+### Adaptation (2026-09-09)
+
+- After the Phase 3 decision there is no Actions `deploy` job and Workers Builds is
+  the production path, so the original rows 5.2 ("`deploy` succeeded on the merge
+  commit") and 5.3 ("Workers Builds is preview-only") no longer describe the end
+  state. They are superseded by 5.5 and 5.6 in `## Progress`. PR #11 was replaced
+  by PR #12 (see Phase 4 note); "the PR" below means #12.
 
 ### Success Criteria:
 
@@ -592,7 +605,7 @@ edit builds a TypeScript program.
 
 - [x] 4.1 `rules/branches/main` lists deletion, non_fast_forward and the three required contexts — b23da53
 - [x] 4.2 Sabotage: direct `git push origin HEAD:main` is rejected by the ruleset — b23da53
-- [ ] 4.3 PR `mergeStateStatus` is `BLOCKED` until checks pass, then `CLEAN`
+- [x] 4.3 PR `mergeStateStatus` is `BLOCKED` until checks pass, then `CLEAN`
 
 #### Manual
 
@@ -602,10 +615,10 @@ edit builds a TypeScript program.
 
 #### Automated
 
-- [ ] 5.1 `npm run lint` and Prettier check pass on the edited docs
-- [ ] 5.2 PR merged with required checks green; `deploy` succeeded on the merge commit
-- [ ] 5.3 Post-merge `main` check-runs confirm Workers Builds is preview-only
+- [x] 5.1 `npm run lint` and Prettier check pass on the edited docs
+- [ ] 5.5 PR #12 merged with `ci`, `db-tests`, `e2e` green under the ruleset (merge commit on `main`)
+- [ ] 5.6 Post-merge `main` check-runs show `ci`, `db-tests`, `e2e` green and the Workers Builds check for the merge commit
 
 #### Manual
 
-- [ ] 5.4 Test-plan §5 contains no unenforced "required"
+- [x] 5.4 Test-plan §5 contains no unenforced "required"

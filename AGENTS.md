@@ -4,7 +4,7 @@ Stable Booksy is an MVP booking system for horse-riding stables (roles: Ośrodek
 
 ## Hard rules
 
-- `.github/workflows/ci.yml` triggers on push/PR to `main`. Job `ci` runs lint, unit tests and build; job `db-tests` starts Postgres from the Supabase CLI (`npx supabase db start`, image pinned by the committed `supabase/postgres-version`, which CI copies to `supabase/.temp/`) and runs `npm run test:db`; job `e2e` starts the Supabase auth stack (`npx supabase start -x …`, keeping kong + gotrue + postgrest), writes `.dev.vars` from `supabase status -o env` and runs `npm run test:e2e` against `astro preview`; `deploy` waits on all three. After `npx supabase link` compare `supabase/.temp/postgres-version` with the committed file and update the committed one if they differ.
+- `.github/workflows/ci.yml` triggers on push/PR to `main`. Job `ci` runs lint, unit tests and build; job `db-tests` starts Postgres from the Supabase CLI (`npx supabase db start`, image pinned by the committed `supabase/postgres-version`, which CI copies to `supabase/.temp/`) and runs `npm run test:db`; job `e2e` starts the Supabase auth stack (`npx supabase start -x …`, keeping kong + gotrue + postgrest), writes `.dev.vars` from `supabase status -o env` and runs `npm run test:e2e` against `astro preview`; job `ci` also runs `npm run check` (`astro check`). The three jobs are required status checks in the `main` ruleset (`.github/rulesets/main-gates.json`, applied via API): `main` accepts only pull-request merges with all three green and rejects direct pushes. Production is deployed by Cloudflare Workers Builds from `main` (Git integration), not by Actions. After `npx supabase link` compare `supabase/.temp/postgres-version` with the committed file and update the committed one if they differ.
 - Vitest (`npm test`) covers pure logic under `src/lib/**` only — no DB, server, or component tests. Database guarantees are verified by the psql scripts in `supabase/tests/` via `npm run test:db` — see "Database" below. Run it locally after ANY change to migrations or RLS policies (CI runs it too, but locally is faster); nothing else will catch a regression.
 - Playwright (`npm run test:e2e`, specs in `e2e/`) is the only layer that exercises SSR pages, forms, redirects and session cookies. It needs Docker with the full local stack (`npx supabase start`), a seed loaded today (`npx supabase db reset`) and a root `.dev.vars` pointing at `http://127.0.0.1:54321` — the built worker reads secrets from the `.dev.vars` snapshot taken at `astro build`, never from the process environment. Run it after any change to `src/pages/**`, the booking/cancel endpoints, RLS on `bookings`, or the seed. Patterns and reserved seed slots: `context/foundation/test-plan.md` §6.3/§6.4.
 - `src/db/database.types.ts` is generated. Never edit it by hand — run `npm run db:types` (needs a running local stack). It is excluded from ESLint in `eslint.config.js` for that reason.
@@ -25,6 +25,7 @@ Stable Booksy is an MVP booking system for horse-riding stables (roles: Ośrodek
 - `npm run dev` — start dev server (Cloudflare workerd runtime).
 - `npm run build` — production build; CI runs `npx astro sync` first.
 - `npm run lint` / `npm run lint:fix` — type-checked ESLint.
+- `npm run check` — `astro check` typecheck (also in pre-push and CI).
 - `npm run format` — Prettier (astro + tailwindcss plugins).
 - `npx supabase start` — local Supabase (requires Docker); `npx supabase db reset` — rebuild schema from migrations + load `seed.sql`.
 - `npm run db:types` — regenerate `src/db/database.types.ts` from the local database.
@@ -47,7 +48,8 @@ Stable Booksy is an MVP booking system for horse-riding stables (roles: Ośrodek
 - Use `cn()` from `@/lib/utils` for conditional Tailwind classes; never concatenate class strings manually.
 - shadcn/ui components live in `src/components/ui/` ("new-york" style); add new ones with `npx shadcn@latest add [name]`.
 - API routes set `prerender = false` and validate input with zod.
-- Husky pre-commit runs lint-staged: `*.{ts,tsx,astro}` → `eslint --fix`, `*.{json,css,md}` → `prettier --write`.
+- Husky is installed by the `prepare` script (`npm install`). Pre-commit runs lint-staged: `*.{ts,tsx,astro}` → `eslint --fix`, `*.{json,css,md}` → `prettier --write`; pre-push runs `npm test` + `npm run check`.
+- Claude Code hook (`.claude/settings.json` → `.claude/hooks/post-edit.mjs`) runs Prettier on every Write/Edit and `vitest related` for files under `src/lib/bookings/`, `src/lib/schedule/`, `src/pages/api/`; a failure comes back as stderr + exit 2. No ESLint per edit (7–9 s per file). Details and sabotage checks: `context/foundation/test-plan.md` §6.6.
 
 ## Testing
 
