@@ -597,7 +597,7 @@ edit builds a TypeScript program.
 
 - [x] 3.4 `.github/workflows/ci.yml` has no `deploy` job and no `CLOUDFLARE_*` / `wrangler-action` references — f5e066d
 - [x] 3.5 PR run after the push shows exactly the jobs `ci`, `db-tests`, `e2e`, all green — f5e066d
-- [ ] 3.6 After the Phase 5 merge, `wrangler deployments list` shows exactly one production deployment for the merge commit, created by Workers Builds (Version ID equals the `main` check-run summary)
+- [x] 3.6 After the Phase 5 merge, `wrangler deployments list` shows exactly one production deployment for the merge commit, created by Workers Builds (Version ID equals the `main` check-run summary) — 4514232
 
 ### Phase 4: Public repo and ruleset on `main`
 
@@ -605,7 +605,7 @@ edit builds a TypeScript program.
 
 - [x] 4.1 `rules/branches/main` lists deletion, non_fast_forward and the three required contexts — b23da53
 - [x] 4.2 Sabotage: direct `git push origin HEAD:main` is rejected by the ruleset — b23da53
-- [x] 4.3 PR `mergeStateStatus` is `BLOCKED` until checks pass, then `CLEAN`
+- [x] 4.3 PR `mergeStateStatus` is `BLOCKED` until checks pass, then `CLEAN` — 871f2ad
 
 #### Manual
 
@@ -615,10 +615,10 @@ edit builds a TypeScript program.
 
 #### Automated
 
-- [x] 5.1 `npm run lint` and Prettier check pass on the edited docs
-- [ ] 5.5 PR #12 merged with `ci`, `db-tests`, `e2e` green under the ruleset (merge commit on `main`)
-- [ ] 5.6 Post-merge `main` check-runs show `ci`, `db-tests`, `e2e` green and the Workers Builds check for the merge commit
+- [x] 5.1 `npm run lint` and Prettier check pass on the edited docs — 871f2ad
+- [x] 5.5 PR #12 merged with `ci`, `db-tests`, `e2e` green under the ruleset (merge commit on `main`) — 4514232
+- [x] 5.6 Post-merge `main` check-runs show `ci`, `db-tests`, `e2e` green and the Workers Builds check for the merge commit — 4514232
 
 #### Manual
 
-- [x] 5.4 Test-plan §5 contains no unenforced "required"
+- [x] 5.4 Test-plan §5 contains no unenforced "required" — 871f2ad
