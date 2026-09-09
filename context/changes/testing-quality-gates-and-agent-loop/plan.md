@@ -590,13 +590,13 @@ edit builds a TypeScript program.
 
 #### Automated
 
-- [x] 4.1 `rules/branches/main` lists deletion, non_fast_forward and the three required contexts
-- [x] 4.2 Sabotage: direct `git push origin HEAD:main` is rejected by the ruleset
+- [x] 4.1 `rules/branches/main` lists deletion, non_fast_forward and the three required contexts — b23da53
+- [x] 4.2 Sabotage: direct `git push origin HEAD:main` is rejected by the ruleset — b23da53
 - [ ] 4.3 PR `mergeStateStatus` is `BLOCKED` until checks pass, then `CLEAN`
 
 #### Manual
 
-- [x] 4.4 PR merge box lists `ci`, `db-tests`, `e2e` as required
+- [x] 4.4 PR merge box lists `ci`, `db-tests`, `e2e` as required — b23da53
 
 ### Phase 5: Docs and cookbook sync, merge
 
