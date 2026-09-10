@@ -750,10 +750,10 @@ single-PR delivery.
 
 #### Automated
 
-- [x] 3.1 `npm run lint`, `npm run check`, `npm test` pass
-- [x] 3.2 `npx playwright test` passes
-- [x] 3.3 Both auth form islands still use `client:load`
-- [x] 3.4 No `bg-cosmic` left under `src/pages/auth/`
+- [x] 3.1 `npm run lint`, `npm run check`, `npm test` pass — 0610cc5
+- [x] 3.2 `npx playwright test` passes — 0610cc5
+- [x] 3.3 Both auth form islands still use `client:load` — 0610cc5
+- [x] 3.4 No `bg-cosmic` left under `src/pages/auth/` — 0610cc5
 
 #### Manual
 
@@ -766,10 +766,10 @@ single-PR delivery.
 
 #### Automated
 
-- [ ] 4.1 `npm run lint`, `npm run check`, `npm test` pass
-- [ ] 4.2 `npx playwright test` passes
-- [ ] 4.3 Booking buttons carry no `aria-label` or extra visible text
-- [ ] 4.4 The dash in "— Twój zapis" is still U+2014
+- [x] 4.1 `npm run lint`, `npm run check`, `npm test` pass
+- [x] 4.2 `npx playwright test` passes
+- [x] 4.3 Booking buttons carry no `aria-label` or extra visible text
+- [x] 4.4 The dash in "— Twój zapis" is still U+2014
 
 #### Manual
 

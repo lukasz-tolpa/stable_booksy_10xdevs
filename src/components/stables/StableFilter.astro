@@ -15,32 +15,103 @@ const { value, action } = Astro.props;
   /* Formularz GET: fraza ląduje w adresie, więc odświeżenie i wysłanie linku działa,
     a całość nie wymaga JavaScriptu - tak jak pozostałe formularze w tej aplikacji. */
 }
-<form method="GET" action={action} class="mb-6 flex flex-wrap items-center gap-2">
+<form method="GET" action={action} class="search">
   <label for="q" class="sr-only">Szukaj ośrodka</label>
-  <div class="relative min-w-0 flex-1">
-    <span class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-white/40">
-      <Search className="size-4" />
-    </span>
-    <input
-      id="q"
-      name="q"
-      type="search"
-      value={value}
-      placeholder="Nazwa ośrodka albo miejscowość"
-      class="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 pl-10 text-white placeholder-white/40 transition-colors focus:ring-2 focus:ring-purple-400 focus:outline-none"
-    />
+  <div class="row">
+    <div class="field">
+      <Search className="size-[18px]" />
+      <input id="q" name="q" type="search" value={value} placeholder="Nazwa ośrodka albo miejscowość" />
+    </div>
+    <button type="submit">Szukaj</button>
+    {value && <a href={action}>Wyczyść</a>}
   </div>
-  <button
-    type="submit"
-    class="rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-purple-500"
-  >
-    Szukaj
-  </button>
-  {
-    value && (
-      <a href={action} class="px-2 text-sm text-purple-300 transition-colors hover:text-purple-100 hover:underline">
-        Wyczyść
-      </a>
-    )
-  }
 </form>
+
+<style>
+  .search {
+    margin: 20px 0 24px;
+  }
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .field {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 1 1 240px;
+    min-width: 0;
+  }
+  .field :global(svg) {
+    position: absolute;
+    left: 13px;
+    width: 18px;
+    height: 18px;
+    color: var(--muted);
+    pointer-events: none;
+  }
+  .field input {
+    width: 100%;
+    min-height: 46px;
+    padding: 12px 14px 12px 42px;
+    background: var(--surface);
+    border: 1px solid var(--border-2);
+    border-radius: var(--r);
+    font-family: inherit;
+    font-size: 15px;
+    color: var(--fg);
+    transition:
+      border-color 0.15s,
+      box-shadow 0.15s;
+  }
+  .field input::placeholder {
+    color: var(--faint);
+  }
+  .field input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-soft);
+  }
+
+  .row button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 11px 18px;
+    border-radius: 999px;
+    border: 1px solid var(--border-2);
+    background: var(--surface);
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--fg);
+    cursor: pointer;
+    transition:
+      background 0.15s,
+      border-color 0.15s;
+  }
+  .row button:hover {
+    background: var(--surface-2);
+  }
+  .row button:focus-visible,
+  .row a:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+
+  .row a {
+    padding: 0 4px;
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--primary);
+  }
+  .row a:hover {
+    color: var(--primary-strong);
+    text-decoration: underline;
+  }
+</style>

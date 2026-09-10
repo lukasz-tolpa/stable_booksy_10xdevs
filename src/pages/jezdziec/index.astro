@@ -3,6 +3,9 @@ import Layout from "@/layouts/Layout.astro";
 import Topbar from "@/components/Topbar.astro";
 import StableCard from "@/components/stables/StableCard.astro";
 import StableFilter from "@/components/stables/StableFilter.astro";
+import Card from "@/components/ui/Card.astro";
+import EmptyState from "@/components/ui/EmptyState.astro";
+import FailureState from "@/components/ui/FailureState.astro";
 import { ROLE_HOME } from "@/lib/auth/roles";
 import { listStables, type StableListItem } from "@/lib/stables/queries";
 import { prepareSearchTerm } from "@/lib/stables/search";
@@ -36,62 +39,107 @@ const isEmpty = stables.length === 0;
 ---
 
 <Layout title="Ośrodki">
-  <div class="bg-cosmic min-h-screen p-4">
-    <div class="mx-auto max-w-3xl">
-      <Topbar />
+  <Topbar />
+  <main class="container-narrow page">
+    <div class="page-head">
+      <h1>Ośrodki</h1>
+      <a href="/jezdziec/zapisy" class="btn-ghost">Moje zapisy</a>
+    </div>
+    <p class="page-lead">Wybierz ośrodek, w którym chcesz się zapisać na jazdę.</p>
 
-      <div class="mb-1 flex items-baseline justify-between gap-3">
-        <h1 class="bg-gradient-to-r from-blue-200 to-purple-200 bg-clip-text text-3xl font-bold text-transparent">
-          Ośrodki
-        </h1>
-        <a
-          href="/jezdziec/zapisy"
-          class="rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm text-purple-200 transition-colors hover:bg-white/10"
-        >
-          Moje zapisy
-        </a>
-      </div>
-      <p class="mb-6 text-sm text-blue-100/70">Wybierz ośrodek, w którym chcesz się zapisać na jazdę.</p>
+    <StableFilter value={rawQuery} action={ROLE_HOME.rider} />
 
-      <StableFilter value={rawQuery} action={ROLE_HOME.rider} />
-
-      {
-        loadFailed ? (
-          <div class="rounded-2xl border border-red-500/30 bg-red-900/20 p-8 text-center text-white">
-            <p class="text-red-200">Nie udało się wczytać listy ośrodków.</p>
-            <p class="mt-2 text-sm text-blue-100/50">Odśwież stronę za chwilę.</p>
-          </div>
-        ) : isEmpty ? (
-          <div class="rounded-2xl border border-white/10 bg-white/5 p-8 text-center text-white">
+    {
+      loadFailed ? (
+        <FailureState>
+          <p>Nie udało się wczytać listy ośrodków.</p>
+          <p>Odśwież stronę za chwilę.</p>
+        </FailureState>
+      ) : isEmpty ? (
+        <Card>
+          <EmptyState>
             {isFiltered ? (
               <>
                 {/* Stan pusty z aktywnym filtrem - odrębny od stanu "brak ośrodków",
                     bo na świeżo wdrożonej wersji ten drugi zobaczy każdy nowy jeździec. */}
-                <p class="text-blue-100/80">Żaden ośrodek nie pasuje do wpisanej frazy.</p>
-                <a
-                  href={ROLE_HOME.rider}
-                  class="mt-3 inline-block text-sm text-purple-300 transition-colors hover:text-purple-100 hover:underline"
-                >
-                  Pokaż wszystkie ośrodki
-                </a>
+                <p>Żaden ośrodek nie pasuje do wpisanej frazy.</p>
+                <a href={ROLE_HOME.rider}>Pokaż wszystkie ośrodki</a>
               </>
             ) : (
               <>
-                <p class="text-blue-100/80">Nie ma jeszcze żadnych ośrodków.</p>
-                <p class="mt-2 text-sm text-blue-100/50">
-                  Gdy pierwsza stadnina założy konto, pojawi się tutaj i będzie można zapisać się na jazdę.
-                </p>
+                <p>Nie ma jeszcze żadnych ośrodków.</p>
+                <p>Gdy pierwsza stadnina założy konto, pojawi się tutaj i będzie można zapisać się na jazdę.</p>
               </>
             )}
-          </div>
-        ) : (
-          <div class="grid gap-4 sm:grid-cols-2">
-            {stables.map((stable) => (
-              <StableCard stable={stable} />
-            ))}
-          </div>
-        )
-      }
-    </div>
-  </div>
+          </EmptyState>
+        </Card>
+      ) : (
+        <div class="cards">
+          {stables.map((stable) => (
+            <StableCard stable={stable} />
+          ))}
+        </div>
+      )
+    }
+  </main>
 </Layout>
+
+<style>
+  .page {
+    padding-block: 24px 56px;
+  }
+  .page-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .page-head h1 {
+    font-size: 32px;
+  }
+  .page-lead {
+    margin: 10px 0 0;
+    font-size: 15.5px;
+    color: var(--muted);
+    max-width: 62ch;
+  }
+
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 11px 18px;
+    border-radius: 999px;
+    border: 1px solid var(--border-2);
+    background: var(--surface);
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--fg);
+    transition:
+      background 0.15s,
+      border-color 0.15s;
+  }
+  .btn-ghost:hover {
+    background: var(--surface-2);
+  }
+  .btn-ghost:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+
+  .cards {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: 1fr;
+  }
+  /* Próg z prototypu: dwie kolumny dopiero, gdy karta ma sensowną szerokość. */
+  @media (width >= 620px) {
+    .cards {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+</style>
