@@ -13,6 +13,11 @@ const buttonVariants = cva(
         // Pozostałe warianty zostają nietknięte, żeby `npx shadcn add` dalej działał.
         default:
           "min-h-11 rounded-full bg-primary font-display text-[15px] font-semibold text-primary-foreground shadow-sm hover:bg-primary-strong",
+        // Kasztanowa pigułka - wezwanie do działania na ekranie, który już ma
+        // zielony gdzie indziej (DESIGN.md §7: kasztan najwyżej dwa razy na ekran).
+        // Biały tekst na `--accent` to 4,84:1, czyli powyżej progu AA.
+        accent:
+          "min-h-11 rounded-full bg-chestnut font-display text-[15px] font-semibold text-white shadow-sm hover:bg-chestnut-ink focus-visible:outline-chestnut-ink",
         destructive:
           "bg-destructive text-white shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
         outline:

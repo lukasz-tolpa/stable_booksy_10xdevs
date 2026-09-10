@@ -3,6 +3,9 @@ import { PawPrint } from "lucide-react";
 import Layout from "@/layouts/Layout.astro";
 import Topbar from "@/components/Topbar.astro";
 import HorseForm from "@/components/stables/HorseForm";
+import Card from "@/components/ui/Card.astro";
+import EmptyState from "@/components/ui/EmptyState.astro";
+import FailureState from "@/components/ui/FailureState.astro";
 import { getOwnedStableId, listStableHorses, type HorseListItem } from "@/lib/stables/queries";
 import { createClient } from "@/lib/supabase";
 import { logError } from "@/lib/log";
@@ -32,93 +35,178 @@ const retired = horses.filter((horse) => !horse.active);
 ---
 
 <Layout title="Konie">
-  <div class="bg-cosmic min-h-screen p-4">
-    <div class="mx-auto max-w-3xl">
-      <Topbar />
+  <Topbar />
+  <main class="container-narrow page">
+    <h1>Konie</h1>
+    <p class="page-lead">Stado Twojej stadniny. Z tej listy wybierasz konie pracujące w danym dniu.</p>
 
-      <h1 class="mb-1 bg-gradient-to-r from-blue-200 to-purple-200 bg-clip-text text-3xl font-bold text-transparent">
-        Konie
-      </h1>
-      <p class="mb-6 text-sm text-blue-100/70">
-        Stado Twojej stadniny. Z tej listy wybierasz konie pracujące w danym dniu.
-      </p>
-
-      <div class="grid gap-6 md:grid-cols-[1fr_20rem]">
-        <div class="space-y-3">
-          {
-            loadFailed ? (
-              <div class="rounded-2xl border border-red-500/30 bg-red-900/20 p-6 text-center text-white">
-                <p class="text-red-200">Nie udało się wczytać stada.</p>
-                <p class="mt-2 text-sm text-blue-100/50">Odśwież stronę za chwilę.</p>
-              </div>
-            ) : horses.length === 0 ? (
-              <div class="rounded-2xl border border-white/10 bg-white/5 p-6 text-center text-white">
-                <p class="text-blue-100/80">Nie masz jeszcze żadnych koni.</p>
-                <p class="mt-2 text-sm text-blue-100/50">
-                  Dodaj pierwszego konia — bez tego nie da się ułożyć grafiku dnia, bo nie będzie czego przydzielić do
-                  godzin.
+    <div class="cols">
+      <div class="herd">
+        {
+          loadFailed ? (
+            <FailureState>
+              <p>Nie udało się wczytać stada.</p>
+              <p>Odśwież stronę za chwilę.</p>
+            </FailureState>
+          ) : horses.length === 0 ? (
+            <Card>
+              <EmptyState>
+                <p>
+                  Nie masz jeszcze żadnych koni. Dodaj pierwszego konia — bez tego nie da się ułożyć grafiku dnia, bo
+                  nie będzie czego przydzielić do godzin.
                 </p>
-              </div>
-            ) : (
-              <>
-                {active.map((horse) => (
-                  <article class="flex items-start justify-between gap-4 rounded-xl border border-white/10 bg-white/5 p-4 text-white">
-                    <div>
-                      <h2 class="flex items-center gap-2 font-semibold">
+              </EmptyState>
+            </Card>
+          ) : (
+            <>
+              {active.map((horse) => (
+                <Card padding={18}>
+                  <article class="horse">
+                    <div class="horse__body">
+                      <h2>
                         <PawPrint className="size-4" />
                         {horse.name}
                       </h2>
-                      {horse.notes && <p class="mt-1 text-sm text-blue-100/60">{horse.notes}</p>}
+                      {horse.notes && <p class="horse__notes">{horse.notes}</p>}
                     </div>
                     <form method="POST" action="/api/horses/toggle-active">
                       <input type="hidden" name="horseId" value={horse.id} />
                       <input type="hidden" name="active" value="false" />
-                      <button
-                        type="submit"
-                        class="rounded-lg border border-white/20 px-3 py-1.5 text-xs whitespace-nowrap text-blue-100/80 transition-colors hover:bg-white/10"
-                      >
-                        Wycofaj ze służby
-                      </button>
+                      <button type="submit">Wycofaj ze służby</button>
                     </form>
                   </article>
-                ))}
+                </Card>
+              ))}
 
-                {retired.length > 0 && (
-                  <>
-                    <h2 class="pt-2 text-sm font-medium text-blue-100/50">Wycofane ze służby</h2>
-                    {retired.map((horse) => (
-                      <article class="flex items-start justify-between gap-4 rounded-xl border border-white/5 bg-white/[0.02] p-4 text-white/60">
-                        <div>
-                          <h3 class="flex items-center gap-2 font-semibold">
+              {retired.length > 0 && (
+                <>
+                  <h2 class="retired-head">Wycofane ze służby</h2>
+                  {retired.map((horse) => (
+                    <Card padding={18} class="opacity-70">
+                      <article class="horse">
+                        <div class="horse__body">
+                          <h3>
                             <PawPrint className="size-4" />
                             {horse.name}
                           </h3>
-                          {horse.notes && <p class="mt-1 text-sm text-blue-100/40">{horse.notes}</p>}
+                          {horse.notes && <p class="horse__notes">{horse.notes}</p>}
                         </div>
                         <form method="POST" action="/api/horses/toggle-active">
                           <input type="hidden" name="horseId" value={horse.id} />
                           <input type="hidden" name="active" value="true" />
-                          <button
-                            type="submit"
-                            class="rounded-lg border border-white/20 px-3 py-1.5 text-xs whitespace-nowrap text-purple-300 transition-colors hover:bg-white/10"
-                          >
-                            Przywróć
-                          </button>
+                          <button type="submit">Przywróć</button>
                         </form>
                       </article>
-                    ))}
-                  </>
-                )}
-              </>
-            )
-          }
-        </div>
-
-        <div class="rounded-2xl border border-white/10 bg-white/10 p-6 text-white backdrop-blur-xl">
-          <h2 class="mb-4 font-semibold">Dodaj konia</h2>
-          <HorseForm serverError={error} client:load />
-        </div>
+                    </Card>
+                  ))}
+                </>
+              )}
+            </>
+          )
+        }
       </div>
+
+      <Card>
+        <h2 class="form-head">Dodaj konia</h2>
+        <HorseForm serverError={error} client:load />
+      </Card>
     </div>
-  </div>
+  </main>
 </Layout>
+
+<style>
+  .page {
+    padding-block: 24px 56px;
+  }
+  h1 {
+    font-size: 32px;
+  }
+  .page-lead {
+    margin: 10px 0 0 0;
+    font-size: 15.5px;
+    color: var(--muted);
+    max-width: 62ch;
+  }
+
+  .cols {
+    margin-top: 24px;
+    display: grid;
+    gap: 22px;
+    align-items: start;
+  }
+  @media (width >= 900px) {
+    .cols {
+      grid-template-columns: 1fr 20rem;
+    }
+  }
+
+  .herd {
+    display: grid;
+    gap: 12px;
+  }
+
+  .horse {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .horse__body {
+    min-width: 0;
+  }
+  .horse h2,
+  .horse h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 17px;
+    margin: 0;
+  }
+  .horse__notes {
+    margin: 6px 0 0;
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .horse button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 10px 16px;
+    border-radius: 999px;
+    border: 1px solid var(--border-2);
+    background: var(--surface);
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    color: var(--fg);
+    cursor: pointer;
+    transition:
+      background 0.15s,
+      border-color 0.15s;
+  }
+  .horse button:hover {
+    background: var(--surface-2);
+  }
+  .horse button:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+
+  .retired-head {
+    margin: 10px 0 0;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-weight: 500;
+    color: var(--muted);
+  }
+
+  .form-head {
+    font-size: 17px;
+    margin: 0 0 14px;
+  }
+</style>

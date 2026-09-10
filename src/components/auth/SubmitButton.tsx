@@ -12,13 +12,15 @@ interface SubmitButtonProps {
   pendingText: string;
   icon: ReactNode;
   children: ReactNode;
+  /** `accent` to kasztanowa pigułka - jedno wezwanie do działania na ekranie grafiku. */
+  variant?: "default" | "accent";
 }
 
-export function SubmitButton({ pendingText, icon, children }: SubmitButtonProps) {
+export function SubmitButton({ pendingText, icon, children, variant = "default" }: SubmitButtonProps) {
   const { pending } = useFormStatus();
 
   return (
-    <Button type="submit" disabled={pending} className="w-full">
+    <Button type="submit" variant={variant} disabled={pending} className="w-full">
       {pending ? (
         <span className="flex items-center gap-2">
           <span className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />

@@ -2,6 +2,7 @@
 import Layout from "@/layouts/Layout.astro";
 import Topbar from "@/components/Topbar.astro";
 import NewStableForm from "@/components/stable/NewStableForm";
+import Card from "@/components/ui/Card.astro";
 
 // Middleware kieruje tutaj każde konto ośrodka, które nie ma jeszcze stadniny,
 // i zawraca stąd te, które już ją mają.
@@ -9,19 +10,42 @@ const error = Astro.url.searchParams.get("error");
 ---
 
 <Layout title="Załóż stadninę">
-  <div class="bg-cosmic min-h-screen p-4">
-    <div class="mx-auto max-w-md">
-      <Topbar />
-      <div class="rounded-2xl border border-white/10 bg-white/10 p-8 text-white backdrop-blur-xl">
-        <h1 class="mb-2 bg-gradient-to-r from-blue-200 to-purple-200 bg-clip-text text-2xl font-bold text-transparent">
-          Załóż stadninę
-        </h1>
-        <p class="mb-6 text-sm text-blue-100/70">
-          Zanim ułożysz grafik i przyjmiesz pierwsze zapisy, powiedz nam, jak nazywa się Twoja stadnina i gdzie się
-          znajduje. Bez tego jeźdźcy nie znajdą Cię na liście ośrodków.
-        </p>
-        <NewStableForm serverError={error} client:load />
-      </div>
-    </div>
+  <Topbar />
+  <div class="container-narrow wrap">
+    <Card class="w-full max-w-[460px]" padding={28}>
+      <p class="eyebrow">Stadnina</p>
+      <h1>Załóż stadninę</h1>
+      <p class="lead">
+        Zanim ułożysz grafik i przyjmiesz pierwsze zapisy, powiedz nam, jak nazywa się Twoja stadnina i gdzie się
+        znajduje. Bez tego jeźdźcy nie znajdą Cię na liście ośrodków.
+      </p>
+      <NewStableForm serverError={error} client:load />
+    </Card>
   </div>
 </Layout>
+
+<style>
+  .wrap {
+    display: flex;
+    justify-content: center;
+    padding-block: 36px 56px;
+  }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--primary);
+    font-weight: 500;
+    margin: 0;
+  }
+  h1 {
+    font-size: 26px;
+    margin: 0 0 4px;
+  }
+  .lead {
+    font-size: 14.5px;
+    color: var(--muted);
+    margin: 0 0 22px;
+  }
+</style>

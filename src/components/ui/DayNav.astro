@@ -42,6 +42,20 @@ const { class: className, label = "Wybór dnia" } = Astro.props;
     min-width: 0;
   }
 
+  /* Na wąskim ekranie pełna data nie mieści się między strzałkami i łamie się
+     na trzy linie - prototyp przenosi ją wtedy do własnego wiersza nad nimi. */
+  @media (width <= 430px) {
+    .daynav {
+      flex-wrap: wrap;
+      padding-bottom: 2px;
+    }
+    .daynav__date {
+      order: -1;
+      flex-basis: 100%;
+      padding: 8px 0 2px;
+    }
+  }
+
   /* Treść ze slotów nie dostaje zakresu tego komponentu - stąd :global(). */
   .daynav :global(a),
   .daynav :global(.off) {

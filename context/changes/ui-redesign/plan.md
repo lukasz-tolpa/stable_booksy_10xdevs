@@ -766,10 +766,10 @@ single-PR delivery.
 
 #### Automated
 
-- [x] 4.1 `npm run lint`, `npm run check`, `npm test` pass
-- [x] 4.2 `npx playwright test` passes
-- [x] 4.3 Booking buttons carry no `aria-label` or extra visible text
-- [x] 4.4 The dash in "— Twój zapis" is still U+2014
+- [x] 4.1 `npm run lint`, `npm run check`, `npm test` pass — ae6798d
+- [x] 4.2 `npx playwright test` passes — ae6798d
+- [x] 4.3 Booking buttons carry no `aria-label` or extra visible text — ae6798d
+- [x] 4.4 The dash in "— Twój zapis" is still U+2014 — ae6798d
 
 #### Manual
 
@@ -781,10 +781,10 @@ single-PR delivery.
 
 #### Automated
 
-- [ ] 5.1 `npm run lint`, `npm run check`, `npm test` pass
-- [ ] 5.2 `npx playwright test` passes
-- [ ] 5.3 Horse checkboxes still share `name="horseIds"`
-- [ ] 5.4 All three stable islands still use `client:load`
+- [x] 5.1 `npm run lint`, `npm run check`, `npm test` pass
+- [x] 5.2 `npx playwright test` passes
+- [x] 5.3 Horse checkboxes still share `name="horseIds"`
+- [x] 5.4 All three stable islands still use `client:load`
 
 #### Manual
 
