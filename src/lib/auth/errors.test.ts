@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  EMAIL_ADDRESS_INVALID,
+  EMAIL_ADDRESS_NOT_AUTHORIZED,
   EMAIL_EXISTS,
   EMAIL_NOT_CONFIRMED,
   INVALID_CREDENTIALS,
@@ -32,6 +34,13 @@ describe("authErrorMessage", () => {
     expect(authErrorMessage(EMAIL_EXISTS, "signup")).toBe(message);
   });
 
+  it("nieprawidłowy lub nieobsługiwany adres (oba kody) ma jedno zdanie o adresie", () => {
+    const message = authErrorMessage(EMAIL_ADDRESS_INVALID, "signup");
+
+    expect(message).toContain("adres e-mail");
+    expect(authErrorMessage(EMAIL_ADDRESS_NOT_AUTHORIZED, "signup")).toBe(message);
+  });
+
   it("słabe hasło i limit prób mają własne zdania", () => {
     expect(authErrorMessage(WEAK_PASSWORD, "signup")).toContain("Hasło");
     expect(authErrorMessage(RATE_LIMITED[0], "signin")).toContain("Zbyt wiele prób");
@@ -57,6 +66,8 @@ describe("authErrorMessage", () => {
       USER_ALREADY_EXISTS,
       EMAIL_EXISTS,
       WEAK_PASSWORD,
+      EMAIL_ADDRESS_INVALID,
+      EMAIL_ADDRESS_NOT_AUTHORIZED,
       ...RATE_LIMITED,
       REQUEST_TIMEOUT,
       undefined,
@@ -65,7 +76,7 @@ describe("authErrorMessage", () => {
       ...known.map((code) => authErrorMessage(code, "signin")),
       ...known.map((code) => authErrorMessage(code, "signup")),
     ]);
-    expect(closedSet.size).toBe(8);
+    expect(closedSet.size).toBe(9);
 
     const probes = [...known, "42501", "", "PGRST116", "invalid_credentialsx", "bad_json", "unexpected_failure"];
     for (const action of ["signin", "signup"] as const) {
@@ -124,6 +135,8 @@ describe("isExpectedUserError", () => {
     USER_ALREADY_EXISTS,
     EMAIL_EXISTS,
     WEAK_PASSWORD,
+    EMAIL_ADDRESS_INVALID,
+    EMAIL_ADDRESS_NOT_AUTHORIZED,
     ...RATE_LIMITED,
   ])("%s to błąd użytkownika, nie incydent", (code) => {
     expect(isExpectedUserError(code)).toBe(true);

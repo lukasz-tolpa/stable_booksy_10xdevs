@@ -50,7 +50,7 @@ Stable Booksy is an MVP booking system for horse-riding stables (roles: Ośrodek
 - API routes set `prerender = false` and validate input with zod.
 - The result of every dependency call is checked and logged; provider messages never reach the UI. Auth errors go through `authFailureMessage` / `authErrorMessage` (`src/lib/auth/`), database errors through the area's `errors.ts`; SSR pages log in their `catch` with `logError("page:<route>", error)`. Details and the stub-client test pattern: `context/foundation/test-plan.md` §6.4.
 - Husky is installed by the `prepare` script (`npm install`). Pre-commit runs lint-staged: `*.{ts,tsx,astro}` → `eslint --fix`, `*.{json,css,md}` → `prettier --write`; pre-push runs `npm test` + `npm run check`.
-- Claude Code hook (`.claude/settings.json` → `.claude/hooks/post-edit.mjs`) runs Prettier on every Write/Edit and `vitest related` for files under `src/lib/bookings/`, `src/lib/schedule/`, `src/pages/api/`; a failure comes back as stderr + exit 2. No ESLint per edit (7–9 s per file). Details and sabotage checks: `context/foundation/test-plan.md` §6.6.
+- Claude Code hook (`.claude/settings.json` → `.claude/hooks/post-edit.mjs`) runs Prettier on every Write/Edit and `vitest related` for files under `src/lib/bookings/`, `src/lib/schedule/`, `src/lib/auth/`, `src/lib/log.ts`, `src/pages/api/`; a failure comes back as stderr + exit 2. No ESLint per edit (7–9 s per file). Details and sabotage checks: `context/foundation/test-plan.md` §6.6.
 
 ## Testing
 

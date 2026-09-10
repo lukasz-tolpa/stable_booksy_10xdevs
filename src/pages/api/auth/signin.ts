@@ -28,10 +28,18 @@ export const POST: APIRoute = async (context) => {
     return backToForm(context, "Supabase nie jest skonfigurowany");
   }
 
-  const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
-
   // Nigdy surowa treść błędu GoTrue: to angielski tekst, a przy awarii sieci `fetch failed`
-  // albo `{}`. Kod błędu idzie przez zamknięty polski zbiór z @/lib/auth/errors.
+  // albo `{}`. Kod błędu idzie przez zamknięty polski zbiór z @/lib/auth/errors. Wyjątek
+  // rzucony przez klienta (auth-js oddaje dalej wszystko, co nie jest AuthError) to ta sama
+  // ścieżka - zalogowany, nie niezalogowany 500.
+  let signedIn: Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>;
+  try {
+    signedIn = await supabase.auth.signInWithPassword(parsed.data);
+  } catch (thrown) {
+    return backToForm(context, authFailureMessage("auth:signin", thrown, "signin"));
+  }
+  const { data, error } = signedIn;
+
   if (error) {
     return backToForm(context, authFailureMessage("auth:signin", error, "signin"));
   }
@@ -43,9 +51,11 @@ export const POST: APIRoute = async (context) => {
   switch (role.kind) {
     case "outage":
       // Sesja jest już ustawiona i zostaje: chwilowa awaria bazy nie jest powodem,
-      // żeby ją niszczyć ani obwiniać konto. Middleware ustali rolę przy następnym żądaniu.
+      // żeby ją niszczyć ani obwiniać konto. Użytkownik ląduje na stronie głównej
+      // (Topbar pokazuje, że jest zalogowany) z komunikatem w bannerze; middleware
+      // ustali rolę przy następnym wejściu do panelu.
       logError("auth:signin", role.error);
-      return backToForm(context, OUTAGE_MESSAGE);
+      return context.redirect(`/?error=${encodeURIComponent(OUTAGE_MESSAGE)}`);
     case "no-role": {
       const signOut = await signOutUser(supabase);
       if (!signOut.ok) logError("auth:signin", signOut.error);

@@ -36,13 +36,21 @@ function errorStatus(error: unknown): number | undefined {
     : undefined;
 }
 
+// GoTrue potrafi wstawić podany adres do treści błędu (email_address_invalid,
+// email_address_not_authorized); adres nigdy nie jedzie do logu, niezależnie od kodu.
+const EMAIL_PATTERN = /\S+@\S+/g;
+
+function redactEmails(message: string | undefined): string | undefined {
+  return message?.replace(EMAIL_PATTERN, "<e-mail>");
+}
+
 /** Zapisuje jeden wpis o błędzie; `sink` jest parametrem, żeby testy nie dotykały konsoli. */
 export function logError(scope: string, error: unknown, sink: LogSink = defaultSink): void {
   const entry: LogEntry = { scope };
   const name = errorName(error);
   const code = errorCode(error);
   const status = errorStatus(error);
-  const message = errorMessage(error);
+  const message = redactEmails(errorMessage(error));
   if (name !== undefined) entry.name = name;
   if (code !== undefined) entry.code = code;
   if (status !== undefined) entry.status = status;

@@ -53,6 +53,18 @@ describe("logError", () => {
     expect(JSON.stringify(entries[0])).not.toMatch(/a@b\.pl|access_token/);
   });
 
+  // GoTrue wstawia adres do treści (`Email address "x@y.pl" is invalid`) - nawet wtedy
+  // do logu nie może trafić adres, tylko zamaskowana treść.
+  it("adres e-mail wewnątrz treści błędu jest maskowany", () => {
+    const { entries, sink } = capture();
+
+    logError("auth:signup", { code: "email_address_invalid", message: 'Email address "x@y.pl" is invalid' }, sink);
+
+    // Maska jest zachłanna (łapie też otaczające cudzysłowy) - liczy się, że adres znika.
+    expect(entries[0].message).toContain("<e-mail>");
+    expect(JSON.stringify(entries[0])).not.toMatch(/x@y\.pl/);
+  });
+
   it("awaria ujścia nie wycieka do wołającego", () => {
     expect(() => {
       logError("auth:signin", new Error("x"), () => {
