@@ -797,9 +797,9 @@ single-PR delivery.
 
 #### Automated
 
-- [x] 6.1 `npm run lint`, `npm run check`, `npm test` pass
-- [x] 6.2 `npx playwright test` passes
-- [x] 6.3 Hour elements on both list screens still have `"{h}:00"` as their full text
+- [x] 6.1 `npm run lint`, `npm run check`, `npm test` pass — 512e004
+- [x] 6.2 `npx playwright test` passes — 512e004
+- [x] 6.3 Hour elements on both list screens still have `"{h}:00"` as their full text — 512e004
 
 #### Manual
 
@@ -812,10 +812,10 @@ single-PR delivery.
 
 #### Automated
 
-- [ ] 7.1 `npm run lint`, `npm run check`, `npm test` pass
-- [ ] 7.2 `npx playwright test` passes
-- [ ] 7.3 No references left to `bg-cosmic`, `Welcome.astro`, `LibBadge` or `template.png`
-- [ ] 7.4 Prettier check passes on the edited documents
+- [x] 7.1 `npm run lint`, `npm run check`, `npm test` pass
+- [x] 7.2 `npx playwright test` passes
+- [x] 7.3 No references left to `bg-cosmic`, `Welcome.astro`, `LibBadge` or `template.png`
+- [x] 7.4 Prettier check passes on the edited documents
 - [ ] 7.5 PR merged with `ci`, `db-tests` and `e2e` green
 
 #### Manual

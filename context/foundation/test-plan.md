@@ -347,6 +347,20 @@ authenticated` + `request.jwt.claims`). The CLI's default Postgres image on
   must be classified as anonymous, or every guest logs and sees "Sesja wygasła"
   (the first e2e run caught this). Narrow structural typing of the PostgREST
   builder hits ts2589 — hence `RoleLoader` instead of a `from()` interface.
+- **ui-redesign (2026-09-10, visual-only replacement of the dark starter).** A
+  redesign that touches no logic still breaks tests through **text**: the
+  prototype's sign-up lead "Wybierz rodzaj konta — …" repeats the role validation
+  message verbatim, so any text locator resolved to two elements; the sentence was
+  reworded. Everything the suite finds by role, label or exact text is now listed
+  in AGENTS.md → "Design" as a locator contract (hour = `"{h}:00"` alone, booking
+  button = horse name with no `aria-label`, `— Twój zapis` with U+2014, chip =
+  `odwołany`). Slots taken by other riders stay **unrendered**, unlike the
+  prototype's third legend entry — see `context/changes/ui-redesign/follow-ups/taken-slot.md`.
+  Two mechanical traps: prototypes use container queries against a fake `.app`
+  wrapper the app does not have (rewrite them as media queries), and Astro scoped
+  styles never reach a child component's root element, so a `<Card>` is styled with
+  Tailwind utilities or an extra wrapper inside the slot. Colour contrast was
+  computed, not eyeballed — white on `--accent` is 4.84:1, above the AA threshold.
 
 ### 6.6 Running the gates and the agent hook
 
@@ -420,6 +434,12 @@ contributors should respect these unless the underlying assumption changes.
 - **Visual appearance and snapshots** (landing, shadcn components, layout)
   — no data effect, easily reverted; a planned redesign would make
   snapshots churn. Re-evaluate if a visual regression reaches users.
+  **Confirmed 2026-09-10:** the redesign this predicted (`ui-redesign`)
+  rewrote all twelve screens, and pixel snapshots would have gone red on
+  every one of them while catching nothing — the two defects it did produce
+  were a duplicated text locator and an unconditional call to action, both
+  caught by the DOM suite and by a human looking at the screen. Comparison
+  against the prototypes stays a manual step, tooled by `scripts/shots.mjs`.
 
 ## 8. Freshness Ledger
 
