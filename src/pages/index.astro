@@ -6,10 +6,18 @@ import Topbar from "@/components/Topbar.astro";
 import Card from "@/components/ui/Card.astro";
 import RoleBadge from "@/components/ui/RoleBadge.astro";
 import Layout from "@/layouts/Layout.astro";
+import { homeRouteForRole, isUserRole } from "@/lib/auth/roles";
 
 // Nieudane wylogowanie wraca tutaj z komunikatem w ?error= (ten sam wzorzec co na
 // pozostałych stronach; treść jest polska i pochodzi z @/lib/auth/errors).
 const error = Astro.url.searchParams.get("error");
+
+// Zalogowanemu nie proponujemy zakładania konta ani logowania - hero prowadzi go
+// tam, gdzie prowadzi górny pasek, czyli do przestrzeni jego roli. Adres bierze się
+// z tej samej tabeli decyzyjnej co w Topbarze, więc nie rozjedzie się z middleware.
+const { user, profile } = Astro.locals;
+const role = isUserRole(profile?.role) ? profile.role : null;
+const homeRoute = role ? homeRouteForRole(role) : null;
 ---
 
 <Layout>
@@ -34,23 +42,39 @@ const error = Astro.url.searchParams.get("error");
         <h1>Stable Booksy</h1>
         <p class="sub">Grafik dnia i zapisy na jazdy konne bez telefonów.</p>
         <div class="hero-cta">
-          <a class="btn btn--primary" href="/auth/signup">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
-              <circle cx="9" cy="7" r="4"></circle>
-              <path d="M19 8v6"></path>
-              <path d="M22 11h-6"></path>
-            </svg>
-            Załóż konto
-          </a>
-          <a class="btn btn--ghost" href="/auth/signin">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
-              <path d="m10 17 5-5-5-5"></path>
-              <path d="M15 12H3"></path>
-            </svg>
-            Zaloguj się
-          </a>
+          {
+            user ? (
+              homeRoute && (
+                <a class="btn btn--primary" href={homeRoute}>
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M5 12h14" />
+                    <path d="m12 5 7 7-7 7" />
+                  </svg>
+                  Mój panel
+                </a>
+              )
+            ) : (
+              <>
+                <a class="btn btn--primary" href="/auth/signup">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M19 8v6" />
+                    <path d="M22 11h-6" />
+                  </svg>
+                  Załóż konto
+                </a>
+                <a class="btn btn--ghost" href="/auth/signin">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                    <path d="m10 17 5-5-5-5" />
+                    <path d="M15 12H3" />
+                  </svg>
+                  Zaloguj się
+                </a>
+              </>
+            )
+          }
         </div>
       </div>
     </section>
