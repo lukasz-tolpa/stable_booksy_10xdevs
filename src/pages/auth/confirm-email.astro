@@ -1,4 +1,6 @@
 ---
+import Topbar from "@/components/Topbar.astro";
+import Card from "@/components/ui/Card.astro";
 import Layout from "@/layouts/Layout.astro";
 
 // Strona jest poza przepływem rejestracji: potwierdzanie adresu e-mail jest wyłączone
@@ -24,18 +26,54 @@ const content = isAutoConfirmed
 ---
 
 <Layout title={content.heading}>
-  <div class="bg-cosmic flex min-h-screen items-center justify-center p-4">
-    <div
-      class="w-full max-w-sm rounded-2xl border border-white/10 bg-white/10 p-8 text-center text-white backdrop-blur-xl"
-    >
-      <div class="mb-4 text-5xl">{content.emoji}</div>
-      <h1 class="mb-3 bg-gradient-to-r from-blue-200 to-purple-200 bg-clip-text text-2xl font-bold text-transparent">
-        {content.heading}
-      </h1>
-      <p class="mb-6 text-blue-100/80">{content.description}</p>
-      <a href="/auth/signin" class="text-sm text-purple-300 hover:underline">
-        {content.linkText}
-      </a>
-    </div>
+  <Topbar />
+  <div class="container-narrow authwrap">
+    <Card class="w-full max-w-[420px]" padding={28}>
+      <div class="confirm">
+        <div class="emoji">{content.emoji}</div>
+        <h1>{content.heading}</h1>
+        <p class="lead">{content.description}</p>
+        <a href="/auth/signin">{content.linkText}</a>
+      </div>
+    </Card>
   </div>
 </Layout>
+
+<style>
+  .authwrap {
+    display: flex;
+    justify-content: center;
+    padding-block: 36px 56px;
+  }
+  .confirm {
+    text-align: center;
+  }
+  .emoji {
+    font-size: 44px;
+    line-height: 1;
+    margin-bottom: 14px;
+  }
+  h1 {
+    font-size: 26px;
+    margin: 0 0 8px;
+  }
+  .lead {
+    font-size: 14.5px;
+    color: var(--muted);
+    margin: 0 0 22px;
+  }
+  .confirm a {
+    font-size: 14.5px;
+    color: var(--primary);
+    font-weight: 600;
+  }
+  .confirm a:hover {
+    color: var(--primary-strong);
+    text-decoration: underline;
+  }
+  .confirm a:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+</style>

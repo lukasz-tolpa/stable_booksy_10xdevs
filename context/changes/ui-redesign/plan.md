@@ -735,10 +735,10 @@ single-PR delivery.
 
 #### Automated
 
-- [x] 2.1 `npm run lint`, `npm run check`, `npm test` pass
-- [x] 2.2 `npx playwright test` passes
-- [x] 2.3 `src/pages/index.astro` no longer imports `Welcome`
-- [x] 2.4 Hero is served from `/hero.webp`, not from `context/`
+- [x] 2.1 `npm run lint`, `npm run check`, `npm test` pass — e13547f
+- [x] 2.2 `npx playwright test` passes — e13547f
+- [x] 2.3 `src/pages/index.astro` no longer imports `Welcome` — e13547f
+- [x] 2.4 Hero is served from `/hero.webp`, not from `context/` — e13547f
 
 #### Manual
 
@@ -750,10 +750,10 @@ single-PR delivery.
 
 #### Automated
 
-- [ ] 3.1 `npm run lint`, `npm run check`, `npm test` pass
-- [ ] 3.2 `npx playwright test` passes
-- [ ] 3.3 Both auth form islands still use `client:load`
-- [ ] 3.4 No `bg-cosmic` left under `src/pages/auth/`
+- [x] 3.1 `npm run lint`, `npm run check`, `npm test` pass
+- [x] 3.2 `npx playwright test` passes
+- [x] 3.3 Both auth form islands still use `client:load`
+- [x] 3.4 No `bg-cosmic` left under `src/pages/auth/`
 
 #### Manual
 

@@ -9,7 +9,10 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90",
+        // Pigułka z DESIGN.md §5 - jedyny wariant, który aplikacja renderuje.
+        // Pozostałe warianty zostają nietknięte, żeby `npx shadcn add` dalej działał.
+        default:
+          "min-h-11 rounded-full bg-primary font-display text-[15px] font-semibold text-primary-foreground shadow-sm hover:bg-primary-strong",
         destructive:
           "bg-destructive text-white shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
         outline:

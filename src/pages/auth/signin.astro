@@ -1,22 +1,71 @@
 ---
-import Layout from "@/layouts/Layout.astro";
 import SignInForm from "@/components/auth/SignInForm";
+import Topbar from "@/components/Topbar.astro";
+import Card from "@/components/ui/Card.astro";
+import Layout from "@/layouts/Layout.astro";
 
 const error = Astro.url.searchParams.get("error");
 ---
 
 <Layout title="Logowanie">
-  <div class="bg-cosmic flex min-h-screen items-center justify-center p-4">
-    <div class="w-full max-w-sm rounded-2xl border border-white/10 bg-white/10 p-8 text-white backdrop-blur-xl">
-      <h1
-        class="mb-6 bg-gradient-to-r from-blue-200 to-purple-200 bg-clip-text text-center text-2xl font-bold text-transparent"
-      >
-        Zaloguj się
-      </h1>
+  <Topbar />
+  <div class="container-narrow authwrap">
+    <Card class="w-full max-w-[420px]" padding={28}>
+      <p class="eyebrow">Konto</p>
+      <h1>Zaloguj się</h1>
+      <p class="lead">Wróć do swojego grafiku albo zapisów.</p>
       <SignInForm serverError={error} client:load />
-      <p class="mt-4 text-center text-sm text-blue-100/60">
-        Nie masz jeszcze konta? <a href="/auth/signup" class="text-purple-300 hover:underline">Załóż konto</a>
+      <p class="switch">
+        Nie masz jeszcze konta? <a href="/auth/signup">Załóż konto</a>
       </p>
-    </div>
+    </Card>
   </div>
 </Layout>
+
+<style>
+  /* Karta auth wg auth.html: wyśrodkowana, 420 px, na tle strony. */
+  .authwrap {
+    display: flex;
+    justify-content: center;
+    padding-block: 36px 56px;
+  }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--primary);
+    font-weight: 500;
+    margin: 0;
+  }
+  h1 {
+    font-size: 26px;
+    margin: 0 0 4px;
+  }
+  .lead {
+    font-size: 14.5px;
+    color: var(--muted);
+    margin: 0 0 22px;
+  }
+  .switch {
+    margin: 20px 0 0;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+    text-align: center;
+    font-size: 14.5px;
+    color: var(--muted);
+  }
+  .switch a {
+    color: var(--primary);
+    font-weight: 600;
+  }
+  .switch a:hover {
+    color: var(--primary-strong);
+    text-decoration: underline;
+  }
+  .switch a:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+</style>
