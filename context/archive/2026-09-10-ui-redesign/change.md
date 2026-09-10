@@ -1,10 +1,10 @@
 ---
 change_id: ui-redesign
 title: UI redesign in the Horse to go visual system
-status: impl_reviewed
+status: archived
 created: 2026-09-10
 updated: 2026-09-10
-archived_at: null
+archived_at: 2026-09-10T20:45:59Z
 ---
 
 ## Notes

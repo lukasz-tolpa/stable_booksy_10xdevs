@@ -816,7 +816,7 @@ single-PR delivery.
 - [x] 7.2 `npx playwright test` passes — 4de6abd
 - [x] 7.3 No references left to `bg-cosmic`, `Welcome.astro`, `LibBadge` or `template.png` — 4de6abd
 - [x] 7.4 Prettier check passes on the edited documents — 4de6abd
-- [ ] 7.5 PR merged with `ci`, `db-tests` and `e2e` green
+- [x] 7.5 PR merged with `ci`, `db-tests` and `e2e` green — cefc3c2
 
 #### Manual
 
