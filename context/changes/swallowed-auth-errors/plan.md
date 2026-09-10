@@ -376,6 +376,20 @@ failure) + `BROKEN_SESSION_MESSAGE` (now imported from `@/lib/auth/errors`); `ro
 `context.locals.profile` keeps its current shape. The `stables` count query keeps its
 current behaviour (out of scope).
 
+### Adaptation (2026-09-10)
+
+- The first e2e run showed auth-js reporting a **missing cookie** as
+  `AuthSessionMissingError` (status 400, no code) — `currentUser` classified it as
+  `expired`, which would show "Sesja wygasła" to plain visitors on guarded routes and
+  log every anonymous request. Fixed test-first in `session.ts` (`isMissingSessionError`
+  → `anonymous`; new `it` in `session.test.ts`). Second e2e run: no `[auth:session]`
+  entries.
+- The middleware keeps `select("*")` for `locals.profile` (pages read `profile.id`) and
+  feeds the loaded row to `resolveRole` through a one-shot loader; `userRole` (typed
+  `UserRole`) drives the guard instead of `profile.role` (typed `string`).
+- `authFailureMessage(scope, error, action)` lives in `session.ts` (message + log in one
+  call for sign-in and sign-up).
+
 ### Success Criteria:
 
 #### Automated Verification:
@@ -527,29 +541,29 @@ None. Rollback is `git revert` of the merge commit; no data or config changes.
 
 #### Automated
 
-- [x] 2.1 Red first: `session.test.ts` fails before `session.ts` exists, then passes
-- [x] 2.2 `npm test`, `npm run lint`, `npm run check` pass
-- [x] 2.3 No `vi.mock`/`vi.fn`/fake timers in `session.test.ts`
+- [x] 2.1 Red first: `session.test.ts` fails before `session.ts` exists, then passes — cfb9abd
+- [x] 2.2 `npm test`, `npm run lint`, `npm run check` pass — cfb9abd
+- [x] 2.3 No `vi.mock`/`vi.fn`/fake timers in `session.test.ts` — cfb9abd
 
 #### Manual
 
-- [x] 2.4 Every `it` in `session.test.ts` names a user-visible outcome
+- [x] 2.4 Every `it` in `session.test.ts` names a user-visible outcome — cfb9abd
 
 ### Phase 3: Wire endpoints, middleware and the `/` banner
 
 #### Automated
 
-- [ ] 3.1 `npm test`, `npm run lint`, `npm run check` pass
-- [ ] 3.2 No `error.message` left in `src/pages/api/auth/*.ts`
-- [ ] 3.3 `npm run test:e2e` passes
-- [ ] 3.4 Sabotage: reverting `signout.ts` to ignore the result is caught by the wiring grep; restored
+- [x] 3.1 `npm test`, `npm run lint`, `npm run check` pass
+- [x] 3.2 No `error.message` left in `src/pages/api/auth/*.ts`
+- [x] 3.3 `npm run test:e2e` passes
+- [x] 3.4 Sabotage: reverting `signout.ts` to ignore the result is caught by the wiring grep; restored
 
 #### Manual
 
-- [ ] 3.5 Wrong password shows the Polish sentence
-- [ ] 3.6 Existing e-mail on sign-up shows "Konto z tym adresem już istnieje"
-- [ ] 3.7 Stopped Supabase shows the outage sentence and logs without e-mail
-- [ ] 3.8 Sign-out still works; `/?error=test` shows the banner
+- [x] 3.5 Wrong password shows the Polish sentence
+- [x] 3.6 Existing e-mail on sign-up shows "Konto z tym adresem już istnieje"
+- [x] 3.7 Stopped Supabase shows the outage sentence and logs without e-mail
+- [x] 3.8 Sign-out still works; `/?error=test` shows the banner
 
 ### Phase 4: Page logging, docs, lesson, merge
 

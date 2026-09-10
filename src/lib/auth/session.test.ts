@@ -108,6 +108,17 @@ describe("currentUser", () => {
     });
   });
 
+  // auth-js zgłasza brak ciasteczka sesji jako AuthSessionMissingError (400, bez kodu):
+  // to zwykły anonim, nie wygaśnięcie - inaczej każdy gość na trasie chronionej
+  // widziałby "Sesja wygasła", a każde anonimowe żądanie trafiałoby do logu.
+  it("brak ciasteczka sesji (AuthSessionMissingError) to anonim, nie wygaśnięcie", async () => {
+    const error = { name: "AuthSessionMissingError", status: 400, code: undefined, message: "Auth session missing!" };
+
+    await expect(currentUser(stubClient({ getUser: { data: { user: null }, error } }))).resolves.toEqual({
+      kind: "anonymous",
+    });
+  });
+
   it("brak użytkownika bez błędu to anonim", async () => {
     await expect(currentUser(stubClient({ getUser: { data: { user: null }, error: null } }))).resolves.toEqual({
       kind: "anonymous",

@@ -15,10 +15,32 @@
  */
 
 import type { User } from "@supabase/supabase-js";
-import { isTransportError } from "@/lib/auth/errors";
+import {
+  OUTAGE_MESSAGE,
+  authErrorMessage,
+  isExpectedUserError,
+  isTransportError,
+  type AuthAction,
+} from "@/lib/auth/errors";
 import { isUserRole } from "@/lib/auth/roles";
+import { errorCode } from "@/lib/db-errors";
+import { logError } from "@/lib/log";
 import type { createClient } from "@/lib/supabase";
 import type { UserRole } from "@/types";
+
+/**
+ * Komunikat dla użytkownika po błędzie GoTrue + wpis w logu, gdy to nie jest błąd
+ * użytkownika (złe hasło, istniejące konto, limit prób nie są incydentami).
+ */
+export function authFailureMessage(scope: string, error: unknown, action: AuthAction): string {
+  if (isTransportError(error)) {
+    logError(scope, error);
+    return OUTAGE_MESSAGE;
+  }
+  const code = errorCode(error);
+  if (!isExpectedUserError(code)) logError(scope, error);
+  return authErrorMessage(code, action);
+}
 
 export interface SessionClient {
   auth: {
@@ -76,10 +98,18 @@ export async function resolveRole(loadRole: RoleLoader, userId: string): Promise
   return isUserRole(role) ? { kind: "role", role } : { kind: "no-role" };
 }
 
-/** Użytkownik z sesji: awaria transportu ≠ wygasła/odrzucona sesja ≠ anonim. */
+/** auth-js bez ciasteczka sesji zgłasza AuthSessionMissingError (400, bez kodu) - to zwykły gość. */
+function isMissingSessionError(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "name" in error && error.name === "AuthSessionMissingError";
+}
+
+/** Użytkownik z sesji: awaria transportu ≠ wygasła/odrzucona sesja ≠ anonim (w tym brak ciasteczka). */
 export async function currentUser(client: SessionClient): Promise<UserResult> {
   const { data, error } = await client.auth.getUser();
-  if (error) return isTransportError(error) ? { kind: "outage", error } : { kind: "expired", error };
+  if (error) {
+    if (isMissingSessionError(error)) return { kind: "anonymous" };
+    return isTransportError(error) ? { kind: "outage", error } : { kind: "expired", error };
+  }
   return data.user ? { kind: "user", user: data.user } : { kind: "anonymous" };
 }
 

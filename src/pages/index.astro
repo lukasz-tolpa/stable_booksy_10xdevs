@@ -1,8 +1,14 @@
 ---
+import Banner from "@/components/Banner.astro";
 import Welcome from "@/components/Welcome.astro";
 import Layout from "@/layouts/Layout.astro";
+
+// Nieudane wylogowanie wraca tutaj z komunikatem w ?error= (ten sam wzorzec co na
+// pozostałych stronach; treść jest polska i pochodzi z @/lib/auth/errors).
+const error = Astro.url.searchParams.get("error");
 ---
 
 <Layout>
+  {error && <Banner variant="error">{error}</Banner>}
   <Welcome />
 </Layout>

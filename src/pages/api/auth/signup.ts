@@ -1,8 +1,10 @@
 import type { APIContext, APIRoute } from "astro";
-import { createClient } from "@/lib/supabase";
-import { homeRouteForRole } from "@/lib/auth/roles";
+import { SIGNUP_CONFIRM_MESSAGE } from "@/lib/auth/errors";
+import { SIGN_IN_ROUTE, homeRouteForRole } from "@/lib/auth/roles";
 import { firstErrorMessage, signUpSchema } from "@/lib/auth/schemas";
+import { authFailureMessage, signUpOutcome } from "@/lib/auth/session";
 import { formValue } from "@/lib/form-data";
+import { createClient } from "@/lib/supabase";
 
 function backToForm(context: APIContext, message: string) {
   return context.redirect(`/auth/signup?error=${encodeURIComponent(message)}`);
@@ -31,18 +33,17 @@ export const POST: APIRoute = async (context) => {
 
   // Rola jedzie w metadanych użytkownika; profil zakłada trigger bazy z F-01,
   // który mapuje ją twardo na dozwoloną wartość.
-  const { error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: { data: { role } },
-  });
+  const outcome = await signUpOutcome(supabase, { email, password, role });
 
-  if (error) {
-    return backToForm(context, error.message);
+  switch (outcome.kind) {
+    case "error":
+      return backToForm(context, authFailureMessage("auth:signup", outcome.error, "signup"));
+    case "confirm":
+      // Potwierdzanie e-mail jest wyłączone po obu stronach (enable_confirmations lokalnie,
+      // mailer_autoconfirm na zdalnym), więc ta gałąź to zabezpieczenie: bez sesji nie ma
+      // wejścia do panelu, tylko jasna informacja zamiast cichego odbicia na logowanie.
+      return context.redirect(`${SIGN_IN_ROUTE}?error=${encodeURIComponent(SIGNUP_CONFIRM_MESSAGE)}`);
+    case "session":
+      return context.redirect(homeRouteForRole(outcome.role));
   }
-
-  // Potwierdzanie adresu e-mail jest wyłączone po obu stronach (enable_confirmations
-  // lokalnie, mailer_autoconfirm na zdalnym), więc konto jest już zalogowane -
-  // kierujemy prosto do przestrzeni roli, którą właśnie wysłaliśmy, bez odczytu profilu.
-  return context.redirect(homeRouteForRole(role));
 };
