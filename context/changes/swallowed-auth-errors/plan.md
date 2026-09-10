@@ -581,10 +581,10 @@ None. Rollback is `git revert` of the merge commit; no data or config changes.
 
 #### Automated
 
-- [x] 4.1 Each of the six pages calls `logError` once
-- [x] 4.2 lint, check, test and Prettier on docs pass
-- [ ] 4.3 PR merged with `ci`, `db-tests`, `e2e` green
+- [x] 4.1 Each of the six pages calls `logError` once — 90755dc
+- [x] 4.2 lint, check, test and Prettier on docs pass — 90755dc
+- [x] 4.3 PR merged with `ci`, `db-tests`, `e2e` green — ab46b26
 
 #### Manual
 
-- [x] 4.4 Stopped database: `/jezdziec/zapisy` failure state plus a `[page:…]` log entry
+- [x] 4.4 Stopped database: `/jezdziec/zapisy` failure state plus a `[page:…]` log entry — 90755dc
