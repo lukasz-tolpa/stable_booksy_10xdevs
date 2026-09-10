@@ -14,6 +14,9 @@ export const EMAIL_NOT_CONFIRMED = "email_not_confirmed";
 export const USER_ALREADY_EXISTS = "user_already_exists";
 export const EMAIL_EXISTS = "email_exists";
 export const WEAK_PASSWORD = "weak_password";
+/** GoTrue wstawia podany adres do treści tych błędów - to błędy użytkownika, bez wpisu w logu. */
+export const EMAIL_ADDRESS_INVALID = "email_address_invalid";
+export const EMAIL_ADDRESS_NOT_AUTHORIZED = "email_address_not_authorized";
 export const RATE_LIMITED = ["over_request_rate_limit", "over_email_send_rate_limit"] as const;
 export const REQUEST_TIMEOUT = "request_timeout";
 
@@ -39,6 +42,8 @@ const USER_ERROR_CODES: ReadonlySet<string> = new Set([
   USER_ALREADY_EXISTS,
   EMAIL_EXISTS,
   WEAK_PASSWORD,
+  EMAIL_ADDRESS_INVALID,
+  EMAIL_ADDRESS_NOT_AUTHORIZED,
   ...RATE_LIMITED,
 ]);
 
@@ -54,6 +59,9 @@ export function authErrorMessage(code: string | undefined, action: AuthAction): 
       return "Konto z tym adresem już istnieje. Zaloguj się.";
     case WEAK_PASSWORD:
       return "Hasło nie spełnia wymagań bezpieczeństwa. Wybierz dłuższe hasło.";
+    case EMAIL_ADDRESS_INVALID:
+    case EMAIL_ADDRESS_NOT_AUTHORIZED:
+      return "Podany adres e-mail nie może być użyty. Sprawdź pisownię lub użyj innego adresu.";
     case RATE_LIMITED[0]:
     case RATE_LIMITED[1]:
       return "Zbyt wiele prób. Odczekaj chwilę i spróbuj ponownie.";
@@ -66,11 +74,12 @@ export function authErrorMessage(code: string | undefined, action: AuthAction): 
 
 /**
  * Awaria transportu (GoTrue nieosiągalny): auth-js rzuca `AuthRetryableFetchError`
- * ze statusem 0 i bez kodu; `fetch` rzuca `TypeError` bez kodu i bez statusu.
- * Wszystko, co niesie kod albo prawdziwy status HTTP, jest odpowiedzią serwera.
+ * (rozpoznawalny po nazwie; status 0, bez kodu), a `fetch` rzuca `TypeError` bez kodu
+ * i bez statusu. Wszystko, co niesie kod albo prawdziwy status HTTP, jest odpowiedzią serwera.
  */
 export function isTransportError(error: unknown): boolean {
   if (typeof error !== "object" || error === null) return false;
+  if ("name" in error && error.name === "AuthRetryableFetchError") return true;
   if (errorCode(error) !== undefined) return false;
   const status = "status" in error ? error.status : undefined;
   return status === undefined || status === 0;
@@ -87,7 +96,12 @@ export function isProviderOutage(error: unknown): boolean {
   return typeof status === "number" && status >= 500;
 }
 
-/** Błąd, który użytkownik wywołał sam (złe hasło, istniejące konto, limit) - nie incydent, bez wpisu w logu. */
+/** Kody limitu prób GoTrue - błąd użytkownika, ale logowany bez treści jako sygnał nadużycia. */
+export function isRateLimited(code: string | undefined): boolean {
+  return code !== undefined && (RATE_LIMITED as readonly string[]).includes(code);
+}
+
+/** Błąd, który użytkownik wywołał sam (złe hasło, istniejące konto, zły adres, limit) - nie incydent, bez wpisu w logu. */
 export function isExpectedUserError(code: string | undefined): boolean {
   return code !== undefined && USER_ERROR_CODES.has(code);
 }

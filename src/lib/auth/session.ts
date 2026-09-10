@@ -5,13 +5,18 @@
  * `{ data, error }` z klienta bezpośrednio - dostają wynik dyskryminowany i tylko
  * mapują go na przekierowanie. Dzięki temu awarie częściowe, których prawdziwy stack
  * nie wywoła (odmowa wylogowania, błąd zapytania o profil, GoTrue nieosiągalny,
- * rejestracja bez sesji), są dowiedzione na stubie w `session.test.ts`.
+ * rejestracja bez sesji, klient rzucający wyjątek), są dowiedzione na stubie
+ * w `session.test.ts`.
  *
  * `SessionClient` to wąski typ strukturalny powierzchni `auth`; prawdziwy klient
  * z `@/lib/supabase` spełnia go bez rzutowania (`asSessionClient` niżej). Zapytanie
  * o profil idzie osobno jako `RoleLoader`: typy PostgREST (`from().select()`) są za
- * głębokie, żeby dało się je opisać wąskim interfejsem (ts2589), więc endpoint buduje
- * loader z prawdziwego klienta przez `profileRoleLoader`, a test podstawia funkcję.
+ * głębokie, żeby dało się je opisać wąskim interfejsem (ts2589), więc wołający buduje
+ * loader z prawdziwego klienta (`profileRoleLoader`) albo z już pobranego wiersza
+ * (middleware), a test podstawia funkcję.
+ *
+ * auth-js rzuca dalej wszystko, co nie jest AuthError (np. wyjątek adaptera ciasteczek),
+ * dlatego każdy helper łapie wyjątek i oddaje go jako wynik - nigdy jako niezalogowany 500.
  */
 
 import type { User } from "@supabase/supabase-js";
@@ -20,26 +25,40 @@ import {
   authErrorMessage,
   isExpectedUserError,
   isProviderOutage,
+  isRateLimited,
   type AuthAction,
 } from "@/lib/auth/errors";
 import { isUserRole } from "@/lib/auth/roles";
 import { errorCode } from "@/lib/db-errors";
-import { logError } from "@/lib/log";
+import { logError, type LogSink } from "@/lib/log";
 import type { createClient } from "@/lib/supabase";
 import type { UserRole } from "@/types";
 
 /**
  * Komunikat dla użytkownika po błędzie GoTrue + wpis w logu, gdy to nie jest błąd
  * użytkownika (złe hasło, istniejące konto, limit prób nie są incydentami).
+ * `sink` jest parametrem, żeby test nie dotykał konsoli.
  */
-export function authFailureMessage(scope: string, error: unknown, action: AuthAction): string {
+export function authFailureMessage(scope: string, error: unknown, action: AuthAction, sink?: LogSink): string {
   if (isProviderOutage(error)) {
-    logError(scope, error);
+    logError(scope, error, sink);
     return OUTAGE_MESSAGE;
   }
   const code = errorCode(error);
-  if (!isExpectedUserError(code)) logError(scope, error);
+  if (isRateLimited(code)) {
+    // Limit prób to błąd użytkownika, ale też sygnał credential stuffingu: wpis bez treści
+    // (sam kod i status), żeby był ślad, a do logu nie trafił żaden adres ani tekst dostawcy.
+    logError(scope, { code, status: errorStatus(error) }, sink);
+  } else if (!isExpectedUserError(code)) {
+    logError(scope, error, sink);
+  }
   return authErrorMessage(code, action);
+}
+
+function errorStatus(error: unknown): number | undefined {
+  return typeof error === "object" && error !== null && "status" in error && typeof error.status === "number"
+    ? error.status
+    : undefined;
 }
 
 export interface SessionClient {
@@ -62,7 +81,7 @@ type RealClient = NonNullable<ReturnType<typeof createClient>>;
 /** Prawdziwy klient jako `SessionClient` - bez rzutowania; gdy przestanie pasować, padnie `astro check`. */
 export const asSessionClient = (client: RealClient): SessionClient => client;
 
-/** Loader roli z prawdziwego klienta - jedyne miejsce z zapytaniem do `profiles` na ścieżce auth. */
+/** Loader roli z prawdziwego klienta dla endpointów (middleware buduje loader z pobranego wiersza). */
 export const profileRoleLoader =
   (client: RealClient): RoleLoader =>
   (userId) =>
@@ -92,25 +111,40 @@ export async function signOutUser(client: SessionClient): Promise<SignOutResult>
 
 /** Rola z profilu; błąd zapytania to awaria, nie brak roli (nie wylogowujemy za awarię). */
 export async function resolveRole(loadRole: RoleLoader, userId: string): Promise<RoleResult> {
-  const { data, error } = await loadRole(userId);
-  if (error) return { kind: "outage", error };
-  const role = data?.role;
-  return isUserRole(role) ? { kind: "role", role } : { kind: "no-role" };
+  try {
+    const { data, error } = await loadRole(userId);
+    if (error) return { kind: "outage", error };
+    const role = data?.role;
+    return isUserRole(role) ? { kind: "role", role } : { kind: "no-role" };
+  } catch (error) {
+    return { kind: "outage", error };
+  }
 }
 
-/** auth-js bez ciasteczka sesji zgłasza AuthSessionMissingError (400, bez kodu) - to zwykły gość. */
+/**
+ * auth-js zgłasza brak sesji jako AuthSessionMissingError (400, bez kodu) - zarówno gdy
+ * nie ma ciasteczka, jak i gdy GoTrue odrzucił sesję (403 session_not_found jest
+ * zamieniane na ten sam błąd, a ciasteczko usuwane przez samego klienta). Świadomie:
+ * oba przypadki to anonim - użytkownik i tak ląduje na logowaniu z czystym stanem.
+ * "Wygasła sesja" zostaje dla awarii odświeżania tokenu (refresh_token_not_found,
+ * refresh_token_already_used, bad_jwt), które auth-js oddaje jako AuthApiError.
+ */
 function isMissingSessionError(error: unknown): boolean {
   return typeof error === "object" && error !== null && "name" in error && error.name === "AuthSessionMissingError";
 }
 
-/** Użytkownik z sesji: awaria transportu ≠ wygasła/odrzucona sesja ≠ anonim (w tym brak ciasteczka). */
+/** Użytkownik z sesji: awaria dostawcy ≠ wygasła sesja ≠ anonim; wyjątek klienta to awaria. */
 export async function currentUser(client: SessionClient): Promise<UserResult> {
-  const { data, error } = await client.auth.getUser();
-  if (error) {
-    if (isMissingSessionError(error)) return { kind: "anonymous" };
-    return isProviderOutage(error) ? { kind: "outage", error } : { kind: "expired", error };
+  try {
+    const { data, error } = await client.auth.getUser();
+    if (error) {
+      if (isMissingSessionError(error)) return { kind: "anonymous" };
+      return isProviderOutage(error) ? { kind: "outage", error } : { kind: "expired", error };
+    }
+    return data.user ? { kind: "user", user: data.user } : { kind: "anonymous" };
+  } catch (error) {
+    return { kind: "outage", error };
   }
-  return data.user ? { kind: "user", user: data.user } : { kind: "anonymous" };
 }
 
 /** Rejestracja: brak sesji bez błędu (potwierdzenie e-mail / anty-enumeracja) nie jest wejściem do panelu. */
@@ -118,11 +152,15 @@ export async function signUpOutcome(
   client: SessionClient,
   input: { email: string; password: string; role: UserRole },
 ): Promise<SignUpResult> {
-  const { data, error } = await client.auth.signUp({
-    email: input.email,
-    password: input.password,
-    options: { data: { role: input.role } },
-  });
-  if (error) return { kind: "error", error };
-  return data.session ? { kind: "session", role: input.role } : { kind: "confirm" };
+  try {
+    const { data, error } = await client.auth.signUp({
+      email: input.email,
+      password: input.password,
+      options: { data: { role: input.role } },
+    });
+    if (error) return { kind: "error", error };
+    return data.session ? { kind: "session", role: input.role } : { kind: "confirm" };
+  } catch (error) {
+    return { kind: "error", error };
+  }
 }

@@ -1,6 +1,8 @@
 import type { User } from "@supabase/supabase-js";
 import { describe, expect, it } from "vitest";
+import { OUTAGE_MESSAGE } from "@/lib/auth/errors";
 import {
+  authFailureMessage,
   currentUser,
   resolveRole,
   signOutUser,
@@ -8,6 +10,7 @@ import {
   type RoleLoader,
   type SessionClient,
 } from "@/lib/auth/session";
+import type { LogEntry } from "@/lib/log";
 
 // Stub strukturalny (M3L2): awarie częściowe - odmowa wylogowania, błąd zapytania o profil,
 // GoTrue nieosiągalny, rejestracja bez sesji - nie dają się wywołać na prawdziwym stacku,
@@ -18,7 +21,9 @@ interface Results {
   /** Klient rzuca (np. TypeError z fetch) zamiast zwrócić `{ error }`. */
   signOutThrows?: Error;
   getUser?: { data: { user: User | null }; error: unknown };
+  getUserThrows?: Error;
   signUp?: { data: { user: User | null; session: object | null }; error: unknown };
+  signUpThrows?: Error;
 }
 
 function roleLoader(result: { data: { role: string } | null; error: unknown }): RoleLoader {
@@ -37,8 +42,14 @@ function stubClient(results: Results): SessionClient {
         results.signOutThrows
           ? Promise.reject(results.signOutThrows)
           : Promise.resolve(results.signOut ?? { error: null }),
-      getUser: () => Promise.resolve(results.getUser ?? { data: { user: null }, error: null }),
-      signUp: () => Promise.resolve(results.signUp ?? { data: { user: null, session: null }, error: null }),
+      getUser: () =>
+        results.getUserThrows
+          ? Promise.reject(results.getUserThrows)
+          : Promise.resolve(results.getUser ?? { data: { user: null }, error: null }),
+      signUp: () =>
+        results.signUpThrows
+          ? Promise.reject(results.signUpThrows)
+          : Promise.resolve(results.signUp ?? { data: { user: null, session: null }, error: null }),
     },
   };
 }
@@ -106,16 +117,29 @@ describe("currentUser", () => {
     });
   });
 
-  it("odrzucona sesja to wygaśnięcie", async () => {
+  // Kształt, który auth-js naprawdę oddaje przy awarii odświeżania tokenu (AuthApiError);
+  // odrzuconą sesję (403 session_not_found) auth-js sam zamienia na AuthSessionMissingError
+  // i czyści ciasteczko - to przypadek "anonim" wyżej, nie ten.
+  it("awaria odświeżania tokenu to wygaśnięcie sesji", async () => {
     const error = {
-      code: "session_not_found",
-      status: 403,
-      message: "Session from session_id claim in JWT does not exist",
+      name: "AuthApiError",
+      code: "refresh_token_not_found",
+      status: 400,
+      message: "Invalid Refresh Token",
     };
 
     await expect(currentUser(stubClient({ getUser: { data: { user: null }, error } }))).resolves.toEqual({
       kind: "expired",
       error,
+    });
+  });
+
+  it("wyjątek klienta przy odczycie sesji to awaria, nie 500", async () => {
+    const thrown = new TypeError("cookie adapter down");
+
+    await expect(currentUser(stubClient({ getUserThrows: thrown }))).resolves.toEqual({
+      kind: "outage",
+      error: thrown,
     });
   });
 
@@ -166,5 +190,57 @@ describe("signUpOutcome", () => {
     const client = stubClient({ signUp: { data: { user: null, session: null }, error } });
 
     await expect(signUpOutcome(client, input)).resolves.toEqual({ kind: "error", error });
+  });
+
+  it("wyjątek klienta przy rejestracji to błąd do zmapowania, nie 500", async () => {
+    const thrown = new TypeError("cookie adapter down");
+
+    await expect(signUpOutcome(stubClient({ signUpThrows: thrown }), input)).resolves.toEqual({
+      kind: "error",
+      error: thrown,
+    });
+  });
+});
+
+describe("authFailureMessage", () => {
+  function capture() {
+    const entries: LogEntry[] = [];
+    return { entries, sink: (entry: LogEntry) => entries.push(entry) };
+  }
+
+  it("awaria dostawcy daje zdanie o chwilowym problemie i wpis w logu", () => {
+    const { entries, sink } = capture();
+    const error = { name: "AuthRetryableFetchError", status: 0, code: undefined, message: "fetch failed" };
+
+    expect(authFailureMessage("auth:signin", error, "signin", sink)).toBe(OUTAGE_MESSAGE);
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({ scope: "auth:signin", message: "fetch failed" });
+  });
+
+  it("błąd użytkownika (złe hasło) daje polskie zdanie bez wpisu w logu", () => {
+    const { entries, sink } = capture();
+    const error = { code: "invalid_credentials", status: 400, message: "Invalid login credentials" };
+
+    expect(authFailureMessage("auth:signin", error, "signin", sink)).toBe("Nieprawidłowy e-mail lub hasło.");
+    expect(entries).toHaveLength(0);
+  });
+
+  it("limit prób daje polskie zdanie i wpis bez treści (sam kod i status)", () => {
+    const { entries, sink } = capture();
+    const error = { code: "over_request_rate_limit", status: 429, message: "Request rate limit reached x@y.pl" };
+
+    expect(authFailureMessage("auth:signin", error, "signin", sink)).toContain("Zbyt wiele prób");
+    expect(entries).toEqual([{ scope: "auth:signin", code: "over_request_rate_limit", status: 429 }]);
+  });
+
+  it("nieznany kod daje wariant domyślny akcji i wpis w logu", () => {
+    const { entries, sink } = capture();
+    const error = { code: "bad_json", status: 400, message: "Bad JSON" };
+
+    expect(authFailureMessage("auth:signup", error, "signup", sink)).toBe(
+      "Nie udało się utworzyć konta. Spróbuj ponownie.",
+    );
+    expect(entries).toHaveLength(1);
+    expect(entries[0].code).toBe("bad_json");
   });
 });

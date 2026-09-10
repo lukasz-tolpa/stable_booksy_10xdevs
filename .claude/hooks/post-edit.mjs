@@ -22,7 +22,7 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 
-const RISK_AREAS = ["src/lib/bookings/", "src/lib/schedule/", "src/pages/api/"];
+const RISK_AREAS = ["src/lib/bookings/", "src/lib/schedule/", "src/lib/auth/", "src/lib/log.ts", "src/pages/api/"];
 // Plik generowany przez `npm run db:types` - wykluczony z ESLinta w eslint.config.js; tu tez.
 const SKIP_FILES = new Set(["src/db/database.types.ts"]);
 const MAX_OUTPUT_CHARS = 4000;

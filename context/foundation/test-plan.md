@@ -282,7 +282,7 @@ local role authenticated; set local request.jwt.claims =
 error, action)` in `src/lib/auth/session.ts` returns the sentence and logs the
   error unless it is an expected user error (wrong password, existing account,
   weak password, rate limit).
-- **Dependency results**: every `auth.*` call on the auth path goes through a
+- **Dependency results**: every `auth.*` result on the auth path is classified by a
   helper in `src/lib/auth/session.ts` that returns a discriminated result
   (`signOutUser` → `ok`, `resolveRole` → `role | no-role | outage`, `currentUser`
   → `user | anonymous | expired | outage`, `signUpOutcome` → `session | confirm |
