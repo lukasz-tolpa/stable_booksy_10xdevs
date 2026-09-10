@@ -5,6 +5,7 @@ import Topbar from "@/components/Topbar.astro";
 import HorseForm from "@/components/stables/HorseForm";
 import { getOwnedStableId, listStableHorses, type HorseListItem } from "@/lib/stables/queries";
 import { createClient } from "@/lib/supabase";
+import { logError } from "@/lib/log";
 
 // Dostęp pilnuje middleware (mapa tras w @/lib/auth/roles), a konto ośrodka ma
 // gwarantowaną stadninę dzięki wymuszeniu z S-01 - stąd brak gałęzi "brak stadniny".
@@ -20,8 +21,9 @@ if (supabase && profile) {
   try {
     const stableId = await getOwnedStableId(supabase, profile.id);
     horses = stableId === null ? [] : await listStableHorses(supabase, stableId);
-  } catch {
+  } catch (error) {
     loadFailed = true;
+    logError("page:osrodek/konie", error);
   }
 }
 

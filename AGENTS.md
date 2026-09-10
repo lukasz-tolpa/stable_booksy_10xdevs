@@ -15,7 +15,7 @@ Stable Booksy is an MVP booking system for horse-riding stables (roles: Ośrodek
 
 - `src/pages/` — Astro routes: `index.astro`, `dashboard.astro` (protected), `auth/{signin,signup,confirm-email}.astro`, `api/auth/{signin,signup,signout}.ts`.
 - `src/components/` — Astro components for static content (`Banner.astro`, `Topbar.astro`) and `ui/` (shadcn); React islands only where interactive, under `components/auth/*.tsx`.
-- `src/lib/` — `supabase.ts` (SSR client), `utils.ts` (`cn()` helper), `config-status.ts`. `src/middleware.ts` gates routes listed in `PROTECTED_ROUTES`.
+- `src/lib/` — `supabase.ts` (SSR client), `utils.ts` (`cn()` helper), `config-status.ts`, `log.ts` (`logError(scope, error)` — the only `console.error` in `src/`, derived fields only), `auth/errors.ts` (closed Polish set for GoTrue `error.code`), `auth/session.ts` (helpers returning discriminated results for sign-out, role, current user, sign-up). `src/middleware.ts` gates routes from the map in `@/lib/auth/roles`.
 - `supabase/` — `migrations/` (schema, RLS), `seed.sql` (local demo data, loaded by `db reset`), `tests/` (verification scripts). New migrations follow `YYYYMMDDHHmmss_short_description.sql` and must enable RLS per table.
 - `src/db/` — generated database types; `src/types.ts` — domain aliases (`Booking`, `ScheduleDay`, …) that the rest of the app imports instead of the generated file.
 - `context/foundation/` — see `@context/foundation/README.md` for the PRD/tech-stack/roadmap workflow.
@@ -48,6 +48,7 @@ Stable Booksy is an MVP booking system for horse-riding stables (roles: Ośrodek
 - Use `cn()` from `@/lib/utils` for conditional Tailwind classes; never concatenate class strings manually.
 - shadcn/ui components live in `src/components/ui/` ("new-york" style); add new ones with `npx shadcn@latest add [name]`.
 - API routes set `prerender = false` and validate input with zod.
+- The result of every dependency call is checked and logged; provider messages never reach the UI. Auth errors go through `authFailureMessage` / `authErrorMessage` (`src/lib/auth/`), database errors through the area's `errors.ts`; SSR pages log in their `catch` with `logError("page:<route>", error)`. Details and the stub-client test pattern: `context/foundation/test-plan.md` §6.4.
 - Husky is installed by the `prepare` script (`npm install`). Pre-commit runs lint-staged: `*.{ts,tsx,astro}` → `eslint --fix`, `*.{json,css,md}` → `prettier --write`; pre-push runs `npm test` + `npm run check`.
 - Claude Code hook (`.claude/settings.json` → `.claude/hooks/post-edit.mjs`) runs Prettier on every Write/Edit and `vitest related` for files under `src/lib/bookings/`, `src/lib/schedule/`, `src/pages/api/`; a failure comes back as stderr + exit 2. No ESLint per edit (7–9 s per file). Details and sabotage checks: `context/foundation/test-plan.md` §6.6.
 

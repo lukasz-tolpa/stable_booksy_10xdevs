@@ -8,6 +8,7 @@ import { splitRiderBookings, type RiderBookingSections } from "@/lib/bookings/ri
 import { currentWarsawHour } from "@/lib/bookings/slots";
 import { todayIso } from "@/lib/schedule/dates";
 import { createClient } from "@/lib/supabase";
+import { logError } from "@/lib/log";
 
 // Dostęp pilnuje middleware (mapa tras w @/lib/auth/roles). Strona pokazuje
 // wyłącznie zapisy zalogowanego jeźdźca - filtr po rider_id jest jawny
@@ -25,8 +26,9 @@ if (supabase && user) {
   try {
     const bookings = await getRiderBookings(supabase, user.id);
     sections = splitRiderBookings(bookings, { today: todayIso(), currentHour: currentWarsawHour() });
-  } catch {
+  } catch (error) {
     loadFailed = true;
+    logError("page:jezdziec/zapisy", error);
   }
 } else {
   // Brak klienta Supabase lub sesji to awaria konfiguracji, nie brak zapisów.

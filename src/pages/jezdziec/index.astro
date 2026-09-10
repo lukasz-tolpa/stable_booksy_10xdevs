@@ -7,6 +7,7 @@ import { ROLE_HOME } from "@/lib/auth/roles";
 import { listStables, type StableListItem } from "@/lib/stables/queries";
 import { prepareSearchTerm } from "@/lib/stables/search";
 import { createClient } from "@/lib/supabase";
+import { logError } from "@/lib/log";
 
 // Dostęp pilnuje middleware (mapa tras w @/lib/auth/roles) - strona nie powtarza
 // sprawdzenia roli. Odczyt `stables` jest otwarty dla zalogowanych (F-01), więc
@@ -24,8 +25,9 @@ let loadFailed = false;
 if (supabase) {
   try {
     stables = await listStables(supabase, term);
-  } catch {
+  } catch (error) {
     loadFailed = true;
+    logError("page:jezdziec/index", error);
   }
 }
 

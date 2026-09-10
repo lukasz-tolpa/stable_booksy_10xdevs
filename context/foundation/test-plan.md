@@ -274,6 +274,25 @@ local role authenticated; set local request.jwt.claims =
   database with a misleading text. Cover blanks with `it.each` per field.
 - **Ownership** follows the Phase 1 RLS pattern (§6.2): explicit
   `rider_id` / `stable_id` filters in the query plus the SQL proof.
+- **Auth errors** (`src/pages/api/auth/*`): map GoTrue `error.code` through
+  `src/lib/auth/errors.ts` (`authErrorMessage`, a closed Polish set pinned in
+  `errors.test.ts`; `isTransportError` tells a provider outage from a server
+  answer). Never forward the provider's message text — it is English and on a
+  transport failure reads `fetch failed` or `{}`. `authFailureMessage(scope,
+error, action)` in `src/lib/auth/session.ts` returns the sentence and logs the
+  error unless it is an expected user error (wrong password, existing account,
+  weak password, rate limit).
+- **Dependency results**: every `auth.*` call on the auth path goes through a
+  helper in `src/lib/auth/session.ts` that returns a discriminated result
+  (`signOutUser` → `ok`, `resolveRole` → `role | no-role | outage`, `currentUser`
+  → `user | anonymous | expired | outage`, `signUpOutcome` → `session | confirm |
+error`); endpoints and the middleware only map results to redirects. Partial
+  failures real infra cannot trigger (refused sign-out, profile query error, GoTrue
+  unreachable, sign-up without a session) are proven in `session.test.ts` with a
+  structural stub client and a stub `RoleLoader` — no module mocking. Log every
+  dropped error with `logError(scope, error)` from `src/lib/log.ts` (derived fields
+  only: `name`, `code`, `status`, `message`; never the raw object). SSR pages keep
+  their `loadFailed` state and add `logError("page:<route>", error)` in the `catch`.
 
 ### 6.5 Per-rollout-phase notes
 
@@ -319,6 +338,15 @@ authenticated` + `request.jwt.claims`). The CLI's default Postgres image on
   while Actions deployed the same version again 3 min later — the Actions job
   was removed and the ruleset became the production gate. `astro check` passed on
   adoption (0 errors) and regenerates `.astro/` itself.
+- **swallowed-auth-errors (2026-09-10, M3L5 test-driven bug-fix).** auth-js returns
+  a sign-out error _before_ removing the session on any status other than
+  401/403/404, so an ignored `signOut()` result leaves the cookie alive; the
+  endpoint now stays logged in and shows `/?error=`. A `profiles` query error is an
+  outage, not a missing role — the session is kept and the outage sentence shown.
+  auth-js reports a missing cookie as `AuthSessionMissingError` (400, no code): it
+  must be classified as anonymous, or every guest logs and sees "Sesja wygasła"
+  (the first e2e run caught this). Narrow structural typing of the PostgREST
+  builder hits ts2589 — hence `RoleLoader` instead of a `from()` interface.
 
 ### 6.6 Running the gates and the agent hook
 

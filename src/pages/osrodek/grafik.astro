@@ -7,6 +7,7 @@ import { addDays, defaultScheduleDate, isPastDate, parseScheduleDate } from "@/l
 import { getLatestScheduleDay, getScheduleDay, type ScheduleDayData } from "@/lib/schedule/queries";
 import { getOwnedStableId, listStableHorses, type HorseListItem } from "@/lib/stables/queries";
 import { createClient } from "@/lib/supabase";
+import { logError } from "@/lib/log";
 
 // Dostęp pilnuje middleware (mapa tras w @/lib/auth/roles). Konto ośrodka ma
 // gwarantowaną stadninę dzięki wymuszeniu z S-01.
@@ -33,8 +34,9 @@ if (supabase && profile) {
         listStableHorses(supabase, stableId),
       ]);
     }
-  } catch {
+  } catch (error) {
     loadFailed = true;
+    logError("page:osrodek/grafik", error);
   }
 } else {
   // Brak klienta Supabase lub profilu to awaria konfiguracji - bez tej gałęzi
