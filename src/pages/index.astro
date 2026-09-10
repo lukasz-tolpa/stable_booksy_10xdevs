@@ -1,6 +1,10 @@
 ---
+/* eslint-disable astro/jsx-a11y/aria-role -- `role` w <RoleBadge role="stable" /> to prop
+   komponentu, a nie atrybut ARIA; reguła widzi samą nazwę i literał tekstowy. */
 import Banner from "@/components/Banner.astro";
-import Welcome from "@/components/Welcome.astro";
+import Topbar from "@/components/Topbar.astro";
+import Card from "@/components/ui/Card.astro";
+import RoleBadge from "@/components/ui/RoleBadge.astro";
 import Layout from "@/layouts/Layout.astro";
 
 // Nieudane wylogowanie wraca tutaj z komunikatem w ?error= (ten sam wzorzec co na
@@ -10,5 +14,275 @@ const error = Astro.url.searchParams.get("error");
 
 <Layout>
   {error && <Banner variant="error">{error}</Banner>}
-  <Welcome />
+  <Topbar container="page" />
+  <main>
+    <!-- DESIGN.md §6: zdjęcie na całą szerokość, biel wchodzi z lewej (kadr ma konia
+         po prawej), a na wąskim ekranie zdjęcie jest pasem 236 px wygaszanym u dołu. -->
+    <section class="hero">
+      <div class="hero-media">
+        <img
+          src="/hero.webp"
+          width="1536"
+          height="1024"
+          loading="eager"
+          alt="Koń stojący na pastwisku przy ścianie lasu"
+        />
+        <span class="hero-veil"></span>
+      </div>
+      <div class="container-page hero-inner">
+        <p class="eyebrow">Ośrodek · Jeździec</p>
+        <h1>Stable Booksy</h1>
+        <p class="sub">Grafik dnia i zapisy na jazdy konne bez telefonów.</p>
+        <div class="hero-cta">
+          <a class="btn btn--primary" href="/auth/signup">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M19 8v6"></path>
+              <path d="M22 11h-6"></path>
+            </svg>
+            Załóż konto
+          </a>
+          <a class="btn btn--ghost" href="/auth/signin">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+              <path d="m10 17 5-5-5-5"></path>
+              <path d="M15 12H3"></path>
+            </svg>
+            Zaloguj się
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <section class="roles container-page">
+      <div class="roles__head">
+        <p class="eyebrow">Dwie role</p>
+        <h2>Jedno miejsce na grafik i na zapisy</h2>
+      </div>
+      <div class="rolegrid">
+        <Card as="article">
+          <div class="role">
+            <h2><RoleBadge role="stable" /></h2>
+            <p>Układasz grafik: godziny i konie pracujące danego dnia. Widzisz zapisy.</p>
+            <dl>
+              <div>
+                <dt>Grafik dnia</dt>
+                <dd class="mono-nums">10–14 · 4 sloty na konia</dd>
+              </div>
+            </dl>
+          </div>
+        </Card>
+        <Card as="article">
+          <div class="role">
+            <h2><RoleBadge role="rider" /></h2>
+            <p>Wybierasz ośrodek, wolny slot godzina × koń, zapisujesz się i odwołujesz.</p>
+            <dl>
+              <div>
+                <dt>Wolne sloty</dt>
+                <dd class="mono-nums">11:00 · Bella</dd>
+              </div>
+            </dl>
+          </div>
+        </Card>
+      </div>
+    </section>
+  </main>
 </Layout>
+
+<style>
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--primary);
+    font-weight: 500;
+    margin: 0;
+  }
+
+  /* ── Hero ─────────────────────────────────────────────────────────────── */
+  .hero {
+    position: relative;
+    background: var(--bg);
+  }
+  .hero-media {
+    position: relative;
+  }
+  .hero-media img {
+    display: block;
+    width: 100%;
+    height: 236px;
+    object-fit: cover;
+    /* Kadr trzyma konia po prawej stronie zdjęcia. */
+    object-position: 62% 46%;
+  }
+  .hero-veil {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, oklch(98% 0.008 150 / 0) 34%, oklch(98% 0.008 150 / 0.88) 84%, var(--bg) 100%);
+  }
+  .hero-inner {
+    position: relative;
+    padding-block: 26px 44px;
+  }
+  .hero h1 {
+    margin: 10px 0 0;
+    /* DESIGN.md §3 - w prototypie skalę przełącza zapytanie kontenerowe, tu clamp. */
+    font-size: clamp(30px, 4vw, 44px);
+    font-weight: 800;
+    letter-spacing: -0.035em;
+  }
+  .hero .sub {
+    margin: 14px 0 0;
+    font-size: 17px;
+    color: var(--muted);
+    max-width: 34ch;
+  }
+  .hero-cta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 26px;
+  }
+
+  /* Powyżej 820 px zdjęcie wypełnia hero, a biel wchodzi z lewej - próg z prototypu. */
+  @media (width >= 820px) {
+    .hero {
+      min-height: 520px;
+      display: grid;
+      align-items: center;
+    }
+    .hero-media {
+      position: absolute;
+      inset: 0;
+    }
+    .hero-media img {
+      height: 100%;
+    }
+    .hero-veil {
+      background:
+        linear-gradient(
+          90deg,
+          var(--bg) 0%,
+          oklch(98% 0.008 150 / 0.95) 31%,
+          oklch(98% 0.008 150 / 0.58) 49%,
+          oklch(98% 0.008 150 / 0) 70%
+        ),
+        linear-gradient(180deg, oklch(98% 0.008 150 / 0) 58%, var(--bg) 100%);
+    }
+    .hero-inner {
+      padding-block: 96px;
+    }
+    .hero .sub {
+      font-size: 19px;
+    }
+  }
+
+  /* ── Przyciski hero ───────────────────────────────────────────────────── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-family: var(--font-display);
+    font-weight: 600;
+    /* Wariant `lg` z prototypu - to jedyne miejsce w aplikacji, gdzie występuje. */
+    font-size: 16.5px;
+    padding: 15px 26px;
+    min-height: 52px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    line-height: 1;
+    white-space: nowrap;
+    transition:
+      transform 0.08s,
+      background 0.15s,
+      box-shadow 0.15s,
+      border-color 0.15s;
+  }
+  .btn:active {
+    transform: translateY(1px);
+  }
+  .btn:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+  .btn svg {
+    width: 18px;
+    height: 18px;
+    flex: none;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .btn--primary {
+    background: var(--primary);
+    color: oklch(100% 0 0);
+    box-shadow: var(--shadow-sm);
+  }
+  .btn--primary:hover {
+    background: var(--primary-strong);
+  }
+  .btn--ghost {
+    background: var(--surface);
+    color: var(--fg);
+    border-color: var(--border-2);
+  }
+  .btn--ghost:hover {
+    background: var(--surface-2);
+  }
+
+  /* ── Karty ról ────────────────────────────────────────────────────────── */
+  .roles {
+    padding-block: 44px 64px;
+  }
+  .roles__head {
+    margin-bottom: 22px;
+  }
+  .roles__head h2 {
+    margin: 8px 0 0;
+    font-size: 26px;
+  }
+  .rolegrid {
+    display: grid;
+    gap: 18px;
+    grid-template-columns: 1fr;
+  }
+  @media (width >= 720px) {
+    .rolegrid {
+      grid-template-columns: 1fr 1fr;
+      gap: 22px;
+    }
+  }
+  .role h2 {
+    margin: 0;
+  }
+  .role p {
+    margin: 12px 0 0;
+    font-size: 16px;
+    color: var(--muted);
+    max-width: 42ch;
+  }
+  .role dl {
+    margin: 16px 0 0;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    display: grid;
+    gap: 8px;
+  }
+  .role dt {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .role dd {
+    margin: 0;
+    font-size: 14.5px;
+    color: var(--fg);
+  }
+</style>

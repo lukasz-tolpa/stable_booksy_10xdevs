@@ -719,12 +719,12 @@ single-PR delivery.
 
 #### Automated
 
-- [x] 1.1 `npm run lint` passes
-- [x] 1.2 `npm run check` passes
-- [x] 1.3 `npm test` passes (215 tests, unchanged)
-- [x] 1.4 No `bg-cosmic`, `@custom-variant dark` or `.dark` block left in global.css
-- [x] 1.5 `node scripts/hero.mjs` produces `public/hero.webp` ≤ 200 KB
-- [x] 1.6 `npx playwright test` passes after the shell change
+- [x] 1.1 `npm run lint` passes — b4b0a75
+- [x] 1.2 `npm run check` passes — b4b0a75
+- [x] 1.3 `npm test` passes (215 tests, unchanged) — b4b0a75
+- [x] 1.4 No `bg-cosmic`, `@custom-variant dark` or `.dark` block left in global.css — b4b0a75
+- [x] 1.5 `node scripts/hero.mjs` produces `public/hero.webp` ≤ 200 KB — b4b0a75
+- [x] 1.6 `npx playwright test` passes after the shell change — b4b0a75
 
 #### Manual
 
@@ -735,10 +735,10 @@ single-PR delivery.
 
 #### Automated
 
-- [ ] 2.1 `npm run lint`, `npm run check`, `npm test` pass
-- [ ] 2.2 `npx playwright test` passes
-- [ ] 2.3 `src/pages/index.astro` no longer imports `Welcome`
-- [ ] 2.4 Hero is served from `/hero.webp`, not from `context/`
+- [x] 2.1 `npm run lint`, `npm run check`, `npm test` pass
+- [x] 2.2 `npx playwright test` passes
+- [x] 2.3 `src/pages/index.astro` no longer imports `Welcome`
+- [x] 2.4 Hero is served from `/hero.webp`, not from `context/`
 
 #### Manual
 
