@@ -277,6 +277,16 @@ status: 403 }` → `expired`; `{ user: null }` → `anonymous`; user → `user`.
 profile: { data: { role: "rider" }, error: null }, getUser: …, signUp: … })`, and
   implements only the chain methods the helpers call.
 
+### Adaptation (2026-09-10)
+
+- `resolveRole` takes a `RoleLoader` (`(userId) => PromiseLike<{ data, error }>`) instead of
+  the client: describing `from("profiles").select("role")…` with a narrow structural
+  interface makes TypeScript hit ts2589 ("instantiation excessively deep") when the real
+  PostgREST client is assigned to it. `SessionClient` covers only the `auth` surface
+  (`asSessionClient` proves the real client fits at compile time) and
+  `profileRoleLoader(client)` builds the loader from the real client in one place. Tests
+  stub the loader with a function; nothing else changed.
+
 ### Success Criteria:
 
 #### Automated Verification:
@@ -504,26 +514,26 @@ None. Rollback is `git revert` of the merge commit; no data or config changes.
 
 #### Automated
 
-- [x] 1.1 Red first: the two new test files fail before the modules exist, then pass
-- [x] 1.2 `npm test` passes
-- [x] 1.3 `npm run lint` passes with `console.error` only in `src/lib/log.ts`
-- [x] 1.4 `npm run check` passes
+- [x] 1.1 Red first: the two new test files fail before the modules exist, then pass — 093f732
+- [x] 1.2 `npm test` passes — 093f732
+- [x] 1.3 `npm run lint` passes with `console.error` only in `src/lib/log.ts` — 093f732
+- [x] 1.4 `npm run check` passes — 093f732
 
 #### Manual
 
-- [x] 1.5 Closed set read once: Polish, specific, actionable
+- [x] 1.5 Closed set read once: Polish, specific, actionable — 093f732
 
 ### Phase 2: Session helpers proven on a stub client (TDD)
 
 #### Automated
 
-- [ ] 2.1 Red first: `session.test.ts` fails before `session.ts` exists, then passes
-- [ ] 2.2 `npm test`, `npm run lint`, `npm run check` pass
-- [ ] 2.3 No `vi.mock`/`vi.fn`/fake timers in `session.test.ts`
+- [x] 2.1 Red first: `session.test.ts` fails before `session.ts` exists, then passes
+- [x] 2.2 `npm test`, `npm run lint`, `npm run check` pass
+- [x] 2.3 No `vi.mock`/`vi.fn`/fake timers in `session.test.ts`
 
 #### Manual
 
-- [ ] 2.4 Every `it` in `session.test.ts` names a user-visible outcome
+- [x] 2.4 Every `it` in `session.test.ts` names a user-visible outcome
 
 ### Phase 3: Wire endpoints, middleware and the `/` banner
 
