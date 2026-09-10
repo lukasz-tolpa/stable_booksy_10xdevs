@@ -1,7 +1,12 @@
 ---
-import { ArrowLeft, ChevronLeft, ChevronRight, MapPin } from "lucide-react";
-import Layout from "@/layouts/Layout.astro";
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, MapPin } from "lucide-react";
+import Banner from "@/components/Banner.astro";
 import Topbar from "@/components/Topbar.astro";
+import Card from "@/components/ui/Card.astro";
+import DayNav from "@/components/ui/DayNav.astro";
+import EmptyState from "@/components/ui/EmptyState.astro";
+import FailureState from "@/components/ui/FailureState.astro";
+import Layout from "@/layouts/Layout.astro";
 import { ROLE_HOME } from "@/lib/auth/roles";
 import { getMyBookings, getTakenSlots } from "@/lib/bookings/queries";
 import { assignedHorses, computeSlotSections, currentWarsawHour, type SlotSection } from "@/lib/bookings/slots";
@@ -80,147 +85,311 @@ const dayLabel = new Date(`${day}T00:00:00`).toLocaleDateString("pl-PL", {
 ---
 
 <Layout title={stable ? stable.name : "Nie znaleziono ośrodka"}>
-  <div class="bg-cosmic min-h-screen p-4">
-    <div class="mx-auto max-w-3xl">
-      <Topbar />
+  <Topbar />
+  <main class="container-narrow page">
+    <a href={ROLE_HOME.rider} class="back">
+      <ArrowLeft className="size-4" />
+      Wróć do listy ośrodków
+    </a>
 
-      <a
-        href={ROLE_HOME.rider}
-        class="mb-4 inline-flex items-center gap-1.5 text-sm text-purple-300 transition-colors hover:text-purple-100 hover:underline"
-      >
-        <ArrowLeft className="size-4" />
-        Wróć do listy ośrodków
-      </a>
-
-      {
-        loadFailed ? (
-          <div class="rounded-2xl border border-red-500/30 bg-red-900/20 p-8 text-center text-white">
-            <p class="text-red-200">Nie udało się wczytać ośrodka.</p>
-            <p class="mt-2 text-sm text-blue-100/50">Odśwież stronę za chwilę.</p>
-          </div>
-        ) : stable ? (
-          <div>
-            <div class="rounded-2xl border border-white/10 bg-white/10 p-8 text-white backdrop-blur-xl">
-              <h1 class="bg-gradient-to-r from-blue-200 to-purple-200 bg-clip-text text-3xl font-bold text-transparent">
-                {stable.name}
-              </h1>
-              <p class="mt-2 flex items-center gap-1.5 text-sm text-blue-100/70">
+    {
+      loadFailed ? (
+        <FailureState>
+          <p>Nie udało się wczytać ośrodka.</p>
+          <p>Odśwież stronę za chwilę.</p>
+        </FailureState>
+      ) : stable ? (
+        <div>
+          <Card>
+            <div class="stable">
+              <h1>{stable.name}</h1>
+              <p class="city">
                 <MapPin className="size-4" />
                 {stable.city}
               </p>
-              {stable.description && <p class="mt-4 text-blue-100/80">{stable.description}</p>}
+              {stable.description && <p class="desc">{stable.description}</p>}
             </div>
+          </Card>
 
-            {success && (
-              <p class="mt-4 rounded-lg border border-emerald-500/30 bg-emerald-900/20 px-4 py-3 text-sm text-emerald-200">
-                Zapisano na jazdę. Twój slot jest oznaczony poniżej.
-              </p>
-            )}
-            {error && (
-              <p class="mt-4 rounded-lg border border-red-500/30 bg-red-900/20 px-4 py-3 text-sm text-red-200">
-                {error}
-              </p>
-            )}
+          {success && (
+            <div class="notice">
+              <Banner variant="success">Zapisano na jazdę. Twój slot jest oznaczony poniżej.</Banner>
+            </div>
+          )}
+          {error && (
+            <div class="notice">
+              <Banner variant="error">{error}</Banner>
+            </div>
+          )}
 
-            <nav class="mt-6 mb-4 flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
-              {canGoBack ? (
-                <a
-                  href={`/jezdziec/osrodki/${id}?dzien=${previousDay}`}
-                  class="flex items-center gap-1 text-sm text-purple-300 transition-colors hover:text-purple-100"
-                >
-                  <ChevronLeft className="size-4" />
-                  Poprzedni
-                </a>
-              ) : (
-                <span class="flex items-center gap-1 text-sm text-white/20">
-                  <ChevronLeft className="size-4" />
-                  Poprzedni
-                </span>
-              )}
-              <span class="text-sm font-medium text-white">{dayLabel}</span>
-              <a
-                href={`/jezdziec/osrodki/${id}?dzien=${addDays(day, 1)}`}
-                class="flex items-center gap-1 text-sm text-purple-300 transition-colors hover:text-purple-100"
-              >
-                Następny
-                <ChevronRight className="size-4" />
+          <DayNav>
+            {canGoBack ? (
+              <a slot="prev" href={`/jezdziec/osrodki/${id}?dzien=${previousDay}`}>
+                <ChevronLeft className="size-4" />
+                Poprzedni
               </a>
-            </nav>
+            ) : (
+              <span slot="prev" class="off">
+                <ChevronLeft className="size-4" />
+                Poprzedni
+              </span>
+            )}
+            <Fragment slot="date">{dayLabel}</Fragment>
+            <a slot="next" href={`/jezdziec/osrodki/${id}?dzien=${addDays(day, 1)}`}>
+              Następny
+              <ChevronRight className="size-4" />
+            </a>
+          </DayNav>
 
-            <form method="get" class="mb-6 flex items-center gap-2">
-              <label for="dzien" class="text-sm text-blue-100/70">
-                Wybierz dzień:
-              </label>
-              <input
-                type="date"
-                id="dzien"
-                name="dzien"
-                value={day}
-                min={today}
-                class="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white [color-scheme:dark]"
-              />
-              <button
-                type="submit"
-                class="rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-sm text-purple-200 transition-colors hover:bg-white/20"
-              >
-                Pokaż
-              </button>
-            </form>
+          <form method="get" class="daypick">
+            <label for="dzien">Wybierz dzień:</label>
+            <input type="date" id="dzien" name="dzien" value={day} min={today} />
+            <button type="submit">Pokaż</button>
+          </form>
 
-            <div class="rounded-2xl border border-white/10 bg-white/10 p-6 text-white backdrop-blur-xl">
-              <h2 class="mb-4 text-lg font-semibold text-white">Wolne sloty</h2>
-              {!scheduleDay ? (
-                <div class="py-4 text-center">
-                  <p class="text-blue-100/80">Ośrodek nie ułożył grafiku na ten dzień.</p>
-                  <p class="mt-2 text-sm text-blue-100/50">Wybierz inny dzień albo zajrzyj tu później.</p>
-                </div>
-              ) : sections.length === 0 ? (
-                <div class="py-4 text-center">
-                  <p class="text-blue-100/80">Brak wolnych slotów tego dnia.</p>
-                  <p class="mt-2 text-sm text-blue-100/50">Wszystkie terminy są zajęte albo już minęły.</p>
-                </div>
-              ) : (
-                <ul class="space-y-4">
-                  {sections.map((section) => (
-                    <li class="rounded-xl border border-white/10 bg-white/5 p-4">
-                      <p class="mb-3 text-sm font-semibold text-purple-200">{section.hour}:00</p>
-                      <div class="flex flex-wrap gap-2">
-                        {section.horses.map((horse) =>
-                          horse.status === "mine" ? (
-                            <span class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-900/30 px-3 py-2 text-sm text-emerald-200">
-                              {horse.name} — Twój zapis
-                            </span>
-                          ) : (
-                            <form method="post" action="/api/bookings/create">
-                              <input type="hidden" name="stableId" value={id} />
-                              <input type="hidden" name="day" value={day} />
-                              <input type="hidden" name="horseId" value={horse.id} />
-                              <input type="hidden" name="hour" value={section.hour} />
-                              <button
-                                type="submit"
-                                class="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white transition-colors hover:border-purple-400/40 hover:bg-purple-500/20"
-                              >
-                                {horse.name}
-                              </button>
-                            </form>
-                          ),
-                        )}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-        ) : (
-          /* Niepoprawny identyfikator i brak wiersza to dla użytkownika ta sama sytuacja,
-             więc nie rozróżniamy ich w komunikacie. */
-          <div class="rounded-2xl border border-white/10 bg-white/5 p-8 text-center text-white">
-            <p class="text-blue-100/80">Nie znaleziono takiego ośrodka.</p>
-            <p class="mt-2 text-sm text-blue-100/50">Być może został usunięty albo adres jest nieprawidłowy.</p>
-          </div>
-        )
-      }
-    </div>
-  </div>
+          <Card>
+            <h2 class="section">Wolne sloty</h2>
+            {!scheduleDay ? (
+              <EmptyState>
+                <p>Ośrodek nie ułożył grafiku na ten dzień.</p>
+                <p>Wybierz inny dzień albo zajrzyj tu później.</p>
+              </EmptyState>
+            ) : sections.length === 0 ? (
+              <EmptyState>
+                <p>Brak wolnych slotów tego dnia.</p>
+                <p>Wszystkie terminy są zajęte albo już minęły.</p>
+              </EmptyState>
+            ) : (
+              <ul class="hours">
+                {sections.map((section) => (
+                  <li>
+                    {/* Cały tekst tego elementu to sama godzina - scenariusze e2e
+                        zawężają wiersz przez dokładne dopasowanie "11:00". */}
+                    <span class="hours__label">{section.hour}:00</span>
+                    <div class="slots">
+                      {section.horses.map((horse) =>
+                        horse.status === "mine" ? (
+                          <span class="slot slot--mine">
+                            <Check className="size-[15px]" aria-hidden="true" />
+                            {horse.name} — Twój zapis
+                          </span>
+                        ) : (
+                          /* `display: contents` na formularzu, żeby pigułki układały
+                             się w jednym wierszu flex mimo opakowania w <form>. */
+                          <form method="post" action="/api/bookings/create">
+                            <input type="hidden" name="stableId" value={id} />
+                            <input type="hidden" name="day" value={day} />
+                            <input type="hidden" name="horseId" value={horse.id} />
+                            <input type="hidden" name="hour" value={section.hour} />
+                            {/* Jedyną treścią przycisku jest imię konia - to nazwa
+                                dostępna, po której scenariusze go znajdują. */}
+                            <button type="submit" class="slot slot--free">
+                              {horse.name}
+                            </button>
+                          </form>
+                        ),
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        </div>
+      ) : (
+        /* Niepoprawny identyfikator i brak wiersza to dla użytkownika ta sama sytuacja,
+           więc nie rozróżniamy ich w komunikacie. */
+        <Card>
+          <EmptyState>
+            <p>Nie znaleziono takiego ośrodka.</p>
+            <p>Być może został usunięty albo adres jest nieprawidłowy.</p>
+          </EmptyState>
+        </Card>
+      )
+    }
+  </main>
 </Layout>
+
+<style>
+  .page {
+    padding-block: 24px 56px;
+  }
+
+  .back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+    margin-bottom: 12px;
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--primary);
+  }
+  .back:hover {
+    color: var(--primary-strong);
+    text-decoration: underline;
+  }
+  .back:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
+    border-radius: 8px;
+  }
+
+  /* Banner sam nie nosi marginesu - odstęp należy do miejsca, w którym stoi. */
+  .notice {
+    margin-top: 16px;
+  }
+
+  /* ── Nagłówek ośrodka ─────────────────────────────────────────────────── */
+  .stable h1 {
+    font-size: 30px;
+  }
+  .stable .city {
+    margin: 10px 0 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14.5px;
+    color: var(--muted);
+  }
+  .stable .desc {
+    margin: 12px 0 0;
+    color: var(--muted);
+    max-width: 62ch;
+  }
+
+  /* ── Wybór dnia ───────────────────────────────────────────────────────── */
+  .daypick {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 22px;
+  }
+  .daypick label {
+    font-size: 14.5px;
+    font-weight: 600;
+  }
+  .daypick input {
+    min-height: 44px;
+    padding: 10px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border-2);
+    border-radius: var(--r);
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 14.5px;
+    color: var(--fg);
+    color-scheme: light;
+    transition:
+      border-color 0.15s,
+      box-shadow 0.15s;
+  }
+  .daypick input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-soft);
+  }
+  .daypick button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 11px 18px;
+    border-radius: 999px;
+    border: 1px solid var(--border-2);
+    background: var(--surface);
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--fg);
+    cursor: pointer;
+    transition:
+      background 0.15s,
+      border-color 0.15s;
+  }
+  .daypick button:hover {
+    background: var(--surface-2);
+  }
+  .daypick button:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+
+  /* ── Siatka slotów — DESIGN.md §5 ─────────────────────────────────────── */
+  h2.section {
+    font-size: 22px;
+    margin-bottom: 14px;
+  }
+  .hours {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 12px;
+  }
+  .hours > li {
+    padding: 14px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+  }
+  .hours__label {
+    display: block;
+    margin-bottom: 10px;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--fg);
+  }
+  .slots {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .slots form {
+    display: contents;
+  }
+  .slot {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    /* 44 px to minimalny cel dotykowy - PRD wymaga wygody na telefonie. */
+    min-height: 44px;
+    padding: 0 16px;
+    border-radius: 999px;
+    font-family: var(--font-body);
+    font-size: 14.5px;
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+    border: 1px solid transparent;
+  }
+  .slot--free {
+    background: var(--surface);
+    color: var(--fg);
+    border-color: var(--border-2);
+    box-shadow: var(--shadow-sm);
+    cursor: pointer;
+    transition:
+      background 0.15s,
+      border-color 0.15s,
+      color 0.15s;
+  }
+  .slot--free:hover {
+    background: var(--primary-soft);
+    border-color: var(--primary);
+    color: var(--primary-strong);
+  }
+  .slot--free:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+  /* Jedyne wystąpienie kasztanu na tym ekranie (DESIGN.md §7). */
+  .slot--mine {
+    background: var(--accent-soft);
+    color: var(--accent-ink);
+  }
+</style>

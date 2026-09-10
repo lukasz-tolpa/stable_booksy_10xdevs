@@ -1,0 +1,48 @@
+---
+// Pusty stan z DESIGN.md §5: jedno zdanie w `--muted`, wyśrodkowane, opcjonalny link.
+//
+// KONTRAKT: komponent nie owija tekstu w dodatkowe elementy. Strona podaje własne <p>,
+// a stylowanie idzie przez `:global(p)`, bo treść ze slotu nie dostaje zakresu tego
+// komponentu. Zdania w rodzaju "Nie masz nadchodzących zapisów." są asercjami e2e i
+// muszą zostać w JEDNYM elemencie, nieprzerwane.
+interface Props {
+  class?: string;
+}
+
+const { class: className } = Astro.props;
+---
+
+<div class:list={["empty", className]}>
+  <slot />
+</div>
+
+<style>
+  .empty {
+    padding: 26px 18px;
+    text-align: center;
+  }
+  .empty :global(p) {
+    color: var(--muted);
+    max-width: 52ch;
+    margin-inline: auto;
+  }
+  .empty :global(p + p) {
+    margin-top: 6px;
+    font-size: 13.5px;
+  }
+  .empty :global(a) {
+    display: inline-block;
+    margin-top: 14px;
+    color: var(--primary);
+    font-weight: 600;
+  }
+  .empty :global(a:hover) {
+    color: var(--primary-strong);
+    text-decoration: underline;
+  }
+  .empty :global(a:focus-visible) {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+</style>

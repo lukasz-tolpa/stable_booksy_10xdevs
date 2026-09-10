@@ -13,14 +13,59 @@ const { stable } = Astro.props;
   /* Cała karta jest odnośnikiem - kliknięcie w dowolne jej miejsce prowadzi do ośrodka.
     focus-visible daje widoczne zaznaczenie przy nawigacji klawiaturą. */
 }
-<a
-  href={`/jezdziec/osrodki/${stable.id}`}
-  class="block rounded-xl border border-white/10 bg-white/5 p-5 text-white transition-colors hover:border-white/25 hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:outline-none"
->
-  <h2 class="text-lg font-semibold">{stable.name}</h2>
-  <p class="mt-1 flex items-center gap-1.5 text-sm text-blue-100/70">
-    <MapPin className="size-3.5" />
+<a href={`/jezdziec/osrodki/${stable.id}`} class="stablecard">
+  <h2>{stable.name}</h2>
+  <p class="city">
+    <MapPin className="size-[15px]" />
     {stable.city}
   </p>
-  {stable.description && <p class="mt-3 line-clamp-3 text-sm text-blue-100/60">{stable.description}</p>}
+  {stable.description && <p class="desc">{stable.description}</p>}
 </a>
+
+<style>
+  .stablecard {
+    display: block;
+    min-width: 0;
+    padding: 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-sm);
+    transition:
+      transform 0.14s,
+      box-shadow 0.14s,
+      border-color 0.14s;
+  }
+  .stablecard:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--border-2);
+  }
+  .stablecard:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
+  }
+
+  .stablecard h2 {
+    font-size: 19px;
+    margin: 0;
+  }
+  .city {
+    margin: 8px 0 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .desc {
+    margin: 12px 0 0;
+    font-size: 14.5px;
+    color: var(--muted);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+</style>

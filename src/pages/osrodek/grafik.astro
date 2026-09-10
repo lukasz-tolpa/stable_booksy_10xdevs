@@ -2,6 +2,10 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Layout from "@/layouts/Layout.astro";
 import Topbar from "@/components/Topbar.astro";
+import Card from "@/components/ui/Card.astro";
+import DayNav from "@/components/ui/DayNav.astro";
+import EmptyState from "@/components/ui/EmptyState.astro";
+import FailureState from "@/components/ui/FailureState.astro";
 import ScheduleDayForm from "@/components/schedule/ScheduleDayForm";
 import { addDays, defaultScheduleDate, isPastDate, parseScheduleDate } from "@/lib/schedule/dates";
 import { getLatestScheduleDay, getScheduleDay, type ScheduleDayData } from "@/lib/schedule/queries";
@@ -63,103 +67,139 @@ const dayLabel = new Date(`${day}T00:00:00`).toLocaleDateString("pl-PL", {
 ---
 
 <Layout title={`Grafik ${day}`}>
-  <div class="bg-cosmic min-h-screen p-4">
-    <div class="mx-auto max-w-2xl">
-      <Topbar />
+  <Topbar />
+  <main class="container-narrow page">
+    <h1>Grafik dnia</h1>
+    <p class="page-lead">Zakres godzin i konie pracujące danego dnia. Zakres 10–16 oznacza jazdy od 10:00 do 15:00.</p>
 
-      <h1 class="mb-1 bg-gradient-to-r from-blue-200 to-purple-200 bg-clip-text text-3xl font-bold text-transparent">
-        Grafik dnia
-      </h1>
-      <p class="mb-6 text-sm text-blue-100/70">
-        Zakres godzin i konie pracujące danego dnia. Zakres 10–16 oznacza jazdy od 10:00 do 15:00.
-      </p>
+    <DayNav>
+      <a slot="prev" href={`/osrodek/grafik?dzien=${addDays(day, -1)}`}>
+        <ChevronLeft className="size-4" />
+        Poprzedni
+      </a>
+      <Fragment slot="date">{dayLabel}</Fragment>
+      <a slot="next" href={`/osrodek/grafik?dzien=${addDays(day, 1)}`}>
+        Następny
+        <ChevronRight className="size-4" />
+      </a>
+    </DayNav>
 
-      <nav class="mb-6 flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
-        <a
-          href={`/osrodek/grafik?dzien=${addDays(day, -1)}`}
-          class="flex items-center gap-1 text-sm text-purple-300 transition-colors hover:text-purple-100"
-        >
-          <ChevronLeft className="size-4" />
-          Poprzedni
-        </a>
-        <span class="text-sm font-medium text-white">{dayLabel}</span>
-        <a
-          href={`/osrodek/grafik?dzien=${addDays(day, 1)}`}
-          class="flex items-center gap-1 text-sm text-purple-300 transition-colors hover:text-purple-100"
-        >
-          Następny
-          <ChevronRight className="size-4" />
-        </a>
-      </nav>
+    {
+      loadFailed ? (
+        <FailureState>
+          <p>Nie udało się wczytać grafiku.</p>
+          <p>Odśwież stronę za chwilę.</p>
+        </FailureState>
+      ) : readOnly ? (
+        <Card>
+          <div class="past">
+            <p class="past__flag">Dzień miniony — tylko do odczytu.</p>
+            {scheduleDay ? (
+              <dl>
+                <div>
+                  <dt>Godziny pracy</dt>
+                  <dd class="mono-nums">
+                    {scheduleDay.openHour}–{scheduleDay.closeHour}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Konie</dt>
+                  <dd>
+                    {horses
+                      .filter((horse) => scheduleDay.horseIds.includes(horse.id))
+                      .map((horse) => horse.name)
+                      .join(", ") || "brak"}
+                  </dd>
+                </div>
+              </dl>
+            ) : (
+              <p class="past__none">Tego dnia nie było ułożonego grafiku.</p>
+            )}
+          </div>
+        </Card>
+      ) : horses.length === 0 ? (
+        <Card>
+          <EmptyState>
+            <p>
+              Nie masz jeszcze żadnych koni. Grafik przydziela konie do godzin, więc bez stada nie ma czego układać.
+            </p>
+            <a href="/osrodek/konie">Dodaj pierwszego konia</a>
+          </EmptyState>
+        </Card>
+      ) : (
+        <Card>
+          <ScheduleDayForm
+            day={day}
+            openHour={openHour}
+            closeHour={closeHour}
+            selectedHorseIds={selectedHorseIds}
+            horses={selectableHorses}
+            serverError={error}
+            client:load
+          />
+        </Card>
+      )
+    }
 
-      <div class="rounded-2xl border border-white/10 bg-white/10 p-6 text-white backdrop-blur-xl">
-        {
-          loadFailed ? (
-            <div class="text-center">
-              <p class="text-red-200">Nie udało się wczytać grafiku.</p>
-              <p class="mt-2 text-sm text-blue-100/50">Odśwież stronę za chwilę.</p>
-            </div>
-          ) : readOnly ? (
-            <div>
-              <p class="mb-4 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-blue-100/60">
-                Dzień miniony — tylko do odczytu.
-              </p>
-              {scheduleDay ? (
-                <>
-                  <p class="text-blue-100/80">
-                    Godziny pracy:{" "}
-                    <span class="font-semibold text-white">
-                      {scheduleDay.openHour}–{scheduleDay.closeHour}
-                    </span>
-                  </p>
-                  <p class="mt-2 text-blue-100/80">
-                    Konie:{" "}
-                    <span class="font-semibold text-white">
-                      {horses
-                        .filter((horse) => scheduleDay.horseIds.includes(horse.id))
-                        .map((horse) => horse.name)
-                        .join(", ") || "brak"}
-                    </span>
-                  </p>
-                </>
-              ) : (
-                <p class="text-blue-100/60">Tego dnia nie było ułożonego grafiku.</p>
-              )}
-            </div>
-          ) : horses.length === 0 ? (
-            <div class="text-center">
-              <p class="text-blue-100/80">Nie masz jeszcze żadnych koni.</p>
-              <p class="mt-2 text-sm text-blue-100/50">
-                Grafik przydziela konie do godzin, więc bez stada nie ma czego układać.
-              </p>
-              <a
-                href="/osrodek/konie"
-                class="mt-4 inline-block text-sm text-purple-300 transition-colors hover:text-purple-100 hover:underline"
-              >
-                Dodaj pierwszego konia
-              </a>
-            </div>
-          ) : (
-            <ScheduleDayForm
-              day={day}
-              openHour={openHour}
-              closeHour={closeHour}
-              selectedHorseIds={selectedHorseIds}
-              horses={selectableHorses}
-              serverError={error}
-              client:load
-            />
-          )
-        }
-      </div>
-
-      {
-        !scheduleDay && latestDay && !readOnly && (
-          <p class="mt-3 text-center text-xs text-blue-100/50">
-            Pola wypełniono wartościami z ostatnio ułożonego dnia ({latestDay.day}).
-          </p>
-        )
-      }
-    </div>
-  </div>
+    {
+      !scheduleDay && latestDay && !readOnly && (
+        <p class="prefill">Pola wypełniono wartościami z ostatnio ułożonego dnia ({latestDay.day}).</p>
+      )
+    }
+  </main>
 </Layout>
+
+<style>
+  .page {
+    padding-block: 24px 56px;
+  }
+  h1 {
+    font-size: 32px;
+  }
+  .page-lead {
+    margin: 10px 0 0;
+    font-size: 15.5px;
+    color: var(--muted);
+    max-width: 62ch;
+  }
+
+  /* ── Dzień miniony ────────────────────────────────────────────────────── */
+  .past__flag {
+    margin: 0;
+    padding: 10px 14px;
+    background: var(--surface-2);
+    border-radius: var(--r);
+    font-size: 13.5px;
+    color: var(--muted);
+  }
+  .past dl {
+    margin: 16px 0 0;
+    display: grid;
+    gap: 10px;
+  }
+  .past dt {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .past dd {
+    margin: 2px 0 0;
+    font-size: 15px;
+    font-weight: 500;
+  }
+  .past__none {
+    margin: 16px 0 0;
+    color: var(--muted);
+  }
+
+  .prefill {
+    margin: 12px 0 0;
+    text-align: center;
+    font-size: 13px;
+    /* `--muted`, nie `--faint`: to zdanie niesie informację, a nie dekorację.
+       Najjaśniejszy token daje na tle strony 3,33:1, czyli poniżej progu AA. */
+    color: var(--muted);
+  }
+</style>

@@ -1,7 +1,13 @@
 ---
-import { ROLE_LABELS } from "@/lib/auth/constants";
+import RoleBadge from "@/components/ui/RoleBadge.astro";
 import { homeRouteForRole, isUserRole } from "@/lib/auth/roles";
 
+interface Props {
+  /** Szerokość kontenera: landing ma 1200 px, ekrany aplikacji 880 px (DESIGN.md §4). */
+  container?: "page" | "narrow";
+}
+
+const { container = "narrow" } = Astro.props;
 const { user, profile } = Astro.locals;
 
 // Górny pasek prowadzi do przestrzeni roli, a nie do wspólnego panelu - adres i etykieta
@@ -10,41 +16,143 @@ const role = isUserRole(profile?.role) ? profile.role : null;
 const homeRoute = role ? homeRouteForRole(role) : null;
 ---
 
-<div
-  class="mb-4 flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/80"
->
-  {
-    user ? (
-      <>
-        <span class="text-blue-100/70">
-          {user.email}
-          {role && <span class="ml-2 rounded-full bg-white/10 px-2 py-0.5 text-xs">{ROLE_LABELS[role]}</span>}
-        </span>
-        <div class="flex items-center gap-3">
-          {homeRoute && (
-            <a href={homeRoute} class="text-purple-300 transition-colors hover:text-purple-100 hover:underline">
-              Mój panel
-            </a>
-          )}
-          <form method="POST" action="/api/auth/signout">
-            <button type="submit" class="text-purple-300 transition-colors hover:text-purple-100 hover:underline">
-              Wyloguj się
-            </button>
-          </form>
-        </div>
-      </>
-    ) : (
-      <>
-        <span class="text-blue-100/70">Nie jesteś zalogowany</span>
-        <div class="flex gap-3">
-          <a href="/auth/signin" class="text-purple-300 transition-colors hover:text-purple-100 hover:underline">
-            Zaloguj się
-          </a>
-          <a href="/auth/signup" class="text-purple-300 transition-colors hover:text-purple-100 hover:underline">
-            Załóż konto
-          </a>
-        </div>
-      </>
-    )
+<header class="nav">
+  <div class:list={[container === "page" ? "container-page" : "container-narrow", "nav-inner"]}>
+    <a href="/" class="brand">Stable Booksy</a>
+    {
+      user ? (
+        <>
+          <span class="nav-user">
+            <span class="nav-mail">{user.email}</span>
+            {role && <RoleBadge role={role} />}
+          </span>
+          <div class="nav-links">
+            {homeRoute && <a href={homeRoute}>Mój panel</a>}
+            <form method="POST" action="/api/auth/signout">
+              <button type="submit">Wyloguj się</button>
+            </form>
+          </div>
+        </>
+      ) : (
+        <>
+          <span class="nav-user">
+            <span class="nav-mail">Nie jesteś zalogowany</span>
+          </span>
+          <div class="nav-links">
+            <a href="/auth/signin">Zaloguj się</a>
+            <a href="/auth/signup">Załóż konto</a>
+          </div>
+        </>
+      )
+    }
+  </div>
+</header>
+
+<style>
+  /* DESIGN.md §4: sticky 68 px, białe tło z rozmyciem, hairline na dole. */
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    min-height: var(--nav-h);
+    display: flex;
+    align-items: center;
+    background: oklch(100% 0 0 / 0.82);
+    backdrop-filter: saturate(140%) blur(14px);
+    -webkit-backdrop-filter: saturate(140%) blur(14px);
+    border-bottom: 1px solid var(--border);
   }
-</div>
+
+  /* Mobile: marka i linki w pierwszym rzędzie, adres e-mail zawija się do drugiego. */
+  .nav-inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 16px;
+    padding-block: 12px;
+  }
+
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 19px;
+    letter-spacing: -0.03em;
+    color: var(--primary-strong);
+  }
+  .brand:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 4px;
+    border-radius: 8px;
+  }
+
+  .nav-user {
+    order: 3;
+    flex-basis: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .nav-mail {
+    font-size: 13.5px;
+    color: var(--muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .nav-links {
+    order: 2;
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .nav-links a,
+  .nav-links button {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 8px 14px;
+    border: 0;
+    border-radius: 999px;
+    background: none;
+    font-family: var(--font-body);
+    font-size: 14.5px;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    transition:
+      background 0.15s,
+      color 0.15s;
+  }
+  .nav-links a:hover,
+  .nav-links button:hover {
+    color: var(--primary-strong);
+    background: var(--primary-soft);
+  }
+  .nav-links a:focus-visible,
+  .nav-links button:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+
+  /* Prototyp łamie układ przy 720 px; w aplikacji trzymamy się skali Tailwinda (md). */
+  @media (width >= 768px) {
+    .nav-inner {
+      flex-wrap: nowrap;
+      padding-block: 0;
+      min-height: var(--nav-h);
+    }
+    .nav-user {
+      order: 0;
+      flex-basis: auto;
+      margin-left: 12px;
+    }
+    .nav-links {
+      order: 0;
+    }
+  }
+</style>

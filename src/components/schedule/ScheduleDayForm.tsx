@@ -2,7 +2,17 @@ import React, { useState } from "react";
 import { CalendarCheck, CircleAlert } from "lucide-react";
 import { ServerError } from "@/components/auth/ServerError";
 import { SubmitButton } from "@/components/auth/SubmitButton";
+import { cn } from "@/lib/utils";
 import type { HorseListItem } from "@/lib/stables/queries";
+
+/**
+ * Wygląd wg `osrodek-grafik.html`: dwie kontrolki godzin w mono obok siebie i lista
+ * koni jako karty-checkboxy, po dwie w rzędzie na szerokim ekranie.
+ *
+ * Konie zostają osobnymi polami `checkbox` o wspólnej nazwie `horseIds`, a nie listą
+ * wielokrotnego wyboru: serwer czyta powtórzone wpisy z `FormData`, więc zamiana
+ * kontrolki zmieniłaby kształt żądania.
+ */
 
 interface Props {
   day: string;
@@ -12,6 +22,9 @@ interface Props {
   horses: HorseListItem[];
   serverError?: string | null;
 }
+
+const controlClass =
+  "w-full min-h-[46px] rounded-md border border-border-2 bg-surface px-3.5 py-3 font-mono text-[15px] tabular-nums text-foreground transition-colors hover:border-faint focus:border-primary focus:ring-[3px] focus:ring-primary-soft focus:outline-none";
 
 export default function ScheduleDayForm({
   day,
@@ -66,15 +79,18 @@ export default function ScheduleDayForm({
       : null;
 
   return (
-    <form method="POST" action="/api/schedule/save" className="space-y-6" onSubmit={handleSubmit} noValidate>
+    <form method="POST" action="/api/schedule/save" onSubmit={handleSubmit} noValidate>
       <input type="hidden" name="day" value={day} />
 
-      <fieldset>
-        <legend className="mb-2 block text-sm text-blue-100/80">Godziny pracy</legend>
-        <div className="flex items-end gap-3">
-          <label className="flex-1">
-            <span className="mb-1 block text-xs text-blue-100/60">Od</span>
+      <fieldset className="mb-6 min-w-0">
+        <legend className="text-foreground mb-2.5 text-[13px] font-semibold">Godziny pracy</legend>
+        <div className="flex max-w-[340px] items-end gap-3">
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <label htmlFor="openHour" className="text-foreground text-[13px] font-semibold">
+              Od
+            </label>
             <input
+              id="openHour"
               name="openHour"
               type="number"
               min={0}
@@ -83,13 +99,18 @@ export default function ScheduleDayForm({
               onChange={(e) => {
                 setOpenHour(e.target.value);
               }}
-              className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white focus:ring-2 focus:ring-purple-400 focus:outline-none"
+              className={controlClass}
             />
-          </label>
-          <span className="pb-2 text-blue-100/40">—</span>
-          <label className="flex-1">
-            <span className="mb-1 block text-xs text-blue-100/60">Do</span>
+          </div>
+          <span className="text-faint pb-3" aria-hidden="true">
+            —
+          </span>
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <label htmlFor="closeHour" className="text-foreground text-[13px] font-semibold">
+              Do
+            </label>
             <input
+              id="closeHour"
               name="closeHour"
               type="number"
               min={1}
@@ -98,51 +119,70 @@ export default function ScheduleDayForm({
               onChange={(e) => {
                 setCloseHour(e.target.value);
               }}
-              className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white focus:ring-2 focus:ring-purple-400 focus:outline-none"
+              className={controlClass}
             />
-          </label>
+          </div>
         </div>
-        {slotsHint && <p className="mt-2 text-xs text-blue-100/50">{slotsHint}</p>}
+        {slotsHint && <p className="text-muted-foreground mt-2.5 text-[13px]">{slotsHint}</p>}
         {error && (
-          <p className="mt-2 flex items-center gap-1 text-xs text-red-300">
-            <CircleAlert className="size-3" />
+          <p className="text-danger-ink mt-2.5 flex items-center gap-1.5 text-[12.5px] font-medium">
+            <CircleAlert className="size-3.5 shrink-0" />
             {error}
           </p>
         )}
       </fieldset>
 
-      <fieldset>
-        <legend className="mb-2 block text-sm text-blue-100/80">Konie pracujące tego dnia</legend>
-        <div className="space-y-2">
-          {horses.map((horse) => (
-            <label
-              key={horse.id}
-              className="flex cursor-pointer items-center gap-3 rounded-lg border border-white/15 bg-white/5 px-3 py-2 transition-colors hover:bg-white/10"
-            >
-              <input
-                type="checkbox"
-                name="horseIds"
-                value={horse.id}
-                checked={selected.includes(horse.id)}
-                onChange={() => {
-                  toggleHorse(horse.id);
-                }}
-                className="accent-purple-400"
-              />
-              <span className="text-sm text-white">
-                {horse.name}
-                {!horse.active && <span className="ml-2 text-xs text-blue-100/40">(wycofany ze służby)</span>}
-              </span>
-            </label>
-          ))}
-        </div>
+      <fieldset className="min-w-0">
+        <legend className="text-foreground mb-2.5 text-[13px] font-semibold">Konie pracujące tego dnia</legend>
+        <ul className="grid list-none gap-2.5 p-0 sm:grid-cols-2">
+          {horses.map((horse) => {
+            const isOn = selected.includes(horse.id);
+
+            return (
+              <li key={horse.id}>
+                <label
+                  htmlFor={`horse-${String(horse.id)}`}
+                  className={cn(
+                    "flex min-h-[52px] cursor-pointer items-center gap-3 rounded-md border px-3.5 transition-colors",
+                    "has-[input:focus-visible]:outline-primary has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-2",
+                    isOn ? "border-primary bg-primary-soft" : "border-border-2 bg-surface hover:bg-surface-2",
+                  )}
+                >
+                  <input
+                    id={`horse-${String(horse.id)}`}
+                    type="checkbox"
+                    name="horseIds"
+                    value={horse.id}
+                    checked={isOn}
+                    onChange={() => {
+                      toggleHorse(horse.id);
+                    }}
+                    className="accent-primary size-[17px] flex-none"
+                  />
+                  <span className="font-medium">
+                    {horse.name}
+                    {!horse.active && (
+                      <span className="text-muted-foreground ml-2 text-[12.5px] font-normal">(wycofany ze służby)</span>
+                    )}
+                  </span>
+                </label>
+              </li>
+            );
+          })}
+        </ul>
       </fieldset>
 
-      <ServerError message={serverError} />
+      {serverError && (
+        <div className="mt-6">
+          <ServerError message={serverError} />
+        </div>
+      )}
 
-      <SubmitButton pendingText="Zapisywanie..." icon={<CalendarCheck className="size-4" />}>
-        Zapisz grafik
-      </SubmitButton>
+      <div className="mt-6">
+        <SubmitButton variant="accent" pendingText="Zapisywanie..." icon={<CalendarCheck className="size-4" />}>
+          Zapisz grafik
+        </SubmitButton>
+      </div>
     </form>
   );
 }

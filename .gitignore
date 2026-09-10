@@ -37,3 +37,6 @@ playwright/.auth/
 
 # claude code (ustawienia per maszyna; .claude/settings.json i .claude/hooks/ sa wspolne)
 .claude/settings.local.json
+
+# zrzuty ekranu z scripts/shots.mjs (narzedzie do porownania z prototypami)
+shots/

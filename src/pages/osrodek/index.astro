@@ -1,6 +1,7 @@
 ---
 import Layout from "@/layouts/Layout.astro";
 import Topbar from "@/components/Topbar.astro";
+import Card from "@/components/ui/Card.astro";
 import { createClient } from "@/lib/supabase";
 
 // Dostęp pilnuje middleware (mapa tras w @/lib/auth/roles) - strona nie powtarza
@@ -20,45 +21,81 @@ const { data: stable } = supabase
 ---
 
 <Layout title="Panel ośrodka">
-  <div class="bg-cosmic min-h-screen p-4">
-    <div class="mx-auto max-w-3xl">
-      <Topbar />
-      <div class="rounded-2xl border border-white/10 bg-white/10 p-8 text-white backdrop-blur-xl">
-        <h1 class="mb-2 bg-gradient-to-r from-blue-200 to-purple-200 bg-clip-text text-3xl font-bold text-transparent">
-          Panel ośrodka
-        </h1>
-        <nav class="mb-6 flex flex-wrap gap-3">
-          <a
-            href="/osrodek/grafik"
-            class="rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm text-purple-200 transition-colors hover:bg-white/10"
-          >
-            Grafik dnia
-          </a>
-          <a
-            href="/osrodek/konie"
-            class="rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm text-purple-200 transition-colors hover:bg-white/10"
-          >
-            Konie
-          </a>
-          <a
-            href="/osrodek/zapisy"
-            class="rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm text-purple-200 transition-colors hover:bg-white/10"
-          >
-            Zapisy
-          </a>
-        </nav>
+  <Topbar />
+  <main class="container-narrow page">
+    <Card>
+      <h1>Panel ośrodka</h1>
+      {
+        stable ? (
+          <p class="stable">
+            <span class="stable__name">{stable.name}</span>
+            <span class="stable__city"> &middot; {stable.city}</span>
+          </p>
+        ) : (
+          <p class="stable">Twoje konto nie ma jeszcze przypisanej stadniny.</p>
+        )
+      }
 
-        {
-          stable ? (
-            <p class="text-blue-100/80">
-              <span class="font-semibold text-white">{stable.name}</span>
-              <span class="text-blue-100/60"> &middot; {stable.city}</span>
-            </p>
-          ) : (
-            <p class="text-blue-100/80">Twoje konto nie ma jeszcze przypisanej stadniny.</p>
-          )
-        }
-      </div>
-    </div>
-  </div>
+      <nav class="links">
+        <a href="/osrodek/grafik">Grafik dnia</a>
+        <a href="/osrodek/konie">Konie</a>
+        <a href="/osrodek/zapisy">Zapisy</a>
+      </nav>
+    </Card>
+  </main>
 </Layout>
+
+<style>
+  .page {
+    padding-block: 24px 56px;
+  }
+  h1 {
+    font-size: 30px;
+    margin: 0;
+  }
+  .stable {
+    margin: 10px 0 0;
+    font-size: 15.5px;
+    color: var(--muted);
+  }
+  .stable__name {
+    font-weight: 600;
+    color: var(--fg);
+  }
+
+  .links {
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .links a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 11px 18px;
+    border-radius: 999px;
+    border: 1px solid var(--border-2);
+    background: var(--surface);
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--fg);
+    transition:
+      background 0.15s,
+      border-color 0.15s;
+  }
+  .links a:hover {
+    background: var(--primary-soft);
+    border-color: var(--primary);
+    color: var(--primary-strong);
+  }
+  .links a:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+</style>

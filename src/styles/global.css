@@ -1,117 +1,134 @@
 @import "tailwindcss";
-@import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
+/*
+  System wizualny "Horse to go" — DESIGN.md jest źródłem prawdy.
+
+  Układ warstw:
+  - `:root` trzyma tokeny pod nazwami z DESIGN.md §2, dosłownie. Dzięki temu prototypy
+    z context/changes/ui-redesign/design/ i zapisy w DESIGN.md czyta się 1:1, a bloki
+    <style> w komponentach mogą sięgać po `var(--surface)`, `var(--muted)` itd.
+  - `@theme` niesie typografię i geometrię wprost wartościami (nie przez `var()`),
+    bo `@theme inline { --font-mono: var(--font-mono) }` byłoby odwołaniem do siebie.
+  - `@theme inline` wystawia kolory jako utility Tailwinda i utrzymuje przy życiu
+    nazwy shadcn, których używa `src/components/ui/button.tsx`.
+
+  UWAGA na dwie kolizje nazw między shadcn a DESIGN.md:
+  - shadcn `--muted` to KOLOR TŁA, a DESIGN.md `--muted` to KOLOR TEKSTU pomocniczego.
+  - shadcn `--accent` to subtelne tło hoveru, a DESIGN.md `--accent` to kasztan (wypełnienie).
+  Dlatego utility `bg-muted` / `bg-accent` mają znaczenie shadcn, tekst pomocniczy to
+  `text-muted-foreground`, a kasztan jest dostępny jako `bg-chestnut`,
+  `bg-chestnut-soft`, `text-chestnut-ink`.
+*/
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  /* Kolory — DESIGN.md §2, wartości dosłowne */
+  --bg: oklch(98% 0.008 150);
+  --surface: oklch(100% 0 0);
+  --surface-2: oklch(96.5% 0.012 155);
+  --surface-3: oklch(93.5% 0.016 158);
+  --fg: oklch(24% 0.03 160);
+  --muted: oklch(50% 0.02 160);
+  --faint: oklch(64% 0.018 160);
+  --border: oklch(90% 0.012 155);
+  --border-2: oklch(85% 0.014 155);
+
+  --primary: oklch(45% 0.1 162);
+  --primary-strong: oklch(38% 0.1 162);
+  --primary-soft: oklch(95% 0.025 160);
+  --primary-tint: oklch(90% 0.04 160);
+
+  --accent: oklch(56% 0.11 52);
+  --accent-soft: oklch(94% 0.03 60);
+  --accent-ink: oklch(48% 0.12 52);
+
+  --success: oklch(58% 0.13 150);
+  --success-soft: oklch(94% 0.04 150);
+  --success-ink: oklch(42% 0.11 150);
+  --warn: oklch(70% 0.13 75);
+  --warn-soft: oklch(95% 0.05 80);
+  --warn-ink: oklch(45% 0.1 70);
+  --danger: oklch(56% 0.18 25);
+  --danger-soft: oklch(56% 0.18 25 / 0.1);
+  --danger-ink: oklch(42% 0.16 25);
+
+  /* Promienie pod nazwami z prototypów; liczby żyją raz, w @theme */
+  --r-sm: var(--radius-sm);
+  --r: var(--radius-md);
+  --r-lg: var(--radius-lg);
+  --r-xl: var(--radius-xl);
+
+  /* Wymiary układu — DESIGN.md §4 */
+  --maxw: 1200px;
+  --maxw-narrow: 880px;
+  --nav-h: 68px;
 }
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+@theme {
+  /* Typografia — DESIGN.md §3. Fallback system-ui, gdy Google Fonts nie dojdzie. */
+  --font-display: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+
+  /* Kształt — DESIGN.md §4: karty 18 px, pola i przyciski drugorzędne 12 px */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 26px;
+
+  /* Cień tylko na kartach interaktywnych i overlayach */
+  --shadow-sm: 0 1px 2px oklch(40% 0.03 160 / 0.06), 0 1px 3px oklch(40% 0.03 160 / 0.08);
+  --shadow-md: 0 6px 16px oklch(40% 0.04 160 / 0.1), 0 2px 6px oklch(40% 0.04 160 / 0.06);
 }
 
 @theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
-}
+  /* Paleta DESIGN.md jako utility */
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-fg: var(--fg);
+  --color-faint: var(--faint);
+  --color-border-2: var(--border-2);
 
-@utility bg-cosmic {
-  background-image: linear-gradient(to bottom, #0a0e1a, #0f1529, #0a0e1a);
+  --color-primary-strong: var(--primary-strong);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-tint: var(--primary-tint);
+
+  /* Kasztan — DESIGN.md `--accent*`, pod własną nazwą, żeby nie zderzyć się z shadcn */
+  --color-chestnut: var(--accent);
+  --color-chestnut-soft: var(--accent-soft);
+  --color-chestnut-ink: var(--accent-ink);
+
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-success-ink: var(--success-ink);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-warn-ink: var(--warn-ink);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-ink: var(--danger-ink);
+
+  /* Zgodność z shadcn — znaczenia shadcn, wartości z nowej palety */
+  --color-background: var(--bg);
+  --color-foreground: var(--fg);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--fg);
+  --color-popover: var(--surface);
+  --color-popover-foreground: var(--fg);
+  --color-primary: var(--primary);
+  --color-primary-foreground: oklch(100% 0 0);
+  --color-secondary: var(--surface-2);
+  --color-secondary-foreground: var(--fg);
+  --color-muted: var(--surface-2);
+  --color-muted-foreground: var(--muted);
+  --color-accent: var(--surface-2);
+  --color-accent-foreground: var(--fg);
+  --color-destructive: var(--danger);
+  --color-border: var(--border);
+  --color-input: var(--border-2);
+  --color-ring: var(--primary);
 }
 
 @layer base {
@@ -119,6 +136,41 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-body;
   }
+  h1,
+  h2,
+  h3 {
+    @apply font-display;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+  }
+}
+
+/* Kontener treści — DESIGN.md §4: landing 1200 px, ekrany aplikacji 880 px */
+@utility container-page {
+  width: 100%;
+  max-width: var(--maxw);
+  margin-inline: auto;
+  padding-inline: 18px;
+  @media (width >= 640px) {
+    padding-inline: 24px;
+  }
+}
+
+@utility container-narrow {
+  width: 100%;
+  max-width: var(--maxw-narrow);
+  margin-inline: auto;
+  padding-inline: 18px;
+  @media (width >= 640px) {
+    padding-inline: 24px;
+  }
+}
+
+/* Dane liczbowe: godziny, daty, zakresy — DESIGN.md §3 */
+@utility mono-nums {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }

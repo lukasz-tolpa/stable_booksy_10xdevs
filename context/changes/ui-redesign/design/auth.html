@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prototyp — /auth/signin i /auth/signup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ═══ Tokeny — DESIGN.md §2 / §4 ═══════════════════════════════════════ */
+:root{
+  --bg:oklch(98% 0.008 150); --surface:oklch(100% 0 0); --surface-2:oklch(96.5% 0.012 155); --surface-3:oklch(93.5% 0.016 158);
+  --fg:oklch(24% 0.03 160); --muted:oklch(50% 0.02 160); --faint:oklch(64% 0.018 160);
+  --border:oklch(90% 0.012 155); --border-2:oklch(85% 0.014 155);
+  --primary:oklch(45% 0.10 162); --primary-strong:oklch(38% 0.10 162); --primary-soft:oklch(95% 0.025 160); --primary-tint:oklch(90% 0.04 160);
+  --accent:oklch(56% 0.11 52); --accent-soft:oklch(94% 0.03 60); --accent-ink:oklch(48% 0.12 52);
+  --success:oklch(58% 0.13 150); --success-soft:oklch(94% 0.04 150); --success-ink:oklch(42% 0.11 150);
+  --warn:oklch(70% 0.13 75); --warn-soft:oklch(95% 0.05 80); --warn-ink:oklch(45% 0.10 70);
+  --danger:oklch(56% 0.18 25); --danger-soft:oklch(56% 0.18 25 / .10); --danger-ink:oklch(42% 0.16 25);
+  --shadow-sm:0 1px 2px oklch(40% 0.03 160 / .06),0 1px 3px oklch(40% 0.03 160 / .08);
+  --shadow-md:0 6px 16px oklch(40% 0.04 160 / .10),0 2px 6px oklch(40% 0.04 160 / .06);
+  --r-sm:8px; --r:12px; --r-lg:18px; --r-xl:26px;
+  --font-display:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  --font-body:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  --font-mono:ui-monospace,'SF Mono','JetBrains Mono',Menlo,monospace;
+  --nav-h:68px;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--surface-2);color:var(--fg);font-family:var(--font-body)}
+
+/* ── Rusztowanie prototypu ─────────────────────────────────────────────── */
+.sheet{max-width:1180px;margin:0 auto;padding:40px 20px 80px}
+.sheet__title{margin:0 0 4px;font-family:var(--font-display);font-size:20px;font-weight:700;letter-spacing:-.02em}
+.sheet__meta{margin:0 0 36px;font-size:13.5px;color:var(--muted);max-width:82ch;line-height:1.55}
+.spec{margin:0 0 12px;display:flex;flex-wrap:wrap;align-items:baseline;gap:10px}
+.spec__name{font-family:var(--font-mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--primary);font-weight:500}
+.spec__note{font-size:12.5px;color:var(--muted)}
+.frame{border:1px solid var(--border-2);border-radius:16px;overflow:hidden;margin:0 0 36px;background:var(--bg);box-shadow:var(--shadow-sm)}
+.frame--mobile{width:390px;max-width:100%}
+.grid2{display:grid;gap:28px;grid-template-columns:1fr}
+@media (min-width:940px){.grid2{grid-template-columns:1fr 1fr}}
+
+/* ═══ Aplikacja ════════════════════════════════════════════════════════ */
+.app{container-type:inline-size;background:var(--bg);color:var(--fg);font-size:16px;line-height:1.55}
+.container{width:100%;max-width:880px;margin-inline:auto;padding-inline:18px}
+@container (min-width:560px){.container{padding-inline:24px}}
+h1,h2,h3{font-family:var(--font-display);line-height:1.1;letter-spacing:-.02em;font-weight:700;margin:0}
+p{margin:0}
+a{color:inherit;text-decoration:none}
+.eyebrow{font-family:var(--font-mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--primary);font-weight:500}
+
+/* ── Nav ───────────────────────────────────────────────────────────────── */
+.nav{position:sticky;top:0;z-index:50;min-height:var(--nav-h);display:flex;align-items:center;background:oklch(100% 0 0 / .82);backdrop-filter:saturate(140%) blur(14px);-webkit-backdrop-filter:saturate(140%) blur(14px);border-bottom:1px solid var(--border)}
+.nav-inner{width:100%;display:flex;align-items:center;gap:16px;padding-block:12px}
+.brand{display:inline-flex;align-items:center;gap:10px;font-family:var(--font-display);font-weight:800;font-size:19px;letter-spacing:-.03em;color:var(--primary-strong)}
+.brand:focus-visible{outline:2px solid var(--primary);outline-offset:4px;border-radius:8px}
+.brand .mark{width:30px;height:30px;flex:none}
+
+/* ── Przyciski ─────────────────────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:var(--font-display);font-weight:600;font-size:15px;padding:11px 18px;border-radius:999px;border:1px solid transparent;line-height:1;min-height:44px;white-space:nowrap;cursor:pointer;transition:transform .08s,background .15s,box-shadow .15s,border-color .15s}
+.btn:active{transform:translateY(1px)}
+.btn:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.btn-primary{background:var(--primary);color:#fff;box-shadow:var(--shadow-sm)}
+.btn-primary:hover{background:var(--primary-strong);color:#fff}
+.btn-ghost{background:var(--surface);color:var(--fg);border-color:var(--border-2)}
+.btn-ghost:hover{background:var(--surface-2);color:var(--fg)}
+.btn-block{width:100%}
+.link{color:var(--primary);font-weight:600}
+.link:hover{color:var(--primary-strong);text-decoration:underline}
+.link:focus-visible{outline:2px solid var(--primary);outline-offset:3px;border-radius:6px}
+
+/* ── Karta logowania ───────────────────────────────────────────────────── */
+.authwrap{display:flex;justify-content:center;padding-block:36px 56px}
+.authcard{width:100%;max-width:420px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);padding:22px}
+@container (min-width:560px){.authcard{padding:28px}}
+.authcard h1{font-size:26px;margin-bottom:4px}
+.authcard__lead{font-size:14.5px;color:var(--muted);margin-bottom:22px}
+.authcard__switch{margin-top:20px;padding-top:18px;border-top:1px solid var(--border);text-align:center;font-size:14.5px;color:var(--muted)}
+
+/* ── Pola formularza — DESIGN.md §5 ────────────────────────────────────── */
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.field > label{font-size:13px;font-weight:600;color:var(--fg)}
+.field-icon{position:relative;display:flex;align-items:center}
+.field-icon > svg{position:absolute;left:13px;width:18px;height:18px;stroke:var(--muted);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+.control{width:100%;min-height:46px;padding:12px 14px 12px 42px;background:var(--surface);border:1px solid var(--border-2);border-radius:var(--r);font-family:inherit;font-size:15px;color:var(--fg);transition:border-color .15s,box-shadow .15s}
+.control::placeholder{color:var(--faint)}
+.control:hover{border-color:oklch(78% 0.016 155)}
+.control:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+.control--error{border-color:var(--danger)}
+.control--error:focus{box-shadow:0 0 0 3px oklch(56% 0.18 25 / .14)}
+.toggle{position:absolute;right:6px;display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:0;border-radius:var(--r-sm);background:none;color:var(--muted);cursor:pointer;transition:color .15s,background .15s}
+.toggle:hover{color:var(--fg);background:var(--surface-2)}
+.toggle:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.toggle svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.hint{font-size:12.5px;color:var(--muted)}
+.err{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--danger-ink);font-weight:500}
+.err svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* ── Wybór roli ────────────────────────────────────────────────────────── */
+fieldset{margin:0 0 18px;padding:0;border:0;min-width:0}
+legend{padding:0;margin-bottom:8px;font-size:13px;font-weight:600;color:var(--fg)}
+.roleopt{display:flex;align-items:flex-start;gap:12px;margin-bottom:10px;padding:13px 14px;background:var(--surface);border:1px solid var(--border-2);border-radius:var(--r);cursor:pointer;transition:border-color .15s,background .15s}
+.roleopt:hover{background:var(--surface-2)}
+.roleopt:has(input:focus-visible){outline:2px solid var(--primary);outline-offset:2px}
+.roleopt input{margin:2px 0 0;width:17px;height:17px;flex:none}
+.roleopt__body{min-width:0}
+.roleopt__desc{display:block;margin-top:6px;font-size:13px;color:var(--muted)}
+.roleopt--stable input{accent-color:var(--primary)}
+.roleopt--rider input{accent-color:var(--accent)}
+.roleopt--stable.is-on{border-color:var(--primary);background:var(--primary-soft)}
+.roleopt--rider.is-on{border-color:var(--accent);background:var(--accent-soft)}
+
+/* ── Plakietki ról — DESIGN.md §2 ──────────────────────────────────────── */
+.pill{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;font-size:12.5px;font-weight:600;line-height:1.35;border:1px solid transparent}
+.pill svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.pill-primary{background:var(--primary-soft);color:var(--primary-strong)}
+.pill-accent{background:var(--accent-soft);color:var(--accent-ink)}
+.is-on .pill-primary{background:var(--surface)}
+.is-on .pill-accent{background:var(--surface)}
+
+/* ── Komunikat serwera (ServerError.tsx) ───────────────────────────────── */
+.alert{display:flex;align-items:flex-start;gap:10px;margin-bottom:18px;padding:12px 14px;border-left:3px solid var(--danger);border-radius:0 var(--r) var(--r) 0;background:var(--danger-soft);color:var(--danger-ink);font-size:14.5px}
+.alert svg{width:18px;height:18px;margin-top:2px;flex:none;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-mark" viewBox="0 0 32 32"><rect width="32" height="32" rx="9" fill="currentColor"/><path d="M9.5 24C4.5 18.5 6.5 8.5 16 8.5S27.5 18.5 22.5 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/><circle cx="9.5" cy="24" r="1.5" fill="#fff"/><circle cx="22.5" cy="24" r="1.5" fill="#fff"/></symbol>
+<symbol id="i-mail" viewBox="0 0 24 24"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+<symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></symbol>
+<symbol id="i-building" viewBox="0 0 24 24"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></symbol>
+<symbol id="i-user" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+<symbol id="i-login" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="m10 17 5-5-5-5"/><path d="M15 12H3"/></symbol>
+<symbol id="i-userplus" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></symbol>
+</defs></svg>
+
+<div class="sheet">
+  <h1 class="sheet__title">auth.html — <code>/auth/signin</code> i <code>/auth/signup</code></h1>
+  <p class="sheet__meta">Karta 420 px na jasnym tle, pasek tylko z logo. Etykiety <code>&lt;label for&gt;</code> dosłownie: „Adres e-mail”, „Hasło”, „Powtórz hasło”; radio z dostępną nazwą „Ośrodek” / „Jeździec”. Wybrana rola barwi opcję kolorem roli — na signup to jedyne użycie kasztanu.</p>
+
+  <div class="grid2">
+
+    <!-- ══ /auth/signin — desktop ═════════════════════════════════════ -->
+    <div>
+      <div class="spec"><span class="spec__name">/auth/signin · desktop</span><span class="spec__note">stan domyślny</span></div>
+      <div class="frame">
+        <div class="app" data-od-id="signin-desktop">
+          <header class="nav"><div class="container nav-inner"><a class="brand" href="/"><svg class="mark" aria-hidden="true"><use href="#i-mark"/></svg>Stable Booksy</a></div></header>
+          <div class="container authwrap">
+            <div class="authcard">
+              <p class="eyebrow">Konto</p>
+              <h1>Zaloguj się</h1>
+              <p class="authcard__lead">Wróć do swojego grafiku albo zapisów.</p>
+              <form method="POST" action="/api/auth/signin" novalidate>
+                <div class="field">
+                  <label for="s1-email">Adres e-mail</label>
+                  <div class="field-icon">
+                    <svg aria-hidden="true"><use href="#i-mail"/></svg>
+                    <input class="control" id="s1-email" name="email" type="email" placeholder="ty@example.com">
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="s1-password">Hasło</label>
+                  <div class="field-icon">
+                    <svg aria-hidden="true"><use href="#i-lock"/></svg>
+                    <input class="control" id="s1-password" name="password" type="password" placeholder="Twoje hasło">
+                    <button class="toggle" type="button" aria-label="Pokaż hasło"><svg aria-hidden="true"><use href="#i-eye"/></svg></button>
+                  </div>
+                </div>
+                <button class="btn btn-primary btn-block" type="submit"><svg aria-hidden="true"><use href="#i-login"/></svg>Zaloguj się</button>
+              </form>
+              <p class="authcard__switch">Nie masz jeszcze konta? <a class="link" href="/auth/signup">Załóż konto</a></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ /auth/signup — desktop ═════════════════════════════════════ -->
+    <div>
+      <div class="spec"><span class="spec__name">/auth/signup · desktop</span><span class="spec__note">rola wybrana: Jeździec</span></div>
+      <div class="frame">
+        <div class="app" data-od-id="signup-desktop">
+          <header class="nav"><div class="container nav-inner"><a class="brand" href="/"><svg class="mark" aria-hidden="true"><use href="#i-mark"/></svg>Stable Booksy</a></div></header>
+          <div class="container authwrap">
+            <div class="authcard">
+              <p class="eyebrow">Konto</p>
+              <h1>Załóż konto</h1>
+              <p class="authcard__lead">Wybierz rodzaj konta — resztę ustawisz w środku.</p>
+              <form method="POST" action="/api/auth/signup" novalidate>
+                <fieldset>
+                  <legend>Rodzaj konta</legend>
+                  <label class="roleopt roleopt--stable" for="s2-role-stable">
+                    <input type="radio" id="s2-role-stable" name="role" value="stable">
+                    <span class="roleopt__body">
+                      <span class="pill pill-primary"><svg aria-hidden="true"><use href="#i-building"/></svg>Ośrodek</span>
+                      <span class="roleopt__desc">Układasz grafik jazd, wskazujesz konie i przyjmujesz zapisy.</span>
+                    </span>
+                  </label>
+                  <label class="roleopt roleopt--rider is-on" for="s2-role-rider">
+                    <input type="radio" id="s2-role-rider" name="role" value="rider" checked>
+                    <span class="roleopt__body">
+                      <span class="pill pill-accent"><svg aria-hidden="true"><use href="#i-user"/></svg>Jeździec</span>
+                      <span class="roleopt__desc">Przeglądasz ośrodki i zapisujesz się na jazdy.</span>
+                    </span>
+                  </label>
+                </fieldset>
+                <div class="field">
+                  <label for="s2-email">Adres e-mail</label>
+                  <div class="field-icon">
+                    <svg aria-hidden="true"><use href="#i-mail"/></svg>
+                    <input class="control" id="s2-email" name="email" type="email" placeholder="ty@example.com">
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="s2-password">Hasło</label>
+                  <div class="field-icon">
+                    <svg aria-hidden="true"><use href="#i-lock"/></svg>
+                    <input class="control" id="s2-password" name="password" type="password" placeholder="Min. 6 znaków">
+                    <button class="toggle" type="button" aria-label="Pokaż hasło"><svg aria-hidden="true"><use href="#i-eye"/></svg></button>
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="s2-confirm">Powtórz hasło</label>
+                  <div class="field-icon">
+                    <svg aria-hidden="true"><use href="#i-lock"/></svg>
+                    <input class="control" id="s2-confirm" name="confirmPassword" type="password" placeholder="Wpisz hasło jeszcze raz">
+                    <button class="toggle" type="button" aria-label="Pokaż hasło"><svg aria-hidden="true"><use href="#i-eye"/></svg></button>
+                  </div>
+                </div>
+                <button class="btn btn-primary btn-block" type="submit"><svg aria-hidden="true"><use href="#i-userplus"/></svg>Załóż konto</button>
+              </form>
+              <p class="authcard__switch">Masz już konto? <a class="link" href="/auth/signin">Zaloguj się</a></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="grid2">
+
+    <!-- ══ signin mobile · błąd serwera ═══════════════════════════════ -->
+    <div>
+      <div class="spec"><span class="spec__name">/auth/signin · 390 px</span><span class="spec__note">komunikat serwera nad przyciskiem, błąd pola pod polem</span></div>
+      <div class="frame frame--mobile">
+        <div class="app" data-od-id="signin-mobile-error">
+          <header class="nav"><div class="container nav-inner"><a class="brand" href="/"><svg class="mark" aria-hidden="true"><use href="#i-mark"/></svg>Stable Booksy</a></div></header>
+          <div class="container authwrap">
+            <div class="authcard">
+              <p class="eyebrow">Konto</p>
+              <h1>Zaloguj się</h1>
+              <p class="authcard__lead">Wróć do swojego grafiku albo zapisów.</p>
+              <form method="POST" action="/api/auth/signin" novalidate>
+                <div class="field">
+                  <label for="s3-email">Adres e-mail</label>
+                  <div class="field-icon">
+                    <svg aria-hidden="true"><use href="#i-mail"/></svg>
+                    <input class="control" id="s3-email" name="email" type="email" value="cert-test-jezdziec@example.com">
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="s3-password">Hasło</label>
+                  <div class="field-icon">
+                    <svg aria-hidden="true"><use href="#i-lock"/></svg>
+                    <input class="control control--error" id="s3-password" name="password" type="password" value="zle" aria-describedby="s3-err">
+                    <button class="toggle" type="button" aria-label="Pokaż hasło"><svg aria-hidden="true"><use href="#i-eye"/></svg></button>
+                  </div>
+                  <p class="err" id="s3-err"><svg aria-hidden="true"><use href="#i-alert"/></svg>Podaj hasło</p>
+                </div>
+                <p class="alert" role="alert"><svg aria-hidden="true"><use href="#i-alert"/></svg>Nieprawidłowy e-mail lub hasło.</p>
+                <button class="btn btn-primary btn-block" type="submit"><svg aria-hidden="true"><use href="#i-login"/></svg>Zaloguj się</button>
+              </form>
+              <p class="authcard__switch">Nie masz jeszcze konta? <a class="link" href="/auth/signup">Załóż konto</a></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ signup mobile ══════════════════════════════════════════════ -->
+    <div>
+      <div class="spec"><span class="spec__name">/auth/signup · 390 px</span><span class="spec__note">rola niewybrana, podpowiedź długości hasła</span></div>
+      <div class="frame frame--mobile">
+        <div class="app" data-od-id="signup-mobile">
+          <header class="nav"><div class="container nav-inner"><a class="brand" href="/"><svg class="mark" aria-hidden="true"><use href="#i-mark"/></svg>Stable Booksy</a></div></header>
+          <div class="container authwrap">
+            <div class="authcard">
+              <p class="eyebrow">Konto</p>
+              <h1>Załóż konto</h1>
+              <p class="authcard__lead">Wybierz rodzaj konta — resztę ustawisz w środku.</p>
+              <form method="POST" action="/api/auth/signup" novalidate>
+                <fieldset>
+                  <legend>Rodzaj konta</legend>
+                  <label class="roleopt roleopt--stable" for="s4-role-stable">
+                    <input type="radio" id="s4-role-stable" name="role" value="stable">
+                    <span class="roleopt__body">
+                      <span class="pill pill-primary"><svg aria-hidden="true"><use href="#i-building"/></svg>Ośrodek</span>
+                      <span class="roleopt__desc">Układasz grafik jazd, wskazujesz konie i przyjmujesz zapisy.</span>
+                    </span>
+                  </label>
+                  <label class="roleopt roleopt--rider" for="s4-role-rider">
+                    <input type="radio" id="s4-role-rider" name="role" value="rider">
+                    <span class="roleopt__body">
+                      <span class="pill pill-accent"><svg aria-hidden="true"><use href="#i-user"/></svg>Jeździec</span>
+                      <span class="roleopt__desc">Przeglądasz ośrodki i zapisujesz się na jazdy.</span>
+                    </span>
+                  </label>
+                </fieldset>
+                <div class="field">
+                  <label for="s4-email">Adres e-mail</label>
+                  <div class="field-icon">
+                    <svg aria-hidden="true"><use href="#i-mail"/></svg>
+                    <input class="control" id="s4-email" name="email" type="email" placeholder="ty@example.com">
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="s4-password">Hasło</label>
+                  <div class="field-icon">
+                    <svg aria-hidden="true"><use href="#i-lock"/></svg>
+                    <input class="control" id="s4-password" name="password" type="password" value="sekr" aria-describedby="s4-hint">
+                    <button class="toggle" type="button" aria-label="Pokaż hasło"><svg aria-hidden="true"><use href="#i-eye"/></svg></button>
+                  </div>
+                  <p class="hint" id="s4-hint">Brakuje jeszcze 2 znaków</p>
+                </div>
+                <div class="field">
+                  <label for="s4-confirm">Powtórz hasło</label>
+                  <div class="field-icon">
+                    <svg aria-hidden="true"><use href="#i-lock"/></svg>
+                    <input class="control" id="s4-confirm" name="confirmPassword" type="password" placeholder="Wpisz hasło jeszcze raz">
+                    <button class="toggle" type="button" aria-label="Pokaż hasło"><svg aria-hidden="true"><use href="#i-eye"/></svg></button>
+                  </div>
+                </div>
+                <button class="btn btn-primary btn-block" type="submit"><svg aria-hidden="true"><use href="#i-userplus"/></svg>Załóż konto</button>
+              </form>
+              <p class="authcard__switch">Masz już konto? <a class="link" href="/auth/signin">Zaloguj się</a></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

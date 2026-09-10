@@ -67,7 +67,7 @@ export default function SignUpForm({ serverError }: Props) {
 
   const passwordHint =
     !errors.password && password.length > 0 && missingCharacters > 0 ? (
-      <p className="mt-1 text-xs text-blue-100/50">
+      <p className="text-muted-foreground text-[12.5px]">
         Brakuje jeszcze {missingCharacters} {missingCharacters === 1 ? "znaku" : "znaków"}
       </p>
     ) : undefined;

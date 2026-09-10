@@ -1,7 +1,11 @@
 ---
 import { ArrowLeft, CalendarX2 } from "lucide-react";
 import Layout from "@/layouts/Layout.astro";
+import Banner from "@/components/Banner.astro";
 import Topbar from "@/components/Topbar.astro";
+import Card from "@/components/ui/Card.astro";
+import EmptyState from "@/components/ui/EmptyState.astro";
+import FailureState from "@/components/ui/FailureState.astro";
 import { ROLE_HOME } from "@/lib/auth/roles";
 import { getRiderBookings } from "@/lib/bookings/queries";
 import { splitRiderBookings, type RiderBookingSections } from "@/lib/bookings/rider-list";
@@ -43,69 +47,63 @@ function formatDay(day: string): string {
 ---
 
 <Layout title="Moje zapisy">
-  <div class="bg-cosmic min-h-screen p-4">
-    <div class="mx-auto max-w-2xl">
-      <Topbar />
+  <Topbar />
+  <main class="container-narrow page">
+    <a href={ROLE_HOME.rider} class="back">
+      <ArrowLeft className="size-4" />
+      Wróć do listy ośrodków
+    </a>
 
-      <a
-        href={ROLE_HOME.rider}
-        class="mb-4 inline-flex items-center gap-1.5 text-sm text-purple-300 transition-colors hover:text-purple-100 hover:underline"
-      >
-        <ArrowLeft className="size-4" />
-        Wróć do listy ośrodków
-      </a>
+    <h1>Moje zapisy</h1>
+    <p class="page-lead">Nadchodzące jazdy możesz odwołać do momentu ich rozpoczęcia.</p>
 
-      <h1 class="mb-1 bg-gradient-to-r from-blue-200 to-purple-200 bg-clip-text text-3xl font-bold text-transparent">
-        Moje zapisy
-      </h1>
-      <p class="mb-6 text-sm text-blue-100/70">Nadchodzące jazdy możesz odwołać do momentu ich rozpoczęcia.</p>
+    {
+      success && (
+        <div class="notice">
+          <Banner variant="success">Zapis został odwołany. Slot wrócił do puli wolnych.</Banner>
+        </div>
+      )
+    }
+    {
+      error && (
+        <div class="notice">
+          <Banner variant="error">{error}</Banner>
+        </div>
+      )
+    }
 
-      {
-        success && (
-          <p class="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-900/20 px-4 py-3 text-sm text-emerald-200">
-            Zapis został odwołany. Slot wrócił do puli wolnych.
-          </p>
-        )
-      }
-      {
-        error && (
-          <p class="mb-4 rounded-lg border border-red-500/30 bg-red-900/20 px-4 py-3 text-sm text-red-200">{error}</p>
-        )
-      }
-
-      <div class="rounded-2xl border border-white/10 bg-white/10 p-6 text-white backdrop-blur-xl">
-        <h2 class="mb-4 text-lg font-semibold text-white">Nadchodzące</h2>
+    <section class="upcoming">
+      <Card>
+        <h2>Nadchodzące</h2>
         {
           loadFailed ? (
-            <div class="py-4 text-center">
-              <p class="text-red-200">Nie udało się wczytać zapisów.</p>
-              <p class="mt-2 text-sm text-blue-100/50">Odśwież stronę za chwilę.</p>
-            </div>
+            /* Nagłówek sekcji zostaje, a w środku siada karta awarii - „nie udało się
+               wczytać" to inna sytuacja niż „nie masz zapisów" i ma to być widać. */
+            <FailureState>
+              <p>Nie udało się wczytać zapisów.</p>
+              <p>Odśwież stronę za chwilę.</p>
+            </FailureState>
           ) : sections.upcoming.length === 0 ? (
-            <div class="py-4 text-center">
-              <p class="text-blue-100/80">Nie masz nadchodzących zapisów.</p>
-              <a
-                href={ROLE_HOME.rider}
-                class="mt-3 inline-block text-sm text-purple-300 transition-colors hover:text-purple-100 hover:underline"
-              >
-                Przeglądaj ośrodki i zapisz się na jazdę
-              </a>
-            </div>
+            <EmptyState>
+              <p>Nie masz nadchodzących zapisów.</p>
+              <a href={ROLE_HOME.rider}>Przeglądaj ośrodki i zapisz się na jazdę</a>
+            </EmptyState>
           ) : (
-            <ul class="divide-y divide-white/10">
+            <ul class="rows">
               {sections.upcoming.map((row) => (
-                <li class="flex flex-wrap items-center gap-x-3 gap-y-2 py-3">
-                  <span class="font-semibold text-purple-200">
+                <li>
+                  <span class="row__when">
                     {formatDay(row.day)}, {row.hour}:00
                   </span>
-                  <span class="font-medium text-white">{row.horseName}</span>
-                  <span class="text-blue-100/70">{row.stableName}</span>
-                  <form method="post" action="/api/bookings/cancel" class="ml-auto">
+                  {/* Nazwa ośrodka i konia siedzą w tym samym wierszu co przycisk -
+                      scenariusz odwołania zawęża <li> po wszystkich trzech naraz. */}
+                  <span class="row__meta">
+                    <span class="row__sub">{row.stableName}</span>
+                    <span class="row__horse">{row.horseName}</span>
+                  </span>
+                  <form method="post" action="/api/bookings/cancel" class="row__action">
                     <input type="hidden" name="bookingId" value={row.id} />
-                    <button
-                      type="submit"
-                      class="inline-flex items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-900/20 px-3 py-1.5 text-sm text-red-200 transition-colors hover:border-red-400/50 hover:bg-red-900/40"
-                    >
+                    <button type="submit">
                       <CalendarX2 className="size-4" />
                       Odwołaj
                     </button>
@@ -115,29 +113,196 @@ function formatDay(day: string): string {
             </ul>
           )
         }
-      </div>
+      </Card>
+    </section>
 
-      {
-        !loadFailed && sections.history.length > 0 && (
-          <div class="mt-6 rounded-2xl border border-white/10 bg-white/5 p-6 text-white">
-            <h2 class="mb-4 text-lg font-semibold text-blue-100/70">Minione i odwołane</h2>
-            <ul class="divide-y divide-white/5">
+    {
+      !loadFailed && sections.history.length > 0 && (
+        <section class="history">
+          <Card>
+            <h2>Minione i odwołane</h2>
+            <ul class="rows rows--history">
               {sections.history.map((row) => (
-                <li class="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-3 text-blue-100/50">
-                  <span>
+                <li>
+                  <span class="row__when">
                     {formatDay(row.day)}, {row.hour}:00
                   </span>
-                  <span>{row.horseName}</span>
-                  <span>{row.stableName}</span>
-                  {row.status === "cancelled" && (
-                    <span class="rounded bg-white/10 px-2 py-0.5 text-xs text-blue-100/60">odwołany</span>
-                  )}
+                  <span class="row__meta">
+                    <span class="row__sub">{row.stableName}</span>
+                    <span class="row__horse">{row.horseName}</span>
+                    {/* Cały tekst tego elementu to samo słowo - scenariusz odwołania
+                        szuka wiersza po dokładnym dopasowaniu. */}
+                    {row.status === "cancelled" && <span class="tag">odwołany</span>}
+                  </span>
                 </li>
               ))}
             </ul>
-          </div>
-        )
-      }
-    </div>
-  </div>
+          </Card>
+        </section>
+      )
+    }
+  </main>
 </Layout>
+
+<style>
+  .page {
+    padding-block: 24px 56px;
+  }
+  .back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+    margin-bottom: 12px;
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--primary);
+  }
+  .back:hover {
+    color: var(--primary-strong);
+    text-decoration: underline;
+  }
+  .back:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
+    border-radius: 8px;
+  }
+
+  h1 {
+    font-size: 32px;
+  }
+  .page-lead {
+    margin: 10px 0 0;
+    font-size: 15.5px;
+    color: var(--muted);
+    max-width: 62ch;
+  }
+  .notice {
+    margin-top: 16px;
+  }
+
+  .upcoming {
+    display: block;
+    margin-top: 22px;
+  }
+  .history {
+    display: block;
+    margin-top: 18px;
+  }
+  h2 {
+    font-size: 22px;
+    margin: 0 0 14px;
+  }
+  .history h2 {
+    color: var(--muted);
+  }
+
+  /* ── Jeden wzorzec wiersza dla obu list ───────────────────────────────── */
+  .rows {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .rows > li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 14px;
+    padding: 14px 0;
+    border-top: 1px solid var(--border);
+  }
+  .rows > li:first-child {
+    border-top: 0;
+    padding-top: 0;
+  }
+  .rows > li:last-child {
+    padding-bottom: 0;
+  }
+
+  .row__when {
+    order: 1;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  /* Do 560 px „Odwołaj" trzyma prawą krawędź pierwszej linii, a opis schodzi niżej. */
+  .row__action {
+    order: 2;
+    margin-left: auto;
+  }
+  .row__meta {
+    order: 3;
+    flex-basis: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 12px;
+    min-width: 0;
+  }
+  @media (width >= 560px) {
+    .row__meta {
+      order: 2;
+      flex-basis: auto;
+    }
+    .row__action {
+      order: 3;
+    }
+  }
+  .row__horse {
+    font-weight: 600;
+  }
+  .row__sub {
+    color: var(--muted);
+    font-size: 14.5px;
+    overflow-wrap: anywhere;
+  }
+  .rows--history .row__when,
+  .rows--history .row__horse {
+    font-weight: 500;
+    color: var(--muted);
+  }
+
+  /* Neutralna pigułka - świadomie NIE kasztanowa, żeby nie czytała się jak akcent. */
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    background: var(--surface-3);
+    color: var(--muted);
+  }
+
+  .row__action button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 10px 15px;
+    border-radius: 999px;
+    border: 1px solid oklch(56% 0.18 25 / 0.35);
+    background: var(--surface);
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    color: var(--danger-ink);
+    cursor: pointer;
+    transition:
+      background 0.15s,
+      border-color 0.15s;
+  }
+  .row__action button:hover {
+    background: var(--danger-soft);
+    border-color: var(--danger);
+  }
+  .row__action button:focus-visible {
+    outline: 2px solid var(--danger);
+    outline-offset: 2px;
+  }
+</style>
