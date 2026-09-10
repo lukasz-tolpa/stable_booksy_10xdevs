@@ -812,10 +812,10 @@ single-PR delivery.
 
 #### Automated
 
-- [x] 7.1 `npm run lint`, `npm run check`, `npm test` pass
-- [x] 7.2 `npx playwright test` passes
-- [x] 7.3 No references left to `bg-cosmic`, `Welcome.astro`, `LibBadge` or `template.png`
-- [x] 7.4 Prettier check passes on the edited documents
+- [x] 7.1 `npm run lint`, `npm run check`, `npm test` pass — 4de6abd
+- [x] 7.2 `npx playwright test` passes — 4de6abd
+- [x] 7.3 No references left to `bg-cosmic`, `Welcome.astro`, `LibBadge` or `template.png` — 4de6abd
+- [x] 7.4 Prettier check passes on the edited documents — 4de6abd
 - [ ] 7.5 PR merged with `ci`, `db-tests` and `e2e` green
 
 #### Manual

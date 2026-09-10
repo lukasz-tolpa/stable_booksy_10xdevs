@@ -198,6 +198,8 @@ const dayLabel = new Date(`${day}T00:00:00`).toLocaleDateString("pl-PL", {
     margin: 12px 0 0;
     text-align: center;
     font-size: 13px;
-    color: var(--faint);
+    /* `--muted`, nie `--faint`: to zdanie niesie informację, a nie dekorację.
+       Najjaśniejszy token daje na tle strony 3,33:1, czyli poniżej progu AA. */
+    color: var(--muted);
   }
 </style>
