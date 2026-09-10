@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prototyp — jeden wzorzec listy w trzech miejscach</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ═══ Tokeny — DESIGN.md §2 / §4 ═══════════════════════════════════════ */
+:root{
+  --bg:oklch(98% 0.008 150); --surface:oklch(100% 0 0); --surface-2:oklch(96.5% 0.012 155); --surface-3:oklch(93.5% 0.016 158);
+  --fg:oklch(24% 0.03 160); --muted:oklch(50% 0.02 160); --faint:oklch(64% 0.018 160);
+  --border:oklch(90% 0.012 155); --border-2:oklch(85% 0.014 155);
+  --primary:oklch(45% 0.10 162); --primary-strong:oklch(38% 0.10 162); --primary-soft:oklch(95% 0.025 160); --primary-tint:oklch(90% 0.04 160);
+  --accent:oklch(56% 0.11 52); --accent-soft:oklch(94% 0.03 60); --accent-ink:oklch(48% 0.12 52);
+  --success:oklch(58% 0.13 150); --success-soft:oklch(94% 0.04 150); --success-ink:oklch(42% 0.11 150);
+  --warn:oklch(70% 0.13 75); --warn-soft:oklch(95% 0.05 80); --warn-ink:oklch(45% 0.10 70);
+  --danger:oklch(56% 0.18 25); --danger-soft:oklch(56% 0.18 25 / .10); --danger-ink:oklch(42% 0.16 25);
+  --shadow-sm:0 1px 2px oklch(40% 0.03 160 / .06),0 1px 3px oklch(40% 0.03 160 / .08);
+  --shadow-md:0 6px 16px oklch(40% 0.04 160 / .10),0 2px 6px oklch(40% 0.04 160 / .06);
+  --r-sm:8px; --r:12px; --r-lg:18px; --r-xl:26px;
+  --font-display:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  --font-body:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  --font-mono:ui-monospace,'SF Mono','JetBrains Mono',Menlo,monospace;
+  --nav-h:68px;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--surface-2);color:var(--fg);font-family:var(--font-body)}
+
+/* ── Rusztowanie prototypu ─────────────────────────────────────────────── */
+.sheet{max-width:1180px;margin:0 auto;padding:40px 20px 80px}
+.sheet__title{margin:0 0 4px;font-family:var(--font-display);font-size:20px;font-weight:700;letter-spacing:-.02em}
+.sheet__meta{margin:0 0 36px;font-size:13.5px;color:var(--muted);max-width:82ch;line-height:1.55}
+.part{margin:0 0 10px;font-family:var(--font-display);font-size:16px;font-weight:700;letter-spacing:-.02em}
+.spec{margin:0 0 12px;display:flex;flex-wrap:wrap;align-items:baseline;gap:10px}
+.spec__name{font-family:var(--font-mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--primary);font-weight:500}
+.spec__note{font-size:12.5px;color:var(--muted)}
+.frame{border:1px solid var(--border-2);border-radius:16px;overflow:hidden;margin:0 0 32px;background:var(--bg);box-shadow:var(--shadow-sm)}
+.frame--mobile{width:390px;max-width:100%}
+.grid2{display:grid;gap:28px;grid-template-columns:1fr}
+@media (min-width:940px){.grid2{grid-template-columns:1fr 1fr}}
+.rule{border:0;border-top:1px solid var(--border-2);margin:6px 0 32px}
+
+/* ═══ Aplikacja ════════════════════════════════════════════════════════ */
+.app{container-type:inline-size;background:var(--bg);color:var(--fg);font-size:16px;line-height:1.55}
+.container{width:100%;max-width:880px;margin-inline:auto;padding-inline:18px}
+@container (min-width:560px){.container{padding-inline:24px}}
+h1,h2,h3{font-family:var(--font-display);line-height:1.1;letter-spacing:-.02em;font-weight:700;margin:0}
+p{margin:0}
+a{color:inherit;text-decoration:none}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+
+/* ── Nav / Topbar ──────────────────────────────────────────────────────── */
+.nav{position:sticky;top:0;z-index:50;min-height:var(--nav-h);display:flex;align-items:center;background:oklch(100% 0 0 / .82);backdrop-filter:saturate(140%) blur(14px);-webkit-backdrop-filter:saturate(140%) blur(14px);border-bottom:1px solid var(--border)}
+.nav-inner{width:100%;display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding-block:12px}
+.brand{display:inline-flex;align-items:center;gap:10px;font-family:var(--font-display);font-weight:800;font-size:19px;letter-spacing:-.03em;color:var(--primary-strong)}
+.brand:focus-visible{outline:2px solid var(--primary);outline-offset:4px;border-radius:8px}
+.brand .mark{width:30px;height:30px;flex:none}
+.nav-user{order:3;flex-basis:100%;display:flex;align-items:center;gap:8px;min-width:0}
+.nav-mail{font-size:13.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav-links{order:2;margin-left:auto;display:flex;align-items:center;gap:4px}
+.nav-links a,.nav-links button{display:inline-flex;align-items:center;min-height:44px;padding:8px 14px;border:0;border-radius:999px;background:none;font-family:var(--font-body);font-size:14.5px;font-weight:500;color:var(--muted);cursor:pointer;transition:background .15s,color .15s}
+.nav-links a:hover,.nav-links button:hover{color:var(--primary-strong);background:var(--primary-soft)}
+.nav-links a:focus-visible,.nav-links button:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+@container (min-width:720px){
+  .nav-inner{flex-wrap:nowrap;padding-block:0}
+  .nav-user{order:0;flex-basis:auto;margin-left:12px}
+  .nav-links{order:0}
+}
+
+.pill{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;font-size:12.5px;font-weight:600;line-height:1.35;border:1px solid transparent;white-space:nowrap}
+.pill svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.pill-primary{background:var(--primary-soft);color:var(--primary-strong)}
+.pill-accent{background:var(--accent-soft);color:var(--accent-ink)}
+
+/* ── Strona ────────────────────────────────────────────────────────────── */
+.page{padding-block:24px 56px}
+.back{display:inline-flex;align-items:center;gap:6px;min-height:44px;margin-bottom:8px;font-size:14.5px;font-weight:600;color:var(--primary)}
+.back:hover{color:var(--primary-strong);text-decoration:underline}
+.back:focus-visible{outline:2px solid var(--primary);outline-offset:3px;border-radius:8px}
+.back svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.page-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+h1.page-title{font-size:32px}
+.page-lead{margin-top:10px;font-size:15.5px;color:var(--muted);max-width:62ch}
+
+/* ── Przyciski ─────────────────────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:var(--font-display);font-weight:600;font-size:15px;padding:11px 18px;border-radius:999px;border:1px solid transparent;line-height:1;min-height:44px;white-space:nowrap;cursor:pointer;transition:transform .08s,background .15s,box-shadow .15s,border-color .15s}
+.btn:active{transform:translateY(1px)}
+.btn:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.btn-ghost{background:var(--surface);color:var(--fg);border-color:var(--border-2)}
+.btn-ghost:hover{background:var(--surface-2);color:var(--fg)}
+.btn-danger{background:var(--surface);color:var(--danger-ink);border-color:oklch(56% 0.18 25 / .35);font-size:14px;padding:10px 15px}
+.btn-danger:hover{background:var(--danger-soft);border-color:var(--danger);color:var(--danger-ink)}
+.btn-danger:focus-visible{outline-color:var(--danger)}
+.link{color:var(--primary);font-weight:600}
+.link:hover{color:var(--primary-strong);text-decoration:underline}
+.link:focus-visible{outline:2px solid var(--primary);outline-offset:3px;border-radius:6px}
+
+/* ── Nawigacja dniami ──────────────────────────────────────────────────── */
+.daynav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:22px 0;padding:5px 8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow-sm)}
+.daynav a{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 10px;border-radius:999px;font-size:14.5px;font-weight:600;color:var(--primary);transition:background .15s,color .15s}
+.daynav a:hover{color:var(--primary-strong);background:var(--primary-soft)}
+.daynav a:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.daynav svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.daynav__date{font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:14px;font-weight:600;text-align:center;min-width:0}
+@container (max-width:430px){.daynav{flex-wrap:wrap;padding-bottom:2px}.daynav__date{order:-1;flex-basis:100%;padding:8px 0 2px}}
+
+/* ── Karty ─────────────────────────────────────────────────────────────── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow-sm)}
+.card-pad{padding:18px}
+@container (min-width:560px){.card-pad{padding:22px}}
+.card--quiet{background:var(--surface-2);box-shadow:none}
+.card + .card{margin-top:20px}
+h2.section{font-size:20px;margin-bottom:12px}
+.card--quiet h2.section{color:var(--muted)}
+
+/* ── Jeden wzorzec wiersza dla wszystkich trzech list ──────────────────── */
+.rows{list-style:none;margin:0;padding:0}
+.rows > li{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;padding:14px 0;border-top:1px solid var(--border)}
+.rows > li:first-child{border-top:0;padding-top:0}
+.rows > li:last-child{padding-bottom:0}
+.row__when{order:1;font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:14px;font-weight:600;white-space:nowrap}
+.row__action{order:2;margin-left:auto}
+.row__meta{order:3;flex-basis:100%;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 12px;min-width:0}
+@container (min-width:560px){
+  .row__meta{order:2;flex-basis:auto}
+  .row__action{order:3}
+}
+.row__horse{font-weight:600}
+.row__sub{color:var(--muted);font-size:14.5px;overflow-wrap:anywhere}
+.rows--history > li{border-top-color:var(--border)}
+.rows--history .row__when,.rows--history .row__horse{font-weight:500;color:var(--muted)}
+.tag{display:inline-flex;align-items:center;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:600;background:var(--surface-3);color:var(--muted)}
+
+/* ── Stan pusty ────────────────────────────────────────────────────────── */
+.empty{padding:24px 16px;text-align:center}
+.empty p{color:var(--muted);max-width:48ch;margin-inline:auto}
+.empty .link{display:inline-block;margin-top:12px}
+
+/* ── Katalog ośrodków ──────────────────────────────────────────────────── */
+.search{margin:20px 0 24px}
+.search label{display:block;margin-bottom:6px;font-size:13px;font-weight:600}
+.search__row{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.search__field{position:relative;display:flex;align-items:center;flex:1 1 240px;min-width:0}
+.search__field > svg{position:absolute;left:13px;width:18px;height:18px;stroke:var(--muted);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+.control{width:100%;min-height:46px;padding:12px 14px 12px 42px;background:var(--surface);border:1px solid var(--border-2);border-radius:var(--r);font-family:inherit;font-size:15px;color:var(--fg);transition:border-color .15s,box-shadow .15s}
+.control::placeholder{color:var(--faint)}
+.control:hover{border-color:oklch(78% 0.016 155)}
+.control:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+
+.cards{display:grid;gap:16px;grid-template-columns:1fr}
+@container (min-width:620px){.cards{grid-template-columns:1fr 1fr}}
+.stablecard{display:block;padding:20px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);min-width:0;transition:transform .14s,box-shadow .14s,border-color .14s}
+.stablecard:hover{transform:translateY(-3px);box-shadow:var(--shadow-md);border-color:var(--border-2)}
+.stablecard:focus-visible{outline:2px solid var(--primary);outline-offset:3px}
+.stablecard h2{font-size:19px}
+.stablecard__city{margin-top:8px;display:flex;align-items:center;gap:6px;font-size:14px;color:var(--muted)}
+.stablecard__city svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.stablecard__desc{margin-top:12px;font-size:14.5px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-mark" viewBox="0 0 32 32"><rect width="32" height="32" rx="9" fill="currentColor"/><path d="M9.5 24C4.5 18.5 6.5 8.5 16 8.5S27.5 18.5 22.5 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/><circle cx="9.5" cy="24" r="1.5" fill="#fff"/><circle cx="22.5" cy="24" r="1.5" fill="#fff"/></symbol>
+<symbol id="i-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+<symbol id="i-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+<symbol id="i-arrowleft" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></symbol>
+<symbol id="i-pin" viewBox="0 0 24 24"><path d="M20 10c0 4.99-5.54 10.19-7.4 11.8a1 1 0 0 1-1.2 0C9.54 20.19 4 14.99 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+<symbol id="i-user" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+<symbol id="i-building" viewBox="0 0 24 24"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></symbol>
+<symbol id="i-calx" viewBox="0 0 24 24"><path d="M8 2v4"/><path d="M16 2v4"/><path d="M21 13V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8"/><path d="M3 10h18"/><path d="m17 17 5 5"/><path d="m22 17-5 5"/></symbol>
+</defs></svg>
+
+<div class="sheet">
+  <h1 class="sheet__title">listy.html — jeden wzorzec listy w trzech miejscach</h1>
+  <p class="sheet__meta">Wiersz to zawsze <code>&lt;li&gt;</code> w <code>&lt;ul&gt;</code>: <strong>kiedy</strong> w mono z <code>tabular-nums</code> (kolumna nie skacze) — <strong>co</strong> (koń, ośrodek albo e-mail) — <strong>akcja</strong> po prawej. Poniżej 560 px kontenera „co” zjeżdża do drugiej linii, a akcja zostaje przy „kiedy”. Trzy ekrany różnią się wyłącznie treścią kolumn.</p>
+
+  <!-- ══════════════ (a) /jezdziec/zapisy ═══════════════════════════════ -->
+  <p class="part">(a) <code>/jezdziec/zapisy</code> — „Moje zapisy”</p>
+  <div class="spec"><span class="spec__name">Desktop</span><span class="spec__note">dwie sekcje h2; „Odwołaj” wyłącznie w „Nadchodzące”</span></div>
+  <div class="frame">
+    <div class="app" data-od-id="zapisy-jezdziec-desktop">
+
+      <header class="nav">
+        <div class="container nav-inner">
+          <a class="brand" href="/"><svg class="mark" aria-hidden="true"><use href="#i-mark"/></svg>Stable Booksy</a>
+          <span class="nav-user">
+            <span class="nav-mail">cert-test-jezdziec@example.com</span>
+            <span class="pill pill-accent"><svg aria-hidden="true"><use href="#i-user"/></svg>Jeździec</span>
+          </span>
+          <span class="nav-links">
+            <a href="/jezdziec">Mój panel</a>
+            <form method="POST" action="/api/auth/signout" style="display:contents"><button type="submit">Wyloguj się</button></form>
+          </span>
+        </div>
+      </header>
+
+      <main class="container page">
+        <a class="back" href="/jezdziec"><svg aria-hidden="true"><use href="#i-arrowleft"/></svg>Wróć do listy ośrodków</a>
+        <h1 class="page-title">Moje zapisy</h1>
+        <p class="page-lead">Nadchodzące jazdy możesz odwołać do momentu ich rozpoczęcia.</p>
+
+        <section class="card card-pad" style="margin-top:22px">
+          <h2 class="section">Nadchodzące</h2>
+          <ul class="rows">
+            <li>
+              <span class="row__when">8 września, 11:00</span>
+              <span class="row__meta"><span class="row__sub">Stadnina Pod Dębem</span><span class="row__horse">Bella</span></span>
+              <form class="row__action" method="post" action="/api/bookings/cancel">
+                <button class="btn btn-danger" type="submit"><svg aria-hidden="true"><use href="#i-calx"/></svg>Odwołaj</button>
+              </form>
+            </li>
+            <li>
+              <span class="row__when">9 września, 14:00</span>
+              <span class="row__meta"><span class="row__sub">Stadnina Pod Dębem</span><span class="row__horse">Grom</span></span>
+              <form class="row__action" method="post" action="/api/bookings/cancel">
+                <button class="btn btn-danger" type="submit"><svg aria-hidden="true"><use href="#i-calx"/></svg>Odwołaj</button>
+              </form>
+            </li>
+          </ul>
+        </section>
+
+        <section class="card card-pad card--quiet">
+          <h2 class="section">Minione i odwołane</h2>
+          <ul class="rows rows--history">
+            <li>
+              <span class="row__when">2 września, 10:00</span>
+              <span class="row__meta"><span class="row__sub">Stadnina Pod Dębem</span><span class="row__horse">Bella</span></span>
+            </li>
+            <li>
+              <span class="row__when">30 sierpnia, 12:00</span>
+              <span class="row__meta"><span class="row__sub">Stajnia Wierzbowa</span><span class="row__horse">Iskra</span><span class="tag">odwołany</span></span>
+            </li>
+          </ul>
+        </section>
+      </main>
+
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div>
+      <div class="spec"><span class="spec__name">Mobile 390 px</span><span class="spec__note">„Odwołaj” trzyma się prawej krawędzi pierwszej linii</span></div>
+      <div class="frame frame--mobile">
+        <div class="app" data-od-id="zapisy-jezdziec-mobile">
+          <main class="container page">
+            <a class="back" href="/jezdziec"><svg aria-hidden="true"><use href="#i-arrowleft"/></svg>Wróć do listy ośrodków</a>
+            <h1 class="page-title">Moje zapisy</h1>
+            <p class="page-lead">Nadchodzące jazdy możesz odwołać do momentu ich rozpoczęcia.</p>
+            <section class="card card-pad" style="margin-top:20px">
+              <h2 class="section">Nadchodzące</h2>
+              <ul class="rows">
+                <li>
+                  <span class="row__when">8 września, 11:00</span>
+                  <span class="row__meta"><span class="row__sub">Stadnina Pod Dębem</span><span class="row__horse">Bella</span></span>
+                  <form class="row__action" method="post" action="/api/bookings/cancel">
+                    <button class="btn btn-danger" type="submit"><svg aria-hidden="true"><use href="#i-calx"/></svg>Odwołaj</button>
+                  </form>
+                </li>
+                <li>
+                  <span class="row__when">9 września, 14:00</span>
+                  <span class="row__meta"><span class="row__sub">Stadnina Pod Dębem</span><span class="row__horse">Grom</span></span>
+                  <form class="row__action" method="post" action="/api/bookings/cancel">
+                    <button class="btn btn-danger" type="submit"><svg aria-hidden="true"><use href="#i-calx"/></svg>Odwołaj</button>
+                  </form>
+                </li>
+              </ul>
+            </section>
+            <section class="card card-pad card--quiet">
+              <h2 class="section">Minione i odwołane</h2>
+              <ul class="rows rows--history">
+                <li>
+                  <span class="row__when">30 sierpnia, 12:00</span>
+                  <span class="row__meta"><span class="row__sub">Stajnia Wierzbowa</span><span class="row__horse">Iskra</span><span class="tag">odwołany</span></span>
+                </li>
+              </ul>
+            </section>
+          </main>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="spec"><span class="spec__name">Stan pusty</span><span class="spec__note">sekcja „Minione i odwołane” znika w całości, gdy historia jest pusta</span></div>
+      <div class="frame frame--mobile">
+        <div class="app" data-od-id="zapisy-jezdziec-empty">
+          <main class="container page">
+            <a class="back" href="/jezdziec"><svg aria-hidden="true"><use href="#i-arrowleft"/></svg>Wróć do listy ośrodków</a>
+            <h1 class="page-title">Moje zapisy</h1>
+            <p class="page-lead">Nadchodzące jazdy możesz odwołać do momentu ich rozpoczęcia.</p>
+            <section class="card card-pad" style="margin-top:20px">
+              <h2 class="section">Nadchodzące</h2>
+              <div class="empty">
+                <p>Nie masz nadchodzących zapisów.</p>
+                <a class="link" href="/jezdziec">Przeglądaj ośrodki i zapisz się na jazdę</a>
+              </div>
+            </section>
+          </main>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="rule">
+
+  <!-- ══════════════ (b) /osrodek/zapisy ════════════════════════════════ -->
+  <p class="part">(b) <code>/osrodek/zapisy</code> — „Zapisy dnia”</p>
+  <div class="spec"><span class="spec__name">Desktop</span><span class="spec__note">ten sam wiersz: godzina — koń i e-mail jeźdźca — bez akcji</span></div>
+  <div class="frame">
+    <div class="app" data-od-id="zapisy-osrodek-desktop">
+      <header class="nav">
+        <div class="container nav-inner">
+          <a class="brand" href="/"><svg class="mark" aria-hidden="true"><use href="#i-mark"/></svg>Stable Booksy</a>
+          <span class="nav-user">
+            <span class="nav-mail">cert-test-osrodek@example.com</span>
+            <span class="pill pill-primary"><svg aria-hidden="true"><use href="#i-building"/></svg>Ośrodek</span>
+          </span>
+          <span class="nav-links">
+            <a href="/osrodek">Mój panel</a>
+            <form method="POST" action="/api/auth/signout" style="display:contents"><button type="submit">Wyloguj się</button></form>
+          </span>
+        </div>
+      </header>
+      <main class="container page">
+        <h1 class="page-title">Zapisy dnia</h1>
+        <p class="page-lead">Kto i na którym koniu jeździ wybranego dnia.</p>
+        <nav class="daynav" aria-label="Wybór dnia">
+          <a href="/osrodek/zapisy?dzien=2026-09-07"><svg aria-hidden="true"><use href="#i-left"/></svg>Poprzedni</a>
+          <span class="daynav__date">wtorek, 8 września 2026</span>
+          <a href="/osrodek/zapisy?dzien=2026-09-09">Następny<svg aria-hidden="true"><use href="#i-right"/></svg></a>
+        </nav>
+        <section class="card card-pad">
+          <ul class="rows">
+            <li>
+              <span class="row__when">10:00</span>
+              <span class="row__meta"><span class="row__horse">Bella</span><span class="row__sub">anna.kowalska@example.com</span></span>
+            </li>
+            <li>
+              <span class="row__when">11:00</span>
+              <span class="row__meta"><span class="row__horse">Grom</span><span class="row__sub">cert-test-jezdziec@example.com</span></span>
+            </li>
+            <li>
+              <span class="row__when">13:00</span>
+              <span class="row__meta"><span class="row__horse">Bella</span><span class="row__sub">marek.zielinski@example.com</span></span>
+            </li>
+          </ul>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div class="spec"><span class="spec__name">Mobile 390 px</span><span class="spec__note">e-mail łamie się w drugiej linii wiersza, bez poziomego przewijania</span></div>
+  <div class="frame frame--mobile">
+    <div class="app" data-od-id="zapisy-osrodek-mobile">
+      <main class="container page">
+        <h1 class="page-title">Zapisy dnia</h1>
+        <p class="page-lead">Kto i na którym koniu jeździ wybranego dnia.</p>
+        <nav class="daynav" aria-label="Wybór dnia">
+          <a href="/osrodek/zapisy?dzien=2026-09-07"><svg aria-hidden="true"><use href="#i-left"/></svg>Poprzedni</a>
+          <span class="daynav__date">wt., 8 września</span>
+          <a href="/osrodek/zapisy?dzien=2026-09-09">Następny<svg aria-hidden="true"><use href="#i-right"/></svg></a>
+        </nav>
+        <section class="card card-pad">
+          <ul class="rows">
+            <li>
+              <span class="row__when">10:00</span>
+              <span class="row__meta"><span class="row__horse">Bella</span><span class="row__sub">anna.kowalska@example.com</span></span>
+            </li>
+            <li>
+              <span class="row__when">11:00</span>
+              <span class="row__meta"><span class="row__horse">Grom</span><span class="row__sub">cert-test-jezdziec@example.com</span></span>
+            </li>
+          </ul>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <hr class="rule">
+
+  <!-- ══════════════ (c) /jezdziec — katalog ════════════════════════════ -->
+  <p class="part">(c) <code>/jezdziec</code> — katalog „Ośrodki”</p>
+  <div class="spec"><span class="spec__name">Desktop</span><span class="spec__note">karta ośrodka to <code>&lt;a&gt;</code> obejmujący całą powierzchnię (<code>StableCard.astro</code>)</span></div>
+  <div class="frame">
+    <div class="app" data-od-id="katalog-desktop">
+      <header class="nav">
+        <div class="container nav-inner">
+          <a class="brand" href="/"><svg class="mark" aria-hidden="true"><use href="#i-mark"/></svg>Stable Booksy</a>
+          <span class="nav-user">
+            <span class="nav-mail">cert-test-jezdziec@example.com</span>
+            <span class="pill pill-accent"><svg aria-hidden="true"><use href="#i-user"/></svg>Jeździec</span>
+          </span>
+          <span class="nav-links">
+            <a href="/jezdziec">Mój panel</a>
+            <form method="POST" action="/api/auth/signout" style="display:contents"><button type="submit">Wyloguj się</button></form>
+          </span>
+        </div>
+      </header>
+      <main class="container page">
+        <div class="page-head">
+          <h1 class="page-title">Ośrodki</h1>
+          <a class="btn btn-ghost" href="/jezdziec/zapisy">Moje zapisy</a>
+        </div>
+        <p class="page-lead">Wybierz ośrodek, w którym chcesz się zapisać na jazdę.</p>
+
+        <form class="search" method="GET" action="/jezdziec">
+          <label for="c1-q">Szukaj ośrodka</label>
+          <div class="search__row">
+            <div class="search__field">
+              <svg aria-hidden="true"><use href="#i-search"/></svg>
+              <input class="control" id="c1-q" name="q" type="search" placeholder="Nazwa ośrodka albo miejscowość">
+            </div>
+            <button class="btn btn-ghost" type="submit">Szukaj</button>
+          </div>
+        </form>
+
+        <div class="cards">
+          <a class="stablecard" href="/jezdziec/osrodki/1">
+            <h2>Stadnina Pod Dębem</h2>
+            <p class="stablecard__city"><svg aria-hidden="true"><use href="#i-pin"/></svg>Kraków</p>
+            <p class="stablecard__desc">Kryta ujeżdżalnia i cztery konie szkoleniowe. Jazdy w pełnych godzinach.</p>
+          </a>
+          <a class="stablecard" href="/jezdziec/osrodki/2">
+            <h2>Stajnia Wierzbowa</h2>
+            <p class="stablecard__city"><svg aria-hidden="true"><use href="#i-pin"/></svg>Wieliczka</p>
+            <p class="stablecard__desc">Jazdy terenowe i lonża dla początkujących.</p>
+          </a>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="spec"><span class="spec__name">Mobile 390 px</span><span class="spec__note">jedna kolumna kart, „Szukaj” schodzi pod pole</span></div>
+  <div class="frame frame--mobile">
+    <div class="app" data-od-id="katalog-mobile">
+      <header class="nav">
+        <div class="container nav-inner">
+          <a class="brand" href="/"><svg class="mark" aria-hidden="true"><use href="#i-mark"/></svg>Stable Booksy</a>
+          <span class="nav-user">
+            <span class="nav-mail">cert-test-jezdziec@example.com</span>
+            <span class="pill pill-accent"><svg aria-hidden="true"><use href="#i-user"/></svg>Jeździec</span>
+          </span>
+          <span class="nav-links">
+            <a href="/jezdziec">Mój panel</a>
+            <form method="POST" action="/api/auth/signout" style="display:contents"><button type="submit">Wyloguj się</button></form>
+          </span>
+        </div>
+      </header>
+      <main class="container page">
+        <div class="page-head">
+          <h1 class="page-title">Ośrodki</h1>
+          <a class="btn btn-ghost" href="/jezdziec/zapisy">Moje zapisy</a>
+        </div>
+        <p class="page-lead">Wybierz ośrodek, w którym chcesz się zapisać na jazdę.</p>
+        <form class="search" method="GET" action="/jezdziec">
+          <label for="c2-q">Szukaj ośrodka</label>
+          <div class="search__row">
+            <div class="search__field">
+              <svg aria-hidden="true"><use href="#i-search"/></svg>
+              <input class="control" id="c2-q" name="q" type="search" placeholder="Nazwa ośrodka albo miejscowość">
+            </div>
+            <button class="btn btn-ghost" type="submit">Szukaj</button>
+          </div>
+        </form>
+        <div class="cards">
+          <a class="stablecard" href="/jezdziec/osrodki/1">
+            <h2>Stadnina Pod Dębem</h2>
+            <p class="stablecard__city"><svg aria-hidden="true"><use href="#i-pin"/></svg>Kraków</p>
+            <p class="stablecard__desc">Kryta ujeżdżalnia i cztery konie szkoleniowe. Jazdy w pełnych godzinach.</p>
+          </a>
+          <a class="stablecard" href="/jezdziec/osrodki/2">
+            <h2>Stajnia Wierzbowa</h2>
+            <p class="stablecard__city"><svg aria-hidden="true"><use href="#i-pin"/></svg>Wieliczka</p>
+            <p class="stablecard__desc">Jazdy terenowe i lonża dla początkujących.</p>
+          </a>
+        </div>
+      </main>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prototyp — landing (/)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════════════════════════
+   Tokeny — DESIGN.md §2 / §4. Kopia 1:1 z brand-spec „Horse to go".
+   ═══════════════════════════════════════════════════════════════════════ */
+:root{
+  --bg:        oklch(98% 0.008 150);
+  --surface:   oklch(100% 0 0);
+  --surface-2: oklch(96.5% 0.012 155);
+  --surface-3: oklch(93.5% 0.016 158);
+  --fg:        oklch(24% 0.03 160);
+  --muted:     oklch(50% 0.02 160);
+  --faint:     oklch(64% 0.018 160);
+  --border:    oklch(90% 0.012 155);
+  --border-2:  oklch(85% 0.014 155);
+
+  --primary:        oklch(45% 0.10 162);
+  --primary-strong: oklch(38% 0.10 162);
+  --primary-soft:   oklch(95% 0.025 160);
+  --primary-tint:   oklch(90% 0.04 160);
+
+  --accent:      oklch(56% 0.11 52);
+  --accent-soft: oklch(94% 0.03 60);
+  /* Dopisane do §2: --accent na --accent-soft daje 4,0:1, czyli poniżej AA
+     dla tekstu plakietki. --accent-ink to ten sam kasztan ściemniony do 5,7:1
+     i służy WYŁĄCZNIE jako kolor tekstu; wypełnienia zostają na --accent. */
+  --accent-ink:  oklch(48% 0.12 52);
+
+  --success:      oklch(58% 0.13 150);
+  --success-soft: oklch(94% 0.04 150);
+  --success-ink:  oklch(42% 0.11 150);
+  --warn:         oklch(70% 0.13 75);
+  --warn-soft:    oklch(95% 0.05 80);
+  --danger:       oklch(56% 0.18 25);
+  /* jw. — tekst bannera błędu na 10% wypełnieniu potrzebuje ciemniejszej wersji */
+  --danger-ink:   oklch(42% 0.16 25);
+
+  --shadow-sm: 0 1px 2px oklch(40% 0.03 160 / 0.06), 0 1px 3px oklch(40% 0.03 160 / 0.08);
+  --shadow-md: 0 6px 16px oklch(40% 0.04 160 / 0.10), 0 2px 6px oklch(40% 0.04 160 / 0.06);
+
+  --r-sm: 8px;
+  --r:    12px;
+  --r-lg: 18px;
+  --r-xl: 26px;
+
+  --font-display: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-body:    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono:    ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, monospace;
+
+  --maxw: 1200px;
+  --nav-h: 68px;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--surface-2);color:var(--fg);font-family:var(--font-body)}
+
+/* ── Rusztowanie prototypu (nie jest częścią aplikacji) ────────────────── */
+.sheet{max-width:1180px;margin:0 auto;padding:40px 20px 80px}
+.sheet__title{margin:0 0 4px;font-family:var(--font-display);font-size:20px;font-weight:700;letter-spacing:-.02em}
+.sheet__meta{margin:0 0 36px;font-size:13.5px;color:var(--muted);max-width:82ch;line-height:1.55}
+.spec{margin:0 0 12px;display:flex;flex-wrap:wrap;align-items:baseline;gap:10px}
+.spec__name{font-family:var(--font-mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--primary);font-weight:500}
+.spec__note{font-size:12.5px;color:var(--muted)}
+.frame{border:1px solid var(--border-2);border-radius:16px;overflow:hidden;margin:0 0 36px;background:var(--bg);box-shadow:var(--shadow-sm)}
+.frame--mobile{width:390px;max-width:100%}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Aplikacja
+   ═══════════════════════════════════════════════════════════════════════ */
+.app{container-type:inline-size;background:var(--bg);color:var(--fg);font-size:16px;line-height:1.55}
+.container{width:100%;max-width:var(--maxw);margin-inline:auto;padding-inline:18px}
+@container (min-width:560px){.container{padding-inline:24px}}
+
+h1,h2,h3{font-family:var(--font-display);line-height:1.1;letter-spacing:-.02em;font-weight:700;margin:0}
+p{margin:0}
+a{color:inherit;text-decoration:none}
+img{max-width:100%;display:block}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-family:var(--font-mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--primary);font-weight:500}
+
+/* ── Banner (Banner.astro) ─────────────────────────────────────────────── */
+.banner{padding:12px 18px;font-size:14.5px;border-left:3px solid var(--danger);background:oklch(56% 0.18 25 / .10);color:var(--danger-ink)}
+.banner a{text-decoration:underline;font-weight:600;color:inherit}
+.banner--ok{border-left-color:var(--success);background:var(--success-soft);color:var(--success-ink)}
+
+/* ── Nav ───────────────────────────────────────────────────────────────── */
+.nav{position:sticky;top:0;z-index:50;height:var(--nav-h);background:oklch(100% 0 0 / .82);backdrop-filter:saturate(140%) blur(14px);-webkit-backdrop-filter:saturate(140%) blur(14px);border-bottom:1px solid var(--border)}
+.nav-inner{height:100%;display:flex;align-items:center;gap:24px}
+.brand{display:inline-flex;align-items:center;gap:10px;font-family:var(--font-display);font-weight:800;font-size:19px;letter-spacing:-.03em;color:var(--primary-strong)}
+.brand:focus-visible{outline:2px solid var(--primary);outline-offset:4px;border-radius:8px}
+.brand .mark{width:30px;height:30px;flex:none}
+
+/* ── Hero ──────────────────────────────────────────────────────────────── */
+.hero{position:relative;background:var(--bg)}
+.hero-media{position:relative}
+.hero-media img{width:100%;height:236px;object-fit:cover;object-position:62% 46%}
+.hero-veil{position:absolute;inset:0;background:linear-gradient(180deg,oklch(98% 0.008 150 / 0) 34%,oklch(98% 0.008 150 / .88) 84%,var(--bg) 100%)}
+.hero-inner{position:relative;width:100%;padding-block:26px 44px}
+/* h1 w aplikacji: clamp(30px, 4vw, 44px) wg DESIGN.md §3. W prototypie skalę
+   przełącza zapytanie kontenerowe, żeby ramka 390 px nie czytała szerokości okna. */
+.hero h1{margin:10px 0 0;font-size:32px;font-weight:800;letter-spacing:-.035em}
+.hero .sub{margin-top:14px;font-size:17px;color:var(--muted);max-width:34ch}
+.hero-cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:26px}
+
+@container (min-width:820px){
+  .hero{min-height:520px;display:grid;align-items:center}
+  .hero-media{position:absolute;inset:0}
+  .hero-media img{height:100%}
+  .hero-veil{background:
+    linear-gradient(90deg,var(--bg) 0%,oklch(98% 0.008 150 / .95) 31%,oklch(98% 0.008 150 / .58) 49%,oklch(98% 0.008 150 / 0) 70%),
+    linear-gradient(180deg,oklch(98% 0.008 150 / 0) 58%,var(--bg) 100%)}
+  .hero-inner{padding-block:96px}
+  .hero h1{font-size:44px}
+  .hero .sub{font-size:19px}
+}
+
+/* ── Przyciski (app.css) ───────────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:var(--font-display);font-weight:600;font-size:15px;padding:11px 18px;border-radius:999px;border:1px solid transparent;line-height:1;min-height:44px;white-space:nowrap;cursor:pointer;transition:transform .08s,background .15s,box-shadow .15s,border-color .15s}
+.btn:active{transform:translateY(1px)}
+.btn:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.btn-primary{background:var(--primary);color:#fff;box-shadow:var(--shadow-sm)}
+.btn-primary:hover{background:var(--primary-strong);color:#fff}
+.btn-ghost{background:var(--surface);color:var(--fg);border-color:var(--border-2)}
+.btn-ghost:hover{background:var(--surface-2);color:var(--fg)}
+.btn-lg{padding:15px 26px;font-size:16.5px;min-height:52px}
+
+/* ── Plakietki ról ─────────────────────────────────────────────────────── */
+.pill{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;font-family:var(--font-body);font-size:12.5px;font-weight:600;line-height:1.35;letter-spacing:0;border:1px solid transparent}
+.pill svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.pill-primary{background:var(--primary-soft);color:var(--primary-strong)}
+.pill-accent{background:var(--accent-soft);color:var(--accent-ink)}
+
+/* ── Karty ról ─────────────────────────────────────────────────────────── */
+.roles{padding-block:44px 64px}
+.roles__head{margin-bottom:22px}
+.roles__head h2{margin-top:8px;font-size:26px}
+.rolegrid{display:grid;gap:18px;grid-template-columns:1fr}
+@container (min-width:720px){.rolegrid{grid-template-columns:1fr 1fr;gap:22px}}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow-sm)}
+.card-pad{padding:22px}
+.role h2{margin:0}
+.role p{margin-top:12px;font-size:16px;color:var(--muted);max-width:42ch}
+.role dl{margin:16px 0 0;padding-top:16px;border-top:1px solid var(--border);display:grid;gap:8px}
+.role dt{font-family:var(--font-mono);font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.role dd{margin:0;font-size:14.5px;color:var(--fg)}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-building" viewBox="0 0 24 24"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></symbol>
+<symbol id="i-user" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+<symbol id="i-userplus" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></symbol>
+<symbol id="i-login" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="m10 17 5-5-5-5"/><path d="M15 12H3"/></symbol>
+<symbol id="i-mark" viewBox="0 0 32 32"><rect width="32" height="32" rx="9" fill="currentColor"/><path d="M9.5 24C4.5 18.5 6.5 8.5 16 8.5S27.5 18.5 22.5 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/><circle cx="9.5" cy="24" r="1.5" fill="#fff"/><circle cx="22.5" cy="24" r="1.5" fill="#fff"/></symbol>
+</defs></svg>
+
+<div class="sheet">
+  <h1 class="sheet__title">landing.html — <code>/</code> dla niezalogowanego</h1>
+  <p class="sheet__meta">Jasny motyw „Horse to go”: leśna zieleń jako marka, kasztan użyty <strong>raz</strong> (plakietka „Jeździec”), Plus Jakarta Sans na nagłówkach i przyciskach, Inter w treści, dane w mono. Pasek bez linków auth — jedyne wejście w akcję to para przycisków w hero. Zdjęcie <code>hero.png</code> jest placeholderem; kadr ma konia po prawej, więc gradient bieli idzie z lewej i nie zakrywa tematu.</p>
+
+  <!-- ══ Desktop ══════════════════════════════════════════════════════ -->
+  <div class="spec"><span class="spec__name">Desktop</span><span class="spec__note">stan domyślny, bez <code>?error=</code></span></div>
+  <div class="frame">
+    <div class="app" data-od-id="landing-desktop">
+
+      <header class="nav" data-od-id="nav">
+        <div class="container nav-inner">
+          <a class="brand" href="/">
+            <svg class="mark" aria-hidden="true"><use href="#i-mark"/></svg>
+            Stable Booksy
+          </a>
+        </div>
+      </header>
+
+      <main>
+        <section class="hero" data-od-id="landing-hero">
+          <div class="hero-media">
+            <img src="hero.png" width="1536" height="1024" loading="eager" alt="Koń stojący na pastwisku przy ścianie lasu">
+            <span class="hero-veil"></span>
+          </div>
+          <div class="container hero-inner">
+            <p class="eyebrow">Ośrodek · Jeździec</p>
+            <h1>Stable Booksy</h1>
+            <p class="sub">Grafik dnia i zapisy na jazdy konne bez telefonów.</p>
+            <div class="hero-cta">
+              <a class="btn btn-primary btn-lg" href="/auth/signup"><svg aria-hidden="true"><use href="#i-userplus"/></svg>Załóż konto</a>
+              <a class="btn btn-ghost btn-lg" href="/auth/signin"><svg aria-hidden="true"><use href="#i-login"/></svg>Zaloguj się</a>
+            </div>
+          </div>
+        </section>
+
+        <section class="roles container" data-od-id="landing-roles">
+          <div class="roles__head">
+            <p class="eyebrow">Dwie role</p>
+            <h2>Jedno miejsce na grafik i na zapisy</h2>
+          </div>
+          <div class="rolegrid">
+            <article class="card card-pad role" data-od-id="role-card-stable">
+              <h2><span class="pill pill-primary"><svg aria-hidden="true"><use href="#i-building"/></svg>Ośrodek</span></h2>
+              <p>Układasz grafik: godziny i konie pracujące danego dnia. Widzisz zapisy.</p>
+              <dl>
+                <div><dt>Grafik dnia</dt><dd class="mono">10–14 · 4 sloty na konia</dd></div>
+              </dl>
+            </article>
+            <article class="card card-pad role" data-od-id="role-card-rider">
+              <h2><span class="pill pill-accent"><svg aria-hidden="true"><use href="#i-user"/></svg>Jeździec</span></h2>
+              <p>Wybierasz ośrodek, wolny slot godzina × koń, zapisujesz się i odwołujesz.</p>
+              <dl>
+                <div><dt>Wolne sloty</dt><dd class="mono">11:00 · Bella</dd></div>
+              </dl>
+            </article>
+          </div>
+        </section>
+      </main>
+
+    </div>
+  </div>
+
+  <!-- ══ Desktop · banner ?error= ═════════════════════════════════════ -->
+  <div class="spec"><span class="spec__name">Desktop · ?error=</span><span class="spec__note">Banner.astro, wariant <code>error</code>, <code>role="alert"</code>, nad paskiem</span></div>
+  <div class="frame">
+    <div class="app" data-od-id="landing-error">
+      <div class="banner" role="alert">Nie udało się wylogować. Spróbuj ponownie.</div>
+      <header class="nav">
+        <div class="container nav-inner">
+          <a class="brand" href="/">
+            <svg class="mark" aria-hidden="true"><use href="#i-mark"/></svg>
+            Stable Booksy
+          </a>
+        </div>
+      </header>
+      <section class="hero">
+        <div class="hero-media">
+          <img src="hero.png" width="1536" height="1024" loading="eager" alt="Koń stojący na pastwisku przy ścianie lasu">
+          <span class="hero-veil"></span>
+        </div>
+        <div class="container hero-inner">
+          <p class="eyebrow">Ośrodek · Jeździec</p>
+          <h1>Stable Booksy</h1>
+          <p class="sub">Grafik dnia i zapisy na jazdy konne bez telefonów.</p>
+          <div class="hero-cta">
+            <a class="btn btn-primary btn-lg" href="/auth/signup"><svg aria-hidden="true"><use href="#i-userplus"/></svg>Załóż konto</a>
+            <a class="btn btn-ghost btn-lg" href="/auth/signin"><svg aria-hidden="true"><use href="#i-login"/></svg>Zaloguj się</a>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ══ Mobile 390 ═══════════════════════════════════════════════════ -->
+  <div class="spec"><span class="spec__name">Mobile 390 px</span><span class="spec__note">zdjęcie jako pas 236 px z białym wygaszeniem u dołu, przyciski pod treścią, karty ról jedna pod drugą</span></div>
+  <div class="frame frame--mobile">
+    <div class="app" data-od-id="landing-mobile">
+      <header class="nav">
+        <div class="container nav-inner">
+          <a class="brand" href="/">
+            <svg class="mark" aria-hidden="true"><use href="#i-mark"/></svg>
+            Stable Booksy
+          </a>
+        </div>
+      </header>
+      <main>
+        <section class="hero">
+          <div class="hero-media">
+            <img src="hero.png" width="1536" height="1024" loading="eager" alt="Koń stojący na pastwisku przy ścianie lasu">
+            <span class="hero-veil"></span>
+          </div>
+          <div class="container hero-inner">
+            <p class="eyebrow">Ośrodek · Jeździec</p>
+            <h1>Stable Booksy</h1>
+            <p class="sub">Grafik dnia i zapisy na jazdy konne bez telefonów.</p>
+            <div class="hero-cta">
+              <a class="btn btn-primary btn-lg" href="/auth/signup"><svg aria-hidden="true"><use href="#i-userplus"/></svg>Załóż konto</a>
+              <a class="btn btn-ghost btn-lg" href="/auth/signin"><svg aria-hidden="true"><use href="#i-login"/></svg>Zaloguj się</a>
+            </div>
+          </div>
+        </section>
+        <section class="roles container">
+          <div class="roles__head">
+            <p class="eyebrow">Dwie role</p>
+            <h2>Jedno miejsce na grafik i na zapisy</h2>
+          </div>
+          <div class="rolegrid">
+            <article class="card card-pad role">
+              <h2><span class="pill pill-primary"><svg aria-hidden="true"><use href="#i-building"/></svg>Ośrodek</span></h2>
+              <p>Układasz grafik: godziny i konie pracujące danego dnia. Widzisz zapisy.</p>
+              <dl>
+                <div><dt>Grafik dnia</dt><dd class="mono">10–14 · 4 sloty na konia</dd></div>
+              </dl>
+            </article>
+            <article class="card card-pad role">
+              <h2><span class="pill pill-accent"><svg aria-hidden="true"><use href="#i-user"/></svg>Jeździec</span></h2>
+              <p>Wybierasz ośrodek, wolny slot godzina × koń, zapisujesz się i odwołujesz.</p>
+              <dl>
+                <div><dt>Wolne sloty</dt><dd class="mono">11:00 · Bella</dd></div>
+              </dl>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

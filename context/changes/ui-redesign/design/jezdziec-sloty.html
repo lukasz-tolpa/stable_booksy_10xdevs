@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prototyp — /jezdziec/osrodki/[id]</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ═══ Tokeny — DESIGN.md §2 / §4 ═══════════════════════════════════════ */
+:root{
+  --bg:oklch(98% 0.008 150); --surface:oklch(100% 0 0); --surface-2:oklch(96.5% 0.012 155); --surface-3:oklch(93.5% 0.016 158);
+  --fg:oklch(24% 0.03 160); --muted:oklch(50% 0.02 160); --faint:oklch(64% 0.018 160);
+  --border:oklch(90% 0.012 155); --border-2:oklch(85% 0.014 155);
+  --primary:oklch(45% 0.10 162); --primary-strong:oklch(38% 0.10 162); --primary-soft:oklch(95% 0.025 160); --primary-tint:oklch(90% 0.04 160);
+  --accent:oklch(56% 0.11 52); --accent-soft:oklch(94% 0.03 60); --accent-ink:oklch(48% 0.12 52);
+  --success:oklch(58% 0.13 150); --success-soft:oklch(94% 0.04 150); --success-ink:oklch(42% 0.11 150);
+  --warn:oklch(70% 0.13 75); --warn-soft:oklch(95% 0.05 80); --warn-ink:oklch(45% 0.10 70);
+  --danger:oklch(56% 0.18 25); --danger-soft:oklch(56% 0.18 25 / .10); --danger-ink:oklch(42% 0.16 25);
+  --shadow-sm:0 1px 2px oklch(40% 0.03 160 / .06),0 1px 3px oklch(40% 0.03 160 / .08);
+  --r-sm:8px; --r:12px; --r-lg:18px; --r-xl:26px;
+  --font-display:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  --font-body:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  --font-mono:ui-monospace,'SF Mono','JetBrains Mono',Menlo,monospace;
+  --nav-h:68px;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--surface-2);color:var(--fg);font-family:var(--font-body)}
+
+/* ── Rusztowanie prototypu ─────────────────────────────────────────────── */
+.sheet{max-width:1180px;margin:0 auto;padding:40px 20px 80px}
+.sheet__title{margin:0 0 4px;font-family:var(--font-display);font-size:20px;font-weight:700;letter-spacing:-.02em}
+.sheet__meta{margin:0 0 30px;font-size:13.5px;color:var(--muted);max-width:82ch;line-height:1.55}
+.legend{display:flex;flex-wrap:wrap;gap:10px 18px;margin:0 0 34px;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:12px;font-size:13px;color:var(--muted)}
+.legend b{color:var(--fg);font-weight:600}
+.spec{margin:0 0 12px;display:flex;flex-wrap:wrap;align-items:baseline;gap:10px}
+.spec__name{font-family:var(--font-mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--primary);font-weight:500}
+.spec__note{font-size:12.5px;color:var(--muted)}
+.frame{border:1px solid var(--border-2);border-radius:16px;overflow:hidden;margin:0 0 36px;background:var(--bg);box-shadow:var(--shadow-sm)}
+.frame--mobile{width:390px;max-width:100%}
+.grid2{display:grid;gap:28px;grid-template-columns:1fr}
+@media (min-width:940px){.grid2{grid-template-columns:1fr 1fr}}
+
+/* ═══ Aplikacja ════════════════════════════════════════════════════════ */
+.app{container-type:inline-size;background:var(--bg);color:var(--fg);font-size:16px;line-height:1.55}
+.container{width:100%;max-width:880px;margin-inline:auto;padding-inline:18px}
+@container (min-width:560px){.container{padding-inline:24px}}
+h1,h2,h3{font-family:var(--font-display);line-height:1.1;letter-spacing:-.02em;font-weight:700;margin:0}
+p{margin:0}
+a{color:inherit;text-decoration:none}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+
+/* ── Nav / Topbar ──────────────────────────────────────────────────────── */
+.nav{position:sticky;top:0;z-index:50;min-height:var(--nav-h);display:flex;align-items:center;background:oklch(100% 0 0 / .82);backdrop-filter:saturate(140%) blur(14px);-webkit-backdrop-filter:saturate(140%) blur(14px);border-bottom:1px solid var(--border)}
+.nav-inner{width:100%;display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding-block:12px}
+.brand{display:inline-flex;align-items:center;gap:10px;font-family:var(--font-display);font-weight:800;font-size:19px;letter-spacing:-.03em;color:var(--primary-strong)}
+.brand:focus-visible{outline:2px solid var(--primary);outline-offset:4px;border-radius:8px}
+.brand .mark{width:30px;height:30px;flex:none}
+.nav-user{order:3;flex-basis:100%;display:flex;align-items:center;gap:8px;min-width:0}
+.nav-mail{font-size:13.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav-links{order:2;margin-left:auto;display:flex;align-items:center;gap:4px}
+.nav-links a,.nav-links button{display:inline-flex;align-items:center;min-height:44px;padding:8px 14px;border:0;border-radius:999px;background:none;font-family:var(--font-body);font-size:14.5px;font-weight:500;color:var(--muted);cursor:pointer;transition:background .15s,color .15s}
+.nav-links a:hover,.nav-links button:hover{color:var(--primary-strong);background:var(--primary-soft)}
+.nav-links a:focus-visible,.nav-links button:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+@container (min-width:720px){
+  .nav-inner{flex-wrap:nowrap;padding-block:0}
+  .nav-user{order:0;flex-basis:auto;margin-left:12px}
+  .nav-links{order:0}
+}
+
+.pill{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;font-size:12.5px;font-weight:600;line-height:1.35;border:1px solid transparent;white-space:nowrap}
+.pill svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.pill-accent{background:var(--accent-soft);color:var(--accent-ink)}
+
+/* ── Strona ────────────────────────────────────────────────────────────── */
+.page{padding-block:24px 56px}
+.back{display:inline-flex;align-items:center;gap:6px;min-height:44px;margin-bottom:12px;font-size:14.5px;font-weight:600;color:var(--primary)}
+.back:hover{color:var(--primary-strong);text-decoration:underline}
+.back:focus-visible{outline:2px solid var(--primary);outline-offset:3px;border-radius:8px}
+.back svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow-sm)}
+.card-pad{padding:18px}
+@container (min-width:560px){.card-pad{padding:22px}}
+.stable h1{font-size:30px}
+.stable__city{margin-top:10px;display:flex;align-items:center;gap:6px;font-size:14.5px;color:var(--muted)}
+.stable__city svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.stable__desc{margin-top:12px;color:var(--muted);max-width:62ch}
+
+.alert{display:flex;align-items:flex-start;gap:10px;margin-top:16px;padding:12px 14px;border-left:3px solid var(--success);border-radius:0 var(--r) var(--r) 0;background:var(--success-soft);color:var(--success-ink);font-size:14.5px}
+.alert--error{border-left-color:var(--danger);background:var(--danger-soft);color:var(--danger-ink)}
+.alert svg{width:18px;height:18px;margin-top:2px;flex:none;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+
+/* ── Nawigacja dniami ──────────────────────────────────────────────────── */
+.daynav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:22px 0 14px;padding:5px 8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow-sm)}
+.daynav a,.daynav .off{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 10px;border-radius:999px;font-size:14.5px;font-weight:600;color:var(--primary);transition:background .15s,color .15s}
+.daynav a:hover{color:var(--primary-strong);background:var(--primary-soft)}
+.daynav a:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.daynav .off{color:var(--faint);cursor:default}
+.daynav svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.daynav__date{font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:14px;font-weight:600;text-align:center;min-width:0}
+@container (max-width:430px){.daynav{flex-wrap:wrap;padding-bottom:2px}.daynav__date{order:-1;flex-basis:100%;padding:8px 0 2px}}
+
+.daypick{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:22px}
+.daypick label{font-size:14.5px;font-weight:600}
+.daypick input{min-height:44px;padding:10px 14px;background:var(--surface);border:1px solid var(--border-2);border-radius:var(--r);font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:14.5px;color:var(--fg);color-scheme:light;transition:border-color .15s,box-shadow .15s}
+.daypick input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+
+/* ── Przyciski ─────────────────────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:var(--font-display);font-weight:600;font-size:15px;padding:11px 18px;border-radius:999px;border:1px solid transparent;line-height:1;min-height:44px;white-space:nowrap;cursor:pointer;transition:transform .08s,background .15s,box-shadow .15s,border-color .15s}
+.btn:active{transform:translateY(1px)}
+.btn:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.btn-ghost{background:var(--surface);color:var(--fg);border-color:var(--border-2)}
+.btn-ghost:hover{background:var(--surface-2);color:var(--fg)}
+
+/* ── Siatka slotów — DESIGN.md §5 ──────────────────────────────────────
+   Trzy stany, rozróżnialne bez koloru:
+   wolny  — jedyny <button>: biały, obrys, cień, kursor pointer
+   zajęty — <span> bez obrysu i cienia, płaskie wypełnienie --surface-3
+   mój    — <span> z ikoną check i dopiskiem „— Twój zapis" w treści
+   Zajęty MUSI zostać <span>: e2e/booking-refusal.spec.ts wymaga zera trafień
+   dla getByRole("button", { name: "<koń>" }) po cudzym zapisie.            */
+.hours{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.hours > li{padding:14px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r)}
+.hours__label{display:block;margin-bottom:10px;font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:14px;font-weight:600;color:var(--fg)}
+.slots{display:flex;flex-wrap:wrap;gap:8px}
+.slots form{display:contents}
+.slot{display:inline-flex;align-items:center;gap:7px;min-height:44px;padding:0 16px;border-radius:999px;font-family:var(--font-body);font-size:14.5px;font-weight:600;line-height:1.2;white-space:nowrap;border:1px solid transparent}
+.slot svg{width:15px;height:15px;flex:none;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.slot-free{background:var(--surface);color:var(--fg);border-color:var(--border-2);box-shadow:var(--shadow-sm);cursor:pointer;transition:background .15s,border-color .15s}
+.slot-free:hover{background:var(--primary-soft);border-color:var(--primary);color:var(--primary-strong)}
+.slot-free:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.slot-taken{background:var(--surface-3);color:var(--muted);box-shadow:none;cursor:default}
+.slot-mine{background:var(--accent-soft);color:var(--accent-ink);box-shadow:none}
+
+/* ── Stan pusty ────────────────────────────────────────────────────────── */
+.empty{padding:26px 18px;text-align:center}
+.empty p{color:var(--muted);max-width:48ch;margin-inline:auto}
+.empty p + p{margin-top:6px;font-size:13.5px}
+h2.section{font-size:22px;margin-bottom:14px}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-mark" viewBox="0 0 32 32"><rect width="32" height="32" rx="9" fill="currentColor"/><path d="M9.5 24C4.5 18.5 6.5 8.5 16 8.5S27.5 18.5 22.5 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/><circle cx="9.5" cy="24" r="1.5" fill="#fff"/><circle cx="22.5" cy="24" r="1.5" fill="#fff"/></symbol>
+<symbol id="i-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+<symbol id="i-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+<symbol id="i-arrowleft" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></symbol>
+<symbol id="i-pin" viewBox="0 0 24 24"><path d="M20 10c0 4.99-5.54 10.19-7.4 11.8a1 1 0 0 1-1.2 0C9.54 20.19 4 14.99 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></symbol>
+<symbol id="i-user" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></symbol>
+<symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></symbol>
+</defs></svg>
+
+<div class="sheet">
+  <h1 class="sheet__title">jezdziec-sloty.html — <code>/jezdziec/osrodki/[id]</code></h1>
+  <p class="sheet__meta">Kontener 880 px. Kasztan pojawia się wyłącznie na własnych zapisach — to jedyny akcent na tym ekranie. Godziny i data idą w mono z <code>tabular-nums</code>.</p>
+  <div class="legend">
+    <span><b>wolny</b> — biała pigułka z obrysem i cieniem, jedyny <code>&lt;button&gt;</code> w siatce</span>
+    <span><b>zajęty</b> — płaskie wypełnienie bez obrysu i cienia, <code>&lt;span&gt;</code></span>
+    <span><b>mój zapis</b> — ikona check i dopisek „— Twój zapis” w treści</span>
+  </div>
+
+  <!-- ══ Desktop ══════════════════════════════════════════════════════ -->
+  <div class="spec"><span class="spec__name">Desktop</span><span class="spec__note">trzy stany slotu w jednym widoku</span></div>
+  <div class="frame">
+    <div class="app" data-od-id="sloty-desktop">
+
+      <header class="nav">
+        <div class="container nav-inner">
+          <a class="brand" href="/"><svg class="mark" aria-hidden="true"><use href="#i-mark"/></svg>Stable Booksy</a>
+          <span class="nav-user">
+            <span class="nav-mail">cert-test-jezdziec@example.com</span>
+            <span class="pill pill-accent"><svg aria-hidden="true"><use href="#i-user"/></svg>Jeździec</span>
+          </span>
+          <span class="nav-links">
+            <a href="/jezdziec">Mój panel</a>
+            <form method="POST" action="/api/auth/signout" style="display:contents"><button type="submit">Wyloguj się</button></form>
+          </span>
+        </div>
+      </header>
+
+      <main class="container page">
+        <a class="back" href="/jezdziec"><svg aria-hidden="true"><use href="#i-arrowleft"/></svg>Wróć do listy ośrodków</a>
+
+        <div class="card card-pad stable" data-od-id="stable-header">
+          <h1>Stadnina Pod Dębem</h1>
+          <p class="stable__city"><svg aria-hidden="true"><use href="#i-pin"/></svg>Kraków</p>
+          <p class="stable__desc">Kryta ujeżdżalnia i cztery konie szkoleniowe. Jazdy w pełnych godzinach.</p>
+        </div>
+
+        <nav class="daynav" aria-label="Wybór dnia">
+          <span class="off"><svg aria-hidden="true"><use href="#i-left"/></svg>Poprzedni</span>
+          <span class="daynav__date">wtorek, 8 września 2026</span>
+          <a href="/jezdziec/osrodki/1?dzien=2026-09-09">Następny<svg aria-hidden="true"><use href="#i-right"/></svg></a>
+        </nav>
+
+        <form class="daypick" method="get">
+          <label for="d1-dzien">Wybierz dzień:</label>
+          <input type="date" id="d1-dzien" name="dzien" value="2026-09-08">
+          <button class="btn btn-ghost" type="submit">Pokaż</button>
+        </form>
+
+        <div class="card card-pad">
+          <h2 class="section">Wolne sloty</h2>
+          <ul class="hours" data-od-id="slot-grid">
+            <li>
+              <span class="hours__label">10:00</span>
+              <div class="slots">
+                <form method="post" action="/api/bookings/create"><button class="slot slot-free" type="submit">Bella</button></form>
+                <form method="post" action="/api/bookings/create"><button class="slot slot-free" type="submit">Grom</button></form>
+                <span class="slot slot-taken" aria-disabled="true">Kasztan</span>
+              </div>
+            </li>
+            <li>
+              <span class="hours__label">11:00</span>
+              <div class="slots">
+                <span class="slot slot-mine"><svg aria-hidden="true"><use href="#i-check"/></svg>Bella — Twój zapis</span>
+                <form method="post" action="/api/bookings/create"><button class="slot slot-free" type="submit">Grom</button></form>
+                <form method="post" action="/api/bookings/create"><button class="slot slot-free" type="submit">Kasztan</button></form>
+              </div>
+            </li>
+            <li>
+              <span class="hours__label">12:00</span>
+              <div class="slots">
+                <span class="slot slot-taken" aria-disabled="true">Bella</span>
+                <span class="slot slot-taken" aria-disabled="true">Grom</span>
+                <form method="post" action="/api/bookings/create"><button class="slot slot-free" type="submit">Kasztan</button></form>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </main>
+
+    </div>
+  </div>
+
+  <!-- ══ Desktop · ?sukces=1 ══════════════════════════════════════════ -->
+  <div class="spec"><span class="spec__name">Desktop · ?sukces=1</span><span class="spec__note">banner pod kartą ośrodka; wariant błędu tą samą konstrukcją</span></div>
+  <div class="frame">
+    <div class="app" data-od-id="sloty-success">
+      <main class="container page">
+        <a class="back" href="/jezdziec"><svg aria-hidden="true"><use href="#i-arrowleft"/></svg>Wróć do listy ośrodków</a>
+        <div class="card card-pad stable">
+          <h1>Stadnina Pod Dębem</h1>
+          <p class="stable__city"><svg aria-hidden="true"><use href="#i-pin"/></svg>Kraków</p>
+        </div>
+        <p class="alert" role="status"><svg aria-hidden="true"><use href="#i-check"/></svg>Zapisano na jazdę. Twój slot jest oznaczony poniżej.</p>
+        <nav class="daynav" aria-label="Wybór dnia">
+          <span class="off"><svg aria-hidden="true"><use href="#i-left"/></svg>Poprzedni</span>
+          <span class="daynav__date">wtorek, 8 września 2026</span>
+          <a href="/jezdziec/osrodki/1?dzien=2026-09-09">Następny<svg aria-hidden="true"><use href="#i-right"/></svg></a>
+        </nav>
+        <div class="card card-pad">
+          <h2 class="section">Wolne sloty</h2>
+          <ul class="hours">
+            <li>
+              <span class="hours__label">10:00</span>
+              <div class="slots">
+                <span class="slot slot-mine"><svg aria-hidden="true"><use href="#i-check"/></svg>Bella — Twój zapis</span>
+                <form method="post" action="/api/bookings/create"><button class="slot slot-free" type="submit">Grom</button></form>
+                <span class="slot slot-taken" aria-disabled="true">Kasztan</span>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="grid2">
+
+    <!-- ══ Mobile 390 ═════════════════════════════════════════════════ -->
+    <div>
+      <div class="spec"><span class="spec__name">Mobile 390 px</span><span class="spec__note">sloty zawijają się, każdy trzyma 44 px wysokości</span></div>
+      <div class="frame frame--mobile">
+        <div class="app" data-od-id="sloty-mobile">
+          <header class="nav">
+            <div class="container nav-inner">
+              <a class="brand" href="/"><svg class="mark" aria-hidden="true"><use href="#i-mark"/></svg>Stable Booksy</a>
+              <span class="nav-user">
+                <span class="nav-mail">cert-test-jezdziec@example.com</span>
+                <span class="pill pill-accent"><svg aria-hidden="true"><use href="#i-user"/></svg>Jeździec</span>
+              </span>
+              <span class="nav-links">
+                <a href="/jezdziec">Mój panel</a>
+                <form method="POST" action="/api/auth/signout" style="display:contents"><button type="submit">Wyloguj się</button></form>
+              </span>
+            </div>
+          </header>
+          <main class="container page">
+            <a class="back" href="/jezdziec"><svg aria-hidden="true"><use href="#i-arrowleft"/></svg>Wróć do listy ośrodków</a>
+            <div class="card card-pad stable">
+              <h1 style="font-size:26px">Stadnina Pod Dębem</h1>
+              <p class="stable__city"><svg aria-hidden="true"><use href="#i-pin"/></svg>Kraków</p>
+            </div>
+            <nav class="daynav" aria-label="Wybór dnia">
+              <span class="off"><svg aria-hidden="true"><use href="#i-left"/></svg>Poprzedni</span>
+              <span class="daynav__date">wt., 8 września</span>
+              <a href="/jezdziec/osrodki/1?dzien=2026-09-09">Następny<svg aria-hidden="true"><use href="#i-right"/></svg></a>
+            </nav>
+            <form class="daypick" method="get">
+              <label for="d3-dzien">Wybierz dzień:</label>
+              <input type="date" id="d3-dzien" name="dzien" value="2026-09-08">
+              <button class="btn btn-ghost" type="submit">Pokaż</button>
+            </form>
+            <div class="card card-pad">
+              <h2 class="section">Wolne sloty</h2>
+              <ul class="hours">
+                <li>
+                  <span class="hours__label">10:00</span>
+                  <div class="slots">
+                    <form method="post" action="/api/bookings/create"><button class="slot slot-free" type="submit">Bella</button></form>
+                    <form method="post" action="/api/bookings/create"><button class="slot slot-free" type="submit">Grom</button></form>
+                    <span class="slot slot-taken" aria-disabled="true">Kasztan</span>
+                  </div>
+                </li>
+                <li>
+                  <span class="hours__label">11:00</span>
+                  <div class="slots">
+                    <span class="slot slot-mine"><svg aria-hidden="true"><use href="#i-check"/></svg>Bella — Twój zapis</span>
+                    <form method="post" action="/api/bookings/create"><button class="slot slot-free" type="submit">Grom</button></form>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </main>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ Stan pusty ═════════════════════════════════════════════════ -->
+    <div>
+      <div class="spec"><span class="spec__name">Stan pusty · brak grafiku</span><span class="spec__note">nagłówek „Wolne sloty” zostaje — testy E2E na nim polegają</span></div>
+      <div class="frame frame--mobile">
+        <div class="app" data-od-id="sloty-empty">
+          <main class="container page">
+            <a class="back" href="/jezdziec"><svg aria-hidden="true"><use href="#i-arrowleft"/></svg>Wróć do listy ośrodków</a>
+            <div class="card card-pad stable">
+              <h1 style="font-size:26px">Stadnina Pod Dębem</h1>
+              <p class="stable__city"><svg aria-hidden="true"><use href="#i-pin"/></svg>Kraków</p>
+            </div>
+            <nav class="daynav" aria-label="Wybór dnia">
+              <span class="off"><svg aria-hidden="true"><use href="#i-left"/></svg>Poprzedni</span>
+              <span class="daynav__date">śr., 9 września</span>
+              <a href="/jezdziec/osrodki/1?dzien=2026-09-10">Następny<svg aria-hidden="true"><use href="#i-right"/></svg></a>
+            </nav>
+            <form class="daypick" method="get">
+              <label for="d4-dzien">Wybierz dzień:</label>
+              <input type="date" id="d4-dzien" name="dzien" value="2026-09-09">
+              <button class="btn btn-ghost" type="submit">Pokaż</button>
+            </form>
+            <div class="card card-pad">
+              <h2 class="section">Wolne sloty</h2>
+              <div class="empty">
+                <p>Ośrodek nie ułożył grafiku na ten dzień.</p>
+                <p>Wybierz inny dzień albo zajrzyj tu później.</p>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

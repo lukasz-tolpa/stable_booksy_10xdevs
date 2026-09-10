@@ -1,5 +1,8 @@
 ---
-type Variant = "info" | "warning" | "error";
+// Banner z DESIGN.md §5: pełna szerokość kontenera, lewy pasek 3 px, miękkie tło.
+// Wariant `error` jako jedyny dostaje role="alert" - reszta to role="status".
+// Ta reguła jest starsza niż redesign i zostaje bez zmian.
+type Variant = "info" | "success" | "warning" | "error";
 
 interface Props {
   variant?: Variant;
@@ -14,10 +17,10 @@ const { variant = "info" } = Astro.props;
 
 <style>
   .banner {
-    padding: 0.75rem 1rem;
-    font-size: 0.875rem;
-    text-align: center;
-    border-bottom: 1px solid;
+    padding: 12px 14px;
+    font-size: 14.5px;
+    border-left: 3px solid;
+    border-radius: 0 var(--r) var(--r) 0;
   }
   .banner :global(a) {
     color: inherit;
@@ -25,18 +28,23 @@ const { variant = "info" } = Astro.props;
     font-weight: 600;
   }
   .banner--info {
-    background: #dbeafe;
-    color: #1e3a8a;
-    border-color: #3b82f6;
+    background: var(--primary-soft);
+    color: var(--primary-strong);
+    border-left-color: var(--primary);
+  }
+  .banner--success {
+    background: var(--success-soft);
+    color: var(--success-ink);
+    border-left-color: var(--success);
   }
   .banner--warning {
-    background: #fef3c7;
-    color: #78350f;
-    border-color: #f59e0b;
+    background: var(--warn-soft);
+    color: var(--warn-ink);
+    border-left-color: var(--warn);
   }
   .banner--error {
-    background: #fee2e2;
-    color: #7f1d1d;
-    border-color: #dc2626;
+    background: var(--danger-soft);
+    color: var(--danger-ink);
+    border-left-color: var(--danger);
   }
 </style>

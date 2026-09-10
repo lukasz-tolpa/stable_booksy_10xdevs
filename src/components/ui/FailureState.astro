@@ -1,0 +1,36 @@
+---
+// Stan awarii z DESIGN.md §5: karta `--warn-soft` ze zdaniem po polsku.
+// Odróżnia się od pustego stanu celowo - "nie udało się wczytać" to nie to samo,
+// co "nie ma czego pokazać", i użytkownik musi widzieć różnicę.
+import Card from "@/components/ui/Card.astro";
+
+interface Props {
+  class?: string;
+}
+
+const { class: className } = Astro.props;
+---
+
+<Card variant="warn" padding={18} class:list={className}>
+  <div class="failure">
+    <slot />
+  </div>
+</Card>
+
+<style>
+  .failure {
+    padding: 8px 0;
+    text-align: center;
+  }
+  .failure :global(p) {
+    color: var(--warn-ink);
+    font-weight: 500;
+    max-width: 52ch;
+    margin-inline: auto;
+  }
+  .failure :global(p + p) {
+    margin-top: 6px;
+    font-weight: 400;
+    font-size: 13.5px;
+  }
+</style>

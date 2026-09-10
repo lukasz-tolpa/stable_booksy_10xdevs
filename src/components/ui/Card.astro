@@ -1,0 +1,38 @@
+---
+/* eslint-disable astro/no-unused-css-selector -- klasy trafiają na <Tag>, którego reguła nie rozwiązuje statycznie */
+// Karta z DESIGN.md §5: biała powierzchnia, hairline, 18 px promienia, cień tylko tutaj.
+// Wariant `warn` to karta stanu awarii (§5 "Stan awarii") - miękkie tło ostrzegawcze,
+// bez cienia, żeby nie udawała klikalnej.
+type Variant = "default" | "warn";
+
+interface Props {
+  variant?: Variant;
+  /** Wewnętrzny padding w px. DESIGN.md §4 mówi 22 px; listy używają ciaśniejszych 18 px. */
+  padding?: number;
+  class?: string;
+  as?: "div" | "section" | "article" | "aside";
+}
+
+const { variant = "default", padding = 22, class: className, as: Tag = "div" } = Astro.props;
+---
+
+<Tag class:list={["card", `card--${variant}`, className]} style={`--card-pad:${String(padding)}px`}>
+  <slot />
+</Tag>
+
+<style>
+  .card {
+    padding: var(--card-pad);
+    border-radius: var(--r-lg);
+    border: 1px solid var(--border);
+  }
+  .card--default {
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+  }
+  .card--warn {
+    background: var(--warn-soft);
+    border-color: oklch(70% 0.13 75 / 0.35);
+    box-shadow: none;
+  }
+</style>

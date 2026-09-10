@@ -1,0 +1,78 @@
+---
+// Nawigacja dniami z DESIGN.md §5: "‹ Poprzedni", data w mono na środku, "Następny ›".
+//
+// Trzy sloty zamiast propsów, bo każda strona ma własne adresy i własne teksty linków,
+// a te teksty są kontraktem e2e - komponent daje geometrię i stany, nigdy treść.
+// Kierunek niedostępny strona podaje jako <span class="off">, nie jako wyłączony link.
+interface Props {
+  class?: string;
+  /** Etykieta landmarku - domyślnie jak w prototypie. */
+  label?: string;
+}
+
+const { class: className, label = "Wybór dnia" } = Astro.props;
+---
+
+<nav class:list={["daynav", className]} aria-label={label}>
+  <slot name="prev" />
+  <span class="daynav__date"><slot name="date" /></span>
+  <slot name="next" />
+</nav>
+
+<style>
+  .daynav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 22px 0 14px;
+    padding: 5px 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .daynav__date {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: center;
+    min-width: 0;
+  }
+
+  /* Treść ze slotów nie dostaje zakresu tego komponentu - stąd :global(). */
+  .daynav :global(a),
+  .daynav :global(.off) {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    /* 44 px to minimalny cel dotykowy - PRD wymaga wygody na telefonie. */
+    min-height: 44px;
+    padding: 0 10px;
+    border-radius: 999px;
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--primary);
+    transition:
+      background 0.15s,
+      color 0.15s;
+  }
+  .daynav :global(a:hover) {
+    color: var(--primary-strong);
+    background: var(--primary-soft);
+  }
+  .daynav :global(a:focus-visible) {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+  .daynav :global(.off) {
+    color: var(--faint);
+    cursor: default;
+  }
+  .daynav :global(svg) {
+    width: 16px;
+    height: 16px;
+  }
+</style>

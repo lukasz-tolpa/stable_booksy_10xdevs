@@ -1,0 +1,39 @@
+---
+// Pigułka roli z DESIGN.md §2: Ośrodek = `--primary-strong` na `--primary-soft`,
+// Jeździec = `--accent-ink` na `--accent-soft`. To jedno z dwóch dopuszczonych
+// wystąpień kasztanu na ekranie, więc nie dokładamy go nigdzie indziej bez potrzeby.
+import { ROLE_LABELS } from "@/lib/auth/constants";
+import type { UserRole } from "@/types";
+
+interface Props {
+  role: UserRole;
+  class?: string;
+}
+
+const { role, class: className } = Astro.props;
+---
+
+<span class:list={["pill", `pill--${role}`, className]}>{ROLE_LABELS[role]}</span>
+
+<style>
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 11px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 1.35;
+    border: 1px solid transparent;
+    white-space: nowrap;
+  }
+  .pill--stable {
+    background: var(--primary-soft);
+    color: var(--primary-strong);
+  }
+  .pill--rider {
+    background: var(--accent-soft);
+    color: var(--accent-ink);
+  }
+</style>

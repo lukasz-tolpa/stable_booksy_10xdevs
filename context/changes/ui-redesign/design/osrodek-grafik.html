@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prototyp — /osrodek/grafik</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ═══ Tokeny — DESIGN.md §2 / §4 ═══════════════════════════════════════ */
+:root{
+  --bg:oklch(98% 0.008 150); --surface:oklch(100% 0 0); --surface-2:oklch(96.5% 0.012 155); --surface-3:oklch(93.5% 0.016 158);
+  --fg:oklch(24% 0.03 160); --muted:oklch(50% 0.02 160); --faint:oklch(64% 0.018 160);
+  --border:oklch(90% 0.012 155); --border-2:oklch(85% 0.014 155);
+  --primary:oklch(45% 0.10 162); --primary-strong:oklch(38% 0.10 162); --primary-soft:oklch(95% 0.025 160); --primary-tint:oklch(90% 0.04 160);
+  --accent:oklch(56% 0.11 52); --accent-soft:oklch(94% 0.03 60); --accent-ink:oklch(48% 0.12 52);
+  --success:oklch(58% 0.13 150); --success-soft:oklch(94% 0.04 150); --success-ink:oklch(42% 0.11 150);
+  --warn:oklch(70% 0.13 75); --warn-soft:oklch(95% 0.05 80); --warn-ink:oklch(45% 0.10 70);
+  --danger:oklch(56% 0.18 25); --danger-soft:oklch(56% 0.18 25 / .10); --danger-ink:oklch(42% 0.16 25);
+  --shadow-sm:0 1px 2px oklch(40% 0.03 160 / .06),0 1px 3px oklch(40% 0.03 160 / .08);
+  --r-sm:8px; --r:12px; --r-lg:18px; --r-xl:26px;
+  --font-display:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  --font-body:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  --font-mono:ui-monospace,'SF Mono','JetBrains Mono',Menlo,monospace;
+  --nav-h:68px;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--surface-2);color:var(--fg);font-family:var(--font-body)}
+
+/* ── Rusztowanie prototypu ─────────────────────────────────────────────── */
+.sheet{max-width:1180px;margin:0 auto;padding:40px 20px 80px}
+.sheet__title{margin:0 0 4px;font-family:var(--font-display);font-size:20px;font-weight:700;letter-spacing:-.02em}
+.sheet__meta{margin:0 0 36px;font-size:13.5px;color:var(--muted);max-width:82ch;line-height:1.55}
+.spec{margin:0 0 12px;display:flex;flex-wrap:wrap;align-items:baseline;gap:10px}
+.spec__name{font-family:var(--font-mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--primary);font-weight:500}
+.spec__note{font-size:12.5px;color:var(--muted)}
+.frame{border:1px solid var(--border-2);border-radius:16px;overflow:hidden;margin:0 0 36px;background:var(--bg);box-shadow:var(--shadow-sm)}
+.frame--mobile{width:390px;max-width:100%}
+.grid2{display:grid;gap:28px;grid-template-columns:1fr}
+@media (min-width:940px){.grid2{grid-template-columns:1fr 1fr}}
+
+/* ═══ Aplikacja ════════════════════════════════════════════════════════ */
+.app{container-type:inline-size;background:var(--bg);color:var(--fg);font-size:16px;line-height:1.55}
+.container{width:100%;max-width:880px;margin-inline:auto;padding-inline:18px}
+@container (min-width:560px){.container{padding-inline:24px}}
+h1,h2,h3{font-family:var(--font-display);line-height:1.1;letter-spacing:-.02em;font-weight:700;margin:0}
+p{margin:0}
+a{color:inherit;text-decoration:none}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+
+/* ── Nav / Topbar ──────────────────────────────────────────────────────── */
+.nav{position:sticky;top:0;z-index:50;min-height:var(--nav-h);display:flex;align-items:center;background:oklch(100% 0 0 / .82);backdrop-filter:saturate(140%) blur(14px);-webkit-backdrop-filter:saturate(140%) blur(14px);border-bottom:1px solid var(--border)}
+.nav-inner{width:100%;display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding-block:12px}
+.brand{display:inline-flex;align-items:center;gap:10px;font-family:var(--font-display);font-weight:800;font-size:19px;letter-spacing:-.03em;color:var(--primary-strong)}
+.brand:focus-visible{outline:2px solid var(--primary);outline-offset:4px;border-radius:8px}
+.brand .mark{width:30px;height:30px;flex:none}
+.nav-user{order:3;flex-basis:100%;display:flex;align-items:center;gap:8px;min-width:0}
+.nav-mail{font-size:13.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav-links{order:2;margin-left:auto;display:flex;align-items:center;gap:4px}
+.nav-links a,.nav-links button{display:inline-flex;align-items:center;min-height:44px;padding:8px 14px;border:0;border-radius:999px;background:none;font-family:var(--font-body);font-size:14.5px;font-weight:500;color:var(--muted);cursor:pointer;transition:background .15s,color .15s}
+.nav-links a:hover,.nav-links button:hover{color:var(--primary-strong);background:var(--primary-soft)}
+.nav-links a:focus-visible,.nav-links button:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+@container (min-width:720px){
+  .nav-inner{flex-wrap:nowrap;padding-block:0}
+  .nav-user{order:0;flex-basis:auto;margin-left:12px}
+  .nav-links{order:0}
+}
+
+/* ── Plakietki ról ─────────────────────────────────────────────────────── */
+.pill{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;font-size:12.5px;font-weight:600;line-height:1.35;border:1px solid transparent;white-space:nowrap}
+.pill svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.pill-primary{background:var(--primary-soft);color:var(--primary-strong)}
+
+/* ── Nagłówek strony ───────────────────────────────────────────────────── */
+.page{padding-block:32px 56px}
+h1.page-title{font-size:32px}
+.page-lead{margin-top:10px;font-size:15.5px;color:var(--muted);max-width:62ch}
+
+/* ── Nawigacja dniami — DESIGN.md §5 ───────────────────────────────────── */
+.daynav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:22px 0;padding:5px 8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow-sm)}
+.daynav a,.daynav .off{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 10px;border-radius:999px;font-size:14.5px;font-weight:600;color:var(--primary);transition:background .15s,color .15s}
+.daynav a:hover{color:var(--primary-strong);background:var(--primary-soft)}
+.daynav a:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.daynav .off{color:var(--faint);cursor:default}
+.daynav svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.daynav__date{font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:14px;font-weight:600;text-align:center;min-width:0}
+@container (max-width:430px){.daynav{flex-wrap:wrap;padding-bottom:2px}.daynav__date{order:-1;flex-basis:100%;padding:8px 0 2px}}
+
+/* ── Karta ─────────────────────────────────────────────────────────────── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow-sm)}
+.card-pad{padding:18px}
+@container (min-width:560px){.card-pad{padding:22px}}
+.card--warn{background:var(--warn-soft);border-color:oklch(70% 0.13 75 / .35);box-shadow:none}
+
+/* ── Pola ──────────────────────────────────────────────────────────────── */
+fieldset{margin:0 0 24px;padding:0;border:0;min-width:0}
+fieldset:last-of-type{margin-bottom:0}
+legend{padding:0;margin-bottom:10px;font-size:13px;font-weight:600;color:var(--fg)}
+.hours{display:flex;align-items:flex-end;gap:12px;max-width:340px}
+.hours__col{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:6px}
+.hours__col label{font-size:13px;font-weight:600;color:var(--fg)}
+.hours__dash{padding-bottom:12px;color:var(--faint)}
+.control{width:100%;min-height:46px;padding:12px 14px;background:var(--surface);border:1px solid var(--border-2);border-radius:var(--r);font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:15px;color:var(--fg);transition:border-color .15s,box-shadow .15s}
+.control:hover{border-color:oklch(78% 0.016 155)}
+.control:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+.hint{margin-top:10px;font-size:13px;color:var(--muted)}
+
+/* ── Lista koni ────────────────────────────────────────────────────────── */
+.horses{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+@container (min-width:640px){.horses{grid-template-columns:1fr 1fr}}
+.horse{display:flex;align-items:center;gap:12px;min-height:52px;padding:0 14px;background:var(--surface);border:1px solid var(--border-2);border-radius:var(--r);cursor:pointer;transition:border-color .15s,background .15s}
+.horse:hover{background:var(--surface-2)}
+.horse:has(input:focus-visible){outline:2px solid var(--primary);outline-offset:2px}
+.horse.is-on{border-color:var(--primary);background:var(--primary-soft)}
+.horse input{width:17px;height:17px;flex:none;accent-color:var(--primary)}
+.horse__name{font-weight:500}
+.horse__note{font-size:12.5px;color:var(--muted);font-weight:400}
+
+/* ── Przyciski ─────────────────────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:var(--font-display);font-weight:600;font-size:15px;padding:11px 18px;border-radius:999px;border:1px solid transparent;line-height:1;min-height:48px;white-space:nowrap;cursor:pointer;transition:transform .08s,background .15s,box-shadow .15s,border-color .15s,filter .15s}
+.btn:active{transform:translateY(1px)}
+.btn:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.btn-accent{background:var(--accent);color:#fff;box-shadow:var(--shadow-sm)}
+.btn-accent:hover{background:oklch(50% 0.11 52);color:#fff}
+.btn-accent:focus-visible{outline-color:var(--accent-ink)}
+.btn-block{width:100%;margin-top:26px}
+.link{color:var(--primary);font-weight:600}
+.link:hover{color:var(--primary-strong);text-decoration:underline}
+.link:focus-visible{outline:2px solid var(--primary);outline-offset:3px;border-radius:6px}
+
+/* ── Stany puste i awaria — DESIGN.md §5 ───────────────────────────────── */
+.empty{padding:28px 18px;text-align:center}
+.empty p{color:var(--muted);max-width:52ch;margin-inline:auto}
+.empty .link{display:inline-block;margin-top:14px}
+.empty--warn p{color:var(--warn-ink);font-weight:500}
+.empty--warn p + p{margin-top:6px;font-weight:400}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-mark" viewBox="0 0 32 32"><rect width="32" height="32" rx="9" fill="currentColor"/><path d="M9.5 24C4.5 18.5 6.5 8.5 16 8.5S27.5 18.5 22.5 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/><circle cx="9.5" cy="24" r="1.5" fill="#fff"/><circle cx="22.5" cy="24" r="1.5" fill="#fff"/></symbol>
+<symbol id="i-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+<symbol id="i-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+<symbol id="i-building" viewBox="0 0 24 24"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></symbol>
+<symbol id="i-calcheck" viewBox="0 0 24 24"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></symbol>
+</defs></svg>
+
+<div class="sheet">
+  <h1 class="sheet__title">osrodek-grafik.html — <code>/osrodek/grafik</code></h1>
+  <p class="sheet__meta">Kontener 880 px. „Zapisz grafik” jest jedynym CTA kasztanowym na ekranie (DESIGN.md §5), więc zieleń zostaje przy nawigacji i odnośnikach. Data w nawigacji dniami i wartości „Od” / „Do” idą w mono z <code>tabular-nums</code> — kolumny nie skaczą przy zmianie godziny.</p>
+
+  <!-- ══ Desktop ══════════════════════════════════════════════════════ -->
+  <div class="spec"><span class="spec__name">Desktop</span><span class="spec__note">grafik ułożony: 10–14, dwa konie zaznaczone</span></div>
+  <div class="frame">
+    <div class="app" data-od-id="grafik-desktop">
+
+      <header class="nav" data-od-id="topbar">
+        <div class="container nav-inner">
+          <a class="brand" href="/"><svg class="mark" aria-hidden="true"><use href="#i-mark"/></svg>Stable Booksy</a>
+          <span class="nav-user">
+            <span class="nav-mail">cert-test-osrodek@example.com</span>
+            <span class="pill pill-primary"><svg aria-hidden="true"><use href="#i-building"/></svg>Ośrodek</span>
+          </span>
+          <span class="nav-links">
+            <a href="/osrodek">Mój panel</a>
+            <form method="POST" action="/api/auth/signout" style="display:contents"><button type="submit">Wyloguj się</button></form>
+          </span>
+        </div>
+      </header>
+
+      <main class="container page">
+        <h1 class="page-title">Grafik dnia</h1>
+        <p class="page-lead">Zakres godzin i konie pracujące danego dnia. Zakres 10–16 oznacza jazdy od 10:00 do 15:00.</p>
+
+        <nav class="daynav" aria-label="Wybór dnia" data-od-id="daynav">
+          <a href="/osrodek/grafik?dzien=2026-09-07"><svg aria-hidden="true"><use href="#i-left"/></svg>Poprzedni</a>
+          <span class="daynav__date">wtorek, 8 września 2026</span>
+          <a href="/osrodek/grafik?dzien=2026-09-09">Następny<svg aria-hidden="true"><use href="#i-right"/></svg></a>
+        </nav>
+
+        <div class="card card-pad">
+          <form method="POST" action="/api/schedule/save" novalidate>
+            <input type="hidden" name="day" value="2026-09-08">
+
+            <fieldset>
+              <legend>Godziny pracy</legend>
+              <div class="hours">
+                <div class="hours__col">
+                  <label for="g1-open">Od</label>
+                  <input class="control" id="g1-open" name="openHour" type="number" min="0" max="23" value="10">
+                </div>
+                <span class="hours__dash" aria-hidden="true">—</span>
+                <div class="hours__col">
+                  <label for="g1-close">Do</label>
+                  <input class="control" id="g1-close" name="closeHour" type="number" min="1" max="24" value="14">
+                </div>
+              </div>
+              <p class="hint">Jazdy od 10:00 do 13:00 — 4 slotów na konia.</p>
+            </fieldset>
+
+            <fieldset>
+              <legend>Konie pracujące tego dnia</legend>
+              <ul class="horses">
+                <li><label class="horse is-on" for="g1-h1"><input type="checkbox" id="g1-h1" name="horseIds" value="1" checked><span class="horse__name">Bella</span></label></li>
+                <li><label class="horse is-on" for="g1-h2"><input type="checkbox" id="g1-h2" name="horseIds" value="2" checked><span class="horse__name">Grom</span></label></li>
+                <li><label class="horse" for="g1-h3"><input type="checkbox" id="g1-h3" name="horseIds" value="3"><span class="horse__name">Iskra</span></label></li>
+                <li><label class="horse" for="g1-h4"><input type="checkbox" id="g1-h4" name="horseIds" value="4"><span class="horse__name">Kasztan <span class="horse__note">(wycofany ze służby)</span></span></label></li>
+              </ul>
+            </fieldset>
+
+            <button class="btn btn-accent btn-block" type="submit"><svg aria-hidden="true"><use href="#i-calcheck"/></svg>Zapisz grafik</button>
+          </form>
+        </div>
+      </main>
+
+    </div>
+  </div>
+
+  <!-- ══ Mobile 390 ═══════════════════════════════════════════════════ -->
+  <div class="spec"><span class="spec__name">Mobile 390 px</span><span class="spec__note">pasek łamie się na dwa wiersze, konie w jednej kolumnie, „Od” i „Do” obok siebie</span></div>
+  <div class="frame frame--mobile">
+    <div class="app" data-od-id="grafik-mobile">
+      <header class="nav">
+        <div class="container nav-inner">
+          <a class="brand" href="/"><svg class="mark" aria-hidden="true"><use href="#i-mark"/></svg>Stable Booksy</a>
+          <span class="nav-user">
+            <span class="nav-mail">cert-test-osrodek@example.com</span>
+            <span class="pill pill-primary"><svg aria-hidden="true"><use href="#i-building"/></svg>Ośrodek</span>
+          </span>
+          <span class="nav-links">
+            <a href="/osrodek">Mój panel</a>
+            <form method="POST" action="/api/auth/signout" style="display:contents"><button type="submit">Wyloguj się</button></form>
+          </span>
+        </div>
+      </header>
+      <main class="container page">
+        <h1 class="page-title">Grafik dnia</h1>
+        <p class="page-lead">Zakres godzin i konie pracujące danego dnia. Zakres 10–16 oznacza jazdy od 10:00 do 15:00.</p>
+        <nav class="daynav" aria-label="Wybór dnia">
+          <a href="/osrodek/grafik?dzien=2026-09-07"><svg aria-hidden="true"><use href="#i-left"/></svg>Poprzedni</a>
+          <span class="daynav__date">wt., 8 września</span>
+          <a href="/osrodek/grafik?dzien=2026-09-09">Następny<svg aria-hidden="true"><use href="#i-right"/></svg></a>
+        </nav>
+        <div class="card card-pad">
+          <form method="POST" action="/api/schedule/save" novalidate>
+            <input type="hidden" name="day" value="2026-09-08">
+            <fieldset>
+              <legend>Godziny pracy</legend>
+              <div class="hours">
+                <div class="hours__col">
+                  <label for="g2-open">Od</label>
+                  <input class="control" id="g2-open" name="openHour" type="number" min="0" max="23" value="10">
+                </div>
+                <span class="hours__dash" aria-hidden="true">—</span>
+                <div class="hours__col">
+                  <label for="g2-close">Do</label>
+                  <input class="control" id="g2-close" name="closeHour" type="number" min="1" max="24" value="14">
+                </div>
+              </div>
+              <p class="hint">Jazdy od 10:00 do 13:00 — 4 slotów na konia.</p>
+            </fieldset>
+            <fieldset>
+              <legend>Konie pracujące tego dnia</legend>
+              <ul class="horses">
+                <li><label class="horse is-on" for="g2-h1"><input type="checkbox" id="g2-h1" name="horseIds" value="1" checked><span class="horse__name">Bella</span></label></li>
+                <li><label class="horse is-on" for="g2-h2"><input type="checkbox" id="g2-h2" name="horseIds" value="2" checked><span class="horse__name">Grom</span></label></li>
+                <li><label class="horse" for="g2-h3"><input type="checkbox" id="g2-h3" name="horseIds" value="3"><span class="horse__name">Iskra</span></label></li>
+              </ul>
+            </fieldset>
+            <button class="btn btn-accent btn-block" type="submit"><svg aria-hidden="true"><use href="#i-calcheck"/></svg>Zapisz grafik</button>
+          </form>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="grid2">
+
+    <!-- ══ Stan pusty ═════════════════════════════════════════════════ -->
+    <div>
+      <div class="spec"><span class="spec__name">Stan pusty · ośrodek bez koni</span><span class="spec__note">jedno zdanie w karcie + odnośnik do <code>/osrodek/konie</code></span></div>
+      <div class="frame">
+        <div class="app" data-od-id="grafik-empty">
+          <main class="container page">
+            <h1 class="page-title">Grafik dnia</h1>
+            <p class="page-lead">Zakres godzin i konie pracujące danego dnia. Zakres 10–16 oznacza jazdy od 10:00 do 15:00.</p>
+            <nav class="daynav" aria-label="Wybór dnia">
+              <a href="/osrodek/grafik?dzien=2026-09-07"><svg aria-hidden="true"><use href="#i-left"/></svg>Poprzedni</a>
+              <span class="daynav__date">wt., 8 września</span>
+              <a href="/osrodek/grafik?dzien=2026-09-09">Następny<svg aria-hidden="true"><use href="#i-right"/></svg></a>
+            </nav>
+            <div class="card">
+              <div class="empty">
+                <p>Nie masz jeszcze żadnych koni. Grafik przydziela konie do godzin, więc bez stada nie ma czego układać.</p>
+                <a class="link" href="/osrodek/konie">Dodaj pierwszego konia</a>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ Stan awarii ════════════════════════════════════════════════ -->
+    <div>
+      <div class="spec"><span class="spec__name">Stan awarii · <code>loadFailed</code></span><span class="spec__note">karta w <code>--warn-soft</code> — użytkownik ma czekać, nie działać</span></div>
+      <div class="frame">
+        <div class="app" data-od-id="grafik-failed">
+          <main class="container page">
+            <h1 class="page-title">Grafik dnia</h1>
+            <p class="page-lead">Zakres godzin i konie pracujące danego dnia. Zakres 10–16 oznacza jazdy od 10:00 do 15:00.</p>
+            <nav class="daynav" aria-label="Wybór dnia">
+              <a href="/osrodek/grafik?dzien=2026-09-07"><svg aria-hidden="true"><use href="#i-left"/></svg>Poprzedni</a>
+              <span class="daynav__date">wt., 8 września</span>
+              <a href="/osrodek/grafik?dzien=2026-09-09">Następny<svg aria-hidden="true"><use href="#i-right"/></svg></a>
+            </nav>
+            <div class="card card--warn">
+              <div class="empty empty--warn">
+                <p>Nie udało się wczytać grafiku.</p>
+                <p>Odśwież stronę za chwilę.</p>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>
