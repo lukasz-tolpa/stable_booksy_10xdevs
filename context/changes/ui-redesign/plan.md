@@ -781,10 +781,10 @@ single-PR delivery.
 
 #### Automated
 
-- [x] 5.1 `npm run lint`, `npm run check`, `npm test` pass
-- [x] 5.2 `npx playwright test` passes
-- [x] 5.3 Horse checkboxes still share `name="horseIds"`
-- [x] 5.4 All three stable islands still use `client:load`
+- [x] 5.1 `npm run lint`, `npm run check`, `npm test` pass — 837fa0f
+- [x] 5.2 `npx playwright test` passes — 837fa0f
+- [x] 5.3 Horse checkboxes still share `name="horseIds"` — 837fa0f
+- [x] 5.4 All three stable islands still use `client:load` — 837fa0f
 
 #### Manual
 
@@ -797,9 +797,9 @@ single-PR delivery.
 
 #### Automated
 
-- [ ] 6.1 `npm run lint`, `npm run check`, `npm test` pass
-- [ ] 6.2 `npx playwright test` passes
-- [ ] 6.3 Hour elements on both list screens still have `"{h}:00"` as their full text
+- [x] 6.1 `npm run lint`, `npm run check`, `npm test` pass
+- [x] 6.2 `npx playwright test` passes
+- [x] 6.3 Hour elements on both list screens still have `"{h}:00"` as their full text
 
 #### Manual
 
