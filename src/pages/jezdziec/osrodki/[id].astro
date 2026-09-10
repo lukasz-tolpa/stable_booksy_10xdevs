@@ -10,6 +10,7 @@ import { getScheduleDay, type ScheduleDayData } from "@/lib/schedule/queries";
 import { getStableById, listStableHorses, type StableListItem } from "@/lib/stables/queries";
 import { parseStableId } from "@/lib/stables/search";
 import { createClient } from "@/lib/supabase";
+import { logError } from "@/lib/log";
 
 // Trasa leży pod prefiksem /jezdziec, więc dostęp pilnuje middleware (mapa tras
 // w @/lib/auth/roles) - konto ośrodka jest stąd przekierowywane do siebie.
@@ -57,8 +58,9 @@ if (id !== null && supabase && user) {
         currentHour: day === today ? currentWarsawHour() : null,
       });
     }
-  } catch {
+  } catch (error) {
     loadFailed = true;
+    logError("page:jezdziec/osrodki/[id]", error);
   }
 } else if (id !== null) {
   // Brak klienta Supabase lub sesji przy poprawnym identyfikatorze to awaria

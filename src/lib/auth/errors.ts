@@ -76,6 +76,17 @@ export function isTransportError(error: unknown): boolean {
   return status === undefined || status === 0;
 }
 
+/**
+ * Awaria dostawcy: transport (GoTrue nieosiągalny) albo odpowiedź 5xx (GoTrue działa,
+ * ale sam ma problem, np. bez bazy). Obie mówią użytkownikowi "chwilowy problem".
+ */
+export function isProviderOutage(error: unknown): boolean {
+  if (isTransportError(error)) return true;
+  if (typeof error !== "object" || error === null) return false;
+  const status = "status" in error ? error.status : undefined;
+  return typeof status === "number" && status >= 500;
+}
+
 /** Błąd, który użytkownik wywołał sam (złe hasło, istniejące konto, limit) - nie incydent, bez wpisu w logu. */
 export function isExpectedUserError(code: string | undefined): boolean {
   return code !== undefined && USER_ERROR_CODES.has(code);

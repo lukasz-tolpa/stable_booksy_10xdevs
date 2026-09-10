@@ -467,6 +467,18 @@ provider messages never reach the UI", Applies to "any `await client.*` in
 **Contract**: PR from `bugfix/swallowed-auth-errors` to `main`, wait for `ci`,
 `db-tests`, `e2e`, merge (merge commit).
 
+### Adaptation (2026-09-10)
+
+- 4.4 cannot be reproduced by stopping the database: `getUser` then fails in the
+  middleware first (GoTrue without its database answers 5xx) and the request never
+  reaches the page. Verified instead by a code sabotage on the dev server: with
+  `getRiderBookings` throwing, a signed-in rider's `/jezdziec/zapisy` returned 200 with
+  "Nie udało się wczytać zapisów." and the dev log carried
+  `[page:jezdziec/zapisy] { name: 'Error', message: 'SABOTAGE: …' }`; sabotage reverted.
+- That analysis exposed a classification gap: a GoTrue **5xx** on `getUser` was
+  `expired` ("Sesja wygasła"). Fixed test-first: `isProviderOutage` (transport or
+  status ≥ 500) in `errors.ts`, used by `currentUser` and `authFailureMessage`.
+
 ### Success Criteria:
 
 #### Automated Verification:
@@ -553,26 +565,26 @@ None. Rollback is `git revert` of the merge commit; no data or config changes.
 
 #### Automated
 
-- [x] 3.1 `npm test`, `npm run lint`, `npm run check` pass
-- [x] 3.2 No `error.message` left in `src/pages/api/auth/*.ts`
-- [x] 3.3 `npm run test:e2e` passes
-- [x] 3.4 Sabotage: reverting `signout.ts` to ignore the result is caught by the wiring grep; restored
+- [x] 3.1 `npm test`, `npm run lint`, `npm run check` pass — 90a56e4
+- [x] 3.2 No `error.message` left in `src/pages/api/auth/*.ts` — 90a56e4
+- [x] 3.3 `npm run test:e2e` passes — 90a56e4
+- [x] 3.4 Sabotage: reverting `signout.ts` to ignore the result is caught by the wiring grep; restored — 90a56e4
 
 #### Manual
 
-- [x] 3.5 Wrong password shows the Polish sentence
-- [x] 3.6 Existing e-mail on sign-up shows "Konto z tym adresem już istnieje"
-- [x] 3.7 Stopped Supabase shows the outage sentence and logs without e-mail
-- [x] 3.8 Sign-out still works; `/?error=test` shows the banner
+- [x] 3.5 Wrong password shows the Polish sentence — 90a56e4
+- [x] 3.6 Existing e-mail on sign-up shows "Konto z tym adresem już istnieje" — 90a56e4
+- [x] 3.7 Stopped Supabase shows the outage sentence and logs without e-mail — 90a56e4
+- [x] 3.8 Sign-out still works; `/?error=test` shows the banner — 90a56e4
 
 ### Phase 4: Page logging, docs, lesson, merge
 
 #### Automated
 
-- [ ] 4.1 Each of the six pages calls `logError` once
-- [ ] 4.2 lint, check, test and Prettier on docs pass
+- [x] 4.1 Each of the six pages calls `logError` once
+- [x] 4.2 lint, check, test and Prettier on docs pass
 - [ ] 4.3 PR merged with `ci`, `db-tests`, `e2e` green
 
 #### Manual
 
-- [ ] 4.4 Stopped database: `/jezdziec/zapisy` failure state plus a `[page:…]` log entry
+- [x] 4.4 Stopped database: `/jezdziec/zapisy` failure state plus a `[page:…]` log entry

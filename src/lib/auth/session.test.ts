@@ -95,6 +95,17 @@ describe("currentUser", () => {
     });
   });
 
+  // GoTrue odpowiada, ale sam ma awarię (np. bez bazy): 5xx to problem dostawcy,
+  // nie sesji użytkownika - komunikat o chwilowym problemie, nie "Sesja wygasła".
+  it("błąd 5xx z GoTrue to awaria, nie wygaśnięcie", async () => {
+    const error = { code: "unexpected_failure", status: 500, message: "Database error querying schema" };
+
+    await expect(currentUser(stubClient({ getUser: { data: { user: null }, error } }))).resolves.toEqual({
+      kind: "outage",
+      error,
+    });
+  });
+
   it("odrzucona sesja to wygaśnięcie", async () => {
     const error = {
       code: "session_not_found",

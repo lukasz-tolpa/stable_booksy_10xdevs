@@ -10,6 +10,7 @@ import {
   WEAK_PASSWORD,
   authErrorMessage,
   isExpectedUserError,
+  isProviderOutage,
   isTransportError,
 } from "@/lib/auth/errors";
 
@@ -95,6 +96,24 @@ describe("isTransportError", () => {
     ["null", null],
   ])("%s nie jest awarią transportu", (_label, value) => {
     expect(isTransportError(value)).toBe(false);
+  });
+});
+
+describe("isProviderOutage", () => {
+  it.each([
+    ["transport", { name: "AuthRetryableFetchError", status: 0, code: undefined, message: "fetch failed" }],
+    ["5xx z GoTrue", { code: "unexpected_failure", status: 500, message: "Database error querying schema" }],
+    ["502 z bramki", { status: 502, message: "Bad Gateway" }],
+  ])("%s to awaria dostawcy", (_label, value) => {
+    expect(isProviderOutage(value)).toBe(true);
+  });
+
+  it.each([
+    ["złe hasło", { code: "invalid_credentials", status: 400 }],
+    ["odrzucona sesja", { code: "session_not_found", status: 403 }],
+    ["null", null],
+  ])("%s nie jest awarią dostawcy", (_label, value) => {
+    expect(isProviderOutage(value)).toBe(false);
   });
 });
 

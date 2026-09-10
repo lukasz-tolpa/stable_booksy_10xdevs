@@ -8,6 +8,7 @@ import { addDays, parseScheduleDate, todayIso } from "@/lib/schedule/dates";
 import { getScheduleDay, type ScheduleDayData } from "@/lib/schedule/queries";
 import { getOwnedStableId, listStableHorses } from "@/lib/stables/queries";
 import { createClient } from "@/lib/supabase";
+import { logError } from "@/lib/log";
 
 // Dostęp pilnuje middleware (mapa tras w @/lib/auth/roles). Strona jest czysto
 // odczytowa - dni przeszłe są dozwolone bez żadnego guardu, bo nie ma tu akcji,
@@ -37,8 +38,9 @@ if (supabase && profile) {
         rows = composeBookingRows(bookings, horses);
       }
     }
-  } catch {
+  } catch (error) {
     loadFailed = true;
+    logError("page:osrodek/zapisy", error);
   }
 } else {
   // Brak klienta Supabase lub profilu to awaria konfiguracji, nie pusty dzień.

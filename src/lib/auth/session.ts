@@ -19,7 +19,7 @@ import {
   OUTAGE_MESSAGE,
   authErrorMessage,
   isExpectedUserError,
-  isTransportError,
+  isProviderOutage,
   type AuthAction,
 } from "@/lib/auth/errors";
 import { isUserRole } from "@/lib/auth/roles";
@@ -33,7 +33,7 @@ import type { UserRole } from "@/types";
  * użytkownika (złe hasło, istniejące konto, limit prób nie są incydentami).
  */
 export function authFailureMessage(scope: string, error: unknown, action: AuthAction): string {
-  if (isTransportError(error)) {
+  if (isProviderOutage(error)) {
     logError(scope, error);
     return OUTAGE_MESSAGE;
   }
@@ -108,7 +108,7 @@ export async function currentUser(client: SessionClient): Promise<UserResult> {
   const { data, error } = await client.auth.getUser();
   if (error) {
     if (isMissingSessionError(error)) return { kind: "anonymous" };
-    return isTransportError(error) ? { kind: "outage", error } : { kind: "expired", error };
+    return isProviderOutage(error) ? { kind: "outage", error } : { kind: "expired", error };
   }
   return data.user ? { kind: "user", user: data.user } : { kind: "anonymous" };
 }
