@@ -1,7 +1,7 @@
 ---
 change_id: swallowed-auth-errors
 title: Swallowed auth errors
-status: implementing
+status: implemented
 created: 2026-09-10
 updated: 2026-09-10
 archived_at: null
