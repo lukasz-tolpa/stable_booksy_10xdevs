@@ -35,7 +35,10 @@ const homeRoute = role ? homeRouteForRole(role) : null;
         </>
       ) : (
         <>
-          <span class="nav-user">
+          {/* Gość: na wąskim ekranie ten napis znika, bo stojące obok „Zaloguj się"
+              i „Załóż konto" mówią to samo, a pasek łamał się przez niego na trzy
+              rzędy. Zalogowany zachowuje swój wiersz — tam adres i rola niosą treść. */}
+          <span class="nav-user nav-user--guest">
             <span class="nav-mail">Nie jesteś zalogowany</span>
           </span>
           <div class="nav-links">
@@ -137,6 +140,24 @@ const homeRoute = role ? homeRouteForRole(role) : null;
   .nav-links button:focus-visible {
     outline: 2px solid var(--primary);
     outline-offset: 2px;
+  }
+
+  /* Poniżej progu łamania pasek musi zmieścić markę i linki w jednym rzędzie.
+     Zmierzone na produkcji: przy 360 px marka i linki zajmowały 343 px przy 324 px
+     dostępnych, więc schodziły do osobnych rzędów. Ciaśniejsze pigułki i mniejsza
+     marka mieszczą je z zapasem także na 320 px. */
+  @media (width < 768px) {
+    .nav-user--guest {
+      display: none;
+    }
+    .brand {
+      font-size: 17.5px;
+    }
+    .nav-links a,
+    .nav-links button {
+      padding: 8px 10px;
+      font-size: 14px;
+    }
   }
 
   /* Prototyp łamie układ przy 720 px; w aplikacji trzymamy się skali Tailwinda (md). */
