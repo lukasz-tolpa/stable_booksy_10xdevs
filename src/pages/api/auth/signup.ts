@@ -14,6 +14,7 @@ export const POST: APIRoute = async (context) => {
   const form = await context.request.formData();
 
   const parsed = signUpSchema.safeParse({
+    fullName: formValue(form, "fullName"),
     email: formValue(form, "email"),
     password: formValue(form, "password"),
     confirmPassword: formValue(form, "confirmPassword"),
@@ -24,7 +25,7 @@ export const POST: APIRoute = async (context) => {
     return backToForm(context, firstErrorMessage(parsed.error));
   }
 
-  const { email, password, role } = parsed.data;
+  const { fullName, email, password, role } = parsed.data;
 
   const supabase = createClient(context.request.headers, context.cookies);
   if (!supabase) {
@@ -33,7 +34,7 @@ export const POST: APIRoute = async (context) => {
 
   // Rola jedzie w metadanych użytkownika; profil zakłada trigger bazy z F-01,
   // który mapuje ją twardo na dozwoloną wartość.
-  const outcome = await signUpOutcome(supabase, { email, password, role });
+  const outcome = await signUpOutcome(supabase, { email, password, role, fullName });
 
   switch (outcome.kind) {
     case "error":

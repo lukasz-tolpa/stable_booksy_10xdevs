@@ -16,6 +16,9 @@ import type { LogEntry } from "@/lib/log";
 // GoTrue nieosiągalny, rejestracja bez sesji - nie dają się wywołać na prawdziwym stacku,
 // więc klient jest obiektem zwracającym zadane `{ data, error }`, a loader roli funkcją. Bez mockowania modułów.
 
+/** Argument, który `signUpOutcome` podaje klientowi - kontrakt metadanych konta. */
+type SignUpArgs = Parameters<SessionClient["auth"]["signUp"]>[0];
+
 interface Results {
   signOut?: { error: unknown };
   /** Klient rzuca (np. TypeError z fetch) zamiast zwrócić `{ error }`. */
@@ -24,6 +27,8 @@ interface Results {
   getUserThrows?: Error;
   signUp?: { data: { user: User | null; session: object | null }; error: unknown };
   signUpThrows?: Error;
+  /** Podstawiona tablica zbiera argumenty `signUp` - inaczej payload jest nieobserwowalny. */
+  signUpCalls?: SignUpArgs[];
 }
 
 function roleLoader(result: { data: { role: string } | null; error: unknown }): RoleLoader {
@@ -46,10 +51,12 @@ function stubClient(results: Results): SessionClient {
         results.getUserThrows
           ? Promise.reject(results.getUserThrows)
           : Promise.resolve(results.getUser ?? { data: { user: null }, error: null }),
-      signUp: () =>
-        results.signUpThrows
+      signUp: (credentials) => {
+        results.signUpCalls?.push(credentials);
+        return results.signUpThrows
           ? Promise.reject(results.signUpThrows)
-          : Promise.resolve(results.signUp ?? { data: { user: null, session: null }, error: null }),
+          : Promise.resolve(results.signUp ?? { data: { user: null, session: null }, error: null });
+      },
     },
   };
 }
@@ -171,7 +178,27 @@ describe("currentUser", () => {
 });
 
 describe("signUpOutcome", () => {
-  const input = { email: "nowy@example.com", password: "sekret123", role: "rider" as const };
+  const input = {
+    email: "nowy@example.com",
+    password: "sekret123",
+    role: "rider" as const,
+    fullName: "Anna Kowalska",
+  };
+
+  // FR-005: ośrodek widzi listę zapisów godzina-koń-jeździec, więc imię musi dotrzeć
+  // do profilu. Profil zakłada trigger `handle_new_user` z metadanych konta, a jedyne,
+  // co robi aplikacja, to podanie ich przy rejestracji - i to jest tu asercjonowane.
+  it("przekazuje rolę i imię jeźdźca w metadanych konta", async () => {
+    const signUpCalls: SignUpArgs[] = [];
+    const client = stubClient({
+      signUp: { data: { user: fakeUser("u2"), session: {} }, error: null },
+      signUpCalls,
+    });
+
+    await signUpOutcome(client, input);
+
+    expect(signUpCalls[0]?.options?.data).toEqual({ role: "rider", full_name: "Anna Kowalska" });
+  });
 
   it("konto bez sesji wymaga potwierdzenia, a nie wejścia do panelu", async () => {
     const client = stubClient({ signUp: { data: { user: fakeUser("u2"), session: null }, error: null } });

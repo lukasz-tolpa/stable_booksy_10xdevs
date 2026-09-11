@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import {
+  RIDER_A_NAME,
   RIDER_A_STATE,
   STABLE_NAME,
   STABLE_STATE,
@@ -70,8 +71,9 @@ test("jeździec przechodzi pełną pętlę: katalog → slot → zapis → lista
       await expect(stablePage.getByRole("heading", { level: 1, name: "Zapisy dnia" })).toBeVisible();
       const row = hourSection(stablePage, HOUR).filter({ hasText: HORSE });
       await expect(row).toBeVisible();
-      // Świeże konto z rejestracji nie ma nazwiska w profilu.
-      await expect(row).toContainText("(bez nazwiska)");
+      // FR-005: rejestracja wymaga imienia, więc ośrodek widzi jeźdźca, a nie zapas
+      // dla profilu bez imienia. To imię podał setup przy zakładaniu konta A.
+      await expect(row).toContainText(RIDER_A_NAME);
     });
 
     await test.step("zapis jest w Moich zapisach i daje się odwołać", async () => {

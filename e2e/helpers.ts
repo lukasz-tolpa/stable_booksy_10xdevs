@@ -16,6 +16,17 @@ export const RIDER_A_STATE = `${AUTH_DIR}/rider-a.json`;
 export const RIDER_B_STATE = `${AUTH_DIR}/rider-b.json`;
 export const STABLE_STATE = `${AUTH_DIR}/stable.json`;
 
+/**
+ * Imiona jeźdźców zakładanych przez setup. Stałe, a nie wartość zwracana z setupu:
+ * projekt `setup` i projekty scenariuszy to osobne uruchomienia, które dzielą tylko
+ * pliki na dysku, a stan sesji niesie ciasteczka, nie imię. Scenariusz asercjonuje
+ * imię na liście „Zapisy dnia" ośrodka (FR-005), więc musi je znać z tego samego źródła.
+ * Celowo różne od imion z seeda — `supabase/tests/rls_isolation.sql` wyszukuje
+ * jeźdźców po `full_name`, więc kolizja dałaby tam dwa wiersze zamiast jednego.
+ */
+export const RIDER_A_NAME = "Alicja E2E";
+export const RIDER_B_NAME = "Bartek E2E";
+
 export const SEED_HINT = "Seed nieaktualny albo stack nie działa — uruchom: npx supabase db reset";
 
 /** Rzucona wartość jako `Error` — reguła `only-throw-error` przy ponownym rzucie po sprzątaniu. */

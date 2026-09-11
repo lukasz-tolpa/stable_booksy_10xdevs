@@ -3,6 +3,7 @@ import { MIN_PASSWORD_LENGTH } from "@/lib/auth/constants";
 import { newStableSchema, signInSchema, signUpSchema } from "@/lib/auth/schemas";
 
 const validSignUp = {
+  fullName: "Anna Kowalska",
   email: "anna@example.com",
   password: "sekret123",
   confirmPassword: "sekret123",
@@ -44,6 +45,29 @@ describe("signUpSchema", () => {
 
   it("odrzuca niepoprawny adres e-mail", () => {
     expect(signUpSchema.safeParse({ ...validSignUp, email: "anna-example.com" }).success).toBe(false);
+  });
+
+  // FR-005: lista zapisów ośrodka pokazuje godzinę, konia i jeźdźca. Konto bez imienia
+  // wpisuje tam zapas "(bez nazwiska)", więc rejestracja nie może go przepuścić.
+  it("odrzuca brak imienia", () => {
+    const { fullName: _fullName, ...withoutName } = validSignUp;
+    expect(signUpSchema.safeParse(withoutName).success).toBe(false);
+  });
+
+  it("odrzuca imię z samych białych znaków", () => {
+    const result = signUpSchema.safeParse({ ...validSignUp, fullName: "   " });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toBe("Podaj imię i nazwisko");
+    }
+  });
+
+  it("przycina białe znaki wokół imienia", () => {
+    const result = signUpSchema.safeParse({ ...validSignUp, fullName: "  Anna Kowalska  " });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.fullName).toBe("Anna Kowalska");
+    }
   });
 });
 

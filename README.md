@@ -1,176 +1,170 @@
-# 10x Astro Starter
+# Stable Booksy
 
-A modern, opinionated starter template for building fast, accessible web applications.
+Zapisy na jazdy konne dla małych stadnin. Ośrodek układa grafik dnia — godziny pracy
+i konie, które tego dnia pracują — a jeździec sam wybiera wolny slot i się zapisuje.
+Bez telefonów, bez zeszytu, bez dubli.
 
-## Tech Stack
+**Produkcja:** https://stable-booksy.tolpa-lukasz97.workers.dev
 
-- [Astro](https://astro.build/) v6 - Modern web framework with server-first rendering
-- [React](https://react.dev/) v19 - UI library for interactive components
-- [TypeScript](https://www.typescriptlang.org/) v5 - Type-safe JavaScript
-- [Tailwind CSS](https://tailwindcss.com/) v4 - Utility-first CSS framework
-- [Supabase](https://supabase.com/) - Authentication and backend-as-a-service
-- [Cloudflare Workers](https://workers.cloudflare.com/) - Edge deployment runtime
+## Problem
 
-## Prerequisites
+Stadniny prowadzą grafik ręcznie, w zeszycie albo w arkuszu. Osoba układająca dzień musi
+sama pilnować, który koń jest o danej godzinie wolny i czy zapisy się nie zderzają.
+Przydział koni to nie jest zwykły kalendarz, tylko alokacja zasobu z ograniczeniami,
+której Kalendarz Google ani Booksy nie pilnują. Stąd ta aplikacja.
 
-- Node.js v22.14.0 (as specified in `.nvmrc`)
-- npm (comes with Node.js)
+## Dwie role
 
-## Getting Started
+| Rola         | Co robi                                                                                 |
+| ------------ | --------------------------------------------------------------------------------------- |
+| **Ośrodek**  | Zakłada stadninę, prowadzi stado koni, układa grafik dnia, widzi listę zapisów na dzień |
+| **Jeździec** | Przegląda ośrodki, wybiera wolny slot godzina × koń, zapisuje się i odwołuje zapis      |
 
-1. Clone the repository:
+Rola jest wybierana przy rejestracji i zapisywana w profilu przez trigger bazy. Pośrednik
+(`src/middleware.ts`) pilnuje tras: konto ośrodka nie wejdzie na ekrany jeźdźca i odwrotnie.
 
-```bash
-git clone https://github.com/przeprogramowani/10x-astro-starter.git
-cd 10x-astro-starter
-```
+## Jak to działa
 
-2. Install dependencies:
+Najważniejsza reguła nie mieszka w kodzie aplikacji, tylko w bazie. Jeden slot to trójka
+(dzień grafiku, koń, godzina), a podwójnej rezerwacji pilnuje częściowy unikalny indeks
+`bookings_active_slot_key`. Gdy dwóch jeźdźców kliknie ten sam slot w tej samej chwili,
+dokładnie jeden zapis przechodzi, a drugi dostaje po polsku „Ten slot został właśnie
+zajęty". Tak samo działają pozostałe gwarancje: zapis poza godzinami pracy odrzuca trigger,
+a zmiana grafiku, która porzuciłaby istniejące zapisy, jest blokowana z własnym kodem błędu.
+
+Godziny pracy to zakres półotwarty: 10–16 oznacza sloty od 10:00 do 15:00.
+
+Jeździec nigdy nie widzi, kto zajął slot. Zajętość przychodzi z jednej funkcji
+`get_taken_slots`, która zwraca wyłącznie parę (koń, godzina), bez tożsamości.
+
+## Stos
+
+- [Astro](https://astro.build/) 6 w trybie SSR, wyspy [React](https://react.dev/) 19 tylko
+  tam, gdzie potrzebna jest interakcja
+- [TypeScript](https://www.typescriptlang.org/) 5, [Tailwind CSS](https://tailwindcss.com/) 4,
+  komponenty shadcn/ui
+- [Supabase](https://supabase.com/) — uwierzytelnianie i Postgres z politykami dostępu na
+  poziomie wierszy
+- [Cloudflare Workers](https://workers.cloudflare.com/) — wdrożenie na brzegu sieci
+
+Warstwa wizualna ma własny kontrakt: `DESIGN.md` w katalogu głównym. Aplikacja ma jeden,
+jasny motyw — trybu ciemnego nie ma i nie należy go dodawać.
+
+## Uruchomienie lokalne
+
+Potrzebujesz Node 22.14.0 (zgodnie z `.nvmrc`) oraz Dockera, bo lokalna Supabase działa
+w kontenerach.
 
 ```bash
 npm install
+npx supabase start          # wymaga Dockera
+npx supabase db reset       # schemat z migracji + dane demo z seed.sql
 ```
 
-3. Set up Supabase and configure environment variables — see [Supabase Configuration](#supabase-configuration) below.
-
-4. Create a `.dev.vars` file for local Cloudflare dev secrets:
+Skopiuj `.env.example` do `.dev.vars` i wpisz adres oraz klucz z `npx supabase status`.
+Sekrety czyta zbudowany worker ze snapshotu zrobionego przy `astro build`, nie ze
+zmiennych procesu.
 
 ```bash
-cp .env.example .dev.vars
+npm run dev                 # http://localhost:4321
 ```
 
-5. Run the development server:
+**Rejestracja nie wymaga potwierdzania adresu e-mail.** Potwierdzenia są wyłączone
+i lokalnie, i na produkcji, więc konto zakłada się i loguje od razu.
+
+### Konta demo — produkcja
+
+Do obejrzenia aplikacji bez zakładania konta. Hasło dla obu: `sekret123`
+
+| Rola     | Adres                       | Co zastaniesz                                             |
+| -------- | --------------------------- | --------------------------------------------------------- |
+| Ośrodek  | `osrodek.demo@example.com`  | Stadnina Pod Dębem, cztery konie, grafik na trzy tygodnie |
+| Jeździec | `jezdziec.demo@example.com` | Katalog ośrodków z wolnymi slotami do zapisania           |
+
+Rejestracja jest otwarta i nie wymaga potwierdzania adresu, więc równie dobrze możesz
+założyć własne konto w dowolnej roli.
+
+### Konta demo — lokalnie
+
+Po `npx supabase db reset`, hasło dla wszystkich: `sekret123`
+
+| Rola     | Adres                       |
+| -------- | --------------------------- |
+| Ośrodek  | `osrodek.debem@example.com` |
+| Ośrodek  | `osrodek.rzeka@example.com` |
+| Jeździec | `anna.kowalska@example.com` |
+| Jeździec | `piotr.nowak@example.com`   |
+
+Dane z seeda układają grafik na **jutro**, więc po dobie bez `db reset` ekran slotów
+będzie pusty. Skrypty testowe wykrywają to i podpowiadają ponowne załadowanie.
+
+## Testy
+
+Trzy warstwy, każda odpowiada na inne pytanie.
 
 ```bash
-npm run dev
+npm test                    # Vitest — czysta logika w src/lib/**
+npm run test:db             # psql — gwarancje bazy: RLS, współbieżność, guardraile grafiku
+npm run test:e2e            # Playwright — pełne ścieżki użytkownika w przeglądarce
 ```
 
-## Available Scripts
+Testy bazodanowe i przeglądarkowe wymagają działającego stacka i seeda załadowanego
+**dzisiaj**. Suita przeglądarkowa buduje aplikację i uruchamia ją na podglądzie, więc
+sprawdza to samo, co zobaczy użytkownik: formularze, przekierowania i ciasteczka sesji.
 
-- `npm run dev` - Start development server (Cloudflare workerd runtime)
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
-- `npm run lint` - Run ESLint with type-checked rules
-- `npm run lint:fix` - Auto-fix ESLint issues
-- `npm run format` - Run Prettier
-- `npm test` - Vitest unit tests (`src/**/*.test.ts`)
-- `npm run test:db` - Database guarantee scripts against the local Supabase stack (seed loaded today)
-- `npm run test:e2e` - Playwright browser tests against the local Supabase stack + `astro preview` (`test:e2e:ui` for UI mode; `.dev.vars` must point at the local stack)
+Dwa scenariusze niosą najwięcej: pełna pętla jeźdźca od katalogu przez zapis do odwołania
+oraz odmowa przy slocie, który ktoś zajął w międzyczasie.
 
-## Project Structure
+Strategia i wzorce dopisywania testów: `context/foundation/test-plan.md`.
 
-```md
-.
-├── src/
-│ ├── layouts/ # Astro layouts
-│ ├── pages/ # Astro pages
-│ │ └── api/ # API endpoints
-│ ├── components/ # UI components (Astro & React)
-│ └── assets/ # Static assets
-├── public/ # Public assets
-├── wrangler.jsonc # Cloudflare Workers config
-```
+## Dostępne polecenia
 
-## Supabase Configuration
+| Polecenie          | Co robi                                             |
+| ------------------ | --------------------------------------------------- |
+| `npm run dev`      | Serwer deweloperski                                 |
+| `npm run build`    | Budowanie produkcyjne                               |
+| `npm run preview`  | Podgląd zbudowanej wersji na runtime Cloudflare     |
+| `npm run lint`     | ESLint z kontrolą typów                             |
+| `npm run check`    | `astro check`                                       |
+| `npm run format`   | Prettier                                            |
+| `npm run db:types` | Regeneracja typów bazy (wymaga działającego stacka) |
 
-This project uses [Supabase](https://supabase.com/) for authentication. Environment variables are declared via Astro's `astro:env` schema and are treated as **server-only secrets** — they are never exposed to the client.
-
-### First-time setup (local, no cloud project needed)
-
-Requires [Docker](https://www.docker.com/) and ~7 GB RAM.
-
-1. Create your `.env` file:
-
-```bash
-cp .env.example .env
-```
-
-2. Initialize the local Supabase project (creates a `supabase/` config folder):
-
-```bash
-npx supabase init
-```
-
-3. Start the local stack (downloads Docker images on first run):
-
-```bash
-npx supabase start
-```
-
-4. Copy the credentials printed by the CLI into your `.env` and `.dev.vars`:
+## Struktura
 
 ```
-SUPABASE_URL=http://127.0.0.1:54321
-SUPABASE_KEY=<anon key from CLI output>
+src/pages/          trasy Astro; api/ to punkty końcowe formularzy
+src/components/     Astro dla treści statycznej, ui/ dla bloków wspólnych,
+                    wyspy React tylko tam, gdzie jest interakcja
+src/lib/            logika domenowa: sloty, grafik, zapisy, błędy, sesja
+src/middleware.ts   bramkowanie tras według roli
+supabase/           migracje ze schematem i politykami, seed.sql, tests/
+context/            dokumenty projektu (patrz niżej)
 ```
 
-5. To stop the stack when done:
+## Dokumenty projektu
 
-```bash
-npx supabase stop
-```
+| Plik                                   | Co zawiera                                                    |
+| -------------------------------------- | ------------------------------------------------------------- |
+| `context/foundation/prd.md`            | Wymagania produktowe, persony, kryteria sukcesu               |
+| `context/foundation/roadmap.md`        | Kolejność prac w pionowych wycinkach                          |
+| `context/foundation/tech-stack.md`     | Wybór stosu i uzasadnienie                                    |
+| `context/foundation/infrastructure.md` | Środowiska i wdrożenie                                        |
+| `context/foundation/test-plan.md`      | Strategia testów i wzorce ich dopisywania                     |
+| `context/foundation/lessons.md`        | Reguły wyciągnięte z poprzednich zmian                        |
+| `AGENTS.md`                            | Zasady pracy w repozytorium, w tym kontrakt warstwy wizualnej |
+| `DESIGN.md`                            | System wizualny: tokeny, typografia, stany                    |
 
-The local Studio UI is available at `http://localhost:54323`.
+Historia zmian leży w `context/archive/`, po jednym folderze na wycinek, razem z planem
+i przeglądem implementacji.
 
-The schema lives in `supabase/migrations/` and the local demo data in `supabase/seed.sql`; `npx supabase db reset` rebuilds both. The seed's schedule days are computed as "tomorrow" at load time, so reset it on the day you run `npm run test:db` or `npm run test:e2e`.
+## Wdrożenie i CI
 
-### Using a cloud Supabase project instead
+Gałąź `main` przyjmuje wyłącznie scalenia przez pull request, z trzema wymaganymi bramkami:
+`ci` (lint, testy jednostkowe, kontrola typów, build), `db-tests` i `e2e`. Produkcję wdraża
+Cloudflare Workers Builds z gałęzi `main`, nie GitHub Actions.
 
-If you prefer to use a hosted Supabase project, add these variables to your `.env` and `.dev.vars` files:
+Szczegóły: `context/changes/deployment/deployment-plan.md`.
 
-| Variable       | Description                                                |
-| -------------- | ---------------------------------------------------------- |
-| `SUPABASE_URL` | Project URL from Supabase dashboard → Settings → API       |
-| `SUPABASE_KEY` | `anon` public key from Supabase dashboard → Settings → API |
-
-```
-SUPABASE_URL=https://<project-ref>.supabase.co
-SUPABASE_KEY=<anon-key>
-```
-
-### Email confirmation in local development
-
-By default Supabase requires email confirmation before a user can sign in. To skip this during local development:
-
-1. Open the Supabase dashboard for your project
-2. Go to **Authentication → Email → Confirm email**
-3. Toggle it **off**
-
-Users can then sign in immediately after sign-up without clicking a confirmation link.
-
-### Auth routes
-
-| Route                 | Description                                                             |
-| --------------------- | ----------------------------------------------------------------------- |
-| `/auth/signin`        | Email/password sign-in form                                             |
-| `/auth/signup`        | Email/password sign-up form                                             |
-| `/auth/confirm-email` | Post-signup "check your inbox" page                                     |
-| `/dashboard`          | Example protected page (redirects to `/auth/signin` if unauthenticated) |
-
-Route protection is handled in `src/middleware.ts`. Add paths to the `PROTECTED_ROUTES` array there to require authentication.
-
-## Deployment
-
-Live: **https://stable-booksy.tolpa-lukasz97.workers.dev** ([Cloudflare Workers](https://workers.cloudflare.com/), worker `stable-booksy`).
-
-`main` is deployed automatically by Cloudflare Workers Builds (Git integration in the Cloudflare dashboard); other branches get preview URLs. `main` itself changes only through pull requests whose `ci`, `db-tests` and `e2e` checks are green (repository ruleset, `.github/rulesets/main-gates.json`). Manual operations:
-
-```bash
-npm run build && npx wrangler deploy   # manual deploy
-npx wrangler deployments list          # deployed versions
-npx wrangler rollback <VERSION_ID>     # roll back
-npx wrangler tail stable-booksy        # live logs
-npx wrangler secret put SUPABASE_URL   # update runtime secrets (also: SUPABASE_KEY)
-```
-
-Note: the deployed worker name comes from the build artifact (`dist/server/wrangler.json`) — after changing `name` in `wrangler.jsonc`, rebuild before deploying.
-
-## CI
-
-GitHub Actions (`.github/workflows/ci.yml`) runs three jobs on every push and PR to `main`: `ci` (typecheck, lint, unit tests, build), `db-tests` (Postgres from the Supabase CLI + `npm run test:db`) and `e2e` (Supabase auth stack + `astro preview` + Playwright, report uploaded on failure). All three are required status checks on `main`, so a pull request merges only when they are green and direct pushes to `main` are rejected. Required repository secrets: `SUPABASE_URL`, `SUPABASE_KEY` (build).
-
-Locally, Husky (installed by `npm install`) runs lint-staged at commit and `npm test` + `npm run check` at push. Agents using Claude Code get a per-edit hook (`.claude/settings.json`) that formats the file and runs the related unit tests — see `context/foundation/test-plan.md` §6.6.
-
-## License
+## Licencja
 
 MIT
