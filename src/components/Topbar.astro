@@ -1,4 +1,6 @@
 ---
+/* eslint-disable astro/no-unused-css-selector -- reguły na `[open]` są używane;
+   atrybut dokłada przeglądarka po kliknięciu, więc nie ma go w statycznym markupie */
 import RoleBadge from "@/components/ui/RoleBadge.astro";
 import { homeRouteForRole, isUserRole } from "@/lib/auth/roles";
 
@@ -21,16 +23,36 @@ const homeRoute = role ? homeRouteForRole(role) : null;
     <a href="/" class="brand">Stable Booksy</a>
     {
       user ? (
+        /* Zalogowany ma cztery rzeczy do pokazania: markę, adres, rolę i dwie akcje.
+           Na telefonie nie mieszczą się w jednym rzędzie, więc chowają się pod
+           przyciskiem menu. `<details>` robi to natywnie — bez JavaScriptu, z obsługą
+           klawiatury i `aria-expanded` od przeglądarki. Powyżej `md` przycisk znika,
+           a zawartość wraca do paska (patrz reguły `.menu` w stylach). */
         <>
-          <span class="nav-user">
-            <span class="nav-mail">{user.email}</span>
-            {role && <RoleBadge role={role} />}
-          </span>
-          <div class="nav-links">
-            {homeRoute && <a href={homeRoute}>Mój panel</a>}
-            <form method="POST" action="/api/auth/signout">
-              <button type="submit">Wyloguj się</button>
-            </form>
+          {/* Pole wyboru jest tu przełącznikiem menu, bo `<details>` się nie nadaje:
+              jego zawartość siedzi w shadow DOM za slotem, więc powyżej `md`, gdy
+              panel ma wrócić do paska, adres wychodził z zerową szerokością.
+              Tu kontenerem jest zwykły `<div>` i układ zachowuje się przewidywalnie.
+              Bez JavaScriptu, fokus dostaje ukryte pole, a etykieta je przełącza. */}
+          <input type="checkbox" id="nav-menu" class="menu-toggle" />
+          <label for="nav-menu" class="menu-button" aria-label="Menu konta">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 6h16" />
+              <path d="M4 12h16" />
+              <path d="M4 18h16" />
+            </svg>
+          </label>
+          <div class="menu-body">
+            <span class="nav-user">
+              <span class="nav-mail">{user.email}</span>
+              {role && <RoleBadge role={role} />}
+            </span>
+            <div class="nav-links">
+              {homeRoute && <a href={homeRoute}>Mój panel</a>}
+              <form method="POST" action="/api/auth/signout">
+                <button type="submit">Wyloguj się</button>
+              </form>
+            </div>
           </div>
         </>
       ) : (
@@ -142,6 +164,93 @@ const homeRoute = role ? homeRouteForRole(role) : null;
     outline-offset: 2px;
   }
 
+  /* ── Menu konta (tylko zalogowany) ────────────────────────────────────── */
+  .menu-toggle {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .menu-button {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    /* 44 px to minimalny cel dotykowy - PRD wymaga wygody na telefonie. */
+    width: 44px;
+    height: 44px;
+    border-radius: 999px;
+    color: var(--fg);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .menu-button:hover {
+    background: var(--primary-soft);
+  }
+  /* Fokus trafia w ukryte pole, więc obwódkę rysujemy na etykiecie obok niego. */
+  .menu-toggle:focus-visible + .menu-button {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+  .menu-button svg {
+    width: 22px;
+    height: 22px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+  }
+
+  /* Rozwinięcie nakłada się na treść zamiast rozpychać sticky pasek. */
+  .menu-body {
+    display: none;
+    position: absolute;
+    right: 18px;
+    top: calc(100% + 8px);
+    z-index: 60;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    min-width: min(280px, calc(100vw - 36px));
+    padding: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-md);
+  }
+  .menu-toggle:checked ~ .menu-body {
+    display: flex;
+  }
+  .menu-body .nav-user {
+    order: 0;
+    flex-basis: auto;
+    flex-wrap: wrap;
+    padding: 4px 10px 10px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
+  }
+  .menu-body .nav-mail {
+    /* W rozwinięciu adres ma miejsce, żeby się złamać zamiast urwać wielokropkiem. */
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .menu-body .nav-links {
+    order: 0;
+    margin-left: 0;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .menu-body .nav-links a,
+  .menu-body .nav-links button,
+  .menu-body .nav-links form {
+    width: 100%;
+  }
+  .menu-body .nav-links a,
+  .menu-body .nav-links button {
+    justify-content: flex-start;
+  }
+
   /* Poniżej progu łamania pasek musi zmieścić markę i linki w jednym rzędzie.
      Zmierzone na produkcji: przy 360 px marka i linki zajmowały 343 px przy 324 px
      dostępnych, więc schodziły do osobnych rzędów. Ciaśniejsze pigułki i mniejsza
@@ -162,6 +271,39 @@ const homeRoute = role ? homeRouteForRole(role) : null;
 
   /* Prototyp łamie układ przy 720 px; w aplikacji trzymamy się skali Tailwinda (md). */
   @media (width >= 768px) {
+    /* Powyżej progu menu przestaje być menu: przycisk znika, a panel wraca do
+       paska jako zwykły blok w rzędzie, niezależnie od stanu przełącznika. */
+    .menu-button {
+      display: none;
+    }
+    .menu-body,
+    .menu-toggle:checked ~ .menu-body {
+      display: flex;
+      position: static;
+      flex: 1;
+      min-width: 0;
+      flex-direction: row;
+      align-items: center;
+      gap: 16px;
+      padding: 0;
+      background: none;
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+    }
+    .menu-body .nav-user {
+      padding: 0;
+      border-bottom: 0;
+      margin-bottom: 0;
+    }
+    .menu-body .nav-mail {
+      white-space: nowrap;
+    }
+    .menu-body .nav-links {
+      flex-direction: row;
+      margin-left: auto;
+    }
+
     .nav-inner {
       flex-wrap: nowrap;
       padding-block: 0;
