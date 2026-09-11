@@ -150,13 +150,16 @@ export async function currentUser(client: SessionClient): Promise<UserResult> {
 /** Rejestracja: brak sesji bez błędu (potwierdzenie e-mail / anty-enumeracja) nie jest wejściem do panelu. */
 export async function signUpOutcome(
   client: SessionClient,
-  input: { email: string; password: string; role: UserRole },
+  input: { email: string; password: string; role: UserRole; fullName: string },
 ): Promise<SignUpResult> {
   try {
     const { data, error } = await client.auth.signUp({
       email: input.email,
       password: input.password,
-      options: { data: { role: input.role } },
+      // Trigger `handle_new_user` przepisuje oba klucze na wiersz profilu; pusty string
+      // zamienia na NULL, więc przycięcie po stronie schematu jest tym, co gwarantuje
+      // realne imię na liście zapisów ośrodka (FR-005).
+      options: { data: { role: input.role, full_name: input.fullName } },
     });
     if (error) return { kind: "error", error };
     return data.session ? { kind: "session", role: input.role } : { kind: "confirm" };

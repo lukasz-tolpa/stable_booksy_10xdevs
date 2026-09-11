@@ -3,7 +3,9 @@ import { expect, test as setup, type Page } from "@playwright/test";
 import {
   AUTH_DIR,
   PASSWORD,
+  RIDER_A_NAME,
   RIDER_A_STATE,
+  RIDER_B_NAME,
   RIDER_B_STATE,
   STABLE_EMAIL,
   STABLE_STATE,
@@ -18,12 +20,13 @@ import {
  * z seeda, a zapisy z poprzedniego uruchomienia nie zabarwiają następnego.
  */
 
-async function signUpRider(page: Page, tag: string): Promise<void> {
+async function signUpRider(page: Page, tag: string, fullName: string): Promise<void> {
   const email = `e2e-rider-${tag}-${String(Date.now())}@example.com`;
 
   await page.goto("/auth/signup");
   await waitForIslands(page);
   await page.getByRole("radio", { name: "Jeździec" }).check();
+  await page.getByLabel("Imię i nazwisko").fill(fullName);
   await page.getByLabel("Adres e-mail").fill(email);
   await page.getByLabel("Hasło", { exact: true }).fill(PASSWORD);
   await page.getByLabel("Powtórz hasło").fill(PASSWORD);
@@ -38,12 +41,12 @@ setup.beforeAll(() => {
 });
 
 setup("jeździec A — świeże konto", async ({ page }) => {
-  await signUpRider(page, "a");
+  await signUpRider(page, "a", RIDER_A_NAME);
   await page.context().storageState({ path: RIDER_A_STATE });
 });
 
 setup("jeździec B — świeże konto", async ({ page }) => {
-  await signUpRider(page, "b");
+  await signUpRider(page, "b", RIDER_B_NAME);
   await page.context().storageState({ path: RIDER_B_STATE });
 });
 

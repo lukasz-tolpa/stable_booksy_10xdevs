@@ -11,6 +11,10 @@ const emailField = z.email({ error: "Podaj poprawny adres e-mail" });
 
 export const signUpSchema = z
   .object({
+    // Imię trafia do metadanych konta, a stamtąd trigger bazy przepisuje je na profil.
+    // Przycinamy przed sprawdzeniem długości - inaczej same spacje przeszłyby walidację
+    // i ośrodek zobaczyłby pusty wiersz zamiast jeźdźca (FR-005).
+    fullName: z.string().trim().min(1, { error: "Podaj imię i nazwisko" }),
     email: emailField,
     password: z.string().min(MIN_PASSWORD_LENGTH, {
       error: `Hasło musi mieć co najmniej ${MIN_PASSWORD_LENGTH} znaków`,

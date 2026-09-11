@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Mail, Lock, UserPlus } from "lucide-react";
+import { Mail, Lock, User, UserPlus } from "lucide-react";
 import { FormField } from "@/components/auth/FormField";
 import { PasswordToggle } from "@/components/auth/PasswordToggle";
 import { RoleSelect } from "@/components/auth/RoleSelect";
@@ -13,6 +13,7 @@ interface Props {
 }
 
 export default function SignUpForm({ serverError }: Props) {
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -20,6 +21,7 @@ export default function SignUpForm({ serverError }: Props) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState<{
+    fullName?: string;
     email?: string;
     password?: string;
     confirmPassword?: string;
@@ -33,6 +35,10 @@ export default function SignUpForm({ serverError }: Props) {
     // inne zdanie zależnie od tego, czy ma włączony JavaScript.
     if (!role) {
       next.role = "Wybierz rodzaj konta";
+    }
+
+    if (!fullName.trim()) {
+      next.fullName = "Podaj imię i nazwisko";
     }
 
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -81,6 +87,19 @@ export default function SignUpForm({ serverError }: Props) {
           clearError("role");
         }}
         error={errors.role}
+      />
+
+      <FormField
+        id="fullName"
+        label="Imię i nazwisko"
+        value={fullName}
+        onChange={(v) => {
+          setFullName(v);
+          clearError("fullName");
+        }}
+        placeholder="Anna Kowalska"
+        error={errors.fullName}
+        icon={<User className="size-4" />}
       />
 
       <FormField
