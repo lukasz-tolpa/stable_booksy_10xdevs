@@ -4,9 +4,10 @@
 // wystąpień kasztanu na ekranie, więc nie dokładamy go nigdzie indziej bez potrzeby.
 //
 // Ikona jest częścią komponentu, nie slotem: w każdym prototypie pigułka roli ma
-// ikonę (budynek dla ośrodka, sylwetka dla jeźdźca), więc przekazywanie jej z
-// zewnątrz tylko pozwalałoby się rozjechać. Ścieżki pochodzą z lucide, tak jak
-// w prototypach; `aria-hidden`, bo etykieta tekstowa niesie całe znaczenie.
+// ikonę, więc przekazywanie jej z zewnątrz tylko pozwalałoby się rozjechać.
+// Ośrodek dostaje stajnię (`StableBarn`, maska z generatora), jeździec sylwetkę
+// z lucide. `aria-hidden`, bo etykieta tekstowa niesie całe znaczenie.
+import { StableBarn } from "@/components/ui/StableBarn";
 import { ROLE_LABELS } from "@/lib/auth/constants";
 import type { UserRole } from "@/types";
 
@@ -19,26 +20,16 @@ const { role, class: className } = Astro.props;
 ---
 
 <span class:list={["pill", `pill--${role}`, className]}>
-  <svg viewBox="0 0 24 24" aria-hidden="true">
-    {
-      role === "stable" ? (
-        <>
-          <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z" />
-          <path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" />
-          <path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2" />
-          <path d="M10 6h4" />
-          <path d="M10 10h4" />
-          <path d="M10 14h4" />
-          <path d="M10 18h4" />
-        </>
-      ) : (
-        <>
-          <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-          <circle cx="12" cy="7" r="4" />
-        </>
-      )
-    }
-  </svg>
+  {
+    role === "stable" ? (
+      <StableBarn className="size-3.5" />
+    ) : (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
+      </svg>
+    )
+  }
   {ROLE_LABELS[role]}
 </span>
 
