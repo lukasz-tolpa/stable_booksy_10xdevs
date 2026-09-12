@@ -1,5 +1,5 @@
 ---
-import { PawPrint } from "lucide-react";
+import { HorseHead } from "@/components/ui/HorseHead";
 import Layout from "@/layouts/Layout.astro";
 import Topbar from "@/components/Topbar.astro";
 import HorseForm from "@/components/stables/HorseForm";
@@ -64,7 +64,7 @@ const retired = horses.filter((horse) => !horse.active);
                   <article class="horse">
                     <div class="horse__body">
                       <h2>
-                        <PawPrint className="size-4" />
+                        <HorseHead className="size-4" />
                         {horse.name}
                       </h2>
                       {horse.notes && <p class="horse__notes">{horse.notes}</p>}
@@ -86,7 +86,7 @@ const retired = horses.filter((horse) => !horse.active);
                       <article class="horse">
                         <div class="horse__body">
                           <h3>
-                            <PawPrint className="size-4" />
+                            <HorseHead className="size-4" />
                             {horse.name}
                           </h3>
                           {horse.notes && <p class="horse__notes">{horse.notes}</p>}

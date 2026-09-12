@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { PawPrint, StickyNote } from "lucide-react";
+import { StickyNote } from "lucide-react";
+import { HorseHead } from "@/components/ui/HorseHead";
 import { FormField } from "@/components/auth/FormField";
 import { ServerError } from "@/components/auth/ServerError";
 import { SubmitButton } from "@/components/auth/SubmitButton";
@@ -43,7 +44,7 @@ export default function HorseForm({ serverError }: Props) {
         }}
         placeholder="np. Bella"
         error={errors.name}
-        icon={<PawPrint className="size-4" />}
+        icon={<HorseHead className="size-4" />}
       />
 
       <FormField
@@ -57,7 +58,7 @@ export default function HorseForm({ serverError }: Props) {
 
       <ServerError message={serverError} />
 
-      <SubmitButton pendingText="Dodawanie..." icon={<PawPrint className="size-4" />}>
+      <SubmitButton pendingText="Dodawanie..." icon={<HorseHead className="size-4" />}>
         Dodaj konia
       </SubmitButton>
     </form>
