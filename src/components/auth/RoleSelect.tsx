@@ -1,4 +1,5 @@
-import { Building2, CircleAlert, User } from "lucide-react";
+import { CircleAlert, User } from "lucide-react";
+import { StableBarn } from "@/components/ui/StableBarn";
 import { ROLE_LABELS, USER_ROLES } from "@/lib/auth/constants";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/types";
@@ -19,8 +20,8 @@ const DESCRIPTIONS: Record<UserRole, string> = {
   rider: "Przeglądasz ośrodki i zapisujesz się na jazdy.",
 };
 
-const ICONS: Record<UserRole, typeof Building2> = {
-  stable: Building2,
+const ICONS: Record<UserRole, (props: { className?: string }) => React.ReactNode> = {
+  stable: StableBarn,
   rider: User,
 };
 

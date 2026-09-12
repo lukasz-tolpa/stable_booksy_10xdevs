@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Building2, MapPin } from "lucide-react";
+import { MapPin } from "lucide-react";
+import { StableBarn } from "@/components/ui/StableBarn";
 import { FormField } from "@/components/auth/FormField";
 import { ServerError } from "@/components/auth/ServerError";
 import { SubmitButton } from "@/components/auth/SubmitButton";
@@ -52,7 +53,7 @@ export default function NewStableForm({ serverError }: Props) {
         }}
         placeholder="np. Stadnina Pod Dębem"
         error={errors.name}
-        icon={<Building2 className="size-4" />}
+        icon={<StableBarn className="size-4" />}
       />
 
       <FormField
@@ -70,7 +71,7 @@ export default function NewStableForm({ serverError }: Props) {
 
       <ServerError message={serverError} />
 
-      <SubmitButton pendingText="Zapisywanie..." icon={<Building2 className="size-4" />}>
+      <SubmitButton pendingText="Zapisywanie..." icon={<StableBarn className="size-4" />}>
         Załóż stadninę
       </SubmitButton>
     </form>
