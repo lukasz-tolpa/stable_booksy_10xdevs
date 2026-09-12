@@ -18,7 +18,11 @@ const { title = "Stable Booksy" } = Astro.props;
     <!-- Jasny motyw jako jedyny (DESIGN.md §1) - bez tego przeglądarka mogłaby
          przemalować kontrolki formularzy pod systemowy tryb ciemny. -->
     <meta name="color-scheme" content="light" />
-    <link rel="icon" type="image/png" href="/favicon.png" />
+    <!-- Znak: biała głowa konia na zieleni marki. Trzy rozmiary, bo kafelek na
+         ekranie startowym iOS-a bierze `apple-touch-icon`, a nie favicon. -->
+    <link rel="icon" type="image/png" href="/favicon.png" sizes="32x32" />
+    <link rel="icon" type="image/png" href="/icon-512.png" sizes="512x512" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <!-- DESIGN.md §3: Plus Jakarta Sans (display) + Inter (body), jeden arkusz.
          `display=swap` i fallback system-ui w @theme sprawiają, że brak Google Fonts
          opóźnia tylko krój, nie pierwsze malowanie. -->
