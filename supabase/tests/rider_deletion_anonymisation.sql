@@ -2,14 +2,15 @@
 --
 -- Usuniecie konta jezdzca nie niszczy historii osrodka:
 --   * przeszle zapisy jezdzca - jazdy i odwolania - zostaja w bazie BEZ jezdzca,
---   * przyszle aktywne zapisy sa kasowane, a ich sloty da sie zarezerwowac,
+--   * przyszle zapisy - aktywne i odwolane - sa kasowane, a zwolnione sloty da sie
+--     zarezerwowac,
 --   * "przeszly" = godzina slotu juz sie skonczyla w strefie Europe/Warsaw (ta sama granica
 --     co definicja jazdy w statystykach); zapis na godzine trwajaca jest jeszcze "przyszly",
 --   * osrodek nadal widzi zanonimizowane zapisy wlasnej stadniny, inny osrodek i inny
 --     jezdziec - nie.
 --
--- Przyszle ODWOLANE zapisy nie sa kasowane (regula kasuje tylko aktywne): zostaja bez
--- jezdzca i po swoim terminie licza sie jako odwolanie, tak jak liczylyby sie bez usuniecia konta.
+-- Przyszle ODWOLANE zapisy tez sa kasowane: zostawione bez jezdzca wyplywalyby po swoim
+-- terminie w statystykach jako odwolania "Usunietych jezdzcow", choc konta juz wtedy nie bylo.
 --
 -- Jako kto: konto kasuje postgres przez auth.users (tak robi to administracyjne API Auth;
 -- kaskada schodzi do public.profiles, gdzie siedzi regula). Odczyty kontrolne ida przez RLS
@@ -184,8 +185,7 @@ begin
     select * from (values
       ('3a przeszla jazda',               'app.past_ride',        'active'),
       ('3b przeszle odwolanie',           'app.past_cancelled',   'cancelled'),
-      ('3c jazda z dzis, godzina minela', 'app.ended_today',      'active'),
-      ('3d przyszle odwolanie',           'app.future_cancelled', 'cancelled')
+      ('3c jazda z dzis, godzina minela', 'app.ended_today',      'active')
     ) as t (label, setting, status)
   loop
     if current_setting(r.setting) = '' then
@@ -203,11 +203,12 @@ begin
     end if;
   end loop;
 
-  -- 4. Przyszle aktywne zapisy znikaja - takze zapis na godzine, ktora jeszcze trwa.
+  -- 4. Przyszle zapisy znikaja - aktywne i odwolane, takze zapis na godzine, ktora jeszcze trwa.
   for r in
     select * from (values
       ('4a przyszly aktywny zapis',       'app.future_active'),
-      ('4b zapis na godzine trwajaca',    'app.ongoing')
+      ('4b zapis na godzine trwajaca',    'app.ongoing'),
+      ('4c przyszly odwolany zapis',      'app.future_cancelled')
     ) as t (label, setting)
   loop
     select count(*) into v from public.bookings where id = current_setting(r.setting)::bigint;

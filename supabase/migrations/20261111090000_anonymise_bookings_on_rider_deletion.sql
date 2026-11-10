@@ -5,7 +5,8 @@
 --
 -- Regula (docs/adr/0001-anonimizacja-zapisow-przy-usunieciu-konta.md):
 --   * przeszle zapisy - jazdy i odwolania - zostaja w bazie bez jezdzca,
---   * przyszle aktywne zapisy sa kasowane i zwalniaja sloty,
+--   * przyszle zapisy - aktywne i odwolane - sa kasowane; aktywne zwalniaja sloty,
+--     a odwolane nie wyplywaja po swoim terminie jako odwolania jezdzca bez konta,
 --   * "przeszly" = godzina slotu juz sie skonczyla w strefie Europe/Warsaw; to ta sama
 --     granica co definicja jazdy w statystykach (src/lib/stats/stats.ts, slotEndedAt).
 --
@@ -13,7 +14,7 @@
 --   1. klucz obcy bookings.rider_id -> profiles z ON DELETE SET NULL: zapis przezywa
 --      usuniecie profilu i traci powiazanie z osoba,
 --   2. trigger BEFORE DELETE na profiles: zanim klucz obcy odepnie jezdzca, kasuje jego
---      aktywne zapisy, ktorych godzina jeszcze sie nie skonczyla.
+--      zapisy (aktywne i odwolane), ktorych godzina jeszcze sie nie skonczyla.
 --
 -- RLS na bookings nie wymaga zmian: polityka odczytu to "moj zapis LUB zapis w moim
 -- grafiku", wiec zapis bez jezdzca widzi wylacznie osrodek, do ktorego nalezy dzien
@@ -34,7 +35,7 @@ alter table public.bookings
 comment on column public.bookings.rider_id is
   'Jezdziec, ktory zlozyl zapis. NULL = jezdziec zanonimizowany: konto usunieto, zapis zostal w historii osrodka bez powiazania z osoba (ADR-0001).';
 comment on constraint bookings_rider_id_fkey on public.bookings is
-  'SET NULL, nie CASCADE - usuniecie konta jezdzca nie kasuje historii osrodka. Przyszle aktywne zapisy kasuje wczesniej trigger profiles_release_future_bookings.';
+  'SET NULL, nie CASCADE - usuniecie konta jezdzca nie kasuje historii osrodka. Przyszle zapisy (aktywne i odwolane) kasuje wczesniej trigger profiles_release_future_bookings.';
 
 -- ---------------------------------------------------------------------------
 -- Granica "godzina slotu juz sie skonczyla"
@@ -58,7 +59,7 @@ comment on function private.booking_slot_ended(date, smallint, timestamptz) is
 revoke execute on function private.booking_slot_ended(date, smallint, timestamptz) from public, anon;
 
 -- ---------------------------------------------------------------------------
--- Trigger: usuniecie profilu zwalnia przyszle aktywne zapisy
+-- Trigger: usuniecie profilu kasuje przyszle zapisy (aktywne i odwolane)
 -- ---------------------------------------------------------------------------
 
 create or replace function public.release_future_bookings_of_deleted_profile()
@@ -74,16 +75,17 @@ begin
   using public.schedule_days sd
   where sd.id = b.schedule_day_id
     and b.rider_id = old.id
-    and b.status = 'active'
+    -- Bez warunku na status: przyszly zapis odwolany tez znika, inaczej po swoim
+    -- terminie liczylby sie w statystykach jako odwolanie "Usunietych jezdzcow".
     and not private.booking_slot_ended(sd.day, b.hour);
 
-  -- Pozostale zapisy (jazdy oraz odwolania) odpina klucz obcy: ON DELETE SET NULL.
+  -- Pozostale, przeszle zapisy (jazdy oraz odwolania) odpina klucz obcy: ON DELETE SET NULL.
   return old;
 end;
 $$;
 
 comment on function public.release_future_bookings_of_deleted_profile() is
-  'ADR-0001: przy usunieciu konta jezdzca kasuje jego aktywne zapisy, ktorych godzina jeszcze sie nie skonczyla - sloty wracaja do puli. Przeszle zapisy zostaja i sa anonimizowane przez klucz obcy bookings_rider_id_fkey.';
+  'ADR-0001: przy usunieciu konta jezdzca kasuje wszystkie jego zapisy (aktywne i odwolane), ktorych godzina jeszcze sie nie skonczyla - sloty wracaja do puli. Przeszle zapisy zostaja i sa anonimizowane przez klucz obcy bookings_rider_id_fkey.';
 
 revoke execute on function public.release_future_bookings_of_deleted_profile() from public, anon, authenticated;
 

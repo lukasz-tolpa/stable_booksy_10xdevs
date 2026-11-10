@@ -4,7 +4,7 @@ status: accepted
 
 # Usunięcie konta jeźdźca anonimizuje jego przeszłe zapisy zamiast je kasować
 
-Statystyki ośrodka (godziny jazd, obciążenie koni, obłożenie grafiku, odwołania) liczone są z zapisów, więc skasowanie zapisów razem z kontem jeźdźca zmieniałoby wstecz liczby za minione okresy. Dlatego usunięcie konta odpina osobę od jej przeszłych zapisów — jazd i odwołań — które zostają w danych ośrodka jako należące do jeźdźca zanonimizowanego; przyszłe aktywne zapisy są kasowane i zwalniają sloty.
+Statystyki ośrodka (godziny jazd, obciążenie koni, obłożenie grafiku, odwołania) liczone są z zapisów, więc skasowanie zapisów razem z kontem jeźdźca zmieniałoby wstecz liczby za minione okresy. Dlatego usunięcie konta odpina osobę od jej przeszłych zapisów — jazd i odwołań — które zostają w danych ośrodka jako należące do jeźdźca zanonimizowanego; wszystkie przyszłe zapisy — aktywne i odwołane — są kasowane: aktywne zwalniają sloty, a odwołane nie pojawiają się później w statystykach jako odwołania jeźdźca, którego konta już nie było.
 
 ## Considered Options
 
