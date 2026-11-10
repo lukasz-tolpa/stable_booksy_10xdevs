@@ -34,8 +34,8 @@ export interface StatsBooking {
   horseId: number;
   hour: number;
   status: string;
-  /** Konto jeźdźca, który złożył zapis. */
-  riderId: string;
+  /** Konto jeźdźca, który złożył zapis; `null`, gdy konto usunięto (jeździec zanonimizowany). */
+  riderId: string | null;
 }
 
 /** Koń stadniny — aktywny albo zdezaktywowany; statystyki potrzebują tylko nazwy. */

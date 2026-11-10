@@ -35,13 +35,19 @@ export interface TopRiderPoint {
  * kolejnością tabeli (od najaktywniejszego).
  *
  * Jeździec bez godzin jazd (same odwołania) nie należy do rankingu według godzin jazd.
- * Kolejne wykluczenia wierszy (np. wiersz zbiorczy) dopisuje się w tym samym filtrze.
+ * Wiersz zbiorczy „Usunięci jeźdźcy" (`riderId === null`) też nie: to suma wielu osób,
+ * nie jeździec (ADR-0001).
  */
 export function buildTopRidersSeries(riderRows: StatsRiderRow[]): TopRiderPoint[] {
-  return riderRows
-    .filter((row) => row.rideHours > 0)
-    .slice(0, TOP_RIDERS_LIMIT)
-    .map((row) => ({ riderId: row.riderId, name: row.name, rideHours: row.rideHours }));
+  const points: TopRiderPoint[] = [];
+
+  for (const row of riderRows) {
+    if (row.riderId === null || row.rideHours <= 0) continue;
+    if (points.length === TOP_RIDERS_LIMIT) break;
+    points.push({ riderId: row.riderId, name: row.name, rideHours: row.rideHours });
+  }
+
+  return points;
 }
 
 /**

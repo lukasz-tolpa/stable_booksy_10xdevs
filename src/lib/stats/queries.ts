@@ -17,8 +17,9 @@ export interface StatsRows {
 export interface RawStatsBooking {
   hour: number;
   status: string;
-  rider_id: string;
-  /** `null`, gdy RLS ukryje profil — typ wygenerowany tego nie przewiduje, runtime tak. */
+  /** `null` — zapis bez jeźdźca: konto usunięto, zapis został w historii ośrodka (ADR-0001). */
+  rider_id: string | null;
+  /** `null`, gdy zapis nie ma jeźdźca albo RLS ukryje profil. */
   profiles: { full_name: string | null } | null;
 }
 
@@ -81,7 +82,8 @@ export async function collectStatsRows(loadPage: StatsPageLoader, pageSize: numb
             status: booking.status,
             riderId: booking.rider_id,
           });
-          if (!seenRiders.has(booking.rider_id)) {
+          // Zapis bez jeźdźca nie ma kogo dopisać — trafi do wiersza „Usunięci jeźdźcy".
+          if (booking.rider_id !== null && !seenRiders.has(booking.rider_id)) {
             seenRiders.add(booking.rider_id);
             // Brak profilu lub nazwy zostaje `null` — tekst zastępczy należy do warstwy
             // czystej (`computeRiderRows`), nie do zapytania.

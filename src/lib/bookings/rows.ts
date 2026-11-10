@@ -17,6 +17,9 @@ export interface BookingRow {
 /** Fallback dla profilu bez imienia i nazwiska — rejestracja go nie wymusza. */
 const UNNAMED_RIDER = "(bez nazwiska)";
 
+/** Miniony zapis, którego jeździec usunął konto (jeździec zanonimizowany, ADR-0001). */
+const ANONYMISED_RIDER = "Usunięty jeździec";
+
 export function composeBookingRows(bookings: DayBooking[], horses: { id: number; name: string }[]): BookingRow[] {
   const horseNames = new Map(horses.map((horse) => [horse.id, horse.name]));
 
@@ -26,7 +29,7 @@ export function composeBookingRows(bookings: DayBooking[], horses: { id: number;
       // Koń spoza listy stada nie powinien wystąpić (FK przez schedule_day_horses),
       // ale wiersz z identyfikatorem jest lepszy niż wywrócenie listy.
       horseName: horseNames.get(booking.horseId) ?? `(koń #${String(booking.horseId)})`,
-      riderName: booking.riderName ?? UNNAMED_RIDER,
+      riderName: booking.anonymised ? ANONYMISED_RIDER : (booking.riderName ?? UNNAMED_RIDER),
     }))
     .sort((a, b) => a.hour - b.hour || a.horseName.localeCompare(b.horseName, "pl"));
 }
