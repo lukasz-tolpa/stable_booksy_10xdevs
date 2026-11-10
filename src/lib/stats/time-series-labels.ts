@@ -42,13 +42,9 @@ export function bucketLabels(bucket: TimeBucket, granularity: TimeGranularity): 
   return { short: shortDay(bucket.from), long: dayFormat.format(toUtc(bucket.from)) };
 }
 
-const GRANULARITY_NAMES: Record<TimeGranularity, { bucket: string; phrase: string }> = {
+/** Nazwa przedziału do nagłówka tabeli („Dzień") i do opisu wykresu („dzień po dniu"). */
+export const GRANULARITY_NAMES: Record<TimeGranularity, { bucket: string; phrase: string }> = {
   day: { bucket: "Dzień", phrase: "dzień po dniu" },
   week: { bucket: "Tydzień", phrase: "tydzień po tygodniu" },
   month: { bucket: "Miesiąc", phrase: "miesiąc po miesiącu" },
 };
-
-/** Nazwa przedziału do nagłówka tabeli („Dzień") i do opisu wykresu („dzień po dniu"). */
-export function granularityNames(granularity: TimeGranularity): { bucket: string; phrase: string } {
-  return GRANULARITY_NAMES[granularity];
-}

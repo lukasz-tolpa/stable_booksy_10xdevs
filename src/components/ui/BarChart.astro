@@ -16,6 +16,8 @@ export interface BarChartItem {
   valueText?: string;
 }
 
+import { formatNumber } from "@/lib/format";
+
 interface Props {
   /** Nazwa wykresu dla czytników ekranu i podpis tabeli z danymi. */
   title: string;
@@ -33,7 +35,6 @@ interface Props {
 
 const { title, items, orientation = "vertical", labelHeader, valueHeader } = Astro.props;
 
-const formatNumber = (value: number) => value.toLocaleString("pl-PL");
 const rows = items.map((item) => ({
   label: item.label,
   longLabel: item.longLabel ?? item.label,

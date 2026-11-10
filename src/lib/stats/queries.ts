@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/db/database.types";
 import type { StatsRider } from "@/lib/stats/riders";
 import type { StatsBooking, StatsPeriod, StatsScheduleDay } from "@/lib/stats/stats";
+import type { BookingStatus } from "@/types";
 
 type Client = SupabaseClient<Database>;
 
@@ -16,6 +17,7 @@ export interface StatsRows {
 /** Zapis w kształcie PostgREST: konto jeźdźca i jego profil (nazwa) przez FK `rider_id`. */
 export interface RawStatsBooking {
   hour: number;
+  /** Kolumna `text` z check constraint — zawężana do `BookingStatus` w `toBookingStatus`. */
   status: string;
   /** `null` — zapis bez jeźdźca: konto usunięto, zapis został w historii ośrodka (ADR-0001). */
   rider_id: string | null;
@@ -39,6 +41,16 @@ export interface RawStatsDay {
 
 /** Jedna strona dni grafiku: wiersze `from…to` włącznie, jak w `range()` PostgREST. */
 export type StatsPageLoader = (from: number, to: number) => PromiseLike<{ data: RawStatsDay[] | null; error: unknown }>;
+
+/**
+ * Zawęża status z bazy do unii domenowej. Inna wartość oznacza, że schemat dostał nowy
+ * status, o którym statystyki nie wiedzą — wyjątek (stan awarii) jest lepszy niż ciche
+ * pominięcie albo policzenie takiego zapisu.
+ */
+function toBookingStatus(status: string): BookingStatus {
+  if (status === "active" || status === "cancelled") return status;
+  throw new Error(`Nieznany status zapisu: ${status}`);
+}
 
 /** Limit wierszy odpowiedzi PostgREST (`max_rows` w `supabase/config.toml`). */
 const PAGE_SIZE = 1000;
@@ -79,7 +91,7 @@ export async function collectStatsRows(loadPage: StatsPageLoader, pageSize: numb
             day: day.day,
             horseId: entry.horse_id,
             hour: booking.hour,
-            status: booking.status,
+            status: toBookingStatus(booking.status),
             riderId: booking.rider_id,
           });
           // Zapis bez jeźdźca nie ma kogo dopisać — trafi do wiersza „Usunięci jeźdźcy".

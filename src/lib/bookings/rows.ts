@@ -14,8 +14,20 @@ export interface BookingRow {
   riderName: string;
 }
 
-/** Fallback dla profilu bez imienia i nazwiska — rejestracja go nie wymusza. */
-const UNNAMED_RIDER = "(bez nazwiska)";
+/**
+ * Fallback dla profilu bez imienia i nazwiska — rejestracja go nie wymusza. Jedyna
+ * definicja: ten sam tekst pokazują lista zapisów dnia i statystyki ośrodka.
+ */
+export const UNNAMED_RIDER = "(bez nazwiska)";
+
+/**
+ * Nazwa zastępcza konia, którego nie ma na liście stada. Taki koń nie powinien wystąpić
+ * (FK przez `schedule_day_horses`), ale wiersz z identyfikatorem jest lepszy niż
+ * wywrócenie listy albo tabeli. Jedyna definicja dla listy zapisów dnia i statystyk.
+ */
+export function unknownHorseName(horseId: number): string {
+  return `(koń #${String(horseId)})`;
+}
 
 /** Miniony zapis, którego jeździec usunął konto (jeździec zanonimizowany, ADR-0001). */
 const ANONYMISED_RIDER = "Usunięty jeździec";
@@ -26,9 +38,7 @@ export function composeBookingRows(bookings: DayBooking[], horses: { id: number;
   return bookings
     .map((booking) => ({
       hour: booking.hour,
-      // Koń spoza listy stada nie powinien wystąpić (FK przez schedule_day_horses),
-      // ale wiersz z identyfikatorem jest lepszy niż wywrócenie listy.
-      horseName: horseNames.get(booking.horseId) ?? `(koń #${String(booking.horseId)})`,
+      horseName: horseNames.get(booking.horseId) ?? unknownHorseName(booking.horseId),
       riderName: booking.anonymised ? ANONYMISED_RIDER : (booking.riderName ?? UNNAMED_RIDER),
     }))
     .sort((a, b) => a.hour - b.hour || a.horseName.localeCompare(b.horseName, "pl"));

@@ -27,29 +27,6 @@ function input(overrides: Partial<StatsInput> = {}): StatsInput {
   };
 }
 
-describe("computeStableStats — wykres obciążenia koni", () => {
-  it("ma słupek na każdego konia, od najbardziej obciążonego, także dla konia bez jazd", () => {
-    const stats = computeStableStats(
-      input({
-        days: [{ day: "2026-11-05", openHour: 10, closeHour: 13, horseIds: [BELLA, KASZTAN, IGOR] }],
-        bookings: [
-          booking("2026-11-05", 10, "rider-anna", { horseId: KASZTAN }),
-          booking("2026-11-05", 11, "rider-anna", { horseId: KASZTAN }),
-          booking("2026-11-05", 12, "rider-anna", { horseId: KASZTAN }),
-          booking("2026-11-05", 10, "rider-piotr", { horseId: BELLA }),
-        ],
-      }),
-      NOW,
-    );
-
-    expect(stats.horseWorkload).toEqual([
-      { horseId: KASZTAN, name: "Kasztan", rideHours: 3 },
-      { horseId: BELLA, name: "Bella", rideHours: 1 },
-      { horseId: IGOR, name: "Igor", rideHours: 0 },
-    ]);
-  });
-});
-
 describe("computeStableStats — wykres pierwszej dziesiątki jeźdźców", () => {
   it("pokazuje jeźdźców od największej liczby godzin jazd, z nazwą z profilu", () => {
     const stats = computeStableStats(

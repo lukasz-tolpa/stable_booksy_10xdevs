@@ -270,8 +270,8 @@ describe("computeStableStats — okres statystyk", () => {
     expect(stats.summary.rides).toBe(2);
   });
 
-  it("okres bez jazd i odwołań jest pusty", () => {
-    // Zapis na przyszłą godzinę nie jest ani jazdą, ani odwołaniem.
+  it("okres bez minionych slotów, jazd i odwołań jest pusty", () => {
+    // Zapis na przyszłą godzinę nie jest ani jazdą, ani odwołaniem, a jej slot jeszcze nie minął.
     const stats = computeStableStats(
       input({ days: [day("2026-11-10", { openHour: 16, closeHour: 18 })], bookings: [booking("2026-11-10", 16)] }),
       NOW,
@@ -279,6 +279,28 @@ describe("computeStableStats — okres statystyk", () => {
 
     expect(stats.isEmpty).toBe(true);
     expect(stats.summary).toEqual({ rides: 0, rideHours: 0, occupancyPercent: null, cancellations: 0 });
+  });
+
+  it("okres z wystawionym grafikiem, ale bez jazd, nie jest pusty: 0% obłożenia i konie z zerami", () => {
+    const stats = computeStableStats(
+      input({
+        days: [day("2026-11-05")],
+        horses: [
+          { id: BELLA, name: "Bella" },
+          { id: KASZTAN, name: "Kasztan" },
+        ],
+      }),
+      NOW,
+    );
+
+    expect(stats.isEmpty).toBe(false);
+    expect(stats.summary).toEqual({ rides: 0, rideHours: 0, occupancyPercent: 0, cancellations: 0 });
+    expect(stats.horses).toEqual([
+      { horseId: BELLA, name: "Bella", rides: 0, rideHours: 0 },
+      { horseId: KASZTAN, name: "Kasztan", rides: 0, rideHours: 0 },
+    ]);
+    expect(stats.riders).toEqual([]);
+    expect(stats.topRiders).toEqual([]);
   });
 
   it("okres z samym odwołaniem nie jest pusty", () => {
@@ -450,12 +472,12 @@ describe("computeStableStats — tabela koni (obciążenie konia)", () => {
     expect(stats.horses.map((row) => row.rides)).toEqual([2, 2]);
   });
 
-  it("koń spoza listy stada zostaje w tabeli bez nazwy", () => {
+  it("koń spoza listy stada zostaje w tabeli z nazwą zastępczą", () => {
     const stats = computeStableStats(
       input({ horses: [], days: [day("2026-11-05", { horseIds: [BELLA] })], bookings: [booking("2026-11-05", 10)] }),
       NOW,
     );
 
-    expect(stats.horses).toEqual([{ horseId: BELLA, name: null, rides: 1, rideHours: 1 }]);
+    expect(stats.horses).toEqual([{ horseId: BELLA, name: "(koń #1)", rides: 1, rideHours: 1 }]);
   });
 });

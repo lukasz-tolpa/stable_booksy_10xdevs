@@ -1,8 +1,12 @@
 ---
+import Card from "@/components/ui/Card.astro";
+import "@/components/stats/stats.css";
+import { formatNumber, HOURS_UNIT } from "@/lib/format";
 import type { StatsRiderRow } from "@/lib/stats/riders";
 
 // Tabela jeźdźców strony statystyk. Wyłącznie renderuje wiersze z modelu widoku
 // (@/lib/stats/riders) - kolejność, sumy i rozbicie na konie są już policzone.
+// Sekcję i nagłówek daje strona, tak jak dla tabeli koni.
 interface Props {
   riders: StatsRiderRow[];
   /** `id` nagłówka sekcji, który nazywa tabelę dla czytników ekranu. */
@@ -10,16 +14,16 @@ interface Props {
 }
 
 const { riders, labelledby } = Astro.props;
-const formatNumber = (value: number) => value.toLocaleString("pl-PL");
+// Karta przewija się w poziomie: długa nazwa nie rozpycha strony na telefonie.
 ---
 
-<div class="riders">
-  <table aria-labelledby={labelledby}>
+<Card padding={0} class="overflow-x-auto">
+  <table class="stats-table" aria-labelledby={labelledby}>
     <thead>
       <tr>
         <th scope="col">Jeździec</th>
         <th scope="col" class="num">Jazdy</th>
-        <th scope="col" class="num">Godziny</th>
+        <th scope="col" class="num">Godziny jazd</th>
         <th scope="col" class="num">Odwołania</th>
       </tr>
     </thead>
@@ -41,7 +45,7 @@ const formatNumber = (value: number) => value.toLocaleString("pl-PL");
                     {rider.horses.map((horse) => (
                       <li>
                         <span>{horse.horseName}</span>
-                        <span class="horses__count">{formatNumber(horse.rides)}</span>
+                        <span class="horses__count stats-num">{formatNumber(horse.rides)}</span>
                       </li>
                     ))}
                   </ul>
@@ -51,7 +55,7 @@ const formatNumber = (value: number) => value.toLocaleString("pl-PL");
             <td class="num">{formatNumber(rider.rides)}</td>
             <td class="num">
               {formatNumber(rider.rideHours)}
-              <span class="unit">h</span>
+              <span class="unit">{HOURS_UNIT}</span>
             </td>
             <td class="num">{formatNumber(rider.cancellations)}</td>
           </tr>
@@ -59,62 +63,9 @@ const formatNumber = (value: number) => value.toLocaleString("pl-PL");
       }
     </tbody>
   </table>
-</div>
+</Card>
 
 <style>
-  .riders {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--r-lg);
-    box-shadow: var(--shadow-sm);
-    /* Długa nazwa nie rozpycha strony na telefonie - w razie czego przewija się tabela. */
-    overflow-x: auto;
-  }
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 14.5px;
-  }
-  th,
-  td {
-    padding: 12px 8px;
-    text-align: left;
-    vertical-align: top;
-  }
-  th:first-child {
-    padding-left: 16px;
-  }
-  th:last-child,
-  td:last-child {
-    padding-right: 16px;
-  }
-  thead th {
-    font-size: 12.5px;
-    font-weight: 600;
-    color: var(--muted);
-    border-bottom: 1px solid var(--border);
-    white-space: nowrap;
-  }
-  tbody tr + tr > * {
-    border-top: 1px solid var(--border);
-  }
-  tbody th {
-    width: 100%;
-    font-weight: 500;
-    overflow-wrap: anywhere;
-  }
-  .num {
-    text-align: right;
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-  }
-  td.num {
-    font-family: ui-monospace, monospace;
-  }
-  .unit {
-    color: var(--muted);
-  }
-
   summary {
     /* Cały wiersz nazwy jest celem dotykowym; ujemny margines wyrównuje go do komórki. */
     display: flex;
@@ -140,7 +91,7 @@ const formatNumber = (value: number) => value.toLocaleString("pl-PL");
     transition: transform 0.15s;
   }
   /* `open` ustawia przeglądarka, nie szablon - stąd :global dla samego atrybutu. */
-  .riders :global(details[open]) > summary::before {
+  table :global(details[open]) > summary::before {
     transform: rotate(45deg);
   }
   summary:focus-visible {
@@ -175,8 +126,6 @@ const formatNumber = (value: number) => value.toLocaleString("pl-PL");
     max-width: 240px;
   }
   .horses__count {
-    font-family: ui-monospace, monospace;
-    font-variant-numeric: tabular-nums;
     color: var(--muted);
   }
 </style>

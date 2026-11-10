@@ -4,6 +4,7 @@
  * co jest jazdą, a co odwołaniem; tu jest tylko grupowanie i sortowanie.
  */
 
+import { UNNAMED_RIDER, unknownHorseName } from "@/lib/bookings/rows";
 import type { StatsHorse } from "@/lib/stats/stats";
 
 /** Jeździec znany ośrodkowi: konto (`id`) i nazwa z profilu (`null`, gdy jej nie podał). */
@@ -53,9 +54,6 @@ export interface RiderRowsInput {
   /** Czas trwania jednej jazdy w godzinach. */
   slotDurationHours: number;
 }
-
-/** Fallback dla profilu bez imienia i nazwiska — ten sam tekst co na liście zapisów dnia. */
-const UNNAMED_RIDER = "(bez nazwiska)";
 
 /** Nazwa wiersza zbiorczego jeźdźców zanonimizowanych (GLOSSARY.md). */
 export const ANONYMISED_RIDERS = "Usunięci jeźdźcy";
@@ -108,9 +106,7 @@ export function computeRiderRows(input: RiderRowsInput): StatsRiderRow[] {
       const horses = [...tally.ridesByHorse]
         .map(([horseId, rides]) => ({
           horseId,
-          // Koń spoza listy stada nie powinien wystąpić, ale wiersz z identyfikatorem
-          // jest lepszy niż wywrócenie tabeli (jak w `composeBookingRows`).
-          horseName: horseNames.get(horseId) ?? `(koń #${String(horseId)})`,
+          horseName: horseNames.get(horseId) ?? unknownHorseName(horseId),
           rides,
         }))
         .sort((a, b) => b.rides - a.rides || a.horseName.localeCompare(b.horseName, "pl") || a.horseId - b.horseId);

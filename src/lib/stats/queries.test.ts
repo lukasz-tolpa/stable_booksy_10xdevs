@@ -126,6 +126,21 @@ describe("collectStatsRows", () => {
     expect(rows.riders).toEqual([{ id: "rider-anna", name: "Anna Kowalska" }]);
   });
 
+  it("zapis o nieznanym statusie leci wyjątkiem, zamiast po cichu trafić do statystyk", async () => {
+    const loader = stubLoader([
+      {
+        data: [
+          rawDay("2026-11-05", [
+            { horse_id: 1, bookings: [{ hour: 10, status: "pending", rider_id: "rider-anna", profiles: null }] },
+          ]),
+        ],
+        error: null,
+      },
+    ]);
+
+    await expect(collectStatsRows(loader)).rejects.toThrow("pending");
+  });
+
   it("brak dni grafiku to puste wiersze, nie błąd", async () => {
     await expect(collectStatsRows(stubLoader([{ data: [], error: null }]))).resolves.toEqual({
       days: [],

@@ -4,15 +4,12 @@
  */
 
 import { currentWarsawHour } from "@/lib/bookings/slots";
-import {
-  buildHorseWorkloadSeries,
-  buildTopRidersSeries,
-  type HorseWorkloadPoint,
-  type TopRiderPoint,
-} from "@/lib/stats/rankings";
+import { unknownHorseName } from "@/lib/bookings/rows";
+import { buildTopRidersSeries, type TopRiderPoint } from "@/lib/stats/rankings";
 import { computeRiderRows, type StatsRider, type StatsRiderRow } from "@/lib/stats/riders";
 import { todayIso } from "@/lib/schedule/dates";
 import { buildRideHoursSeries, type RideHoursSeries } from "@/lib/stats/time-series";
+import type { BookingStatus } from "@/types";
 
 /** Okres statystyk: zakres dat `RRRR-MM-DD`, oba krańce włącznie. */
 export interface StatsPeriod {
@@ -33,7 +30,7 @@ export interface StatsBooking {
   day: string;
   horseId: number;
   hour: number;
-  status: string;
+  status: BookingStatus;
   /** Konto jeźdźca, który złożył zapis; `null`, gdy konto usunięto (jeździec zanonimizowany). */
   riderId: string | null;
 }
@@ -57,8 +54,8 @@ export interface StatsInput {
 /** Wiersz tabeli koni: obciążenie konia w okresie. */
 export interface StatsHorseRow {
   horseId: number;
-  /** `null`, gdy konia nie ma na liście stada — strona pokazuje tekst zastępczy. */
-  name: string | null;
+  /** Nazwa z listy stada; dla konia spoza niej tekst zastępczy (`unknownHorseName`). */
+  name: string;
   rides: number;
   /** Obciążenie konia: godziny jazd tego konia w okresie. */
   rideHours: number;
@@ -86,14 +83,16 @@ export interface StatsView {
   summary: StatsSummary;
   /** Tabela jeźdźców, od najaktywniejszego; jej sumy zgadzają się z podsumowaniem. */
   riders: StatsRiderRow[];
-  /** Okres bez jazd i odwołań — strona pokazuje stan pusty zamiast zer. */
+  /**
+   * Okres, w którym nie ma nic: ani minionego wystawionego slotu, ani jazdy, ani
+   * odwołania — strona pokazuje stan pusty. Okres z grafikiem, ale bez jazd, pusty
+   * nie jest: ma 0% obłożenia i konie stojące bezczynnie.
+   */
   isEmpty: boolean;
-  /** Tabela koni, od najbardziej obciążonego. */
+  /** Tabela koni, od najbardziej obciążonego; z tych samych wierszy strona rysuje wykres obciążenia koni. */
   horses: StatsHorseRow[];
   /** Seria wykresu godzin jazd w czasie; jej suma równa się `summary.rideHours`. */
   rideHoursOverTime: RideHoursSeries;
-  /** Seria wykresu obciążenia koni: te same konie i liczby co `horses`, w tej samej kolejności. */
-  horseWorkload: HorseWorkloadPoint[];
   /** Seria wykresu pierwszej dziesiątki jeźdźców według godzin jazd; liczby z `riders`. */
   topRiders: TopRiderPoint[];
 }
@@ -150,7 +149,7 @@ export function computeStableStats(input: StatsInput, now: Date = new Date()): S
     }
   }
 
-  const horses = computeHorseRows(input, ended);
+  const horses = computeHorseRows(input, ended, rideBookings);
   const riders = computeRiderRows({
     rides: rideBookings,
     cancellations: cancelledBookings,
@@ -167,14 +166,13 @@ export function computeStableStats(input: StatsInput, now: Date = new Date()): S
       cancellations,
     },
     riders,
-    isEmpty: rides === 0 && cancellations === 0,
+    isEmpty: pastSlots === 0 && rides === 0 && cancellations === 0,
     horses,
     rideHoursOverTime: buildRideHoursSeries(
       input.period,
       rideBookings.map((booking) => booking.day),
       SLOT_DURATION_HOURS,
     ),
-    horseWorkload: buildHorseWorkloadSeries(horses),
     topRiders: buildTopRidersSeries(riders),
   };
 }
@@ -190,7 +188,11 @@ export function computeStableStats(input: StatsInput, now: Date = new Date()): S
  * Aktywność konia nie ma znaczenia — zdezaktywowany po okresie zostaje w historii.
  * Kolejność: godziny jazd malejąco, potem liczba jazd, potem nazwa.
  */
-function computeHorseRows(input: StatsInput, ended: (day: string, hour: number) => boolean): StatsHorseRow[] {
+function computeHorseRows(
+  input: StatsInput,
+  ended: (day: string, hour: number) => boolean,
+  rideBookings: StatsBooking[],
+): StatsHorseRow[] {
   const ridesByHorse = new Map<number, number>();
 
   for (const day of input.days) {
@@ -202,9 +204,7 @@ function computeHorseRows(input: StatsInput, ended: (day: string, hour: number) 
     }
   }
 
-  for (const booking of input.bookings) {
-    if (!inPeriod(booking.day, input.period)) continue;
-    if (booking.status !== "active" || !ended(booking.day, booking.hour)) continue;
+  for (const booking of rideBookings) {
     ridesByHorse.set(booking.horseId, (ridesByHorse.get(booking.horseId) ?? 0) + 1);
   }
 
@@ -212,7 +212,7 @@ function computeHorseRows(input: StatsInput, ended: (day: string, hour: number) 
   const rows = [...ridesByHorse].map(
     ([horseId, rides]): StatsHorseRow => ({
       horseId,
-      name: names.get(horseId) ?? null,
+      name: names.get(horseId) ?? unknownHorseName(horseId),
       rides,
       rideHours: rides * SLOT_DURATION_HOURS,
     }),
@@ -220,9 +220,6 @@ function computeHorseRows(input: StatsInput, ended: (day: string, hour: number) 
 
   return rows.sort(
     (a, b) =>
-      b.rideHours - a.rideHours ||
-      b.rides - a.rides ||
-      (a.name ?? "").localeCompare(b.name ?? "", "pl") ||
-      a.horseId - b.horseId,
+      b.rideHours - a.rideHours || b.rides - a.rides || a.name.localeCompare(b.name, "pl") || a.horseId - b.horseId,
   );
 }
