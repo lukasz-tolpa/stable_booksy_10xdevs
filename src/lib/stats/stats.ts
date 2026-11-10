@@ -6,6 +6,7 @@
 import { currentWarsawHour } from "@/lib/bookings/slots";
 import { computeRiderRows, type StatsRider, type StatsRiderRow } from "@/lib/stats/riders";
 import { todayIso } from "@/lib/schedule/dates";
+import { buildRideHoursSeries, type RideHoursSeries } from "@/lib/stats/time-series";
 
 /** Okres statystyk: zakres dat `RRRR-MM-DD`, oba krańce włącznie. */
 export interface StatsPeriod {
@@ -83,6 +84,8 @@ export interface StatsView {
   isEmpty: boolean;
   /** Tabela koni, od najbardziej obciążonego. */
   horses: StatsHorseRow[];
+  /** Seria wykresu godzin jazd w czasie; jej suma równa się `summary.rideHours`. */
+  rideHoursOverTime: RideHoursSeries;
 }
 
 /**
@@ -153,6 +156,11 @@ export function computeStableStats(input: StatsInput, now: Date = new Date()): S
     }),
     isEmpty: rides === 0 && cancellations === 0,
     horses: computeHorseRows(input, ended),
+    rideHoursOverTime: buildRideHoursSeries(
+      input.period,
+      rideBookings.map((booking) => booking.day),
+      SLOT_DURATION_HOURS,
+    ),
   };
 }
 
