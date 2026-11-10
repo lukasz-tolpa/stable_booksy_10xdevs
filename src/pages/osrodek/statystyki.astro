@@ -81,6 +81,20 @@ const timeItems = (timeSeries?.buckets ?? []).map((bucket) => {
     valueText: `${formatNumber(bucket.rideHours)} h`,
   };
 });
+
+// --- Wykresy rankingowe (#35): serie z modelu widoku, tu tylko etykiety. ---
+const formatHours = (hours: number) => `${formatNumber(hours)} h`;
+const topRiderItems = (stats?.topRiders ?? []).map((point) => ({
+  label: point.name,
+  value: point.rideHours,
+  valueText: formatHours(point.rideHours),
+}));
+// Ten sam tekst zastępczy co w tabeli koni.
+const horseWorkloadItems = (stats?.horseWorkload ?? []).map((point) => ({
+  label: point.name ?? "(koń)",
+  value: point.rideHours,
+  valueText: formatHours(point.rideHours),
+}));
 ---
 
 <Layout title="Statystyki">
@@ -175,6 +189,19 @@ const timeItems = (timeSeries?.buckets ?? []).map((bucket) => {
               />
             </section>
           )}
+          {topRiderItems.length > 0 && (
+            <section aria-labelledby="top-riders-chart-heading">
+              <h2 id="top-riders-chart-heading">Pierwsza dziesiątka jeźdźców</h2>
+              <p class="chart-lead">Jeźdźcy z największą liczbą godzin jazd w wybranym okresie.</p>
+              <BarChart
+                title="Pierwsza dziesiątka jeźdźców według godzin jazd"
+                items={topRiderItems}
+                orientation="horizontal"
+                labelHeader="Jeździec"
+                valueHeader="Godziny jazd"
+              />
+            </section>
+          )}
           <section aria-labelledby="riders-heading">
             <h2 id="riders-heading">Jeźdźcy</h2>
             <p class="section-lead">
@@ -182,6 +209,19 @@ const timeItems = (timeSeries?.buckets ?? []).map((bucket) => {
             </p>
             <RiderTable riders={stats.riders} labelledby="riders-heading" />
           </section>
+          {horseWorkloadItems.length > 0 && (
+            <section aria-labelledby="horse-chart-heading">
+              <h2 id="horse-chart-heading">Obciążenie koni</h2>
+              <p class="chart-lead">Godziny jazd każdego konia w wybranym okresie, od najbardziej obciążonego.</p>
+              <BarChart
+                title="Obciążenie koni: godziny jazd w okresie"
+                items={horseWorkloadItems}
+                orientation="horizontal"
+                labelHeader="Koń"
+                valueHeader="Godziny jazd"
+              />
+            </section>
+          )}
           <HorseStatsTable rows={stats.horses} />
         </>
       )
@@ -370,7 +410,7 @@ const timeItems = (timeSeries?.buckets ?? []).map((bucket) => {
     color: var(--faint);
   }
 
-  /* Wykresy (#34): jedno zdanie opisu nad wykresem. */
+  /* Wykresy (#34, #35): jedno zdanie opisu nad wykresem. */
   .chart-lead {
     margin: -4px 0 12px;
     font-size: 14.5px;

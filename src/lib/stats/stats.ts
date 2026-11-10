@@ -4,6 +4,12 @@
  */
 
 import { currentWarsawHour } from "@/lib/bookings/slots";
+import {
+  buildHorseWorkloadSeries,
+  buildTopRidersSeries,
+  type HorseWorkloadPoint,
+  type TopRiderPoint,
+} from "@/lib/stats/rankings";
 import { computeRiderRows, type StatsRider, type StatsRiderRow } from "@/lib/stats/riders";
 import { todayIso } from "@/lib/schedule/dates";
 import { buildRideHoursSeries, type RideHoursSeries } from "@/lib/stats/time-series";
@@ -86,6 +92,10 @@ export interface StatsView {
   horses: StatsHorseRow[];
   /** Seria wykresu godzin jazd w czasie; jej suma równa się `summary.rideHours`. */
   rideHoursOverTime: RideHoursSeries;
+  /** Seria wykresu obciążenia koni: te same konie i liczby co `horses`, w tej samej kolejności. */
+  horseWorkload: HorseWorkloadPoint[];
+  /** Seria wykresu pierwszej dziesiątki jeźdźców według godzin jazd; liczby z `riders`. */
+  topRiders: TopRiderPoint[];
 }
 
 /**
@@ -140,6 +150,15 @@ export function computeStableStats(input: StatsInput, now: Date = new Date()): S
     }
   }
 
+  const horses = computeHorseRows(input, ended);
+  const riders = computeRiderRows({
+    rides: rideBookings,
+    cancellations: cancelledBookings,
+    riders: input.riders,
+    horses: input.horses,
+    slotDurationHours: SLOT_DURATION_HOURS,
+  });
+
   return {
     summary: {
       rides,
@@ -147,20 +166,16 @@ export function computeStableStats(input: StatsInput, now: Date = new Date()): S
       occupancyPercent: pastSlots === 0 ? null : Math.round((rides / pastSlots) * 100),
       cancellations,
     },
-    riders: computeRiderRows({
-      rides: rideBookings,
-      cancellations: cancelledBookings,
-      riders: input.riders,
-      horses: input.horses,
-      slotDurationHours: SLOT_DURATION_HOURS,
-    }),
+    riders,
     isEmpty: rides === 0 && cancellations === 0,
-    horses: computeHorseRows(input, ended),
+    horses,
     rideHoursOverTime: buildRideHoursSeries(
       input.period,
       rideBookings.map((booking) => booking.day),
       SLOT_DURATION_HOURS,
     ),
+    horseWorkload: buildHorseWorkloadSeries(horses),
+    topRiders: buildTopRidersSeries(riders),
   };
 }
 
