@@ -2,15 +2,17 @@
 import Layout from "@/layouts/Layout.astro";
 import Topbar from "@/components/Topbar.astro";
 import BarChart from "@/components/ui/BarChart.astro";
+import RiderTable from "@/components/stats/RiderTable.astro";
 import Card from "@/components/ui/Card.astro";
 import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
+import HorseStatsTable from "@/components/stats/HorseStatsTable.astro";
 import { logError } from "@/lib/log";
 import { resolveStatsPeriod } from "@/lib/stats/period";
 import { getStatsRows } from "@/lib/stats/queries";
 import { computeStableStats, type StatsView } from "@/lib/stats/stats";
 import { bucketLabels, granularityNames } from "@/lib/stats/time-series-labels";
-import { getOwnedStableId } from "@/lib/stables/queries";
+import { getOwnedStableId, listStableHorses } from "@/lib/stables/queries";
 import { createClient } from "@/lib/supabase";
 
 // Dostęp pilnuje middleware (mapa tras w @/lib/auth/roles): jeździec wraca do swojej
@@ -36,7 +38,13 @@ if (!reversed) {
         loadFailed = true;
         logError("page:osrodek/statystyki", new Error("Brak stadniny dla konta ośrodka"));
       } else {
-        stats = computeStableStats({ period, ...(await getStatsRows(supabase, stableId, period)) });
+        // Lista stada obejmuje konie zdezaktywowane - jedyne źródło nazw koni dla
+        // tabeli koni i rozbicia jazd jeźdźca na konie.
+        const [rows, horses] = await Promise.all([
+          getStatsRows(supabase, stableId, period),
+          listStableHorses(supabase, stableId),
+        ]);
+        stats = computeStableStats({ period, ...rows, horses });
       }
     } catch (error) {
       loadFailed = true;
@@ -119,56 +127,63 @@ const timeItems = (timeSeries?.buckets ?? []).map((bucket) => {
           </EmptyState>
         </Card>
       ) : (
-        <section aria-labelledby="summary-heading">
-          <h2 id="summary-heading">Podsumowanie okresu</h2>
-          <dl class="tiles">
-            <div class="tile">
-              <dt>Jazdy</dt>
-              <dd>{formatNumber(stats.summary.rides)}</dd>
-            </div>
-            <div class="tile">
-              <dt>Godziny jazd</dt>
-              <dd>
-                {formatNumber(stats.summary.rideHours)}
-                <span class="tile__unit">h</span>
-              </dd>
-            </div>
-            <div class="tile">
-              <dt>Obłożenie grafiku</dt>
-              {stats.summary.occupancyPercent === null ? (
-                <dd class="tile__none">
-                  brak danych
-                  <span class="tile__note">W tym okresie nie ma minionych slotów w grafiku.</span>
-                </dd>
-              ) : (
+        <>
+          <section aria-labelledby="summary-heading">
+            <h2 id="summary-heading">Podsumowanie okresu</h2>
+            <dl class="tiles">
+              <div class="tile">
+                <dt>Jazdy</dt>
+                <dd>{formatNumber(stats.summary.rides)}</dd>
+              </div>
+              <div class="tile">
+                <dt>Godziny jazd</dt>
                 <dd>
-                  {formatNumber(stats.summary.occupancyPercent)}
-                  <span class="tile__unit">%</span>
+                  {formatNumber(stats.summary.rideHours)}
+                  <span class="tile__unit">h</span>
                 </dd>
-              )}
-            </div>
-            <div class="tile">
-              <dt>Odwołania</dt>
-              <dd>{formatNumber(stats.summary.cancellations)}</dd>
-            </div>
-          </dl>
-        </section>
-      )
-    }
-
-    {
-      timeSeries && timeNames && (
-        <section aria-labelledby="time-chart-heading">
-          <h2 id="time-chart-heading">Godziny jazd w czasie</h2>
-          <p class="chart-lead">Godziny jazd {timeNames.phrase} w wybranym okresie.</p>
-          <BarChart
-            title={`Godziny jazd w czasie, ${timeNames.phrase}`}
-            items={timeItems}
-            orientation="vertical"
-            labelHeader={timeNames.bucket}
-            valueHeader="Godziny jazd"
-          />
-        </section>
+              </div>
+              <div class="tile">
+                <dt>Obłożenie grafiku</dt>
+                {stats.summary.occupancyPercent === null ? (
+                  <dd class="tile__none">
+                    brak danych
+                    <span class="tile__note">W tym okresie nie ma minionych slotów w grafiku.</span>
+                  </dd>
+                ) : (
+                  <dd>
+                    {formatNumber(stats.summary.occupancyPercent)}
+                    <span class="tile__unit">%</span>
+                  </dd>
+                )}
+              </div>
+              <div class="tile">
+                <dt>Odwołania</dt>
+                <dd>{formatNumber(stats.summary.cancellations)}</dd>
+              </div>
+            </dl>
+          </section>
+          {timeSeries && timeNames && (
+            <section aria-labelledby="time-chart-heading">
+              <h2 id="time-chart-heading">Godziny jazd w czasie</h2>
+              <p class="chart-lead">Godziny jazd {timeNames.phrase} w wybranym okresie.</p>
+              <BarChart
+                title={`Godziny jazd w czasie, ${timeNames.phrase}`}
+                items={timeItems}
+                orientation="vertical"
+                labelHeader={timeNames.bucket}
+                valueHeader="Godziny jazd"
+              />
+            </section>
+          )}
+          <section aria-labelledby="riders-heading">
+            <h2 id="riders-heading">Jeźdźcy</h2>
+            <p class="section-lead">
+              Od najaktywniejszego. Rozwiń jeźdźca, żeby zobaczyć jazdy na poszczególnych koniach.
+            </p>
+            <RiderTable riders={stats.riders} labelledby="riders-heading" />
+          </section>
+          <HorseStatsTable rows={stats.horses} />
+        </>
       )
     }
   </main>
@@ -184,6 +199,11 @@ const timeItems = (timeSeries?.buckets ?? []).map((bucket) => {
   h2 {
     margin: 26px 0 12px;
     font-size: 20px;
+  }
+  .section-lead {
+    margin: -6px 0 12px;
+    font-size: 14px;
+    color: var(--muted);
   }
   .page-lead {
     margin: 10px 0 0;

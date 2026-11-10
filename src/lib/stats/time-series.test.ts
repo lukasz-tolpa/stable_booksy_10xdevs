@@ -5,11 +5,18 @@ import { computeStableStats, type StatsBooking, type StatsInput } from "@/lib/st
 const NOW = new Date("2026-11-10T13:30:00Z");
 
 function booking(iso: string, hour: number, overrides: Partial<StatsBooking> = {}): StatsBooking {
-  return { day: iso, horseId: 1, hour, status: "active", ...overrides };
+  return { day: iso, horseId: 1, hour, status: "active", riderId: "rider-1", ...overrides };
 }
 
 function input(overrides: Partial<StatsInput> = {}): StatsInput {
-  return { period: { from: "2026-11-01", to: "2026-11-10" }, days: [], bookings: [], ...overrides };
+  return {
+    period: { from: "2026-11-01", to: "2026-11-10" },
+    days: [],
+    bookings: [],
+    riders: [],
+    horses: [],
+    ...overrides,
+  };
 }
 
 function series(overrides: Partial<StatsInput> = {}, now: Date = NOW) {
