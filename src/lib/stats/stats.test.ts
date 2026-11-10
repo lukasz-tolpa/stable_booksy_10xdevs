@@ -12,7 +12,7 @@ function day(iso: string, overrides: Partial<StatsScheduleDay> = {}): StatsSched
 }
 
 function booking(iso: string, hour: number, overrides: Partial<StatsBooking> = {}): StatsBooking {
-  return { day: iso, horseId: BELLA, hour, status: "active", ...overrides };
+  return { day: iso, horseId: BELLA, hour, status: "active", riderId: "rider-anna", ...overrides };
 }
 
 function input(overrides: Partial<StatsInput> = {}): StatsInput {
@@ -20,6 +20,7 @@ function input(overrides: Partial<StatsInput> = {}): StatsInput {
     period: { from: "2026-11-01", to: "2026-11-10" },
     days: [],
     bookings: [],
+    riders: [],
     horses: [],
     ...overrides,
   };
@@ -125,6 +126,38 @@ describe("computeStableStats — podsumowanie okresu", () => {
 
     expect(stats.summary.cancellations).toBe(2);
     expect(stats.summary.rides).toBe(0);
+  });
+
+  it("odwołanie liczy się dopiero, gdy godzina jego slotu się skończyła", () => {
+    // Dziś o 14:30: godzina 13 zakończona, 14 trwa, 15 i jutro jeszcze nie nadeszły.
+    const stats = computeStableStats(
+      input({
+        period: { from: "2026-11-01", to: "2026-11-30" },
+        days: [day("2026-11-10", { openHour: 12, closeHour: 17 }), day("2026-11-11")],
+        bookings: [
+          booking("2026-11-10", 13, { status: "cancelled" }),
+          booking("2026-11-10", 14, { status: "cancelled" }),
+          booking("2026-11-10", 15, { status: "cancelled" }),
+          booking("2026-11-11", 10, { status: "cancelled" }),
+        ],
+      }),
+      NOW,
+    );
+
+    expect(stats.summary.cancellations).toBe(1);
+  });
+
+  it("okres z samymi odwołaniami na przyszłe godziny jest pusty", () => {
+    const stats = computeStableStats(
+      input({
+        period: { from: "2026-11-01", to: "2026-11-30" },
+        days: [day("2026-11-11")],
+        bookings: [booking("2026-11-11", 10, { status: "cancelled" })],
+      }),
+      NOW,
+    );
+
+    expect(stats.isEmpty).toBe(true);
   });
 
   it("slot odwołany i zajęty ponownie to jedno odwołanie i jedna jazda", () => {

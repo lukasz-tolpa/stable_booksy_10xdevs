@@ -4,6 +4,7 @@
  */
 
 import { currentWarsawHour } from "@/lib/bookings/slots";
+import { computeRiderRows, type StatsRider, type StatsRiderRow } from "@/lib/stats/riders";
 import { todayIso } from "@/lib/schedule/dates";
 
 /** Okres statystyk: zakres dat `RRRR-MM-DD`, oba krańce włącznie. */
@@ -26,6 +27,8 @@ export interface StatsBooking {
   horseId: number;
   hour: number;
   status: string;
+  /** Konto jeźdźca, który złożył zapis. */
+  riderId: string;
 }
 
 /** Koń stadniny — aktywny albo zdezaktywowany; statystyki potrzebują tylko nazwy. */
@@ -38,6 +41,8 @@ export interface StatsInput {
   period: StatsPeriod;
   days: StatsScheduleDay[];
   bookings: StatsBooking[];
+  /** Jeźdźcy występujący w zapisach — źródło nazw do tabeli jeźdźców. */
+  riders: StatsRider[];
   /** Wszystkie konie stadniny, także zdezaktywowane — historia okresu ich nie gubi. */
   horses: StatsHorse[];
 }
@@ -62,13 +67,18 @@ export interface StatsSummary {
    * do całości. `null` = brak danych: w okresie nie ma ani jednego minionego slotu.
    */
   occupancyPercent: number | null;
-  /** Odwołania przypisane do okresu według terminu zapisu, nie daty odwołania. */
+  /**
+   * Odwołania przypisane do okresu według terminu zapisu, nie daty odwołania —
+   * liczone dopiero, gdy godzina odwołanego slotu już się skończyła.
+   */
   cancellations: number;
 }
 
 /** Kompletny model widoku strony statystyk; kolejne sekcje dokładają tu swoje pola. */
 export interface StatsView {
   summary: StatsSummary;
+  /** Tabela jeźdźców, od najaktywniejszego; jej sumy zgadzają się z podsumowaniem. */
+  riders: StatsRiderRow[];
   /** Okres bez jazd i odwołań — strona pokazuje stan pusty zamiast zer. */
   isEmpty: boolean;
   /** Tabela koni, od najbardziej obciążonego. */
@@ -105,11 +115,17 @@ function slotEndedAt(now: Date): (day: string, hour: number) => boolean {
  */
 export function computeStableStats(input: StatsInput, now: Date = new Date()): StatsView {
   const ended = slotEndedAt(now);
-  const bookings = input.bookings.filter((booking) => inPeriod(booking.day, input.period));
+  // Statystyki opisują wyłącznie przeszłość: i jazda, i odwołanie liczą się dopiero,
+  // gdy godzina slotu już się skończyła.
+  const pastBookings = input.bookings.filter(
+    (booking) => inPeriod(booking.day, input.period) && ended(booking.day, booking.hour),
+  );
 
-  const rides = bookings.filter((booking) => booking.status === "active" && ended(booking.day, booking.hour)).length;
+  const rideBookings = pastBookings.filter((booking) => booking.status === "active");
   // Odwołanie liczy się według terminu zapisu, bez względu na to, kiedy je kliknięto.
-  const cancellations = bookings.filter((booking) => booking.status === "cancelled").length;
+  const cancelledBookings = pastBookings.filter((booking) => booking.status === "cancelled");
+  const rides = rideBookings.length;
+  const cancellations = cancelledBookings.length;
 
   // Wystawiony slot to para (godzina z zakresu pracy dnia, koń przydzielony do dnia);
   // do mianownika obłożenia wchodzą tylko sloty, których godzina już minęła.
@@ -128,6 +144,13 @@ export function computeStableStats(input: StatsInput, now: Date = new Date()): S
       occupancyPercent: pastSlots === 0 ? null : Math.round((rides / pastSlots) * 100),
       cancellations,
     },
+    riders: computeRiderRows({
+      rides: rideBookings,
+      cancellations: cancelledBookings,
+      riders: input.riders,
+      horses: input.horses,
+      slotDurationHours: SLOT_DURATION_HOURS,
+    }),
     isEmpty: rides === 0 && cancellations === 0,
     horses: computeHorseRows(input, ended),
   };

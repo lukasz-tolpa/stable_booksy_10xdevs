@@ -1,0 +1,182 @@
+---
+import type { StatsRiderRow } from "@/lib/stats/riders";
+
+// Tabela jeźdźców strony statystyk. Wyłącznie renderuje wiersze z modelu widoku
+// (@/lib/stats/riders) - kolejność, sumy i rozbicie na konie są już policzone.
+interface Props {
+  riders: StatsRiderRow[];
+  /** `id` nagłówka sekcji, który nazywa tabelę dla czytników ekranu. */
+  labelledby: string;
+}
+
+const { riders, labelledby } = Astro.props;
+const formatNumber = (value: number) => value.toLocaleString("pl-PL");
+---
+
+<div class="riders">
+  <table aria-labelledby={labelledby}>
+    <thead>
+      <tr>
+        <th scope="col">Jeździec</th>
+        <th scope="col" class="num">Jazdy</th>
+        <th scope="col" class="num">Godziny</th>
+        <th scope="col" class="num">Odwołania</th>
+      </tr>
+    </thead>
+    <tbody>
+      {
+        riders.map((rider) => (
+          <tr>
+            <th scope="row">
+              {rider.horses.length === 0 ? (
+                <span class="rider-name">{rider.name}</span>
+              ) : (
+                // Rozwinięcie bez JavaScriptu: natywne <details> działa z klawiatury i dotyku.
+                <details>
+                  <summary>
+                    <span class="rider-name">{rider.name}</span>
+                  </summary>
+                  <p class="horses__title">Jazdy na koniach</p>
+                  <ul class="horses">
+                    {rider.horses.map((horse) => (
+                      <li>
+                        <span>{horse.horseName}</span>
+                        <span class="horses__count">{formatNumber(horse.rides)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+            </th>
+            <td class="num">{formatNumber(rider.rides)}</td>
+            <td class="num">
+              {formatNumber(rider.rideHours)}
+              <span class="unit">h</span>
+            </td>
+            <td class="num">{formatNumber(rider.cancellations)}</td>
+          </tr>
+        ))
+      }
+    </tbody>
+  </table>
+</div>
+
+<style>
+  .riders {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-sm);
+    /* Długa nazwa nie rozpycha strony na telefonie - w razie czego przewija się tabela. */
+    overflow-x: auto;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14.5px;
+  }
+  th,
+  td {
+    padding: 12px 8px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th:first-child {
+    padding-left: 16px;
+  }
+  th:last-child,
+  td:last-child {
+    padding-right: 16px;
+  }
+  thead th {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  tbody tr + tr > * {
+    border-top: 1px solid var(--border);
+  }
+  tbody th {
+    width: 100%;
+    font-weight: 500;
+    overflow-wrap: anywhere;
+  }
+  .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  td.num {
+    font-family: ui-monospace, monospace;
+  }
+  .unit {
+    color: var(--muted);
+  }
+
+  summary {
+    /* Cały wiersz nazwy jest celem dotykowym; ujemny margines wyrównuje go do komórki. */
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    margin-block: -12px;
+    cursor: pointer;
+    list-style: none;
+    color: var(--primary);
+  }
+  summary::-webkit-details-marker {
+    display: none;
+  }
+  summary::before {
+    content: "";
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(-45deg);
+    transition: transform 0.15s;
+  }
+  /* `open` ustawia przeglądarka, nie szablon - stąd :global dla samego atrybutu. */
+  .riders :global(details[open]) > summary::before {
+    transform: rotate(45deg);
+  }
+  summary:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  summary .rider-name {
+    color: var(--fg);
+  }
+
+  .horses__title {
+    margin: 8px 0 4px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .horses {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 13.5px;
+    font-weight: 400;
+  }
+  .horses li {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    max-width: 240px;
+  }
+  .horses__count {
+    font-family: ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    color: var(--muted);
+  }
+</style>

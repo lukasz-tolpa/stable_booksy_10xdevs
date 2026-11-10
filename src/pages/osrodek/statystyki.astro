@@ -1,6 +1,7 @@
 ---
 import Layout from "@/layouts/Layout.astro";
 import Topbar from "@/components/Topbar.astro";
+import RiderTable from "@/components/stats/RiderTable.astro";
 import Card from "@/components/ui/Card.astro";
 import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
@@ -35,7 +36,8 @@ if (!reversed) {
         loadFailed = true;
         logError("page:osrodek/statystyki", new Error("Brak stadniny dla konta ośrodka"));
       } else {
-        // Lista stada obejmuje konie zdezaktywowane - tabela koni potrzebuje ich nazw.
+        // Lista stada obejmuje konie zdezaktywowane - jedyne źródło nazw koni dla
+        // tabeli koni i rozbicia jazd jeźdźca na konie.
         const [rows, horses] = await Promise.all([
           getStatsRows(supabase, stableId, period),
           listStableHorses(supabase, stableId),
@@ -144,6 +146,13 @@ const formatNumber = (value: number) => value.toLocaleString("pl-PL");
               </div>
             </dl>
           </section>
+          <section aria-labelledby="riders-heading">
+            <h2 id="riders-heading">Jeźdźcy</h2>
+            <p class="section-lead">
+              Od najaktywniejszego. Rozwiń jeźdźca, żeby zobaczyć jazdy na poszczególnych koniach.
+            </p>
+            <RiderTable riders={stats.riders} labelledby="riders-heading" />
+          </section>
           <HorseStatsTable rows={stats.horses} />
         </>
       )
@@ -161,6 +170,11 @@ const formatNumber = (value: number) => value.toLocaleString("pl-PL");
   h2 {
     margin: 26px 0 12px;
     font-size: 20px;
+  }
+  .section-lead {
+    margin: -6px 0 12px;
+    font-size: 14px;
+    color: var(--muted);
   }
   .page-lead {
     margin: 10px 0 0;
