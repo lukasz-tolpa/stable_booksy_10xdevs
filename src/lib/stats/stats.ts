@@ -4,7 +4,7 @@
  */
 
 import { currentWarsawHour } from "@/lib/bookings/slots";
-import { computeRiderRows, type StatsHorse, type StatsRider, type StatsRiderRow } from "@/lib/stats/riders";
+import { computeRiderRows, type StatsRider, type StatsRiderRow } from "@/lib/stats/riders";
 import { todayIso } from "@/lib/schedule/dates";
 
 /** Okres statystyk: zakres dat `RRRR-MM-DD`, oba krańce włącznie. */
@@ -31,14 +31,30 @@ export interface StatsBooking {
   riderId: string;
 }
 
+/** Koń stadniny — aktywny albo zdezaktywowany; statystyki potrzebują tylko nazwy. */
+export interface StatsHorse {
+  id: number;
+  name: string;
+}
+
 export interface StatsInput {
   period: StatsPeriod;
   days: StatsScheduleDay[];
   bookings: StatsBooking[];
   /** Jeźdźcy występujący w zapisach — źródło nazw do tabeli jeźdźców. */
   riders: StatsRider[];
-  /** Konie występujące w grafiku okresu — źródło nazw koni. */
+  /** Wszystkie konie stadniny, także zdezaktywowane — historia okresu ich nie gubi. */
   horses: StatsHorse[];
+}
+
+/** Wiersz tabeli koni: obciążenie konia w okresie. */
+export interface StatsHorseRow {
+  horseId: number;
+  /** `null`, gdy konia nie ma na liście stada — strona pokazuje tekst zastępczy. */
+  name: string | null;
+  rides: number;
+  /** Obciążenie konia: godziny jazd tego konia w okresie. */
+  rideHours: number;
 }
 
 export interface StatsSummary {
@@ -65,6 +81,8 @@ export interface StatsView {
   riders: StatsRiderRow[];
   /** Okres bez jazd i odwołań — strona pokazuje stan pusty zamiast zer. */
   isEmpty: boolean;
+  /** Tabela koni, od najbardziej obciążonego. */
+  horses: StatsHorseRow[];
 }
 
 /**
@@ -134,5 +152,54 @@ export function computeStableStats(input: StatsInput, now: Date = new Date()): S
       slotDurationHours: SLOT_DURATION_HOURS,
     }),
     isEmpty: rides === 0 && cancellations === 0,
+    horses: computeHorseRows(input, ended),
   };
+}
+
+// --- Tabela koni (obciążenie konia) ---
+
+/**
+ * Wiersze tabeli koni. W tabeli jest każdy koń, który w okresie miał jazdę albo był
+ * przydzielony do dnia grafiku z co najmniej jednym minionym slotem — koń stojący
+ * bezczynnie dostaje zero. Koń przydzielony wyłącznie do godzin, które jeszcze nie
+ * minęły, nie jest „bezczynny": statystyki opisują tylko to, co się odbyło.
+ *
+ * Aktywność konia nie ma znaczenia — zdezaktywowany po okresie zostaje w historii.
+ * Kolejność: godziny jazd malejąco, potem liczba jazd, potem nazwa.
+ */
+function computeHorseRows(input: StatsInput, ended: (day: string, hour: number) => boolean): StatsHorseRow[] {
+  const ridesByHorse = new Map<number, number>();
+
+  for (const day of input.days) {
+    if (!inPeriod(day.day, input.period)) continue;
+    // Godziny pracy rosną, więc dzień ma miniony slot dokładnie wtedy, gdy minął pierwszy.
+    if (day.openHour >= day.closeHour || !ended(day.day, day.openHour)) continue;
+    for (const horseId of day.horseIds) {
+      if (!ridesByHorse.has(horseId)) ridesByHorse.set(horseId, 0);
+    }
+  }
+
+  for (const booking of input.bookings) {
+    if (!inPeriod(booking.day, input.period)) continue;
+    if (booking.status !== "active" || !ended(booking.day, booking.hour)) continue;
+    ridesByHorse.set(booking.horseId, (ridesByHorse.get(booking.horseId) ?? 0) + 1);
+  }
+
+  const names = new Map(input.horses.map((horse) => [horse.id, horse.name]));
+  const rows = [...ridesByHorse].map(
+    ([horseId, rides]): StatsHorseRow => ({
+      horseId,
+      name: names.get(horseId) ?? null,
+      rides,
+      rideHours: rides * SLOT_DURATION_HOURS,
+    }),
+  );
+
+  return rows.sort(
+    (a, b) =>
+      b.rideHours - a.rideHours ||
+      b.rides - a.rides ||
+      (a.name ?? "").localeCompare(b.name ?? "", "pl") ||
+      a.horseId - b.horseId,
+  );
 }

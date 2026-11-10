@@ -29,13 +29,12 @@ describe("collectStatsRows", () => {
           rawDay("2026-11-05", [
             {
               horse_id: 1,
-              horses: { name: "Bella" },
               bookings: [
                 { hour: 10, status: "active", rider_id: "rider-anna", profiles: { full_name: "Anna Kowalska" } },
                 { hour: 10, status: "cancelled", rider_id: "rider-piotr", profiles: { full_name: "Piotr Nowak" } },
               ],
             },
-            { horse_id: 2, horses: { name: "Kasztan" }, bookings: [] },
+            { horse_id: 2, bookings: [] },
           ]),
         ],
         error: null,
@@ -52,18 +51,13 @@ describe("collectStatsRows", () => {
         { id: "rider-anna", name: "Anna Kowalska" },
         { id: "rider-piotr", name: "Piotr Nowak" },
       ],
-      horses: [
-        { id: 1, name: "Bella" },
-        { id: 2, name: "Kasztan" },
-      ],
     });
   });
 
-  it("jeździec i koń powtarzający się w wielu dniach i na wielu stronach występują raz", async () => {
+  it("jeździec powtarzający się w wielu dniach i na wielu stronach występuje raz", async () => {
     const anna = { rider_id: "rider-anna", profiles: { full_name: "Anna Kowalska" } };
     const bella = (hour: number) => ({
       horse_id: 1,
-      horses: { name: "Bella" },
       bookings: [{ hour, status: "active", ...anna }],
     });
     const loader = stubLoader([
@@ -75,7 +69,6 @@ describe("collectStatsRows", () => {
 
     expect(rows.bookings).toHaveLength(3);
     expect(rows.riders).toEqual([{ id: "rider-anna", name: "Anna Kowalska" }]);
-    expect(rows.horses).toEqual([{ id: 1, name: "Bella" }]);
   });
 
   it("profil ukryty przez RLS albo bez nazwy daje jeźdźca bez nazwy, nie błąd", async () => {
@@ -85,7 +78,6 @@ describe("collectStatsRows", () => {
           rawDay("2026-11-05", [
             {
               horse_id: 1,
-              horses: { name: "Bella" },
               bookings: [
                 { hour: 10, status: "active", rider_id: "rider-ukryty", profiles: null },
                 { hour: 11, status: "active", rider_id: "rider-bez-nazwy", profiles: { full_name: null } },
@@ -110,7 +102,6 @@ describe("collectStatsRows", () => {
       days: [],
       bookings: [],
       riders: [],
-      horses: [],
     });
   });
 

@@ -4,16 +4,12 @@
  * co jest jazdą, a co odwołaniem; tu jest tylko grupowanie i sortowanie.
  */
 
+import type { StatsHorse } from "@/lib/stats/stats";
+
 /** Jeździec znany ośrodkowi: konto (`id`) i nazwa z profilu (`null`, gdy jej nie podał). */
 export interface StatsRider {
   id: string;
   name: string | null;
-}
-
-/** Koń stadniny — także zdezaktywowany, bo statystyki opisują historię. */
-export interface StatsHorse {
-  id: number;
-  name: string;
 }
 
 /** Liczba jazd jeźdźca na jednym koniu. */
