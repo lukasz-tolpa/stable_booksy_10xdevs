@@ -1,6 +1,7 @@
 ---
 import Layout from "@/layouts/Layout.astro";
 import Topbar from "@/components/Topbar.astro";
+import RiderTable from "@/components/stats/RiderTable.astro";
 import Card from "@/components/ui/Card.astro";
 import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
@@ -139,6 +140,19 @@ const formatNumber = (value: number) => value.toLocaleString("pl-PL");
         </section>
       )
     }
+
+    {
+      /* Tabela jeźdźców (#32) - osobny blok, żeby kolejne sekcje dokładały się obok. */
+      !reversed && !loadFailed && stats && !stats.isEmpty && (
+        <section aria-labelledby="riders-heading">
+          <h2 id="riders-heading">Jeźdźcy</h2>
+          <p class="section-lead">
+            Od najaktywniejszego. Rozwiń jeźdźca, żeby zobaczyć jazdy na poszczególnych koniach.
+          </p>
+          <RiderTable riders={stats.riders} labelledby="riders-heading" />
+        </section>
+      )
+    }
   </main>
 </Layout>
 
@@ -152,6 +166,11 @@ const formatNumber = (value: number) => value.toLocaleString("pl-PL");
   h2 {
     margin: 26px 0 12px;
     font-size: 20px;
+  }
+  .section-lead {
+    margin: -6px 0 12px;
+    font-size: 14px;
+    color: var(--muted);
   }
   .page-lead {
     margin: 10px 0 0;

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/db/database.types";
+import type { StatsHorse, StatsRider } from "@/lib/stats/riders";
 import type { StatsBooking, StatsPeriod, StatsScheduleDay } from "@/lib/stats/stats";
 
 type Client = SupabaseClient<Database>;
@@ -8,6 +9,26 @@ type Client = SupabaseClient<Database>;
 export interface StatsRows {
   days: StatsScheduleDay[];
   bookings: StatsBooking[];
+  /** Jeźdźcy z zapisów okresu, każde konto raz. */
+  riders: StatsRider[];
+  /** Konie przydzielone do dni okresu, każdy raz. */
+  horses: StatsHorse[];
+}
+
+/** Zapis w kształcie PostgREST: konto jeźdźca i jego profil (nazwa) przez FK `rider_id`. */
+export interface RawStatsBooking {
+  hour: number;
+  status: string;
+  rider_id: string;
+  /** `null`, gdy RLS ukryje profil — typ wygenerowany tego nie przewiduje, runtime tak. */
+  profiles: { full_name: string | null } | null;
+}
+
+/** Przydział konia do dnia w kształcie PostgREST: koń (nazwa) i zapisy na niego. */
+export interface RawStatsDayHorse {
+  horse_id: number;
+  horses: { name: string } | null;
+  bookings: RawStatsBooking[];
 }
 
 /** Dzień grafiku w kształcie zwracanym przez PostgREST: przydziały koni z zapisami. */
@@ -15,7 +36,7 @@ export interface RawStatsDay {
   day: string;
   open_hour: number;
   close_hour: number;
-  schedule_day_horses: { horse_id: number; bookings: { hour: number; status: string }[] }[];
+  schedule_day_horses: RawStatsDayHorse[];
 }
 
 /** Jedna strona dni grafiku: wiersze `from…to` włącznie, jak w `range()` PostgREST. */
@@ -34,7 +55,10 @@ const PAGE_SIZE = 1000;
  * dawałby zaniżone liczby bez żadnego błędu.
  */
 export async function collectStatsRows(loadPage: StatsPageLoader, pageSize: number = PAGE_SIZE): Promise<StatsRows> {
-  const rows: StatsRows = { days: [], bookings: [] };
+  const rows: StatsRows = { days: [], bookings: [], riders: [], horses: [] };
+  // Jeździec i koń powtarzają się w wielu dniach — do wierszy trafiają raz, po koncie / id.
+  const seenRiders = new Set<string>();
+  const seenHorses = new Set<number>();
 
   for (let offset = 0; ; offset += pageSize) {
     const { data, error } = await loadPage(offset, offset + pageSize - 1);
@@ -53,8 +77,24 @@ export async function collectStatsRows(loadPage: StatsPageLoader, pageSize: numb
         horseIds: day.schedule_day_horses.map((entry) => entry.horse_id),
       });
       for (const entry of day.schedule_day_horses) {
+        if (entry.horses && !seenHorses.has(entry.horse_id)) {
+          seenHorses.add(entry.horse_id);
+          rows.horses.push({ id: entry.horse_id, name: entry.horses.name });
+        }
         for (const booking of entry.bookings) {
-          rows.bookings.push({ day: day.day, horseId: entry.horse_id, hour: booking.hour, status: booking.status });
+          rows.bookings.push({
+            day: day.day,
+            horseId: entry.horse_id,
+            hour: booking.hour,
+            status: booking.status,
+            riderId: booking.rider_id,
+          });
+          if (!seenRiders.has(booking.rider_id)) {
+            seenRiders.add(booking.rider_id);
+            // Brak profilu lub nazwy zostaje `null` — tekst zastępczy należy do warstwy
+            // czystej (`computeRiderRows`), nie do zapytania.
+            rows.riders.push({ id: booking.rider_id, name: booking.profiles?.full_name ?? null });
+          }
         }
       }
     }
@@ -73,6 +113,11 @@ export async function collectStatsRows(loadPage: StatsPageLoader, pageSize: numb
  * `bookings → schedule_day_horses`, więc termin zapisu (dzień) przychodzi z wiersza
  * nadrzędnego i nie trzeba przekazywać listy identyfikatorów dni w adresie.
  *
+ * Nazwę jeźdźca dociąga embedded select przez FK `rider_id → profiles`, na tej samej
+ * zasadzie co lista zapisów dnia (`getDayBookings`): polityka RLS na `profiles`
+ * (`is_rider_of_my_stable`) wpuszcza ośrodek do profili jeźdźców mających zapis —
+ * także odwołany — w jego stadninie. Nazwa konia idzie przez FK przydziału do `horses`.
+ *
  * Filtr po `stable_id` jest jawny (lekcja S-04), choć RLS i tak pokazuje ośrodkowi
  * tylko własne zapisy. Wołać wyłącznie z sesji ośrodka dla jego własnej stadniny —
  * sesja jeźdźca zobaczyłaby przez RLS tylko własne zapisy i po cichu zaniżyła liczby.
@@ -81,7 +126,9 @@ export function getStatsRows(client: Client, stableId: number, period: StatsPeri
   return collectStatsRows((from, to) =>
     client
       .from("schedule_days")
-      .select("day, open_hour, close_hour, schedule_day_horses(horse_id, bookings(hour, status))")
+      .select(
+        "day, open_hour, close_hour, schedule_day_horses(horse_id, horses(name), bookings(hour, status, rider_id, profiles(full_name)))",
+      )
       .eq("stable_id", stableId)
       .gte("day", period.from)
       .lte("day", period.to)
