@@ -1,0 +1,354 @@
+---
+// Wykres słupkowy projektu (wzorzec: AGENTS.md → Design → "Wykresy"). Rysowany na
+// serwerze czystym HTML + CSS, bez biblioteki i bez JavaScriptu w przeglądarce.
+// Komponent niczego nie liczy poza skalą osi: dostaje gotową serię z modelu widoku
+// (`@/lib/stats/stats`) i rysuje ją. Część graficzna jest ukryta przed czytnikami
+// ekranu, a te same dane są dostępne dla wszystkich jako tabela w <details>.
+
+export interface BarChartItem {
+  /** Krótka etykieta przy słupku (np. `9.11`, nazwa konia). */
+  label: string;
+  /** Pełna etykieta do tabeli i podpowiedzi; domyślnie `label`. */
+  longLabel?: string;
+  /** Wartość nieujemna — wyznacza długość słupka. */
+  value: number;
+  /** Wartość do odczytu (np. `3 h`); domyślnie liczba w zapisie polskim. */
+  valueText?: string;
+}
+
+interface Props {
+  /** Nazwa wykresu dla czytników ekranu i podpis tabeli z danymi. */
+  title: string;
+  items: BarChartItem[];
+  /**
+   * `vertical` — słupki pionowe na osi czasu (kolejność = chronologia).
+   * `horizontal` — słupki poziome z etykietą i wartością w wierszu (rankingi, kategorie).
+   */
+  orientation?: "vertical" | "horizontal";
+  /** Nagłówek kolumny etykiet w tabeli, np. „Dzień", „Koń". */
+  labelHeader: string;
+  /** Nagłówek kolumny wartości w tabeli, np. „Godziny jazd". */
+  valueHeader: string;
+}
+
+const { title, items, orientation = "vertical", labelHeader, valueHeader } = Astro.props;
+
+const formatNumber = (value: number) => value.toLocaleString("pl-PL");
+const rows = items.map((item) => ({
+  label: item.label,
+  longLabel: item.longLabel ?? item.label,
+  value: Math.max(0, item.value),
+  valueText: item.valueText ?? formatNumber(item.value),
+}));
+const max = Math.max(0, ...rows.map((row) => row.value));
+
+/** Górna granica osi: najbliższa „okrągła" liczba, której połowa też jest okrągła. */
+function niceMax(value: number): number {
+  if (value <= 1) return 1;
+  const magnitude = 10 ** Math.floor(Math.log10(value));
+  const step = [1, 2, 4, 6, 8, 10].find((candidate) => candidate * magnitude >= value) ?? 10;
+  return step * magnitude;
+}
+
+const axisMax = niceMax(max);
+// Skala 0–1 nie ma okrągłej połowy, więc dostaje tylko dwa znaczniki.
+const ticks = axisMax === 1 ? [1, 0] : [axisMax, axisMax / 2, 0];
+const fraction = (tick: number) => String(tick / axisMax);
+const percent = (value: number, of: number) => `${String(of === 0 ? 0 : (value / of) * 100)}%`;
+
+// Na telefonie pod osią mieści się około sześciu etykiet — pozostałe są pomijane,
+// a dokładne wartości i tak są w tabeli.
+const MAX_AXIS_LABELS = 6;
+const labelStep = Math.max(1, Math.ceil(rows.length / MAX_AXIS_LABELS));
+---
+
+<figure class="chart" aria-label={title}>
+  {
+    orientation === "vertical" ? (
+      <div class="v" aria-hidden="true">
+        <div class="v__axis">
+          <span class="v__sizer">{formatNumber(axisMax)}</span>
+          {ticks.map((tick) => (
+            <span class="v__tick" style={`--at:${fraction(tick)}`}>
+              {formatNumber(tick)}
+            </span>
+          ))}
+        </div>
+        <div class="v__scroll">
+          <div class="v__cols" style={`--cols:${String(rows.length)}`}>
+            {ticks.map((tick) => (
+              <span class:list={["v__grid", tick === 0 && "v__grid--base"]} style={`--at:${fraction(tick)}`} />
+            ))}
+            {rows.map((row, index) => (
+              <div class="v__col" title={`${row.longLabel}: ${row.valueText}`}>
+                <div class="v__barbox">
+                  <span
+                    class:list={["v__bar", row.value === 0 && "v__bar--zero"]}
+                    style={`height:${percent(row.value, axisMax)}`}
+                  />
+                </div>
+                <span class="v__label">{index % labelStep === 0 ? row.label : ""}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    ) : (
+      <div class="h" aria-hidden="true">
+        {rows.map((row) => (
+          <div class="h__row" title={`${row.longLabel}: ${row.valueText}`}>
+            <span class="h__label">{row.label}</span>
+            <span class="h__track">
+              <span
+                class:list={["h__bar", row.value === 0 && "h__bar--zero"]}
+                style={`width:${percent(row.value, max)}`}
+              />
+            </span>
+            <span class="h__value">{row.valueText}</span>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  <details class="data">
+    <summary>Pokaż dane wykresu w tabeli</summary>
+    <div class="data__scroll">
+      <table>
+        <caption>{title}</caption>
+        <thead>
+          <tr>
+            <th scope="col">{labelHeader}</th>
+            <th scope="col" class="num">{valueHeader}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {
+            rows.map((row) => (
+              <tr>
+                <th scope="row">{row.longLabel}</th>
+                <td class="num">{row.valueText}</td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+  </details>
+</figure>
+
+<style>
+  .chart {
+    margin: 0;
+    padding: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    /* Wykres nie jest klikalny, więc bez cienia (DESIGN.md §4). */
+  }
+
+  /* ---- Słupki pionowe ---- */
+  .v {
+    --plot-h: 180px;
+    --label-h: 22px;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 8px;
+  }
+  .v__axis {
+    position: relative;
+    height: var(--plot-h);
+    /* Szerokość osi wyznacza najdłuższy znacznik — niewidoczny, ale w układzie. */
+    min-width: 2ch;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 11.5px;
+    color: var(--muted);
+  }
+  /* Niewidoczny wzorzec szerokości: znaczniki są pozycjonowane absolutnie. */
+  .v__sizer {
+    visibility: hidden;
+  }
+  .v__tick {
+    position: absolute;
+    right: 0;
+    bottom: calc(var(--plot-h) * var(--at));
+    line-height: 1;
+    transform: translateY(50%);
+  }
+  .v__scroll {
+    min-width: 0;
+    /* Bardzo długie okresy (dziesiątki miesięcy) przewijają się w poziomie zamiast
+       ściskać słupki poniżej czytelności. */
+    overflow-x: auto;
+  }
+  .v__cols {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(var(--cols), minmax(6px, 1fr));
+    column-gap: 2px;
+    /* Przy przewijaniu siatka ma sięgać pod wszystkie słupki, nie tylko widoczne. */
+    min-width: calc(var(--cols) * 8px + 26px);
+    /* Miejsce na ostatnią etykietę osi, która wystaje w prawo poza swój słupek. */
+    padding-right: 26px;
+  }
+  .v__grid {
+    position: absolute;
+    left: 0;
+    right: 0;
+    /* Siatka dotyczy pola słupków, które leży nad rzędem etykiet osi. */
+    bottom: calc(var(--label-h) + var(--plot-h) * var(--at));
+    border-top: 1px solid var(--border);
+  }
+  .v__grid--base {
+    border-top-color: var(--border-2);
+  }
+  .v__col {
+    position: relative;
+    min-width: 0;
+  }
+  .v__barbox {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    height: var(--plot-h);
+  }
+  .v__bar {
+    display: block;
+    width: 100%;
+    max-width: 28px;
+    background: var(--primary);
+    border-radius: 3px 3px 0 0;
+    transition: background 0.15s;
+  }
+  /* Przedział bez jazd zostaje na osi jako niski znacznik zera. */
+  .v__bar--zero {
+    height: 2px !important;
+    background: var(--border-2);
+    border-radius: 0;
+  }
+  .v__col:hover .v__bar:not(.v__bar--zero) {
+    background: var(--primary-strong);
+  }
+  .v__label {
+    display: block;
+    height: var(--label-h);
+    padding-top: 6px;
+    /* Etykieta zaczyna się przy lewej krawędzi swojego słupka i może wyjść poza kolumnę. */
+    white-space: nowrap;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 11.5px;
+    line-height: 1;
+    color: var(--muted);
+  }
+
+  /* ---- Słupki poziome ---- */
+  .h {
+    display: grid;
+    grid-template-columns: fit-content(40%) minmax(0, 1fr) auto;
+    column-gap: 10px;
+    row-gap: 8px;
+    align-items: center;
+  }
+  .h__row {
+    display: grid;
+    grid-template-columns: subgrid;
+    grid-column: 1 / -1;
+    align-items: center;
+  }
+  .h__label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .h__track {
+    display: block;
+    height: 16px;
+    border-left: 1px solid var(--border-2);
+  }
+  .h__bar {
+    display: block;
+    height: 100%;
+    background: var(--primary);
+    border-radius: 0 4px 4px 0;
+    transition: background 0.15s;
+  }
+  .h__bar--zero {
+    width: 2px !important;
+    background: var(--border-2);
+    border-radius: 0;
+  }
+  .h__row:hover .h__bar:not(.h__bar--zero) {
+    background: var(--primary-strong);
+  }
+  .h__value {
+    text-align: right;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 13.5px;
+    color: var(--fg);
+  }
+
+  /* ---- Tabela z danymi (tekstowy odpowiednik wykresu) ---- */
+  .data {
+    margin-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .data summary {
+    display: flex;
+    align-items: center;
+    /* 44 px to minimalny cel dotykowy. */
+    min-height: 44px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--primary);
+    cursor: pointer;
+  }
+  .data summary:hover {
+    color: var(--primary-strong);
+  }
+  .data summary:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    border-radius: var(--r-sm);
+  }
+  .data__scroll {
+    max-height: 320px;
+    overflow-y: auto;
+  }
+  .data table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  .data caption {
+    padding-bottom: 8px;
+    text-align: left;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .data th,
+  .data td {
+    padding: 8px 0;
+    border-top: 1px solid var(--border);
+    text-align: left;
+    font-weight: 400;
+  }
+  .data thead th {
+    border-top: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .data .num {
+    padding-left: 12px;
+    text-align: right;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+</style>

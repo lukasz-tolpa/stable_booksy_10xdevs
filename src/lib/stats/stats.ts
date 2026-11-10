@@ -5,6 +5,7 @@
 
 import { currentWarsawHour } from "@/lib/bookings/slots";
 import { todayIso } from "@/lib/schedule/dates";
+import { buildRideHoursSeries, type RideHoursSeries } from "@/lib/stats/time-series";
 
 /** Okres statystyk: zakres dat `RRRR-MM-DD`, oba krańce włącznie. */
 export interface StatsPeriod {
@@ -53,6 +54,8 @@ export interface StatsView {
   summary: StatsSummary;
   /** Okres bez jazd i odwołań — strona pokazuje stan pusty zamiast zer. */
   isEmpty: boolean;
+  /** Seria wykresu godzin jazd w czasie; jej suma równa się `summary.rideHours`. */
+  rideHoursOverTime: RideHoursSeries;
 }
 
 /**
@@ -87,7 +90,8 @@ export function computeStableStats(input: StatsInput, now: Date = new Date()): S
   const ended = slotEndedAt(now);
   const bookings = input.bookings.filter((booking) => inPeriod(booking.day, input.period));
 
-  const rides = bookings.filter((booking) => booking.status === "active" && ended(booking.day, booking.hour)).length;
+  const rideBookings = bookings.filter((booking) => booking.status === "active" && ended(booking.day, booking.hour));
+  const rides = rideBookings.length;
   // Odwołanie liczy się według terminu zapisu, bez względu na to, kiedy je kliknięto.
   const cancellations = bookings.filter((booking) => booking.status === "cancelled").length;
 
@@ -109,5 +113,10 @@ export function computeStableStats(input: StatsInput, now: Date = new Date()): S
       cancellations,
     },
     isEmpty: rides === 0 && cancellations === 0,
+    rideHoursOverTime: buildRideHoursSeries(
+      input.period,
+      rideBookings.map((booking) => booking.day),
+      SLOT_DURATION_HOURS,
+    ),
   };
 }
