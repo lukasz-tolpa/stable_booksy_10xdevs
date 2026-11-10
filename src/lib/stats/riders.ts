@@ -134,29 +134,3 @@ export function computeRiderRows(input: RiderRowsInput): StatsRiderRow[] {
         (a.riderId ?? "").localeCompare(b.riderId ?? ""),
     );
 }
-
-/** Pozycja pierwszej dziesiątki jeźdźców — zawsze konkretne konto, nigdy wiersz zbiorczy. */
-export interface StatsTopRider {
-  riderId: string;
-  name: string;
-  rideHours: number;
-}
-
-/** Ilu jeźdźców mieści ranking najaktywniejszych. */
-export const TOP_RIDERS_LIMIT = 10;
-
-/**
- * Pierwsza dziesiątka jeźdźców według godzin jazd, w kolejności tabeli jeźdźców.
- * Wiersz „Usunięci jeźdźcy" jest pomijany: to suma wielu osób, nie jeździec.
- */
-export function computeTopRiders(rows: StatsRiderRow[]): StatsTopRider[] {
-  const top: StatsTopRider[] = [];
-
-  for (const row of rows) {
-    if (row.riderId === null) continue;
-    if (top.length === TOP_RIDERS_LIMIT) break;
-    top.push({ riderId: row.riderId, name: row.name, rideHours: row.rideHours });
-  }
-
-  return top;
-}

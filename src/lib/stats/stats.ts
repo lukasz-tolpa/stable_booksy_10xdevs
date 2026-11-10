@@ -5,13 +5,14 @@
 
 import { currentWarsawHour } from "@/lib/bookings/slots";
 import {
-  computeRiderRows,
-  computeTopRiders,
-  type StatsRider,
-  type StatsRiderRow,
-  type StatsTopRider,
-} from "@/lib/stats/riders";
+  buildHorseWorkloadSeries,
+  buildTopRidersSeries,
+  type HorseWorkloadPoint,
+  type TopRiderPoint,
+} from "@/lib/stats/rankings";
+import { computeRiderRows, type StatsRider, type StatsRiderRow } from "@/lib/stats/riders";
 import { todayIso } from "@/lib/schedule/dates";
+import { buildRideHoursSeries, type RideHoursSeries } from "@/lib/stats/time-series";
 
 /** Okres statystyk: zakres dat `RRRR-MM-DD`, oba krańce włącznie. */
 export interface StatsPeriod {
@@ -85,12 +86,16 @@ export interface StatsView {
   summary: StatsSummary;
   /** Tabela jeźdźców, od najaktywniejszego; jej sumy zgadzają się z podsumowaniem. */
   riders: StatsRiderRow[];
-  /** Pierwsza dziesiątka jeźdźców według godzin jazd — bez wiersza „Usunięci jeźdźcy". */
-  topRiders: StatsTopRider[];
   /** Okres bez jazd i odwołań — strona pokazuje stan pusty zamiast zer. */
   isEmpty: boolean;
   /** Tabela koni, od najbardziej obciążonego. */
   horses: StatsHorseRow[];
+  /** Seria wykresu godzin jazd w czasie; jej suma równa się `summary.rideHours`. */
+  rideHoursOverTime: RideHoursSeries;
+  /** Seria wykresu obciążenia koni: te same konie i liczby co `horses`, w tej samej kolejności. */
+  horseWorkload: HorseWorkloadPoint[];
+  /** Seria wykresu pierwszej dziesiątki jeźdźców według godzin jazd; liczby z `riders`. */
+  topRiders: TopRiderPoint[];
 }
 
 /**
@@ -145,6 +150,7 @@ export function computeStableStats(input: StatsInput, now: Date = new Date()): S
     }
   }
 
+  const horses = computeHorseRows(input, ended);
   const riders = computeRiderRows({
     rides: rideBookings,
     cancellations: cancelledBookings,
@@ -161,9 +167,15 @@ export function computeStableStats(input: StatsInput, now: Date = new Date()): S
       cancellations,
     },
     riders,
-    topRiders: computeTopRiders(riders),
     isEmpty: rides === 0 && cancellations === 0,
-    horses: computeHorseRows(input, ended),
+    horses,
+    rideHoursOverTime: buildRideHoursSeries(
+      input.period,
+      rideBookings.map((booking) => booking.day),
+      SLOT_DURATION_HOURS,
+    ),
+    horseWorkload: buildHorseWorkloadSeries(horses),
+    topRiders: buildTopRidersSeries(riders),
   };
 }
 

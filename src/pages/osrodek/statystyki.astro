@@ -1,6 +1,7 @@
 ---
 import Layout from "@/layouts/Layout.astro";
 import Topbar from "@/components/Topbar.astro";
+import BarChart from "@/components/ui/BarChart.astro";
 import RiderTable from "@/components/stats/RiderTable.astro";
 import Card from "@/components/ui/Card.astro";
 import EmptyState from "@/components/ui/EmptyState.astro";
@@ -10,6 +11,7 @@ import { logError } from "@/lib/log";
 import { resolveStatsPeriod } from "@/lib/stats/period";
 import { getStatsRows } from "@/lib/stats/queries";
 import { computeStableStats, type StatsView } from "@/lib/stats/stats";
+import { bucketLabels, granularityNames } from "@/lib/stats/time-series-labels";
 import { getOwnedStableId, listStableHorses } from "@/lib/stables/queries";
 import { createClient } from "@/lib/supabase";
 
@@ -65,6 +67,34 @@ const dateFormat = new Intl.DateTimeFormat("pl-PL", {
 const formatDay = (iso: string) => dateFormat.format(new Date(`${iso}T00:00:00Z`));
 const periodLabel = `${formatDay(period.from)} – ${formatDay(period.to)}`;
 const formatNumber = (value: number) => value.toLocaleString("pl-PL");
+
+// --- Wykres godzin jazd w czasie (#34): seria z modelu widoku, tu tylko etykiety. ---
+// Okres pusty ma własny stan pusty, więc wykres pojawia się tylko obok podsumowania.
+const timeSeries = stats && !stats.isEmpty ? stats.rideHoursOverTime : null;
+const timeNames = timeSeries ? granularityNames(timeSeries.granularity) : null;
+const timeItems = (timeSeries?.buckets ?? []).map((bucket) => {
+  const labels = bucketLabels(bucket, timeSeries?.granularity ?? "day");
+  return {
+    label: labels.short,
+    longLabel: labels.long,
+    value: bucket.rideHours,
+    valueText: `${formatNumber(bucket.rideHours)} h`,
+  };
+});
+
+// --- Wykresy rankingowe (#35): serie z modelu widoku, tu tylko etykiety. ---
+const formatHours = (hours: number) => `${formatNumber(hours)} h`;
+const topRiderItems = (stats?.topRiders ?? []).map((point) => ({
+  label: point.name,
+  value: point.rideHours,
+  valueText: formatHours(point.rideHours),
+}));
+// Ten sam tekst zastępczy co w tabeli koni.
+const horseWorkloadItems = (stats?.horseWorkload ?? []).map((point) => ({
+  label: point.name ?? "(koń)",
+  value: point.rideHours,
+  valueText: formatHours(point.rideHours),
+}));
 ---
 
 <Layout title="Statystyki">
@@ -146,6 +176,32 @@ const formatNumber = (value: number) => value.toLocaleString("pl-PL");
               </div>
             </dl>
           </section>
+          {timeSeries && timeNames && (
+            <section aria-labelledby="time-chart-heading">
+              <h2 id="time-chart-heading">Godziny jazd w czasie</h2>
+              <p class="chart-lead">Godziny jazd {timeNames.phrase} w wybranym okresie.</p>
+              <BarChart
+                title={`Godziny jazd w czasie, ${timeNames.phrase}`}
+                items={timeItems}
+                orientation="vertical"
+                labelHeader={timeNames.bucket}
+                valueHeader="Godziny jazd"
+              />
+            </section>
+          )}
+          {topRiderItems.length > 0 && (
+            <section aria-labelledby="top-riders-chart-heading">
+              <h2 id="top-riders-chart-heading">Pierwsza dziesiątka jeźdźców</h2>
+              <p class="chart-lead">Jeźdźcy z największą liczbą godzin jazd w wybranym okresie.</p>
+              <BarChart
+                title="Pierwsza dziesiątka jeźdźców według godzin jazd"
+                items={topRiderItems}
+                orientation="horizontal"
+                labelHeader="Jeździec"
+                valueHeader="Godziny jazd"
+              />
+            </section>
+          )}
           <section aria-labelledby="riders-heading">
             <h2 id="riders-heading">Jeźdźcy</h2>
             <p class="section-lead">
@@ -153,6 +209,19 @@ const formatNumber = (value: number) => value.toLocaleString("pl-PL");
             </p>
             <RiderTable riders={stats.riders} labelledby="riders-heading" />
           </section>
+          {horseWorkloadItems.length > 0 && (
+            <section aria-labelledby="horse-chart-heading">
+              <h2 id="horse-chart-heading">Obciążenie koni</h2>
+              <p class="chart-lead">Godziny jazd każdego konia w wybranym okresie, od najbardziej obciążonego.</p>
+              <BarChart
+                title="Obciążenie koni: godziny jazd w okresie"
+                items={horseWorkloadItems}
+                orientation="horizontal"
+                labelHeader="Koń"
+                valueHeader="Godziny jazd"
+              />
+            </section>
+          )}
           <HorseStatsTable rows={stats.horses} />
         </>
       )
@@ -339,5 +408,12 @@ const formatNumber = (value: number) => value.toLocaleString("pl-PL");
     font-weight: 400;
     line-height: 1.35;
     color: var(--faint);
+  }
+
+  /* Wykresy (#34, #35): jedno zdanie opisu nad wykresem. */
+  .chart-lead {
+    margin: -4px 0 12px;
+    font-size: 14.5px;
+    color: var(--muted);
   }
 </style>
