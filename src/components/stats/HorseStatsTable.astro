@@ -1,0 +1,115 @@
+---
+import type { StatsHorseRow } from "@/lib/stats/stats";
+
+// Tabela koni z obciążeniem konia. Niczego nie liczy i nie sortuje - renderuje wiersze
+// modelu widoku z @/lib/stats/stats w zadanej kolejności.
+interface Props {
+  rows: StatsHorseRow[];
+}
+
+const { rows } = Astro.props;
+const formatNumber = (value: number) => value.toLocaleString("pl-PL");
+---
+
+<section aria-labelledby="horses-heading" class="horses">
+  <h2 id="horses-heading">Konie</h2>
+  {
+    rows.length === 0 ? (
+      <p class="horses__none">W tym okresie żaden koń nie pracował w grafiku.</p>
+    ) : (
+      <div class="horses__card">
+        <table>
+          <caption class="sr-only">Obciążenie koni w okresie: liczba jazd i godziny jazd każdego konia</caption>
+          <thead>
+            <tr>
+              <th scope="col">Koń</th>
+              <th scope="col" class="num">
+                Jazdy
+              </th>
+              <th scope="col" class="num">
+                Godziny jazd
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr>
+                <th scope="row">{row.name ?? "(koń)"}</th>
+                <td class="num">{formatNumber(row.rides)}</td>
+                <td class="num">
+                  {formatNumber(row.rideHours)}
+                  <span class="unit">h</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )
+  }
+</section>
+
+<style>
+  h2 {
+    margin: 26px 0 12px;
+    font-size: 20px;
+  }
+  .horses__none {
+    margin: 0;
+    font-size: 14.5px;
+    color: var(--muted);
+  }
+  .horses__card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+  /* Trzy wąskie kolumny mieszczą się na telefonie bez przewijania w poziomie:
+     nazwa konia zabiera resztę szerokości i łamie się, liczby trzymają swoją. */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 15px;
+  }
+  th,
+  td {
+    padding: 12px 14px;
+    text-align: left;
+    vertical-align: baseline;
+  }
+  thead th {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+  }
+  tbody tr + tr > * {
+    border-top: 1px solid var(--border);
+  }
+  tbody th {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+  .num {
+    width: 1%;
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .unit {
+    margin-left: 1px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  @media (width < 400px) {
+    th,
+    td {
+      padding-inline: 10px;
+    }
+    thead th.num {
+      white-space: normal;
+    }
+  }
+</style>
