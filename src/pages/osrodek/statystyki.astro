@@ -4,11 +4,12 @@ import Topbar from "@/components/Topbar.astro";
 import Card from "@/components/ui/Card.astro";
 import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
+import HorseStatsTable from "@/components/stats/HorseStatsTable.astro";
 import { logError } from "@/lib/log";
 import { resolveStatsPeriod } from "@/lib/stats/period";
 import { getStatsRows } from "@/lib/stats/queries";
 import { computeStableStats, type StatsView } from "@/lib/stats/stats";
-import { getOwnedStableId } from "@/lib/stables/queries";
+import { getOwnedStableId, listStableHorses } from "@/lib/stables/queries";
 import { createClient } from "@/lib/supabase";
 
 // Dostęp pilnuje middleware (mapa tras w @/lib/auth/roles): jeździec wraca do swojej
@@ -34,7 +35,12 @@ if (!reversed) {
         loadFailed = true;
         logError("page:osrodek/statystyki", new Error("Brak stadniny dla konta ośrodka"));
       } else {
-        stats = computeStableStats({ period, ...(await getStatsRows(supabase, stableId, period)) });
+        // Lista stada obejmuje konie zdezaktywowane - tabela koni potrzebuje ich nazw.
+        const [rows, horses] = await Promise.all([
+          getStatsRows(supabase, stableId, period),
+          listStableHorses(supabase, stableId),
+        ]);
+        stats = computeStableStats({ period, ...rows, horses });
       }
     } catch (error) {
       loadFailed = true;
@@ -103,40 +109,43 @@ const formatNumber = (value: number) => value.toLocaleString("pl-PL");
           </EmptyState>
         </Card>
       ) : (
-        <section aria-labelledby="summary-heading">
-          <h2 id="summary-heading">Podsumowanie okresu</h2>
-          <dl class="tiles">
-            <div class="tile">
-              <dt>Jazdy</dt>
-              <dd>{formatNumber(stats.summary.rides)}</dd>
-            </div>
-            <div class="tile">
-              <dt>Godziny jazd</dt>
-              <dd>
-                {formatNumber(stats.summary.rideHours)}
-                <span class="tile__unit">h</span>
-              </dd>
-            </div>
-            <div class="tile">
-              <dt>Obłożenie grafiku</dt>
-              {stats.summary.occupancyPercent === null ? (
-                <dd class="tile__none">
-                  brak danych
-                  <span class="tile__note">W tym okresie nie ma minionych slotów w grafiku.</span>
-                </dd>
-              ) : (
+        <>
+          <section aria-labelledby="summary-heading">
+            <h2 id="summary-heading">Podsumowanie okresu</h2>
+            <dl class="tiles">
+              <div class="tile">
+                <dt>Jazdy</dt>
+                <dd>{formatNumber(stats.summary.rides)}</dd>
+              </div>
+              <div class="tile">
+                <dt>Godziny jazd</dt>
                 <dd>
-                  {formatNumber(stats.summary.occupancyPercent)}
-                  <span class="tile__unit">%</span>
+                  {formatNumber(stats.summary.rideHours)}
+                  <span class="tile__unit">h</span>
                 </dd>
-              )}
-            </div>
-            <div class="tile">
-              <dt>Odwołania</dt>
-              <dd>{formatNumber(stats.summary.cancellations)}</dd>
-            </div>
-          </dl>
-        </section>
+              </div>
+              <div class="tile">
+                <dt>Obłożenie grafiku</dt>
+                {stats.summary.occupancyPercent === null ? (
+                  <dd class="tile__none">
+                    brak danych
+                    <span class="tile__note">W tym okresie nie ma minionych slotów w grafiku.</span>
+                  </dd>
+                ) : (
+                  <dd>
+                    {formatNumber(stats.summary.occupancyPercent)}
+                    <span class="tile__unit">%</span>
+                  </dd>
+                )}
+              </div>
+              <div class="tile">
+                <dt>Odwołania</dt>
+                <dd>{formatNumber(stats.summary.cancellations)}</dd>
+              </div>
+            </dl>
+          </section>
+          <HorseStatsTable rows={stats.horses} />
+        </>
       )
     }
   </main>
