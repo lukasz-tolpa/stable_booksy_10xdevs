@@ -1,7 +1,7 @@
 ---
 import Card from "@/components/ui/Card.astro";
 import "@/components/stats/stats.css";
-import { formatNumber, HOURS_UNIT } from "@/lib/format";
+import { formatHours, formatNumber } from "@/lib/format";
 import type { StatsHorseRow } from "@/lib/stats/stats";
 
 // Tabela koni z obciążeniem konia. Niczego nie liczy i nie sortuje - renderuje wiersze
@@ -37,10 +37,7 @@ const { rows } = Astro.props;
             <tr>
               <th scope="row">{row.name}</th>
               <td class="num">{formatNumber(row.rides)}</td>
-              <td class="num">
-                {formatNumber(row.rideHours)}
-                <span class="unit">{HOURS_UNIT}</span>
-              </td>
+              <td class="num">{formatHours(row.rideHours)}</td>
             </tr>
           ))}
         </tbody>

@@ -55,9 +55,6 @@
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
-.stats-table .unit {
-  color: var(--muted);
-}
 /* Na wąskim telefonie nagłówek liczbowy („Godziny jazd") może się złamać. */
 @media (width < 400px) {
   .stats-table thead th.num {

@@ -1,7 +1,7 @@
 ---
 import Card from "@/components/ui/Card.astro";
 import "@/components/stats/stats.css";
-import { formatNumber, HOURS_UNIT } from "@/lib/format";
+import { formatHours, formatNumber } from "@/lib/format";
 import type { StatsRiderRow } from "@/lib/stats/riders";
 
 // Tabela jeźdźców strony statystyk. Wyłącznie renderuje wiersze z modelu widoku
@@ -53,10 +53,7 @@ const { riders, labelledby } = Astro.props;
               )}
             </th>
             <td class="num">{formatNumber(rider.rides)}</td>
-            <td class="num">
-              {formatNumber(rider.rideHours)}
-              <span class="unit">{HOURS_UNIT}</span>
-            </td>
+            <td class="num">{formatHours(rider.rideHours)}</td>
             <td class="num">{formatNumber(rider.cancellations)}</td>
           </tr>
         ))
