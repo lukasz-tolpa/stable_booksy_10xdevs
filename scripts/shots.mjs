@@ -130,6 +130,7 @@ try {
     await shoot(stablePage, viewport.name, "stable-schedule", `${BASE_URL}/osrodek/grafik`);
     await shoot(stablePage, viewport.name, "stable-horses", `${BASE_URL}/osrodek/konie`);
     await shoot(stablePage, viewport.name, "stable-bookings", `${BASE_URL}/osrodek/zapisy`);
+    await shoot(stablePage, viewport.name, "stable-stats", `${BASE_URL}/osrodek/statystyki`);
     await stable.close();
   }
 } finally {
