@@ -4,7 +4,13 @@
  */
 
 import { currentWarsawHour } from "@/lib/bookings/slots";
-import { computeRiderRows, type StatsRider, type StatsRiderRow } from "@/lib/stats/riders";
+import {
+  computeRiderRows,
+  computeTopRiders,
+  type StatsRider,
+  type StatsRiderRow,
+  type StatsTopRider,
+} from "@/lib/stats/riders";
 import { todayIso } from "@/lib/schedule/dates";
 
 /** Okres statystyk: zakres dat `RRRR-MM-DD`, oba krańce włącznie. */
@@ -27,8 +33,8 @@ export interface StatsBooking {
   horseId: number;
   hour: number;
   status: string;
-  /** Konto jeźdźca, który złożył zapis. */
-  riderId: string;
+  /** Konto jeźdźca, który złożył zapis; `null`, gdy konto usunięto (jeździec zanonimizowany). */
+  riderId: string | null;
 }
 
 /** Koń stadniny — aktywny albo zdezaktywowany; statystyki potrzebują tylko nazwy. */
@@ -79,6 +85,8 @@ export interface StatsView {
   summary: StatsSummary;
   /** Tabela jeźdźców, od najaktywniejszego; jej sumy zgadzają się z podsumowaniem. */
   riders: StatsRiderRow[];
+  /** Pierwsza dziesiątka jeźdźców według godzin jazd — bez wiersza „Usunięci jeźdźcy". */
+  topRiders: StatsTopRider[];
   /** Okres bez jazd i odwołań — strona pokazuje stan pusty zamiast zer. */
   isEmpty: boolean;
   /** Tabela koni, od najbardziej obciążonego. */
@@ -137,6 +145,14 @@ export function computeStableStats(input: StatsInput, now: Date = new Date()): S
     }
   }
 
+  const riders = computeRiderRows({
+    rides: rideBookings,
+    cancellations: cancelledBookings,
+    riders: input.riders,
+    horses: input.horses,
+    slotDurationHours: SLOT_DURATION_HOURS,
+  });
+
   return {
     summary: {
       rides,
@@ -144,13 +160,8 @@ export function computeStableStats(input: StatsInput, now: Date = new Date()): S
       occupancyPercent: pastSlots === 0 ? null : Math.round((rides / pastSlots) * 100),
       cancellations,
     },
-    riders: computeRiderRows({
-      rides: rideBookings,
-      cancellations: cancelledBookings,
-      riders: input.riders,
-      horses: input.horses,
-      slotDurationHours: SLOT_DURATION_HOURS,
-    }),
+    riders,
+    topRiders: computeTopRiders(riders),
     isEmpty: rides === 0 && cancellations === 0,
     horses: computeHorseRows(input, ended),
   };

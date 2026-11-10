@@ -97,6 +97,35 @@ describe("collectStatsRows", () => {
     ]);
   });
 
+  it("zapis bez jeźdźca zostaje w zapisach, ale nie dokłada nikogo do listy jeźdźców", async () => {
+    const loader = stubLoader([
+      {
+        data: [
+          rawDay("2026-11-05", [
+            {
+              horse_id: 1,
+              bookings: [
+                { hour: 10, status: "active", rider_id: null, profiles: null },
+                { hour: 11, status: "cancelled", rider_id: null, profiles: null },
+                { hour: 12, status: "active", rider_id: "rider-anna", profiles: { full_name: "Anna Kowalska" } },
+              ],
+            },
+          ]),
+        ],
+        error: null,
+      },
+    ]);
+
+    const rows = await collectStatsRows(loader);
+
+    expect(rows.bookings).toEqual([
+      { day: "2026-11-05", horseId: 1, hour: 10, status: "active", riderId: null },
+      { day: "2026-11-05", horseId: 1, hour: 11, status: "cancelled", riderId: null },
+      { day: "2026-11-05", horseId: 1, hour: 12, status: "active", riderId: "rider-anna" },
+    ]);
+    expect(rows.riders).toEqual([{ id: "rider-anna", name: "Anna Kowalska" }]);
+  });
+
   it("brak dni grafiku to puste wiersze, nie błąd", async () => {
     await expect(collectStatsRows(stubLoader([{ data: [], error: null }]))).resolves.toEqual({
       days: [],

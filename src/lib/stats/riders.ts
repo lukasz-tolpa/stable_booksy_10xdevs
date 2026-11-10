@@ -20,19 +20,26 @@ export interface StatsRiderHorse {
 }
 
 export interface StatsRiderRow {
-  /** Konto jeźdźca — jeźdźcy są rozróżniani po koncie, nie po nazwie. */
-  riderId: string;
+  /**
+   * Konto jeźdźca — jeźdźcy są rozróżniani po koncie, nie po nazwie. `null` to wiersz
+   * zbiorczy „Usunięci jeźdźcy": wszyscy jeźdźcy zanonimizowani razem (ADR-0001).
+   */
+  riderId: string | null;
   name: string;
   rides: number;
   rideHours: number;
   cancellations: number;
-  /** Rozbicie jazd na konie, od konia najczęściej dosiadanego. Puste, gdy jazd nie było. */
+  /**
+   * Rozbicie jazd na konie, od konia najczęściej dosiadanego. Puste, gdy jazd nie było,
+   * oraz zawsze w wierszu zbiorczym — wzorzec jazd pozwalałby rozpoznać osobę.
+   */
   horses: StatsRiderHorse[];
 }
 
 /** Zapis w zakresie potrzebnym tabeli jeźdźców. */
 interface RiderBooking {
-  riderId: string;
+  /** `null` — zapis bez jeźdźca (konto usunięto). */
+  riderId: string | null;
   horseId: number;
 }
 
@@ -50,17 +57,23 @@ export interface RiderRowsInput {
 /** Fallback dla profilu bez imienia i nazwiska — ten sam tekst co na liście zapisów dnia. */
 const UNNAMED_RIDER = "(bez nazwiska)";
 
+/** Nazwa wiersza zbiorczego jeźdźców zanonimizowanych (GLOSSARY.md). */
+export const ANONYMISED_RIDERS = "Usunięci jeźdźcy";
+
 /**
  * Wiersze tabeli jeźdźców: każdy jeździec, który w okresie miał jazdę albo odwołanie.
  * Kolejność: od najaktywniejszego (godziny jazd, potem jazdy), przy remisie według
  * nazwy i konta — żeby kolejność była stabilna między odświeżeniami.
+ *
+ * Zapisy bez jeźdźca tworzą jeden wiersz zbiorczy na końcu tabeli: to nie osoba, więc
+ * nie bierze udziału w rankingu aktywności.
  */
 export function computeRiderRows(input: RiderRowsInput): StatsRiderRow[] {
   const riderNames = new Map(input.riders.map((rider) => [rider.id, rider.name]));
   const horseNames = new Map(input.horses.map((horse) => [horse.id, horse.name]));
 
-  const tallies = new Map<string, { cancellations: number; ridesByHorse: Map<number, number> }>();
-  const tallyOf = (riderId: string) => {
+  const tallies = new Map<string | null, { cancellations: number; ridesByHorse: Map<number, number> }>();
+  const tallyOf = (riderId: string | null) => {
     let tally = tallies.get(riderId);
     if (!tally) {
       tally = { cancellations: 0, ridesByHorse: new Map() };
@@ -79,6 +92,19 @@ export function computeRiderRows(input: RiderRowsInput): StatsRiderRow[] {
 
   return [...tallies]
     .map(([riderId, tally]): StatsRiderRow => {
+      if (riderId === null) {
+        const rides = [...tally.ridesByHorse.values()].reduce((sum, count) => sum + count, 0);
+
+        return {
+          riderId,
+          name: ANONYMISED_RIDERS,
+          rides,
+          rideHours: rides * input.slotDurationHours,
+          cancellations: tally.cancellations,
+          horses: [],
+        };
+      }
+
       const horses = [...tally.ridesByHorse]
         .map(([horseId, rides]) => ({
           horseId,
@@ -101,9 +127,36 @@ export function computeRiderRows(input: RiderRowsInput): StatsRiderRow[] {
     })
     .sort(
       (a, b) =>
+        Number(a.riderId === null) - Number(b.riderId === null) ||
         b.rideHours - a.rideHours ||
         b.rides - a.rides ||
         a.name.localeCompare(b.name, "pl") ||
-        a.riderId.localeCompare(b.riderId),
+        (a.riderId ?? "").localeCompare(b.riderId ?? ""),
     );
+}
+
+/** Pozycja pierwszej dziesiątki jeźdźców — zawsze konkretne konto, nigdy wiersz zbiorczy. */
+export interface StatsTopRider {
+  riderId: string;
+  name: string;
+  rideHours: number;
+}
+
+/** Ilu jeźdźców mieści ranking najaktywniejszych. */
+export const TOP_RIDERS_LIMIT = 10;
+
+/**
+ * Pierwsza dziesiątka jeźdźców według godzin jazd, w kolejności tabeli jeźdźców.
+ * Wiersz „Usunięci jeźdźcy" jest pomijany: to suma wielu osób, nie jeździec.
+ */
+export function computeTopRiders(rows: StatsRiderRow[]): StatsTopRider[] {
+  const top: StatsTopRider[] = [];
+
+  for (const row of rows) {
+    if (row.riderId === null) continue;
+    if (top.length === TOP_RIDERS_LIMIT) break;
+    top.push({ riderId: row.riderId, name: row.name, rideHours: row.rideHours });
+  }
+
+  return top;
 }

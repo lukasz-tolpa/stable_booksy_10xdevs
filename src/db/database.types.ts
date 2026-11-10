@@ -45,7 +45,7 @@ export type Database = {
           horse_id: number
           hour: number
           id: number
-          rider_id: string
+          rider_id: string | null
           schedule_day_id: number
           status: string
         }
@@ -55,7 +55,7 @@ export type Database = {
           horse_id: number
           hour: number
           id?: never
-          rider_id: string
+          rider_id?: string | null
           schedule_day_id: number
           status?: string
         }
@@ -65,7 +65,7 @@ export type Database = {
           horse_id?: number
           hour?: number
           id?: never
-          rider_id?: string
+          rider_id?: string | null
           schedule_day_id?: number
           status?: string
         }
