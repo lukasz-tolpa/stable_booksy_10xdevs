@@ -52,7 +52,7 @@ if [ "$fresh" != "t" ]; then
   exit 1
 fi
 
-# 3. Skrypty - kolejnosc ma znaczenie: dwa pierwsze cofaja zmiany (ROLLBACK),
+# 3. Skrypty - kolejnosc ma znaczenie: skrypty .sql cofaja zmiany (ROLLBACK),
 #    skrypt wspolbieznosci pisze do bazy i sprzata po sobie, wiec idzie ostatni.
 run_sql() { psql_run -v ON_ERROR_STOP=1 -q < "$SCRIPT_DIR/$1"; }
 
@@ -73,6 +73,7 @@ run_one() {
 
 run_one "rls_isolation.sql" run_sql rls_isolation.sql
 run_one "schedule_change_guardrails.sql" run_sql schedule_change_guardrails.sql
+run_one "rider_deletion_anonymisation.sql" run_sql rider_deletion_anonymisation.sql
 run_one "concurrent_double_booking.sh" bash "$SCRIPT_DIR/concurrent_double_booking.sh"
 
 echo

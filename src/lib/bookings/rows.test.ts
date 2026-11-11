@@ -11,9 +11,9 @@ describe("composeBookingRows", () => {
   it("sortuje po godzinie rosnąco, a w ramach godziny po nazwie konia", () => {
     const rows = composeBookingRows(
       [
-        { horseId: 2, hour: 12, riderName: "Piotr Nowak" },
-        { horseId: 2, hour: 10, riderName: "Anna Kowalska" },
-        { horseId: 1, hour: 12, riderName: "Anna Kowalska" },
+        { horseId: 2, hour: 12, riderName: "Piotr Nowak", anonymised: false },
+        { horseId: 2, hour: 10, riderName: "Anna Kowalska", anonymised: false },
+        { horseId: 1, hour: 12, riderName: "Anna Kowalska", anonymised: false },
       ],
       HORSES,
     );
@@ -24,8 +24,8 @@ describe("composeBookingRows", () => {
   it("sortuje polskie nazwy koni zgodnie z locale pl", () => {
     const rows = composeBookingRows(
       [
-        { horseId: 3, hour: 10, riderName: null },
-        { horseId: 2, hour: 10, riderName: null },
+        { horseId: 3, hour: 10, riderName: null, anonymised: false },
+        { horseId: 2, hour: 10, riderName: null, anonymised: false },
       ],
       HORSES,
     );
@@ -36,13 +36,19 @@ describe("composeBookingRows", () => {
   });
 
   it("brak nazwiska jeźdźca dostaje fallback", () => {
-    const rows = composeBookingRows([{ horseId: 1, hour: 10, riderName: null }], HORSES);
+    const rows = composeBookingRows([{ horseId: 1, hour: 10, riderName: null, anonymised: false }], HORSES);
 
     expect(rows[0].riderName).toBe("(bez nazwiska)");
   });
 
+  it("miniony zapis bez jeźdźca (konto usunięto) jest podpisany jako usunięty jeździec", () => {
+    const rows = composeBookingRows([{ horseId: 1, hour: 10, riderName: null, anonymised: true }], HORSES);
+
+    expect(rows).toEqual([{ hour: 10, horseName: "Bella", riderName: "Usunięty jeździec" }]);
+  });
+
   it("koń spoza listy stada dostaje fallback z identyfikatorem", () => {
-    const rows = composeBookingRows([{ horseId: 99, hour: 10, riderName: "Anna Kowalska" }], HORSES);
+    const rows = composeBookingRows([{ horseId: 99, hour: 10, riderName: "Anna Kowalska", anonymised: false }], HORSES);
 
     expect(rows[0].horseName).toBe("(koń #99)");
   });

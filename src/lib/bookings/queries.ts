@@ -46,6 +46,8 @@ export interface DayBooking {
   horseId: number;
   hour: number;
   riderName: string | null;
+  /** Zapis bez jeźdźca: konto usunięto, miniony zapis został w historii ośrodka (ADR-0001). */
+  anonymised: boolean;
 }
 
 /**
@@ -57,13 +59,16 @@ export interface DayBooking {
  * nazwisko zawsze się rozwiąże. `null` zostaje `null` — fallback tekstowy
  * należy do warstwy czystej (`composeBookingRows`), nie do zapytania.
  *
+ * Miniony zapis może nie mieć jeźdźca (`rider_id` = NULL po usunięciu konta) —
+ * wtedy profilu nie ma i wiersz jest oznaczony jako `anonymised`.
+ *
  * Wołać wyłącznie z sesji ośrodka dla jego własnego dnia — sesja jeźdźca
  * zobaczyłaby przez RLS tylko własne zapisy i po cichu zaniżyła listę.
  */
 export async function getDayBookings(client: Client, scheduleDayId: number): Promise<DayBooking[]> {
   const { data, error } = await client
     .from("bookings")
-    .select("horse_id, hour, profiles(full_name)")
+    .select("horse_id, hour, rider_id, profiles(full_name)")
     .eq("schedule_day_id", scheduleDayId)
     .eq("status", "active");
 
@@ -74,10 +79,9 @@ export async function getDayBookings(client: Client, scheduleDayId: number): Pro
   return data.map((row) => ({
     horseId: row.horse_id,
     hour: row.hour,
-    // Wygenerowany typ obiecuje niepusty `profiles` (FK not-null), ale w runtime
-    // RLS może ukryć wiersz nadrzędny i PostgREST odda `null` — ochrona zostaje.
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    // `profiles` jest `null` dla zapisu bez jeźdźca, a także gdy RLS ukryje profil.
     riderName: row.profiles?.full_name ?? null,
+    anonymised: row.rider_id === null,
   }));
 }
 

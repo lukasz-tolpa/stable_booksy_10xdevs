@@ -1,0 +1,406 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import Topbar from "@/components/Topbar.astro";
+import BarChart from "@/components/ui/BarChart.astro";
+import RiderTable from "@/components/stats/RiderTable.astro";
+import Card from "@/components/ui/Card.astro";
+import EmptyState from "@/components/ui/EmptyState.astro";
+import FailureState from "@/components/ui/FailureState.astro";
+import HorseStatsTable from "@/components/stats/HorseStatsTable.astro";
+import "@/components/stats/stats.css";
+import { formatHours, formatNumber, HOURS_UNIT } from "@/lib/format";
+import { logError } from "@/lib/log";
+import { resolveStatsPeriod } from "@/lib/stats/period";
+import { getStatsRows } from "@/lib/stats/queries";
+import { computeStableStats, type StatsView } from "@/lib/stats/stats";
+import { bucketLabels, GRANULARITY_NAMES } from "@/lib/stats/time-series-labels";
+import { getOwnedStableId, listStableHorses } from "@/lib/stables/queries";
+import { createClient } from "@/lib/supabase";
+
+// Dostęp pilnuje middleware (mapa tras w @/lib/auth/roles): jeździec wraca do swojej
+// przestrzeni, niezalogowany do logowania, a ośrodek bez stadniny do jej założenia.
+// Strona niczego nie liczy - renderuje model widoku z @/lib/stats/stats.
+const { profile } = Astro.locals;
+
+// Okres żyje w adresie (`?od=…&do=…`), więc odświeżenie i powrót go nie gubią.
+const { period, reversed } = resolveStatsPeriod(Astro.url.searchParams.get("od"), Astro.url.searchParams.get("do"));
+
+const supabase = createClient(Astro.request.headers, Astro.cookies);
+
+let stats: StatsView | null = null;
+let loadFailed = false;
+
+if (!reversed) {
+  if (supabase && profile) {
+    try {
+      const stableId = await getOwnedStableId(supabase, profile.id);
+      if (stableId === null) {
+        // Middleware nie wpuszcza tu ośrodka bez stadniny; jej brak w tym miejscu to
+        // awaria odczytu, nie okres bez jazd.
+        loadFailed = true;
+        logError("page:osrodek/statystyki", new Error("Brak stadniny dla konta ośrodka"));
+      } else {
+        // Lista stada obejmuje konie zdezaktywowane - jedyne źródło nazw koni dla
+        // tabeli koni i rozbicia jazd jeźdźca na konie.
+        const [rows, horses] = await Promise.all([
+          getStatsRows(supabase, stableId, period),
+          listStableHorses(supabase, stableId),
+        ]);
+        stats = computeStableStats({ period, ...rows, horses });
+      }
+    } catch (error) {
+      loadFailed = true;
+      logError("page:osrodek/statystyki", error);
+    }
+  } else {
+    // Brak klienta Supabase lub profilu to awaria konfiguracji, nie pusty okres.
+    loadFailed = true;
+  }
+}
+
+// Data kalendarzowa, nie punkt w czasie - formatowana w UTC, żeby strefa środowiska
+// nie przesunęła jej o dobę.
+const dateFormat = new Intl.DateTimeFormat("pl-PL", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  timeZone: "UTC",
+});
+const formatDay = (iso: string) => dateFormat.format(new Date(`${iso}T00:00:00Z`));
+const periodLabel = `${formatDay(period.from)} – ${formatDay(period.to)}`;
+
+// Okres pusty ma własny stan pusty, więc wykresy i tabele dostają dane tylko wtedy,
+// gdy jest co pokazać. Serie i wiersze przychodzą z modelu widoku - tu tylko etykiety.
+const view = stats && !stats.isEmpty ? stats : null;
+
+// --- Wykres godzin jazd w czasie (#34) ---
+const timeSeries = view?.rideHoursOverTime ?? null;
+const timeNames = timeSeries && GRANULARITY_NAMES[timeSeries.granularity];
+const timeItems = timeSeries
+  ? timeSeries.buckets.map((bucket) => {
+      const labels = bucketLabels(bucket, timeSeries.granularity);
+      return {
+        label: labels.short,
+        longLabel: labels.long,
+        value: bucket.rideHours,
+        valueText: formatHours(bucket.rideHours),
+      };
+    })
+  : [];
+
+// --- Wykresy rankingowe (#35) ---
+const topRiderItems = (view?.topRiders ?? []).map((point) => ({
+  label: point.name,
+  value: point.rideHours,
+  valueText: formatHours(point.rideHours),
+}));
+// Wykres obciążenia koni rysuje te same wiersze co tabela koni, w tej samej kolejności.
+const horseWorkloadItems = (view?.horses ?? []).map((row) => ({
+  label: row.name,
+  value: row.rideHours,
+  valueText: formatHours(row.rideHours),
+}));
+---
+
+<Layout title="Statystyki">
+  <Topbar />
+  <main class="container-narrow page">
+    <h1>Statystyki</h1>
+    <p class="page-lead">Jazdy, godziny jazd, obłożenie grafiku i odwołania w wybranym okresie.</p>
+
+    <form method="GET" action="/osrodek/statystyki" class="period">
+      <div class="period__field">
+        <label for="od">Od</label>
+        <input id="od" name="od" type="date" value={period.from} required />
+      </div>
+      <div class="period__field">
+        <label for="do">Do</label>
+        <input id="do" name="do" type="date" value={period.to} required />
+      </div>
+      <button type="submit" class="text-primary-foreground">Pokaż</button>
+    </form>
+
+    {
+      reversed ? (
+        <p class="period-error" role="alert">
+          Data „od” jest późniejsza niż data „do”. Popraw zakres i spróbuj ponownie.
+        </p>
+      ) : (
+        <p class="period-label">
+          Okres statystyk: <strong>{periodLabel}</strong>
+        </p>
+      )
+    }
+
+    {
+      reversed ? null : loadFailed || !stats ? (
+        <FailureState>
+          <p>Nie udało się wczytać statystyk.</p>
+          <p>Odśwież stronę za chwilę.</p>
+        </FailureState>
+      ) : stats.isEmpty ? (
+        <Card>
+          <EmptyState>
+            <p>W tym okresie nie było grafiku ani jazd, więc nie ma z czego policzyć statystyk.</p>
+            <p>Wybierz inny zakres dat.</p>
+          </EmptyState>
+        </Card>
+      ) : (
+        <>
+          <section aria-labelledby="summary-heading">
+            <h2 id="summary-heading">Podsumowanie okresu</h2>
+            <dl class="tiles">
+              <Card padding={16} class="flex min-w-0 flex-col gap-1.5">
+                <dt>Jazdy</dt>
+                <dd>{formatNumber(stats.summary.rides)}</dd>
+              </Card>
+              <Card padding={16} class="flex min-w-0 flex-col gap-1.5">
+                <dt>Godziny jazd</dt>
+                <dd>
+                  {formatNumber(stats.summary.rideHours)}
+                  <span class="tile__unit">{HOURS_UNIT}</span>
+                </dd>
+              </Card>
+              <Card padding={16} class="flex min-w-0 flex-col gap-1.5">
+                <dt>Obłożenie grafiku</dt>
+                {stats.summary.occupancyPercent === null ? (
+                  <dd class="tile__none">
+                    brak danych
+                    <span class="tile__note">W tym okresie nie ma minionych slotów w grafiku.</span>
+                  </dd>
+                ) : (
+                  <dd>
+                    {formatNumber(stats.summary.occupancyPercent)}
+                    <span class="tile__unit">%</span>
+                  </dd>
+                )}
+              </Card>
+              <Card padding={16} class="flex min-w-0 flex-col gap-1.5">
+                <dt>Odwołania</dt>
+                <dd>{formatNumber(stats.summary.cancellations)}</dd>
+              </Card>
+            </dl>
+          </section>
+          {timeSeries && timeNames && (
+            <section aria-labelledby="time-chart-heading">
+              <h2 id="time-chart-heading">Godziny jazd w czasie</h2>
+              <p class="stats-lead">Godziny jazd {timeNames.phrase} w wybranym okresie.</p>
+              <BarChart
+                title={`Godziny jazd w czasie, ${timeNames.phrase}`}
+                items={timeItems}
+                orientation="vertical"
+                labelHeader={timeNames.bucket}
+                valueHeader="Godziny jazd"
+              />
+            </section>
+          )}
+          {topRiderItems.length > 0 && (
+            <section aria-labelledby="top-riders-chart-heading">
+              <h2 id="top-riders-chart-heading">Pierwsza dziesiątka jeźdźców</h2>
+              <p class="stats-lead">Jeźdźcy z największą liczbą godzin jazd w wybranym okresie.</p>
+              <BarChart
+                title="Pierwsza dziesiątka jeźdźców według godzin jazd"
+                items={topRiderItems}
+                orientation="horizontal"
+                labelHeader="Jeździec"
+                valueHeader="Godziny jazd"
+              />
+            </section>
+          )}
+          {stats.riders.length > 0 && (
+            <section aria-labelledby="riders-heading">
+              <h2 id="riders-heading">Jeźdźcy</h2>
+              <p class="stats-lead">
+                Od najaktywniejszego. Rozwiń jeźdźca, żeby zobaczyć jazdy na poszczególnych koniach.
+              </p>
+              <RiderTable riders={stats.riders} labelledby="riders-heading" />
+            </section>
+          )}
+          {horseWorkloadItems.length > 0 && (
+            <section aria-labelledby="horse-chart-heading">
+              <h2 id="horse-chart-heading">Obciążenie koni</h2>
+              <p class="stats-lead">Godziny jazd każdego konia w wybranym okresie, od najbardziej obciążonego.</p>
+              <BarChart
+                title="Obciążenie koni: godziny jazd w okresie"
+                items={horseWorkloadItems}
+                orientation="horizontal"
+                labelHeader="Koń"
+                valueHeader="Godziny jazd"
+              />
+            </section>
+          )}
+          <section aria-labelledby="horses-heading">
+            <h2 id="horses-heading">Konie</h2>
+            <HorseStatsTable rows={stats.horses} />
+          </section>
+        </>
+      )
+    }
+  </main>
+</Layout>
+
+<style>
+  .page {
+    padding-block: 24px 56px;
+  }
+  h1 {
+    font-size: 32px;
+  }
+  h2 {
+    margin: 26px 0 12px;
+    font-size: 20px;
+  }
+  .page-lead {
+    margin: 10px 0 0;
+    font-size: 15.5px;
+    color: var(--muted);
+    max-width: 62ch;
+  }
+
+  /* Wybór okresu: dwa pola dat obok siebie także na telefonie, przycisk w pełnej
+     szerokości pod nimi; od `sm` wszystko w jednym rzędzie. */
+  .period {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: end;
+    gap: 10px;
+    margin: 22px 0 14px;
+    padding: 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    box-shadow: var(--shadow-sm);
+  }
+  .period__field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+  .period label {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .period input {
+    width: 100%;
+    min-width: 0;
+    /* 44 px to minimalny cel dotykowy - PRD wymaga wygody na telefonie. */
+    min-height: 46px;
+    padding: 10px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border-2);
+    border-radius: var(--r);
+    font-family: inherit;
+    font-size: 15px;
+    color: var(--fg);
+    transition:
+      border-color 0.15s,
+      box-shadow 0.15s;
+  }
+  .period input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-soft);
+  }
+  .period button {
+    grid-column: 1 / -1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 46px;
+    padding: 11px 22px;
+    border-radius: 999px;
+    border: 1px solid var(--primary);
+    background: var(--primary);
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .period button:hover {
+    background: var(--primary-strong);
+  }
+  .period button:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+  @media (width >= 640px) {
+    .period {
+      grid-template-columns: 1fr 1fr auto;
+    }
+    .period button {
+      grid-column: auto;
+    }
+  }
+
+  .period-label {
+    margin: 0 0 14px;
+    font-size: 14.5px;
+    color: var(--muted);
+  }
+  .period-label strong {
+    font-weight: 600;
+    color: var(--fg);
+  }
+  .period-error {
+    margin: 0 0 14px;
+    padding: 12px 14px;
+    border-radius: var(--r);
+    background: var(--danger-soft);
+    font-size: 14.5px;
+    font-weight: 500;
+    color: var(--danger-ink);
+  }
+
+  /* Kafle podsumowania: 2×2 na telefonie, cztery w rzędzie od `md`. */
+  .tiles {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 0;
+  }
+  @media (width >= 768px) {
+    .tiles {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+  /* Powierzchnię kafla daje <Card>; tu tylko typografia treści. */
+  .tiles dt {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .tiles dd {
+    margin: 0;
+    font-family: var(--font-display);
+    font-variant-numeric: tabular-nums;
+    font-size: 30px;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+  }
+  .tile__unit {
+    margin-left: 2px;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .tiles dd.tile__none {
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: 0;
+    color: var(--muted);
+  }
+  .tile__note {
+    display: block;
+    margin-top: 4px;
+    font-family: var(--font-body);
+    font-size: 12.5px;
+    font-weight: 400;
+    line-height: 1.35;
+    color: var(--faint);
+  }
+</style>

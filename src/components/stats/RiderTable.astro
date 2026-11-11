@@ -1,0 +1,128 @@
+---
+import Card from "@/components/ui/Card.astro";
+import "@/components/stats/stats.css";
+import { formatHours, formatNumber } from "@/lib/format";
+import type { StatsRiderRow } from "@/lib/stats/riders";
+
+// Tabela jeźdźców strony statystyk. Wyłącznie renderuje wiersze z modelu widoku
+// (@/lib/stats/riders) - kolejność, sumy i rozbicie na konie są już policzone.
+// Sekcję i nagłówek daje strona, tak jak dla tabeli koni.
+interface Props {
+  riders: StatsRiderRow[];
+  /** `id` nagłówka sekcji, który nazywa tabelę dla czytników ekranu. */
+  labelledby: string;
+}
+
+const { riders, labelledby } = Astro.props;
+// Karta przewija się w poziomie: długa nazwa nie rozpycha strony na telefonie.
+---
+
+<Card padding={0} class="overflow-x-auto">
+  <table class="stats-table" aria-labelledby={labelledby}>
+    <thead>
+      <tr>
+        <th scope="col">Jeździec</th>
+        <th scope="col" class="num">Jazdy</th>
+        <th scope="col" class="num">Godziny jazd</th>
+        <th scope="col" class="num">Odwołania</th>
+      </tr>
+    </thead>
+    <tbody>
+      {
+        riders.map((rider) => (
+          <tr>
+            <th scope="row">
+              {rider.horses.length === 0 ? (
+                <span class="rider-name">{rider.name}</span>
+              ) : (
+                // Rozwinięcie bez JavaScriptu: natywne <details> działa z klawiatury i dotyku.
+                <details>
+                  <summary>
+                    <span class="rider-name">{rider.name}</span>
+                  </summary>
+                  <p class="horses__title">Jazdy na koniach</p>
+                  <ul class="horses">
+                    {rider.horses.map((horse) => (
+                      <li>
+                        <span>{horse.horseName}</span>
+                        <span class="horses__count stats-num">{formatNumber(horse.rides)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+            </th>
+            <td class="num">{formatNumber(rider.rides)}</td>
+            <td class="num">{formatHours(rider.rideHours)}</td>
+            <td class="num">{formatNumber(rider.cancellations)}</td>
+          </tr>
+        ))
+      }
+    </tbody>
+  </table>
+</Card>
+
+<style>
+  summary {
+    /* Cały wiersz nazwy jest celem dotykowym; ujemny margines wyrównuje go do komórki. */
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    margin-block: -12px;
+    cursor: pointer;
+    list-style: none;
+    color: var(--primary);
+  }
+  summary::-webkit-details-marker {
+    display: none;
+  }
+  summary::before {
+    content: "";
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(-45deg);
+    transition: transform 0.15s;
+  }
+  /* `open` ustawia przeglądarka, nie szablon - stąd :global dla samego atrybutu. */
+  table :global(details[open]) > summary::before {
+    transform: rotate(45deg);
+  }
+  summary:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  summary .rider-name {
+    color: var(--fg);
+  }
+
+  .horses__title {
+    margin: 8px 0 4px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .horses {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 13.5px;
+    font-weight: 400;
+  }
+  .horses li {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    max-width: 240px;
+  }
+  .horses__count {
+    color: var(--muted);
+  }
+</style>

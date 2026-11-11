@@ -27,15 +27,16 @@ Stadniny prowadzą zapisy na jazdy i przydział koni ręcznie — w zeszycie lub
 
 ## At a glance
 
-| ID   | Change ID                 | Outcome (user can …)                                                    | Prerequisites    | PRD refs                       | Status   |
-| ---- | ------------------------- | ----------------------------------------------------------------------- | ---------------- | ------------------------------ | -------- |
+| ID   | Change ID                 | Outcome (user can …)                                                    | Prerequisites    | PRD refs                           | Status   |
+| ---- | ------------------------- | ----------------------------------------------------------------------- | ---------------- | ---------------------------------- | -------- |
 | F-01 | booking-data-schema       | (foundation) model danych rezerwacji z twardą regułą braku dubla konia  | —                | §Business Logic, §NFR, §Guardrails | done     |
-| S-01 | role-aware-auth           | użytkownik zakłada konto jako Ośrodek albo Jeździec i loguje się        | F-01             | FR-001, FR-002                 | done     |
-| S-02 | daily-schedule-management | ośrodek ustawia zakres godzin i konie pracujące danego dnia             | F-01, S-01       | US-02, FR-003, FR-004          | done     |
-| S-03 | stable-directory          | jeździec przegląda i filtruje listę ośrodków                            | S-01             | FR-006                         | done     |
-| S-04 | slot-booking-flow         | jeździec widzi wolne sloty (godzina × koń) i rezerwuje jazdę            | F-01, S-02, S-03 | US-01, FR-007, FR-008          | done     |
-| S-05 | daily-bookings-list       | ośrodek widzi listę zapisów (godzina–koń–jeździec) na dany dzień        | S-02, S-04       | FR-005                         | done     |
-| S-06 | booking-cancellation      | jeździec odwołuje swój zapis, zwalniając slot konia                     | S-04             | FR-009                         | done     |
+| S-01 | role-aware-auth           | użytkownik zakłada konto jako Ośrodek albo Jeździec i loguje się        | F-01             | FR-001, FR-002                     | done     |
+| S-02 | daily-schedule-management | ośrodek ustawia zakres godzin i konie pracujące danego dnia             | F-01, S-01       | US-02, FR-003, FR-004              | done     |
+| S-03 | stable-directory          | jeździec przegląda i filtruje listę ośrodków                            | S-01             | FR-006                             | done     |
+| S-04 | slot-booking-flow         | jeździec widzi wolne sloty (godzina × koń) i rezerwuje jazdę            | F-01, S-02, S-03 | US-01, FR-007, FR-008              | done     |
+| S-05 | daily-bookings-list       | ośrodek widzi listę zapisów (godzina–koń–jeździec) na dany dzień        | S-02, S-04       | FR-005                             | done     |
+| S-06 | booking-cancellation      | jeździec odwołuje swój zapis, zwalniając slot konia                     | S-04             | FR-009                             | done     |
+| S-07 | custom-slot-ranges        | ośrodek ustawia dowolne zakresy slotów zamiast stałej siatki godzinowej | S-02, S-04       | FR-010, Open Questions #3          | proposed |
 
 ## Baseline
 
@@ -138,19 +139,31 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Risk:** jedyne wymaganie o priorytecie „miło mieć" — celowo ostatni, żeby nie zjadał czasu ścieżki wymagań koniecznych; PRD wprost: „robimy, jeśli starczy czasu, nie blokuje v1".
 - **Status:** done
 
+### S-07: Dowolne zakresy slotów
+
+- **Outcome:** ośrodek może zdefiniować na dany dzień dowolne zakresy slotów (własny początek i koniec), a jeździec rezerwuje te zakresy zamiast pełnych godzin.
+- **Change ID:** custom-slot-ranges
+- **PRD refs:** FR-010, Open Questions #3
+- **Prerequisites:** S-02, S-04
+- **Parallel with:** —
+- **Blockers:** PRD Open Questions #3 (granulacja, zakresy per koń czy per dzień, zachowanie przy istniejących zapisach) — bez rozstrzygnięcia nie nadaje się do `/10x-plan`.
+- **Unknowns:** migracja istniejących zapisów godzinowych do nowego modelu slotu.
+- **Risk:** post-MVP (v2), dodane 2026-11-10. Zmienia definicję slotu, na której stoi całe v1: slot to dziś `(dzień, koń, godzina)` o stałej długości 1 h, a gwarancja braku dubla opiera się na identycznej godzinie. Przy dowolnych zakresach gwarancja musi wykrywać nakładanie się zakresów; dotyka też reguły godzin pracy, listy wolnych slotów i listy zapisów dnia.
+- **Status:** proposed
+
 ## Backlog Handoff
 
 Zmigrowane do GitHub Issues 2026-08-07 (tracking: [#1](https://github.com/lukasz-tolpa/stable_booksy_10xdevs/issues/1), milestone `MVP v1`).
 
-| Roadmap ID | Change ID                 | Suggested issue title                                     | Ready for `/10x-plan` | Notes                              |
-| ---------- | ------------------------- | --------------------------------------------------------- | --------------------- | ---------------------------------- |
-| F-01       | booking-data-schema       | Model danych rezerwacji + reguła braku dubla konia        | done                  | GH #2 — zaimplementowany, patrz `context/changes/booking-data-schema/` |
-| S-01       | role-aware-auth           | Rejestracja i logowanie z wyborem roli Ośrodek/Jeździec   | done                  | GH #3 — zaimplementowany, patrz `context/changes/role-aware-auth/` |
-| S-02       | daily-schedule-management | Grafik dnia: godziny pracy + konie pracujące              | done                  | GH #4 — zaimplementowany, patrz `context/changes/daily-schedule-management/` |
-| S-03       | stable-directory          | Katalog ośrodków z filtrowaniem                           | done                  | GH #5 — zaimplementowany, patrz `context/changes/stable-directory/` |
-| S-04       | slot-booking-flow         | Rezerwacja jazdy: wolne sloty godzina × koń               | yes                   | GH #6 — Run `/10x-plan slot-booking-flow` |
-| S-05       | daily-bookings-list       | Lista zapisów dnia dla ośrodka                            | no                    | GH #7 — czeka na S-02, S-04        |
-| S-06       | booking-cancellation      | Odwołanie zapisu przez jeźdźca                            | no                    | GH #8 — czeka na S-04              |
+| Roadmap ID | Change ID                 | Suggested issue title                                   | Ready for `/10x-plan` | Notes                                                                        |
+| ---------- | ------------------------- | ------------------------------------------------------- | --------------------- | ---------------------------------------------------------------------------- |
+| F-01       | booking-data-schema       | Model danych rezerwacji + reguła braku dubla konia      | done                  | GH #2 — zaimplementowany, patrz `context/changes/booking-data-schema/`       |
+| S-01       | role-aware-auth           | Rejestracja i logowanie z wyborem roli Ośrodek/Jeździec | done                  | GH #3 — zaimplementowany, patrz `context/changes/role-aware-auth/`           |
+| S-02       | daily-schedule-management | Grafik dnia: godziny pracy + konie pracujące            | done                  | GH #4 — zaimplementowany, patrz `context/changes/daily-schedule-management/` |
+| S-03       | stable-directory          | Katalog ośrodków z filtrowaniem                         | done                  | GH #5 — zaimplementowany, patrz `context/changes/stable-directory/`          |
+| S-04       | slot-booking-flow         | Rezerwacja jazdy: wolne sloty godzina × koń             | yes                   | GH #6 — Run `/10x-plan slot-booking-flow`                                    |
+| S-05       | daily-bookings-list       | Lista zapisów dnia dla ośrodka                          | no                    | GH #7 — czeka na S-02, S-04                                                  |
+| S-06       | booking-cancellation      | Odwołanie zapisu przez jeźdźca                          | no                    | GH #8 — czeka na S-04                                                        |
 
 ## Open Roadmap Questions
 

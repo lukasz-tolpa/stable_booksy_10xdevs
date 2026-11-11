@@ -1,0 +1,55 @@
+---
+import Card from "@/components/ui/Card.astro";
+import "@/components/stats/stats.css";
+import { formatHours, formatNumber } from "@/lib/format";
+import type { StatsHorseRow } from "@/lib/stats/stats";
+
+// Tabela koni z obciążeniem konia. Niczego nie liczy i nie sortuje - renderuje wiersze
+// modelu widoku z @/lib/stats/stats w zadanej kolejności. Sekcję i nagłówek daje strona,
+// tak jak dla tabeli jeźdźców.
+interface Props {
+  rows: StatsHorseRow[];
+}
+
+const { rows } = Astro.props;
+---
+
+{
+  rows.length === 0 ? (
+    <p class="none">W tym okresie żaden koń nie pracował w grafiku.</p>
+  ) : (
+    <Card padding={0} class="overflow-hidden">
+      <table class="stats-table">
+        <caption class="sr-only">Obciążenie koni w okresie: liczba jazd i godziny jazd każdego konia</caption>
+        <thead>
+          <tr>
+            <th scope="col">Koń</th>
+            <th scope="col" class="num">
+              Jazdy
+            </th>
+            <th scope="col" class="num">
+              Godziny jazd
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr>
+              <th scope="row">{row.name}</th>
+              <td class="num">{formatNumber(row.rides)}</td>
+              <td class="num">{formatHours(row.rideHours)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </Card>
+  )
+}
+
+<style>
+  .none {
+    margin: 0;
+    font-size: 14.5px;
+    color: var(--muted);
+  }
+</style>

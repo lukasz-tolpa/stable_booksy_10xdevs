@@ -1,0 +1,63 @@
+/*
+  Wspólne style strony statystyk: zdanie opisu pod nagłówkiem sekcji oraz tabele
+  jeźdźców i koni. Plik jest zwykłym (globalnym) arkuszem, bo style zakresowe Astro
+  nie sięgają do drugiego komponentu - stąd przedrostek `stats-` w każdej klasie.
+  Powierzchnię karty wokół tabeli daje <Card>.
+*/
+
+.stats-lead {
+  margin: -4px 0 12px;
+  font-size: 14.5px;
+  color: var(--muted);
+}
+
+/* Kolumna nazwy zabiera resztę szerokości i łamie się, liczby trzymają swoją. */
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14.5px;
+}
+.stats-table th,
+.stats-table td {
+  padding: 12px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+.stats-table th:first-child {
+  padding-left: 16px;
+}
+.stats-table th:last-child,
+.stats-table td:last-child {
+  padding-right: 16px;
+}
+.stats-table thead th {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.stats-table tbody tr + tr > * {
+  border-top: 1px solid var(--border);
+}
+.stats-table tbody th {
+  width: 100%;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.stats-table .num {
+  text-align: right;
+  white-space: nowrap;
+}
+/* Dane liczbowe - DESIGN.md §3: mono z cyframi tabelarycznymi. */
+.stats-table td.num,
+.stats-table .stats-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+/* Na wąskim telefonie nagłówek liczbowy („Godziny jazd") może się złamać. */
+@media (width < 400px) {
+  .stats-table thead th.num {
+    white-space: normal;
+  }
+}
