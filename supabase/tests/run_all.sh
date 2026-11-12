@@ -75,6 +75,7 @@ run_one "rls_isolation.sql" run_sql rls_isolation.sql
 run_one "schedule_change_guardrails.sql" run_sql schedule_change_guardrails.sql
 run_one "rider_deletion_anonymisation.sql" run_sql rider_deletion_anonymisation.sql
 run_one "instructors_name_and_access.sql" run_sql instructors_name_and_access.sql
+run_one "schedule_day_save.sql" run_sql schedule_day_save.sql
 run_one "concurrent_double_booking.sh" bash "$SCRIPT_DIR/concurrent_double_booking.sh"
 
 echo

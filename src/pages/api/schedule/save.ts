@@ -2,11 +2,11 @@ import type { APIContext, APIRoute } from "astro";
 import { SIGN_IN_ROUTE } from "@/lib/auth/roles";
 import { firstErrorMessage } from "@/lib/auth/schemas";
 import { errorCode, errorMessage } from "@/lib/db-errors";
-import { formValue, formValues } from "@/lib/form-data";
+import { formValue } from "@/lib/form-data";
 import { isPastDate, parseScheduleDate } from "@/lib/schedule/dates";
-import { scheduleErrorMessage } from "@/lib/schedule/errors";
+import { SCHEDULE_DAY_PAST, scheduleErrorMessage } from "@/lib/schedule/errors";
 import { saveScheduleDay } from "@/lib/schedule/queries";
-import { scheduleDaySchema } from "@/lib/schedule/schema";
+import { parseScheduleDayForm } from "@/lib/schedule/schema";
 import { getOwnedStableId } from "@/lib/stables/queries";
 import { createClient } from "@/lib/supabase";
 
@@ -29,12 +29,7 @@ export const POST: APIRoute = async (context) => {
   const form = await context.request.formData();
   const rawDay = parseScheduleDate(formValue(form, "day"));
 
-  const parsed = scheduleDaySchema.safeParse({
-    day: formValue(form, "day"),
-    openHour: formValue(form, "openHour"),
-    closeHour: formValue(form, "closeHour"),
-    horseIds: formValues(form, "horseIds"),
-  });
+  const parsed = parseScheduleDayForm(form);
 
   if (!parsed.success) {
     return backToDay(context, rawDay, firstErrorMessage(parsed.error));
@@ -43,7 +38,7 @@ export const POST: APIRoute = async (context) => {
   // Blokada dat przeszłych po stronie serwera, nie tylko w interfejsie - historia
   // zapisów nie ma się zmieniać po fakcie.
   if (isPastDate(parsed.data.day)) {
-    return backToDay(context, parsed.data.day, "Nie można układać grafiku na przeszłe dni");
+    return backToDay(context, parsed.data.day, scheduleErrorMessage(SCHEDULE_DAY_PAST));
   }
 
   const supabase = createClient(context.request.headers, context.cookies);
@@ -65,7 +60,7 @@ export const POST: APIRoute = async (context) => {
   }
 
   try {
-    await saveScheduleDay(supabase, stableId, parsed.data);
+    await saveScheduleDay(supabase, parsed.data);
   } catch (error) {
     // Guardraile żyją w bazie; tutaj wyłącznie tłumaczymy ich kody na komunikat.
     return backToDay(context, parsed.data.day, scheduleErrorMessage(errorCode(error), errorMessage(error)));

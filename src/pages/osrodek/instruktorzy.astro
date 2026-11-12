@@ -6,7 +6,9 @@ import InstructorForm from "@/components/instructors/InstructorForm";
 import Card from "@/components/ui/Card.astro";
 import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
-import { listStableInstructors, type InstructorListItem } from "@/lib/instructors/queries";
+import { countDaysWithOpenSeats, openSeatsNote } from "@/lib/instructors/open-seats";
+import { listOpenSeatRows, listStableInstructors, type InstructorListItem } from "@/lib/instructors/queries";
+import { todayIso } from "@/lib/schedule/dates";
 import { getOwnedStableId } from "@/lib/stables/queries";
 import { createClient } from "@/lib/supabase";
 import { logError } from "@/lib/log";
@@ -19,12 +21,21 @@ const error = Astro.url.searchParams.get("error");
 const supabase = createClient(Astro.request.headers, Astro.cookies);
 
 let instructors: InstructorListItem[] = [];
+let openSeatDays = new Map<number, number>();
 let loadFailed = false;
 
 if (supabase && profile) {
   try {
     const stableId = await getOwnedStableId(supabase, profile.id);
-    instructors = stableId === null ? [] : await listStableInstructors(supabase, stableId);
+    if (stableId !== null) {
+      const today = todayIso();
+      const [list, openSeatRows] = await Promise.all([
+        listStableInstructors(supabase, stableId),
+        listOpenSeatRows(supabase, stableId, today),
+      ]);
+      instructors = list;
+      openSeatDays = countDaysWithOpenSeats(openSeatRows, today);
+    }
   } catch (error) {
     loadFailed = true;
     logError("page:osrodek/instruktorzy", error);
@@ -32,7 +43,9 @@ if (supabase && profile) {
 }
 
 const active = instructors.filter((instructor) => instructor.active);
-const inactive = instructors.filter((instructor) => !instructor.active);
+const inactive = instructors
+  .filter((instructor) => !instructor.active)
+  .map((instructor) => ({ ...instructor, note: openSeatsNote(openSeatDays.get(instructor.id) ?? 0) }));
 ---
 
 <Layout title="Instruktorzy">
@@ -82,10 +95,13 @@ const inactive = instructors.filter((instructor) => !instructor.active);
                   {inactive.map((instructor) => (
                     <Card padding={18} class="opacity-70">
                       <article class="instructor">
-                        <h3>
-                          <UserRound className="size-4" />
-                          {instructor.name}
-                        </h3>
+                        <div class="instructor__text">
+                          <h3>
+                            <UserRound className="size-4" />
+                            {instructor.name}
+                          </h3>
+                          {instructor.note && <p class="instructor__note">{instructor.note}</p>}
+                        </div>
                         <form method="POST" action="/api/instructors/toggle-active">
                           <input type="hidden" name="instructorId" value={instructor.id} />
                           <input type="hidden" name="active" value="true" />
@@ -155,6 +171,14 @@ const inactive = instructors.filter((instructor) => !instructor.active);
     overflow-wrap: anywhere;
     font-size: 17px;
     margin: 0;
+  }
+  .instructor__text {
+    min-width: 0;
+  }
+  .instructor__note {
+    margin: 4px 0 0;
+    font-size: 13px;
+    color: var(--muted);
   }
   .instructor :global(svg) {
     flex-shrink: 0;

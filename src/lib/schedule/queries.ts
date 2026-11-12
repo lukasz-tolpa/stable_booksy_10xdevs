@@ -1,9 +1,15 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/db/database.types";
-import { HORSE_HAS_BOOKINGS, HORSE_NOT_IN_STABLE, ScheduleSaveError } from "@/lib/schedule/errors";
 import type { ScheduleDayInput } from "@/lib/schedule/schema";
 
 type Client = SupabaseClient<Database>;
+
+/** Limit miejsc jednego slotu: instruktor w danej godzinie dnia. */
+export interface SlotSeats {
+  instructorId: number;
+  hour: number;
+  seats: number;
+}
 
 export interface ScheduleDayData {
   id: number;
@@ -11,9 +17,12 @@ export interface ScheduleDayData {
   openHour: number;
   closeHour: number;
   horseIds: number[];
+  instructorIds: number[];
+  seats: SlotSeats[];
 }
 
-const DAY_COLUMNS = "id, day, open_hour, close_hour, schedule_day_horses(horse_id)";
+const DAY_COLUMNS =
+  "id, day, open_hour, close_hour, schedule_day_horses(horse_id), schedule_day_instructors(instructor_id, schedule_slots(hour, seats))";
 
 interface RawScheduleDay {
   id: number;
@@ -21,6 +30,7 @@ interface RawScheduleDay {
   open_hour: number;
   close_hour: number;
   schedule_day_horses: { horse_id: number }[];
+  schedule_day_instructors: { instructor_id: number; schedule_slots: { hour: number; seats: number }[] }[];
 }
 
 function toScheduleDay(row: RawScheduleDay): ScheduleDayData {
@@ -30,6 +40,10 @@ function toScheduleDay(row: RawScheduleDay): ScheduleDayData {
     openHour: row.open_hour,
     closeHour: row.close_hour,
     horseIds: row.schedule_day_horses.map((entry) => entry.horse_id),
+    instructorIds: row.schedule_day_instructors.map((entry) => entry.instructor_id),
+    seats: row.schedule_day_instructors.flatMap((entry) =>
+      entry.schedule_slots.map((slot) => ({ instructorId: entry.instructor_id, hour: slot.hour, seats: slot.seats })),
+    ),
   };
 }
 
@@ -74,111 +88,23 @@ export async function getLatestScheduleDay(client: Client, stableId: number): Pr
   return data ? toScheduleDay(data) : null;
 }
 
-/** Wszystkie wskazane konie muszą należeć do tej stadniny. */
-async function assertHorsesBelongToStable(client: Client, stableId: number, horseIds: number[]): Promise<void> {
-  if (horseIds.length === 0) {
-    return;
-  }
-
-  const { data, error } = await client.from("horses").select("id").eq("stable_id", stableId).in("id", horseIds);
+/**
+ * Zapis całego dnia — godziny, konie, instruktorzy i limity miejsc — jednym wywołaniem
+ * `public.save_schedule_day`. Funkcja działa w jednej transakcji i jest jedyną drogą zapisu
+ * grafiku (bezpośredni zapis do tabel jest odebrany), więc udaje się w całości albo wcale,
+ * a każda odmowa wraca jako kod z `src/lib/schedule/errors.ts`. Stadnina pochodzi z sesji.
+ */
+export async function saveScheduleDay(client: Client, input: ScheduleDayInput): Promise<void> {
+  const { error } = await client.rpc("save_schedule_day", {
+    p_day: input.day,
+    p_open_hour: input.openHour,
+    p_close_hour: input.closeHour,
+    p_horse_ids: [...new Set(input.horseIds)],
+    p_instructor_ids: [...new Set(input.instructorIds)],
+    p_seats: input.seats.map((slot) => ({ instructor_id: slot.instructorId, hour: slot.hour, seats: slot.seats })),
+  });
 
   if (error) {
     throw error;
-  }
-
-  if (data.length !== horseIds.length) {
-    throw new ScheduleSaveError(HORSE_NOT_IN_STABLE);
-  }
-}
-
-/**
- * Żaden z odpinanych koni nie może mieć zapisu w tym dniu — także odwołanego.
- *
- * Liczymy WSZYSTKIE zapisy, bo tak liczy baza: FK `bookings_scheduled_horse_fkey`
- * (ON DELETE RESTRICT) nie filtruje po statusie, więc przydział konia z samym odwołanym
- * zapisem też nie da się usunąć (decyzja 2026-09-08: historia zapisów zostaje przy koniu).
- * Gdyby pre-check liczył tylko aktywne, przepuszczałby taki przypadek do zapisu godzin
- * (krok 3), a odmowa padałaby dopiero przy odpinaniu (krok 4) — po częściowym zapisie.
- */
-async function assertRemovedHorsesHaveNoBookings(
-  client: Client,
-  scheduleDayId: number,
-  keepHorseIds: number[],
-): Promise<void> {
-  const query = client.from("bookings").select("horse_id").eq("schedule_day_id", scheduleDayId);
-
-  const { data, error } =
-    keepHorseIds.length === 0 ? await query : await query.not("horse_id", "in", `(${keepHorseIds.join(",")})`);
-
-  if (error) {
-    throw error;
-  }
-
-  if (data.length > 0) {
-    throw new ScheduleSaveError(HORSE_HAS_BOOKINGS);
-  }
-}
-
-/**
- * Zapis całego dnia: godziny plus zestaw koni.
- *
- * KOLEJNOŚĆ JEST KRYTYCZNA. Najpierw usuwamy odpięte konie, dopiero potem wstawiamy
- * dopięte. Usunięcie może się nie udać (23503, gdy koń ma zapis w tym dniu), wstawienie
- * praktycznie nie — przy odwrotnej kolejności nieudane usunięcie zostawiłoby dzień
- * z dołożonymi końmi i nieusuniętymi starymi, czyli w stanie, którego ośrodek nie zamawiał.
- */
-export async function saveScheduleDay(client: Client, stableId: number, input: ScheduleDayInput): Promise<void> {
-  const horseIds = [...new Set(input.horseIds)];
-
-  // Obie kontrole PRZED pierwszym zapisem. Baza wyłapałaby te przypadki sama, ale dopiero
-  // w połowie operacji - a wtedy godziny są już zmienione, a część koni odpięta, mimo że
-  // użytkownik zobaczy komunikat o niepowodzeniu.
-  await assertHorsesBelongToStable(client, stableId, horseIds);
-
-  const existing = await getScheduleDay(client, stableId, input.day);
-  if (existing) {
-    await assertRemovedHorsesHaveNoBookings(client, existing.id, horseIds);
-  }
-
-  // Konflikt godzin (SB002) i daty (SB001) nie wymagają kontroli z wyprzedzeniem:
-  // podnosi je pierwsza operacja poniżej, więc gdy wybuchają, nic nie zostało zmienione.
-  const { data: dayRow, error: dayError } = await client
-    .from("schedule_days")
-    .upsert(
-      { stable_id: stableId, day: input.day, open_hour: input.openHour, close_hour: input.closeHour },
-      { onConflict: "stable_id,day" },
-    )
-    .select("id")
-    .single();
-
-  if (dayError) {
-    throw dayError;
-  }
-
-  const scheduleDayId = dayRow.id;
-
-  const removal = client.from("schedule_day_horses").delete().eq("schedule_day_id", scheduleDayId);
-  const { error: removeError } =
-    horseIds.length === 0 ? await removal : await removal.not("horse_id", "in", `(${horseIds.join(",")})`);
-
-  if (removeError) {
-    throw removeError;
-  }
-
-  if (horseIds.length === 0) {
-    return;
-  }
-
-  const { error: insertError } = await client.from("schedule_day_horses").upsert(
-    horseIds.map((horseId) => ({
-      schedule_day_id: scheduleDayId,
-      horse_id: horseId,
-      stable_id: stableId,
-    })),
-    { onConflict: "schedule_day_id,horse_id", ignoreDuplicates: true },
-  );
-
-  if (insertError) {
-    throw insertError;
   }
 }

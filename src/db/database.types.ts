@@ -210,6 +210,42 @@ export type Database = {
           },
         ]
       }
+      schedule_day_instructors: {
+        Row: {
+          created_at: string
+          instructor_id: number
+          schedule_day_id: number
+          stable_id: number
+        }
+        Insert: {
+          created_at?: string
+          instructor_id: number
+          schedule_day_id: number
+          stable_id: number
+        }
+        Update: {
+          created_at?: string
+          instructor_id?: number
+          schedule_day_id?: number
+          stable_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedule_day_instructors_day_fkey"
+            columns: ["schedule_day_id", "stable_id"]
+            isOneToOne: false
+            referencedRelation: "schedule_days"
+            referencedColumns: ["id", "stable_id"]
+          },
+          {
+            foreignKeyName: "schedule_day_instructors_instructor_fkey"
+            columns: ["instructor_id", "stable_id"]
+            isOneToOne: false
+            referencedRelation: "instructors"
+            referencedColumns: ["id", "stable_id"]
+          },
+        ]
+      }
       schedule_days: {
         Row: {
           close_hour: number
@@ -245,6 +281,35 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "stables"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      schedule_slots: {
+        Row: {
+          hour: number
+          instructor_id: number
+          schedule_day_id: number
+          seats: number
+        }
+        Insert: {
+          hour: number
+          instructor_id: number
+          schedule_day_id: number
+          seats?: number
+        }
+        Update: {
+          hour?: number
+          instructor_id?: number
+          schedule_day_id?: number
+          seats?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedule_slots_day_instructor_fkey"
+            columns: ["schedule_day_id", "instructor_id"]
+            isOneToOne: false
+            referencedRelation: "schedule_day_instructors"
+            referencedColumns: ["schedule_day_id", "instructor_id"]
           },
         ]
       }
@@ -294,6 +359,17 @@ export type Database = {
           horse_id: number
           hour: number
         }[]
+      }
+      save_schedule_day: {
+        Args: {
+          p_close_hour: number
+          p_day: string
+          p_horse_ids: number[]
+          p_instructor_ids: number[]
+          p_open_hour: number
+          p_seats?: Json
+        }
+        Returns: number
       }
     }
     Enums: {

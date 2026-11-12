@@ -2,24 +2,21 @@
 -- 2026-08-11 i doprecyzowane 2026-09-08).
 --
 -- Zmiana grafiku kolidujaca z zapisem jest odrzucana, a zapis zostaje nietkniety.
--- Regula ma cztery przypadki: dwa odziedziczone po F-01 (odpiecie konia, usuniecie dnia -
--- FK ON DELETE RESTRICT, 23503) i dwa dodane w S-02 (zawezenie godzin SB002, zmiana daty
--- SB001 - trigger schedule_days_protect_bookings). Skrypt sprawdza wszystkie cztery,
--- po kazdej odmowie CZYTA ZAPIS PONOWNIE, a do tego trzy granice, ktore MUSZA przechodzic
--- (rozszerzenie godzin, zmiana daty pustego dnia, zawezenie nad odwolanym zapisem) -
--- inaczej straznik bylby za ciasny.
+-- Od #40 grafik zapisuje wylacznie public.save_schedule_day (bezposredni zapis do tabel grafiku
+-- jest odebrany), wiec przypadki osiagalne z aplikacji ida przez funkcje jako wlasciciel:
+--   * zawezenie godzin ponizej aktywnego zapisu      -> SB002 (wyzwalacz z S-02)
+--   * wypisanie konia, ktory ma zapis w tym dniu      -> SB004 (kontrola w funkcji)
+-- Funkcja nie zmienia daty dnia ani go nie usuwa. Te dwa straznicy tabeli (SB001 z wyzwalacza,
+-- 23503 z FK RESTRICT przez kaskade) dzialaja dla kazdego piszacego, wiec ich dowod idzie jako
+-- postgres - jedyna rola, ktora jeszcze pisze do tabel wprost (migracje, dane demo).
+-- Do tego granice, ktore MUSZA przechodzic (rozszerzenie godzin, zmiana daty pustego dnia,
+-- zawezenie nad odwolanym zapisem) - inaczej straznik bylby za ciasny.
 --
 -- Odwolane zapisy (decyzja 2026-09-08, utrwalona tutaj i w PRD):
 --   * NIE blokuja zawezenia godzin ani zmiany daty (trigger liczy tylko status = 'active'),
 --   * ALE przypinaja konia do dnia: przydzial (dzien, kon), do ktorego odnosi sie
---     jakikolwiek zapis - aktywny czy odwolany - nie moze zostac usuniety (FK RESTRICT nie
---     filtruje po statusie). Historia zapisow zostaje przy koniu. Zmiana tego zachowania
---     wymaga zmiany schematu i przypadku 8 ponizej.
---
--- Jako kto: mutacje ida przez RLS jako wlasciciel "Stadniny Pod Debem" (sub 1111...),
--- bo tylko tak test dowodzi, ze wlasciciel w ogole dociera do triggera (przy zlym `sub`
--- UPDATE dotyka 0 wierszy i wyglada jak odmowa). Przygotowanie danych idzie jako
--- postgres; na koniec jedna proba jako obcy wlasciciel (2222...) musi dotknac 0 wierszy.
+--     jakikolwiek zapis - aktywny czy odwolany - nie moze zostac usuniety. Historia zapisow
+--     zostaje przy koniu. Zmiana tego zachowania wymaga zmiany schematu i przypadku 8 ponizej.
 --
 -- Wymaga swiezego seeda (`npx supabase db reset` tego samego dnia - dni z seeda musza byc na jutro).
 -- Uzycie:  npm run test:db   (wszystkie dowody; runner sam dobiera psql z hosta albo z kontenera)
@@ -29,7 +26,7 @@
 
 \set ON_ERROR_STOP on
 
-\echo '=== Ochrona zapisow przed zmiana grafiku: setup (postgres) ==='
+\echo '=== Ochrona zapisow przed zmiana grafiku: setup i straznicy tabeli (postgres) ==='
 
 begin;
 
@@ -41,6 +38,10 @@ declare
   v_kasztan bigint;
   v_booking bigint;
   v_cancelled bigint;
+  v_empty_day bigint;
+  v int;
+  v_failures int := 0;
+  d record;
 begin
   -- Deterministyczny wybor: dzien Pod Debem na jutro, po owner_id z seeda.
   select s.id into v_stable
@@ -69,74 +70,6 @@ begin
   values (v_day, v_kasztan, 12, '33333333-3333-3333-3333-333333333333', 'cancelled', now())
   returning id into v_cancelled;
 
-  -- Id-y przekazujemy do blokow wlasciciela przez GUC transakcji (widoczne po set role).
-  perform set_config('app.stable', v_stable::text, true);
-  perform set_config('app.day', v_day::text, true);
-  perform set_config('app.bella', v_bella::text, true);
-  perform set_config('app.kasztan', v_kasztan::text, true);
-  perform set_config('app.booking', v_booking::text, true);
-  perform set_config('app.cancelled', v_cancelled::text, true);
-
-  raise notice 'setup: dzien=% (%), Bella@11 aktywny id=%, Kasztan@12 odwolany id=%',
-    v_day, current_date + 1, v_booking, v_cancelled;
-end $$;
-
-\echo '=== Ochrona zapisow przed zmiana grafiku: wlasciciel Pod Debem (RLS) ==='
-
-set local role authenticated;
-set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
-
-do $$
-declare
-  v_stable bigint := current_setting('app.stable')::bigint;
-  v_day bigint := current_setting('app.day')::bigint;
-  v_bella bigint := current_setting('app.bella')::bigint;
-  v_kasztan bigint := current_setting('app.kasztan')::bigint;
-  v_booking bigint := current_setting('app.booking')::bigint;
-  v_cancelled bigint := current_setting('app.cancelled')::bigint;
-  v_empty_day bigint;
-  v int;
-  v_failures int := 0;
-  b record;
-  d record;
-begin
-  -- 1. Zawezenie godzin ponizej istniejacego zapisu musi odpasc...
-  begin
-    update public.schedule_days set close_hour = 11 where id = v_day;
-    raise notice 'FAIL 1: zawezenie godzin przeszlo mimo zapisu w odcietej godzinie';
-    v_failures := v_failures + 1;
-  exception when sqlstate 'SB002' then
-    raise notice 'PASS 1: zawezenie godzin pod zapisem odrzucone (SB002)';
-  end;
-
-  -- ...a zapis i dzien maja zostac dokladnie takie, jakie byly.
-  select status, hour, schedule_day_id, horse_id into b from public.bookings where id = v_booking;
-  select open_hour, close_hour into d from public.schedule_days where id = v_day;
-  if b.status = 'active' and b.hour = 11 and b.schedule_day_id = v_day and b.horse_id = v_bella
-     and d.open_hour = 10 and d.close_hour = 16 then
-    raise notice 'PASS 1b: po odmowie zapis nietkniety (active, 11), dzien nadal 10-16';
-  else
-    raise notice 'FAIL 1b: po odmowie zapis lub dzien zmienione: status=% hour=% dzien=%-%', b.status, b.hour, d.open_hour, d.close_hour;
-    v_failures := v_failures + 1;
-  end if;
-
-  -- 2. GRANICA: rozszerzenie godzin musi przejsc - i musi realnie dotknac wiersza
-  --    (row_count = 1 dowodzi, ze RLS wpuscilo wlasciciela do UPDATE).
-  begin
-    update public.schedule_days set open_hour = 8, close_hour = 20 where id = v_day;
-    get diagnostics v = row_count;
-    if v = 1 then
-      raise notice 'PASS 2: rozszerzenie godzin przy istniejacych zapisach przeszlo (row_count=1)';
-    else
-      raise notice 'FAIL 2: rozszerzenie godzin dotknelo % wierszy - RLS nie wpuscilo wlasciciela', v;
-      v_failures := v_failures + 1;
-    end if;
-    update public.schedule_days set open_hour = 10, close_hour = 16 where id = v_day;
-  exception when others then
-    raise notice 'FAIL 2: rozszerzenie godzin odrzucone (%) - straznik jest za ciasny', sqlstate;
-    v_failures := v_failures + 1;
-  end;
-
   -- 3. Zmiana daty dnia z aktywnymi zapisami musi odpasc; zapis zostaje na swoim dniu.
   begin
     update public.schedule_days set day = day + 7 where id = v_day;
@@ -153,7 +86,7 @@ begin
     v_failures := v_failures + 1;
   end if;
 
-  -- 4. GRANICA: zmiana daty dnia BEZ zapisow musi przejsc (insert jako wlasciciel).
+  -- 4. GRANICA: zmiana daty dnia BEZ zapisow musi przejsc.
   insert into public.schedule_days (stable_id, day, open_hour, close_hour)
   values (v_stable, current_date + 30, 9, 15)
   returning id into v_empty_day;
@@ -172,13 +105,94 @@ begin
     v_failures := v_failures + 1;
   end;
 
-  -- 5. Odpiecie konia od dnia, w ktorym ma aktywny zapis (FK RESTRICT z F-01).
+  -- 6. Usuniecie calego dnia z zapisami (kaskada -> schedule_day_horses -> RESTRICT).
   begin
-    delete from public.schedule_day_horses where schedule_day_id = v_day and horse_id = v_bella;
-    raise notice 'FAIL 5: odpiecie konia z zapisem przeszlo';
+    delete from public.schedule_days where id = v_day;
+    raise notice 'FAIL 6: usuniecie dnia z zapisami przeszlo';
     v_failures := v_failures + 1;
   exception when foreign_key_violation then
-    raise notice 'PASS 5: odpiecie konia z aktywnym zapisem odrzucone (23503)';
+    raise notice 'PASS 6: usuniecie dnia z zapisami odrzucone (23503 przez kaskade)';
+  end;
+
+  if v_failures > 0 then
+    raise exception '% asercji nie przeszlo', v_failures;
+  end if;
+
+  -- Id-y przekazujemy do blokow wlasciciela przez GUC transakcji (widoczne po set role).
+  perform set_config('app.day', v_day::text, true);
+  perform set_config('app.bella', v_bella::text, true);
+  perform set_config('app.kasztan', v_kasztan::text, true);
+  perform set_config('app.booking', v_booking::text, true);
+  perform set_config('app.cancelled', v_cancelled::text, true);
+
+  raise notice 'setup: dzien=% (%), Bella@11 aktywny id=%, Kasztan@12 odwolany id=%',
+    v_day, current_date + 1, v_booking, v_cancelled;
+end $$;
+
+\echo '=== Ochrona zapisow przed zmiana grafiku: wlasciciel Pod Debem (save_schedule_day) ==='
+
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
+
+do $$
+declare
+  v_day bigint := current_setting('app.day')::bigint;
+  v_bella bigint := current_setting('app.bella')::bigint;
+  v_kasztan bigint := current_setting('app.kasztan')::bigint;
+  v_booking bigint := current_setting('app.booking')::bigint;
+  v_cancelled bigint := current_setting('app.cancelled')::bigint;
+  v_tomorrow date := current_date + 1;
+  v_both bigint[];
+  v int;
+  v_failures int := 0;
+  b record;
+  d record;
+begin
+  v_both := array[v_bella, v_kasztan];
+
+  -- 1. Zawezenie godzin ponizej istniejacego zapisu musi odpasc...
+  begin
+    perform public.save_schedule_day(v_tomorrow, 10, 11, v_both, array[]::bigint[], '[]'::jsonb);
+    raise notice 'FAIL 1: zawezenie godzin przeszlo mimo zapisu w odcietej godzinie';
+    v_failures := v_failures + 1;
+  exception when sqlstate 'SB002' then
+    raise notice 'PASS 1: zawezenie godzin pod zapisem odrzucone (SB002)';
+  end;
+
+  -- ...a zapis i dzien maja zostac dokladnie takie, jakie byly.
+  select status, hour, schedule_day_id, horse_id into b from public.bookings where id = v_booking;
+  select open_hour, close_hour into d from public.schedule_days where id = v_day;
+  if b.status = 'active' and b.hour = 11 and b.schedule_day_id = v_day and b.horse_id = v_bella
+     and d.open_hour = 10 and d.close_hour = 16 then
+    raise notice 'PASS 1b: po odmowie zapis nietkniety (active, 11), dzien nadal 10-16';
+  else
+    raise notice 'FAIL 1b: po odmowie zapis lub dzien zmienione: status=% hour=% dzien=%-%', b.status, b.hour, d.open_hour, d.close_hour;
+    v_failures := v_failures + 1;
+  end if;
+
+  -- 2. GRANICA: rozszerzenie godzin musi przejsc - i realnie zmienic dzien wlasciciela.
+  begin
+    perform public.save_schedule_day(v_tomorrow, 8, 20, v_both, array[]::bigint[], '[]'::jsonb);
+    select open_hour, close_hour into d from public.schedule_days where id = v_day;
+    if d.open_hour = 8 and d.close_hour = 20 then
+      raise notice 'PASS 2: rozszerzenie godzin przy istniejacych zapisach przeszlo';
+    else
+      raise notice 'FAIL 2: po rozszerzeniu dzien to %-%', d.open_hour, d.close_hour;
+      v_failures := v_failures + 1;
+    end if;
+    perform public.save_schedule_day(v_tomorrow, 10, 16, v_both, array[]::bigint[], '[]'::jsonb);
+  exception when others then
+    raise notice 'FAIL 2: rozszerzenie godzin odrzucone (%) - straznik jest za ciasny', sqlstate;
+    v_failures := v_failures + 1;
+  end;
+
+  -- 5. Wypisanie konia z aktywnym zapisem.
+  begin
+    perform public.save_schedule_day(v_tomorrow, 10, 16, array[v_kasztan], array[]::bigint[], '[]'::jsonb);
+    raise notice 'FAIL 5: wypisanie konia z zapisem przeszlo';
+    v_failures := v_failures + 1;
+  exception when sqlstate 'SB004' then
+    raise notice 'PASS 5: wypisanie konia z aktywnym zapisem odrzucone (SB004)';
   end;
   select count(*) into v from public.schedule_day_horses where schedule_day_id = v_day and horse_id = v_bella;
   select status into b from public.bookings where id = v_booking;
@@ -189,41 +203,32 @@ begin
     v_failures := v_failures + 1;
   end if;
 
-  -- 6. Usuniecie calego dnia z zapisami (kaskada -> schedule_day_horses -> RESTRICT).
-  begin
-    delete from public.schedule_days where id = v_day;
-    raise notice 'FAIL 6: usuniecie dnia z zapisami przeszlo';
-    v_failures := v_failures + 1;
-  exception when foreign_key_violation then
-    raise notice 'PASS 6: usuniecie dnia z zapisami odrzucone (23503 przez kaskade)';
-  end;
-
-  -- 7. GRANICA: odwolany zapis NIE blokuje zawezenia godzin. close_hour = 12 odcina tylko
+  -- 7. GRANICA: odwolany zapis NIE blokuje zawezenia godzin. 10-12 odcina tylko
   --    odwolany Kasztan@12; aktywny Bella@11 zostaje w zakresie -> musi przejsc.
   begin
-    update public.schedule_days set close_hour = 12 where id = v_day;
-    get diagnostics v = row_count;
+    perform public.save_schedule_day(v_tomorrow, 10, 12, v_both, array[]::bigint[], '[]'::jsonb);
+    select close_hour into d from public.schedule_days where id = v_day;
     select status, hour into b from public.bookings where id = v_cancelled;
-    if v = 1 and b.status = 'cancelled' and b.hour = 12 then
+    if d.close_hour = 12 and b.status = 'cancelled' and b.hour = 12 then
       raise notice 'PASS 7: zawezenie nad odwolanym zapisem przeszlo, odwolany zapis nietkniety';
     else
-      raise notice 'FAIL 7: zawezenie nad odwolanym zapisem: row_count=% status=% hour=%', v, b.status, b.hour;
+      raise notice 'FAIL 7: zawezenie nad odwolanym zapisem: close=% status=% hour=%', d.close_hour, b.status, b.hour;
       v_failures := v_failures + 1;
     end if;
-    update public.schedule_days set close_hour = 16 where id = v_day;
+    perform public.save_schedule_day(v_tomorrow, 10, 16, v_both, array[]::bigint[], '[]'::jsonb);
   exception when others then
     raise notice 'FAIL 7: zawezenie nad odwolanym zapisem odrzucone (%) - trigger liczy odwolane', sqlstate;
     v_failures := v_failures + 1;
   end;
 
-  -- 8. Odwolany zapis PRZYPINA konia do dnia (decyzja 2026-09-08): przydzial Kasztana ma
-  --    tylko odwolany zapis, a mimo to nie da sie go usunac - historia zostaje przy koniu.
+  -- 8. Odwolany zapis PRZYPINA konia do dnia (decyzja 2026-09-08): Kasztan ma tylko
+  --    odwolany zapis, a mimo to nie da sie go wypisac - historia zostaje przy koniu.
   begin
-    delete from public.schedule_day_horses where schedule_day_id = v_day and horse_id = v_kasztan;
-    raise notice 'FAIL 8: odpiecie konia z odwolanym zapisem przeszlo - zmieniono semantyke FK RESTRICT';
+    perform public.save_schedule_day(v_tomorrow, 10, 16, array[v_bella], array[]::bigint[], '[]'::jsonb);
+    raise notice 'FAIL 8: wypisanie konia z odwolanym zapisem przeszlo - zmieniono semantyke przypiecia';
     v_failures := v_failures + 1;
-  exception when foreign_key_violation then
-    raise notice 'PASS 8: odpiecie konia z samym odwolanym zapisem odrzucone (23503, historia zostaje przy koniu)';
+  exception when sqlstate 'SB004' then
+    raise notice 'PASS 8: wypisanie konia z samym odwolanym zapisem odrzucone (SB004, historia zostaje przy koniu)';
   end;
   select status into b from public.bookings where id = v_cancelled;
   if b.status = 'cancelled' then
@@ -239,25 +244,22 @@ begin
   raise notice '--- WSZYSTKIE ASERCJE OCHRONY ZAPISOW (WLASCICIEL) PRZESZLY ---';
 end $$;
 
-\echo '=== Ochrona zapisow przed zmiana grafiku: obcy wlasciciel (RLS) ==='
+\echo '=== Ochrona zapisow przed zmiana grafiku: obcy wlasciciel ==='
 
 -- Ta sama transakcja, inna persona: wlasciciel Stajni Nad Rzeka probuje zmienic dzien
--- Pod Debem. RLS filtruje wiersz PRZED triggerem: 0 wierszy i zaden wyjatek.
--- Celowo ROZSZERZENIE godzin (trigger je przepuszcza), zeby asercja mierzyla wylacznie RLS:
--- z wylaczonym RLS UPDATE przeszedlby (row_count = 1) i to jest FAIL, a nie odmowa triggera.
+-- Pod Debem wprost. Bezposredni zapis do tabel grafiku jest odebrany (42501).
 set local request.jwt.claims = '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}';
 
 do $$
 declare
   v_day bigint := current_setting('app.day')::bigint;
-  v int;
 begin
-  update public.schedule_days set open_hour = 9 where id = v_day;
-  get diagnostics v = row_count;
-  if v <> 0 then
-    raise exception 'FAIL 9: obcy wlasciciel zmienil % wierszy cudzego dnia - RLS nie filtruje', v;
-  end if;
-  raise notice 'PASS 9: obcy wlasciciel dotknal 0 wierszy cudzego dnia (RLS filtruje przed triggerem)';
+  begin
+    update public.schedule_days set open_hour = 9 where id = v_day;
+    raise exception 'FAIL 9: obcy wlasciciel zmienil cudzy dzien';
+  exception when insufficient_privilege then
+    raise notice 'PASS 9: obcy wlasciciel nie zmieni cudzego dnia (42501)';
+  end;
 end $$;
 
 rollback;

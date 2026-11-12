@@ -8,7 +8,9 @@ import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
 import ScheduleDayForm from "@/components/schedule/ScheduleDayForm";
 import { addDays, defaultScheduleDate, isPastDate, parseScheduleDate } from "@/lib/schedule/dates";
+import { instructorDefaults } from "@/lib/schedule/form";
 import { getLatestScheduleDay, getScheduleDay, type ScheduleDayData } from "@/lib/schedule/queries";
+import { listStableInstructors, type InstructorListItem } from "@/lib/instructors/queries";
 import { getOwnedStableId, listStableHorses, type HorseListItem } from "@/lib/stables/queries";
 import { createClient } from "@/lib/supabase";
 import { logError } from "@/lib/log";
@@ -26,16 +28,18 @@ const supabase = createClient(Astro.request.headers, Astro.cookies);
 let scheduleDay: ScheduleDayData | null = null;
 let latestDay: ScheduleDayData | null = null;
 let horses: HorseListItem[] = [];
+let instructors: InstructorListItem[] = [];
 let loadFailed = false;
 
 if (supabase && profile) {
   try {
     const stableId = await getOwnedStableId(supabase, profile.id);
     if (stableId !== null) {
-      [scheduleDay, latestDay, horses] = await Promise.all([
+      [scheduleDay, latestDay, horses, instructors] = await Promise.all([
         getScheduleDay(supabase, stableId, day),
         getLatestScheduleDay(supabase, stableId),
         listStableHorses(supabase, stableId),
+        listStableInstructors(supabase, stableId),
       ]);
     }
   } catch (error) {
@@ -58,6 +62,8 @@ const selectedHorseIds = hint?.horseIds ?? [];
 // Wycofane konie pokazujemy tylko wtedy, gdy są już przypisane do tego dnia.
 const selectableHorses = horses.filter((horse) => horse.active || selectedHorseIds.includes(horse.id));
 
+const instructorForm = instructorDefaults(scheduleDay, latestDay, instructors);
+
 const dayLabel = new Date(`${day}T00:00:00`).toLocaleDateString("pl-PL", {
   weekday: "long",
   day: "numeric",
@@ -70,7 +76,10 @@ const dayLabel = new Date(`${day}T00:00:00`).toLocaleDateString("pl-PL", {
   <Topbar />
   <main class="container-narrow page">
     <h1>Grafik dnia</h1>
-    <p class="page-lead">Zakres godzin i konie pracujące danego dnia. Zakres 10–16 oznacza jazdy od 10:00 do 15:00.</p>
+    <p class="page-lead">
+      Zakres godzin, konie i instruktorzy pracujący danego dnia oraz limity miejsc. Zakres 10–16 oznacza jazdy od 10:00
+      do 15:00.
+    </p>
 
     <DayNav>
       <a slot="prev" href={`/osrodek/grafik?dzien=${addDays(day, -1)}`}>
@@ -111,6 +120,15 @@ const dayLabel = new Date(`${day}T00:00:00`).toLocaleDateString("pl-PL", {
                       .join(", ") || "brak"}
                   </dd>
                 </div>
+                <div>
+                  <dt>Instruktorzy</dt>
+                  <dd>
+                    {instructors
+                      .filter((instructor) => scheduleDay.instructorIds.includes(instructor.id))
+                      .map((instructor) => instructor.name)
+                      .join(", ") || "brak"}
+                  </dd>
+                </div>
               </dl>
             ) : (
               <p class="past__none">Tego dnia nie było ułożonego grafiku.</p>
@@ -134,6 +152,9 @@ const dayLabel = new Date(`${day}T00:00:00`).toLocaleDateString("pl-PL", {
             closeHour={closeHour}
             selectedHorseIds={selectedHorseIds}
             horses={selectableHorses}
+            selectedInstructorIds={instructorForm.selectedInstructorIds}
+            instructors={instructorForm.selectableInstructors}
+            seats={instructorForm.seats}
             serverError={error}
             client:load
           />
