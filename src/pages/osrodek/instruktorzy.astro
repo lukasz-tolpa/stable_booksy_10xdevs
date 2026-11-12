@@ -1,0 +1,201 @@
+---
+import { UserRound } from "lucide-react";
+import Layout from "@/layouts/Layout.astro";
+import Topbar from "@/components/Topbar.astro";
+import InstructorForm from "@/components/instructors/InstructorForm";
+import Card from "@/components/ui/Card.astro";
+import EmptyState from "@/components/ui/EmptyState.astro";
+import FailureState from "@/components/ui/FailureState.astro";
+import { listStableInstructors, type InstructorListItem } from "@/lib/instructors/queries";
+import { getOwnedStableId } from "@/lib/stables/queries";
+import { createClient } from "@/lib/supabase";
+import { logError } from "@/lib/log";
+
+// Dostęp pilnuje middleware (mapa tras w @/lib/auth/roles); konto ośrodka ma gwarantowaną
+// stadninę - stąd brak gałęzi "brak stadniny". Wzorzec: strona koni.
+const { profile } = Astro.locals;
+const error = Astro.url.searchParams.get("error");
+
+const supabase = createClient(Astro.request.headers, Astro.cookies);
+
+let instructors: InstructorListItem[] = [];
+let loadFailed = false;
+
+if (supabase && profile) {
+  try {
+    const stableId = await getOwnedStableId(supabase, profile.id);
+    instructors = stableId === null ? [] : await listStableInstructors(supabase, stableId);
+  } catch (error) {
+    loadFailed = true;
+    logError("page:osrodek/instruktorzy", error);
+  }
+}
+
+const active = instructors.filter((instructor) => instructor.active);
+const inactive = instructors.filter((instructor) => !instructor.active);
+---
+
+<Layout title="Instruktorzy">
+  <Topbar />
+  <main class="container-narrow page">
+    <h1>Instruktorzy</h1>
+    <p class="page-lead">Osoby prowadzące jazdy w Twoim ośrodku. Instruktor nie ma konta — grafik układasz za niego.</p>
+
+    <div class="cols">
+      <div class="list">
+        {
+          loadFailed ? (
+            <FailureState>
+              <p>Nie udało się wczytać instruktorów.</p>
+              <p>Odśwież stronę za chwilę.</p>
+            </FailureState>
+          ) : instructors.length === 0 ? (
+            <Card>
+              <EmptyState>
+                <p>
+                  Nie masz jeszcze żadnych instruktorów. Dodaj pierwszego — prowadzi jazdy, na które zapisują się
+                  jeźdźcy.
+                </p>
+              </EmptyState>
+            </Card>
+          ) : (
+            <>
+              {active.map((instructor) => (
+                <Card padding={18}>
+                  <article class="instructor">
+                    <h2>
+                      <UserRound className="size-4" />
+                      {instructor.name}
+                    </h2>
+                    <form method="POST" action="/api/instructors/toggle-active">
+                      <input type="hidden" name="instructorId" value={instructor.id} />
+                      <input type="hidden" name="active" value="false" />
+                      <button type="submit">Dezaktywuj</button>
+                    </form>
+                  </article>
+                </Card>
+              ))}
+
+              {inactive.length > 0 && (
+                <>
+                  <h2 class="inactive-head">Nieaktywni</h2>
+                  {inactive.map((instructor) => (
+                    <Card padding={18} class="opacity-70">
+                      <article class="instructor">
+                        <h3>
+                          <UserRound className="size-4" />
+                          {instructor.name}
+                        </h3>
+                        <form method="POST" action="/api/instructors/toggle-active">
+                          <input type="hidden" name="instructorId" value={instructor.id} />
+                          <input type="hidden" name="active" value="true" />
+                          <button type="submit">Aktywuj</button>
+                        </form>
+                      </article>
+                    </Card>
+                  ))}
+                </>
+              )}
+            </>
+          )
+        }
+      </div>
+
+      <Card>
+        <h2 class="form-head">Dodaj instruktora</h2>
+        <InstructorForm serverError={error} client:load />
+      </Card>
+    </div>
+  </main>
+</Layout>
+
+<style>
+  .page {
+    padding-block: 24px 56px;
+  }
+  h1 {
+    font-size: 32px;
+  }
+  .page-lead {
+    margin: 10px 0 0 0;
+    font-size: 15.5px;
+    color: var(--muted);
+    max-width: 62ch;
+  }
+
+  .cols {
+    margin-top: 24px;
+    display: grid;
+    gap: 22px;
+    align-items: start;
+  }
+  @media (width >= 900px) {
+    .cols {
+      grid-template-columns: 1fr 20rem;
+    }
+  }
+
+  .list {
+    display: grid;
+    gap: 12px;
+  }
+
+  .instructor {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .instructor h2,
+  .instructor h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-size: 17px;
+    margin: 0;
+  }
+  .instructor button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 10px 16px;
+    border-radius: 999px;
+    border: 1px solid var(--border-2);
+    background: var(--surface);
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    color: var(--fg);
+    cursor: pointer;
+    transition:
+      background 0.15s,
+      border-color 0.15s;
+  }
+  .instructor button:hover {
+    background: var(--surface-2);
+  }
+  .instructor button:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+
+  .inactive-head {
+    margin: 10px 0 0;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-weight: 500;
+    color: var(--muted);
+  }
+
+  .form-head {
+    font-size: 17px;
+    margin: 0 0 14px;
+  }
+</style>
