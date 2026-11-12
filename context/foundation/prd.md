@@ -30,22 +30,25 @@ Prowadzi małą stadninę, dziś układa grafik ręcznie. Moment sięgnięcia po
 
 ### Secondary persona
 
-**Jeździec (użytkownik).** Chce zapisać się na jazdę o konkretnej godzinie na wybranym koniu, bez telefonowania. MVP obsługuje go w stopniu wystarczającym, by domknąć proces zapisu, ale projektujemy najpierw pod ośrodek.
+**Jeździec (użytkownik).** Chce zapisać się na jazdę o konkretnej godzinie u wybranego instruktora, bez telefonowania; konia przydziela mu ośrodek. MVP obsługuje go w stopniu wystarczającym, by domknąć proces zapisu, ale projektujemy najpierw pod ośrodek.
 
 ## Success Criteria
 
 ### Primary
 
-- Jeździec przechodzi pełną pętlę rezerwacji end-to-end: wybiera ośrodek, wolną godzinę i konia z grafiku ustawionego przez ośrodek, i zapisuje się — bez kolizji. Mierzalne: zapis kończy się sukcesem i pojawia się w grafiku ośrodka.
+- Jeździec przechodzi pełną pętlę rezerwacji end-to-end: wybiera ośrodek i slot z wolnym miejscem (instruktor + godzina) z grafiku ustawionego przez ośrodek, i zapisuje się — bez przekroczenia limitu miejsc. Mierzalne: zapis kończy się sukcesem i pojawia się w grafiku ośrodka.
 
 ### Secondary
 
-- Jeździec może samodzielnie odwołać swój zapis, zwalniając slot konia.
+- Jeździec może samodzielnie odwołać swój zapis, zwalniając miejsce w slocie.
+- Ośrodek może przydzielić konia do zapisu i odwołać dowolny zapis w swoim grafiku.
 
 ### Guardrails
 
-- Żadnej podwójnej rezerwacji tego samego konia w tym samym slocie czasowym.
-- Brak zapisów poza zakresem godzin pracy ośrodka (np. poza 10–16) i na konie nieprzydzielone do danego dnia.
+- Liczba aktywnych zapisów w slocie nigdy nie przekracza jego limitu miejsc.
+- Żadnego przydziału tego samego konia dwóm jeźdźcom w tej samej godzinie.
+- Suma limitów miejsc w jednej godzinie nie przekracza liczby koni pracujących tego dnia.
+- Brak zapisów poza zakresem godzin pracy ośrodka (np. poza 10–16) i do instruktorów niepracujących danego dnia.
 - Konto ośrodka może modyfikować wyłącznie grafik i dane własnej stadniny.
 
 ## User Stories
@@ -53,25 +56,29 @@ Prowadzi małą stadninę, dziś układa grafik ręcznie. Moment sięgnięcia po
 ### US-01: Jeździec zapisuje się na jazdę
 
 - **Given** zalogowany jeździec, który wybrał ośrodek z listy
-- **When** wybiera wolny slot (godzina w zakresie pracy ośrodka) i konia pracującego tego dnia
-- **Then** zapis zostaje utworzony i pojawia się w grafiku ośrodka, a slot konia jest zajęty
+- **When** wybiera slot z wolnym miejscem (instruktor + godzina w zakresie pracy ośrodka)
+- **Then** zapis zostaje utworzony i pojawia się w grafiku ośrodka, a w slocie ubywa jedno wolne miejsce
 
 #### Acceptance Criteria
 
-- Pokazywane są wyłącznie sloty w zakresie godzin pracy ośrodka i konie przydzielone do danego dnia.
-- Próba zapisu na zajęty slot konia jest odrzucona z czytelnym komunikatem.
-- Pusty grafik (brak koni/godzin na dany dzień) pokazuje stan pusty, nie listę 0 wyników.
+- Pokazywane są wyłącznie sloty w zakresie godzin pracy ośrodka, z limitem miejsc większym od zera; przy każdym widać instruktora i liczbę wolnych miejsc, bez tożsamości pozostałych zapisanych.
+- Próba zapisu na slot bez wolnych miejsc jest odrzucona z czytelnym komunikatem.
+- Próba drugiego aktywnego zapisu tego samego jeźdźca na tę samą godzinę w tym ośrodku jest odrzucona z czytelnym komunikatem.
+- Jeździec widzi przy swoim zapisie przydzielonego konia, a przed przydziałem — informację, że koń zostanie przydzielony.
+- Pusty grafik (brak slotów z miejscami na dany dzień) pokazuje stan pusty, nie listę 0 wyników.
 
 ### US-02: Ośrodek układa grafik na dzień
 
 - **Given** zalogowane konto ośrodka
-- **When** ustawia zakres godzin pracy na dany dzień i wskazuje konie pracujące tego dnia
-- **Then** dla jeźdźców generują się dostępne sloty (godzina + koń) w tym zakresie
+- **When** ustawia zakres godzin pracy na dany dzień, wskazuje konie i instruktorów pracujących tego dnia oraz ustawia limit miejsc każdego instruktora w każdej godzinie
+- **Then** dla jeźdźców pojawiają się sloty (instruktor + godzina) z wolnymi miejscami w tym zakresie
 
 #### Acceptance Criteria
 
-- Zakres godzin i lista koni dotyczą konkretnej daty.
-- Zmiana grafiku nie usuwa istniejących zapisów bez ostrzeżenia (poza zakresem v1: obsługa konfliktu — patrz Open Questions).
+- Zakres godzin, lista koni, lista instruktorów i limity miejsc dotyczą konkretnej daty.
+- Limit miejsc równy zero oznacza, że instruktor w tej godzinie nie prowadzi jazdy.
+- Grafik, w którym suma limitów miejsc w jednej godzinie przekracza liczbę koni pracujących tego dnia, jest odrzucany z czytelnym komunikatem.
+- Zmiana grafiku kolidująca z aktywnymi zapisami jest odrzucana; system nie odwołuje zapisów sam (patrz Open Questions #2 i #4).
 
 ## Functional Requirements
 
@@ -88,8 +95,18 @@ Prowadzi małą stadninę, dziś układa grafik ręcznie. Moment sięgnięcia po
   > Socrates: Kontrargument: "stałe godziny ośrodka wystarczą". Rozstrzygnięcie: zostaje — godziny realnie różnią się dzień do dnia (weekend, pogoda); elastyczność per dzień to rdzeń wartości.
 - FR-004: Ośrodek może wskazać, które konie pracują w danym dniu. Priority: must-have
   > Socrates: Kontrargument: "stała lista koni ośrodka". Rozstrzygnięcie: zostaje — konie mają dni wolne/rotację; to właśnie reguła alokacji odróżniająca produkt od zwykłego kalendarza.
-- FR-005: Ośrodek może zobaczyć prostą listę zapisów (godzina–koń–jeździec) na dany dzień. Priority: must-have
+  > Zmienione 2026-11-11 (ADR 0002): konie pracujące danego dnia nie tworzą już slotów dla jeźdźca — wyznaczają górną granicę sumy limitów miejsc w godzinie i pulę do przydziału (FR-014).
+- FR-005: Ośrodek może zobaczyć prostą listę zapisów (godzina–instruktor–jeździec–koń) na dany dzień. Priority: must-have
   > Socrates: Kontrargument: "potrzebny widok kalendarza/siatki". Rozstrzygnięcie: zawężone — w v1 wystarczy prosta lista na wybrany dzień, bez siatki godzina×koń.
+  > Zmienione 2026-11-11 (ADR 0002): lista pokazuje także instruktora; koń może być jeszcze nieprzydzielony.
+- FR-012: Ośrodek może dodać instruktora i go zdezaktywować; zdezaktywowany instruktor znika z układania grafiku, ale zostaje przy dawnych zapisach. Priority: must-have
+  > Dodane 2026-11-11 (ADR 0002). Niezrealizowane. Instruktor nie ma własnego konta.
+- FR-013: Ośrodek może wskazać, którzy instruktorzy pracują w danym dniu, i ustawić limit miejsc każdego z nich w każdej godzinie. Priority: must-have
+  > Dodane 2026-11-11 (ADR 0002). Niezrealizowane. Suma limitów w jednej godzinie nie może przekroczyć liczby koni pracujących tego dnia.
+- FR-014: Ośrodek może przydzielić konia do zapisu i zmienić ten przydział w dowolnym momencie, także po terminie jazdy. Priority: must-have
+  > Dodane 2026-11-11 (ADR 0002). Niezrealizowane. Koń ma najwyżej jednego jeźdźca w danej godzinie; zapis może pozostać bez konia.
+- FR-015: Ośrodek może odwołać dowolny aktywny zapis w swoim grafiku przed jego terminem; jeździec widzi, że zapis odwołał ośrodek. Priority: must-have
+  > Dodane 2026-11-11 (ADR 0002). Niezrealizowane. Bez powiadomień — informacja jest widoczna na liście zapisów jeźdźca.
 - FR-010: Ośrodek może zdefiniować na dany dzień dowolne zakresy slotów (własny początek i koniec każdego slotu) zamiast stałej siatki godzinowej. Priority: post-MVP (v2)
   > Dodane 2026-11-10, po domknięciu v1. Niezrealizowane. Zastępuje założenie „slot ma stałą długość 1 godziny" z §Business Logic — szczegóły do rozstrzygnięcia w Open Questions #3.
 - FR-011: Ośrodek może zobaczyć statystyki własnej stadniny za dowolny okres: jazdy i godziny jazd na jeźdźca, jazdy jeźdźca na danym koniu, obciążenie koni, obłożenie grafiku i odwołania — w tabelach i na wykresach. Priority: post-MVP (v2)
@@ -99,26 +116,33 @@ Prowadzi małą stadninę, dziś układa grafik ręcznie. Moment sięgnięcia po
 
 - FR-006: Jeździec może przeglądać i filtrować listę ośrodków. Priority: must-have
   > Socrates: Kontrargument: "filtr to przerost przy kilku ośrodkach". Rozstrzygnięcie: zostaje — filtr był wprost w pierwotnym MVP, oczekiwana funkcja.
-- FR-007: Jeździec może zobaczyć wolne sloty (godzina + dostępny koń) w wybranym ośrodku. Priority: must-have
-  > Socrates: Kontrargument: "tylko godzina, konia dobiera ośrodek". Rozstrzygnięcie: zostaje — wybór konia to kluczowy insight produktu, bez niego to zwykła rezerwacja godziny.
-- FR-008: Jeździec może zapisać się na jazdę na konkretną godzinę z wybranym koniem. Priority: must-have
+- FR-007: Jeździec może zobaczyć sloty z wolnymi miejscami (godzina + instruktor + liczba wolnych miejsc) w wybranym ośrodku. Priority: must-have
+  > Socrates: Kontrargument: "tylko godzina, konia dobiera ośrodek". Rozstrzygnięcie pierwotne: zostaje wybór konia.
+  > Zmienione 2026-11-11 (ADR 0002): kontrargument wygrał — jeździec wybiera instruktora i godzinę, konia dobiera ośrodek. Niezrealizowane w nowym brzmieniu.
+- FR-008: Jeździec może zapisać się na wolne miejsce w slocie wybranego instruktora o konkretnej godzinie; w jednym ośrodku ma najwyżej jeden aktywny zapis na daną godzinę. Priority: must-have
   > Socrates: Kontrargument: brak — to rdzeń produktu i całe kryterium sukcesu.
-- FR-009: Jeździec może odwołać swój zapis. Priority: nice-to-have
+  > Zmienione 2026-11-11 (ADR 0002): zapis nie wskazuje konia. Niezrealizowane w nowym brzmieniu.
+- FR-009: Jeździec może odwołać swój zapis przed jego terminem. Priority: nice-to-have
   > Socrates: Kontrargument: "odwołania ręcznie przez ośrodek". Rozstrzygnięcie: zostaje jako nice-to-have — to Secondary success, robimy jeśli starczy czasu, nie blokuje v1.
+  > Zmienione 2026-11-11 (ADR 0002): prawo odwołania ma także ośrodek (FR-015); system zapisuje, kto odwołał.
 
 ## Non-Functional Requirements
 
-- Przy jednoczesnych próbach zapisu na ten sam slot konia tylko jeden zapis kończy się sukcesem; pozostałe otrzymują czytelną odmowę (brak podwójnej rezerwacji niezależnie od współbieżności).
+- Przy jednoczesnych próbach zapisu na ten sam slot sukcesem kończy się najwyżej tyle zapisów, ile jest wolnych miejsc; pozostałe otrzymują czytelną odmowę (limit miejsc nie jest przekraczany niezależnie od współbieżności).
 - Interfejs jest wygodny w obsłudze na ekranie telefonu (jeździec zapisuje się mobilnie).
 - Interfejs użytkownika jest w języku polskim.
 
 ## Business Logic
 
-Do rezerwacji dostępna jest tylko taka para (koń, godzina), która mieści się w zakresie godzin pracy ośrodka tego dnia, dotyczy konia przydzielonego do pracy tego dnia i nie jest już zajęta innym zapisem.
+Do zapisu dostępny jest tylko taki slot (instruktor, godzina), który mieści się w zakresie godzin pracy ośrodka tego dnia, dotyczy instruktora pracującego tego dnia i ma mniej aktywnych zapisów niż wynosi jego limit miejsc.
 
-Wejścia reguły (jako dane podawane przez użytkowników): zakres godzin pracy ośrodka na dany dzień i lista koni pracujących tego dnia (ustawiane przez ośrodek), oraz wybór godziny i konia (dokonywany przez jeźdźca). Wyjściem jest zbiór wolnych slotów (godzina × koń) prezentowany jeźdźcowi oraz przyjęcie albo odrzucenie próby zapisu. Jeździec napotyka regułę w momencie przeglądania ośrodka: widzi wyłącznie sloty zgodne z regułą, a próba zapisu na slot, który stał się zajęty, jest odrzucana.
+Wejścia reguły (jako dane podawane przez użytkowników): zakres godzin pracy ośrodka na dany dzień, lista koni i instruktorów pracujących tego dnia oraz limit miejsc każdego instruktora w każdej godzinie (ustawiane przez ośrodek), a także wybór instruktora i godziny (dokonywany przez jeźdźca). Wyjściem jest zbiór slotów z wolnymi miejscami prezentowany jeźdźcowi oraz przyjęcie albo odrzucenie próby zapisu. Jeździec napotyka regułę w momencie przeglądania ośrodka: widzi wyłącznie sloty zgodne z regułą, a próba zapisu na slot, w którym miejsca się skończyły, jest odrzucana. Jeździec ma w jednym ośrodku najwyżej jeden aktywny zapis na daną godzinę.
 
-Slot ma stałą długość 1 godziny. W v1 nie obowiązuje dzienny limit godzin pracy pojedynczego konia — koń jest dostępny we wszystkich wolnych slotach dnia, w którym został przydzielony (limit godzin konia → rozważany w v2, patrz Open Questions).
+Suma limitów miejsc wszystkich instruktorów w jednej godzinie nie przekracza liczby koni pracujących tego dnia — reguła jest sprawdzana przy układaniu grafiku, więc każde wystawione miejsce ma pokrycie w koniu. Konia do zapisu przydziela ośrodek, w dowolnym momencie, także po terminie; koń ma najwyżej jednego jeźdźca w danej godzinie. Zapis bez konia, którego termin minął, jest jazdą, ale nie wchodzi do obciążenia żadnego konia.
+
+Zapis może odwołać przed terminem jeździec albo ośrodek. Zmiana grafiku kolidująca z aktywnymi zapisami (zmniejszenie limitu poniżej liczby zapisów, wypisanie instruktora z dnia, skrócenie dnia) jest odrzucana, dopóki ośrodek sam nie odwoła kolidujących zapisów — system nie wybiera, kogo odwołać. Wypisanie konia z dnia jest odrzucane, gdy złamałoby regułę sumy limitów albo gdy koń jest w tym dniu przydzielony do zapisu.
+
+Slot ma stałą długość 1 godziny. Nie obowiązuje dzienny limit godzin pracy pojedynczego konia (rozważany w v2, patrz Open Questions).
 
 ## Access Control
 
@@ -126,8 +150,10 @@ Wieloosobowy, uwierzytelnianie e-mail + hasło. Rejestracja z wyborem typu konta
 
 Dwie role:
 
-- **Ośrodek (admin)** — administruje swoją stadniną: ustawia konie pracujące w danym dniu, zakres godzin pracy ośrodka (np. 10–16), przyjmuje/widzi zapisy.
-- **Jeździec (użytkownik)** — przegląda listę ośrodków z filtrem, zapisuje się na jazdę o konkretnej godzinie na wybranym koniu.
+- **Ośrodek (admin)** — administruje swoją stadniną: ustawia zakres godzin pracy ośrodka (np. 10–16), konie i instruktorów pracujących w danym dniu oraz limity miejsc; widzi zapisy, przydziela do nich konie i może je odwołać.
+- **Jeździec (użytkownik)** — przegląda listę ośrodków z filtrem, zapisuje się na wolne miejsce u wybranego instruktora o konkretnej godzinie, może odwołać własny zapis.
+
+Instruktor nie jest rolą ani kontem — to osoba dodawana i zarządzana przez ośrodek.
 
 Niezalogowany użytkownik trafiający na zasób wymagający dostępu jest kierowany do logowania/rejestracji. Admin zarządza wyłącznie własnym ośrodkiem (brak globalnego super-admina w MVP).
 
@@ -138,6 +164,11 @@ Niezalogowany użytkownik trafiający na zasób wymagający dostępu jest kierow
 - **Ulubione oraz dedykowana / AI-proponowana lista koni dla jeźdźca** — poza zakresem; nie wprowadzamy personalizacji doboru koni.
 - **Formularz zapytania do stadniny** — brak kanału kontaktowego/zapytań w v1.
 - **Dzienny limit godzin pracy konia** — reguła alokacji w v1 nie pilnuje limitu (patrz Open Questions; kandydat na v2).
+- **Wybór konia przez jeźdźca** — usunięty 2026-11-11 (ADR 0002); nie pozostaje jako tryb opcjonalny.
+- **Konto instruktora** — instruktor nie loguje się i nie układa własnego grafiku.
+- **Zapisanie jeźdźca przez ośrodek i przenoszenie zapisów między slotami** — poza zakresem; przeniesienie to odwołanie i ponowny zapis jeźdźca.
+- **Statystyki na instruktora** — poza zakresem tej zmiany; osobne wymaganie.
+- **Powiadomienia o odwołaniu zapisu przez ośrodek** — jeździec widzi odwołanie wyłącznie na liście swoich zapisów.
 
 ## Open Questions
 
@@ -148,9 +179,18 @@ Niezalogowany użytkownik trafiający na zasób wymagający dostępu jest kierow
 
    Konsekwencja dla ośrodka: żeby skrócić dzień lub zmienić jego datę, musi najpierw doprowadzić do odwołania kolidujących aktywnych zapisów; konia, który ma w tym dniu jakikolwiek zapis (także odwołany), nie da się z tego dnia wypisać — pozostaje przydzielony. Odwoływanie cudzych zapisów przez ośrodek nie jest częścią v1 (FR-009 daje to prawo wyłącznie jeźdźcowi) — jeśli okaże się potrzebne, to osobne wymaganie.
 
+   **Zastąpione 2026-11-11 przez pytanie #4** w części dotyczącej koni i odwoływania zapisów przez ośrodek; zasada „kolidująca zmiana grafiku jest odrzucana" pozostaje.
+
 3. **Dowolne zakresy slotów (FR-010)** — do rozstrzygnięcia przed planowaniem. Owner: user. Poza zakresem v1.
    - Kto ustawia zakresy: przyjęto, że Ośrodek (per dzień, obok godzin pracy i koni) — do potwierdzenia.
    - Granulacja: dowolne minuty, czy krok (np. co 15 min)? Czy sloty mogą mieć różne długości w jednym dniu i przerwy między sobą?
    - Czy zakresy są wspólne dla wszystkich koni danego dnia, czy osobne per koń?
    - Co z istniejącymi zapisami przy zmianie zakresów — analogicznie do pytania #2 (odrzucenie kolidującej zmiany)?
    - Reguła braku podwójnej rezerwacji musi objąć nakładające się zakresy, a nie tylko identyczną godzinę.
+
+4. **Odwrócenie modelu zapisu** — **ROZSTRZYGNIĘTE 2026-11-11** (`docs/adr/0002-limit-miejsc-instruktora-zamiast-wyboru-konia.md`; spec w issue trackerze). Niezrealizowane.
+   - **Odwołanie przez ośrodek** — ośrodek może odwołać dowolny aktywny zapis przed terminem (FR-015). Zdanie z pytania #2, że odwoływanie cudzych zapisów nie jest częścią v1, przestaje obowiązywać.
+   - **Limity i instruktorzy** — zmniejszenie limitu miejsc poniżej liczby aktywnych zapisów i wypisanie instruktora z dnia, w którym ma aktywne zapisy, są odrzucane; ośrodek najpierw sam odwołuje wybrane zapisy.
+   - **Konie** — wypisanie konia z dnia jest odrzucane, gdy liczba koni spadłaby poniżej sumy limitów miejsc w którejś godzinie albo gdy koń jest w tym dniu przydzielony do zapisu. Zastępuje regułę z pytania #2 opartą na kluczu obcym zapisu do konia w dniu.
+   - **Istniejące dane** — zapisy i grafiki dni sprzed zmiany są kasowane przy migracji (nie mają instruktora; w bazie są wyłącznie dane testowe). Konta, ośrodki i konie zostają.
+   - **Statystyki** — obłożenie grafiku liczy się od sumy limitów miejsc; odwołania na jeźdźca obejmują tylko odwołania własne jeźdźca (definicje: `GLOSSARY.md`).
