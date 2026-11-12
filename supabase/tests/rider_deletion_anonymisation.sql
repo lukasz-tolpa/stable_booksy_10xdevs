@@ -71,8 +71,7 @@ declare
   v_today date := (now() at time zone 'Europe/Warsaw')::date;
   v_hour smallint := extract(hour from now() at time zone 'Europe/Warsaw')::smallint;
   v_stable bigint;
-  v_bella bigint;
-  v_kasztan bigint;
+  v_joanna bigint;
   v_seed_day bigint;
   v_yesterday bigint;
   v_today_day bigint;
@@ -82,81 +81,95 @@ begin
   from public.stables s
   where s.owner_id = '11111111-1111-1111-1111-111111111111';
 
-  select h.id into v_bella from public.horses h where h.stable_id = v_stable and h.name = 'Bella';
-  select h.id into v_kasztan from public.horses h where h.stable_id = v_stable and h.name = 'Kasztan';
+  select i.id into v_joanna from public.instructors i where i.stable_id = v_stable and i.name = 'Joanna Wrona';
 
   select sd.id into v_seed_day
   from public.schedule_days sd
   where sd.stable_id = v_stable and sd.day = current_date + 1;
 
-  -- Przyszly aktywny zapis Anny z seeda: Bella@11 na jutro.
+  -- Przyszly aktywny zapis Anny z seeda: u Joanny o 11 na jutro.
   select b.id into v_id
   from public.bookings b
-  where b.schedule_day_id = v_seed_day and b.horse_id = v_bella and b.hour = 11
+  where b.schedule_day_id = v_seed_day and b.instructor_id = v_joanna and b.hour = 11
     and b.status = 'active' and b.rider_id = c_anna;
 
-  if v_stable is null or v_bella is null or v_kasztan is null or v_seed_day is null or v_id is null then
+  if v_stable is null or v_joanna is null or v_seed_day is null or v_id is null then
     raise exception 'Brak danych demo albo seed nieaktualny - uruchom npx supabase db reset';
   end if;
   perform set_config('app.future_active', v_id::text, true);
 
-  -- Przyszly ODWOLANY zapis Anny: Kasztan@12 na jutro.
-  insert into public.bookings (schedule_day_id, horse_id, hour, rider_id, status, cancelled_at)
-  values (v_seed_day, v_kasztan, 12, c_anna, 'cancelled', now())
+  -- Przyszly ODWOLANY zapis Anny: u Joanny o 12 na jutro.
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status, cancelled_at, cancelled_by)
+  values (v_seed_day, v_joanna, 12, c_anna, 'cancelled', now(), 'rider')
   returning id into v_id;
   perform set_config('app.future_cancelled', v_id::text, true);
 
-  -- Wczoraj (czas polski): caly dzien juz minal.
+  -- Wczoraj (czas polski): caly dzien juz minal. Joanna pracuje caly dzien (2 miejsca).
   insert into public.schedule_days (stable_id, day, open_hour, close_hour)
   values (v_stable, v_today - 1, 0, 24)
   returning id into v_yesterday;
-  insert into public.schedule_day_horses (schedule_day_id, horse_id, stable_id)
-  values (v_yesterday, v_bella, v_stable);
+  insert into public.schedule_day_instructors (schedule_day_id, instructor_id, stable_id)
+  values (v_yesterday, v_joanna, v_stable);
+  insert into public.schedule_slots (schedule_day_id, instructor_id, hour, seats)
+  select v_yesterday, v_joanna, h, 2 from generate_series(0, 23) h;
 
-  insert into public.bookings (schedule_day_id, horse_id, hour, rider_id)
-  values (v_yesterday, v_bella, 10, c_anna)
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id)
+  values (v_yesterday, v_joanna, 10, c_anna)
   returning id into v_id;
   perform set_config('app.past_ride', v_id::text, true);
 
-  insert into public.bookings (schedule_day_id, horse_id, hour, rider_id, status, cancelled_at)
-  values (v_yesterday, v_bella, 11, c_anna, 'cancelled', now())
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status, cancelled_at, cancelled_by)
+  values (v_yesterday, v_joanna, 11, c_anna, 'cancelled', now(), 'rider')
   returning id into v_id;
   perform set_config('app.past_cancelled', v_id::text, true);
 
   -- Kontrola: przeszla jazda innego jezdzca nie moze zostac tknieta.
-  insert into public.bookings (schedule_day_id, horse_id, hour, rider_id)
-  values (v_yesterday, v_bella, 12, c_piotr)
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id)
+  values (v_yesterday, v_joanna, 12, c_piotr)
   returning id into v_id;
   perform set_config('app.piotr_ride', v_id::text, true);
 
   -- Dzis (czas polski), caly dzien wystawiony. Tuz po polnocy "jutro" z seeda (liczone
-  -- w strefie sesji) bywa polskim "dzis" - wtedy rozszerzamy istniejacy dzien.
+  -- w strefie sesji) bywa polskim "dzis" - wtedy rozszerzamy istniejacy dzien i siatke Joanny.
   insert into public.schedule_days (stable_id, day, open_hour, close_hour)
   values (v_stable, v_today, 0, 24)
   on conflict (stable_id, day) do update set open_hour = 0, close_hour = 24
   returning id into v_today_day;
-  insert into public.schedule_day_horses (schedule_day_id, horse_id, stable_id)
-  values (v_today_day, v_kasztan, v_stable)
+  insert into public.schedule_day_instructors (schedule_day_id, instructor_id, stable_id)
+  values (v_today_day, v_joanna, v_stable)
   on conflict do nothing;
+  insert into public.schedule_slots (schedule_day_id, instructor_id, hour, seats)
+  select v_today_day, v_joanna, h, 2 from generate_series(0, 23) h
+  on conflict (schedule_day_id, instructor_id, hour) do update set seats = 2;
 
-  -- Godzina trwajaca: zapis nie jest jeszcze jazda, wiec liczy sie jako przyszly.
-  insert into public.bookings (schedule_day_id, horse_id, hour, rider_id)
-  values (v_today_day, v_kasztan, v_hour, c_anna)
-  returning id into v_id;
+  -- Godzina trwajaca: zapis nie jest jeszcze jazda, wiec liczy sie jako przyszly. Gdy dzis
+  -- jest dniem z seeda, Anna moze juz miec zapis o tej godzinie (jeden zapis na godzine).
+  select id into v_id from public.bookings
+  where schedule_day_id = v_today_day and hour = v_hour and rider_id = c_anna and status = 'active';
+  if v_id is null then
+    insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id)
+    values (v_today_day, v_joanna, v_hour, c_anna)
+    returning id into v_id;
+  end if;
   perform set_config('app.ongoing', v_id::text, true);
 
   -- Godzina dzis juz zakonczona (o polnocy takiej nie ma - asercja jest wtedy pomijana).
   if v_hour >= 1 then
-    insert into public.bookings (schedule_day_id, horse_id, hour, rider_id)
-    values (v_today_day, v_kasztan, v_hour - 1, c_anna)
-    returning id into v_id;
+    v_id := null;
+    select id into v_id from public.bookings
+    where schedule_day_id = v_today_day and hour = v_hour - 1 and rider_id = c_anna and status = 'active';
+    if v_id is null then
+      insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id)
+      values (v_today_day, v_joanna, v_hour - 1, c_anna)
+      returning id into v_id;
+    end if;
     perform set_config('app.ended_today', v_id::text, true);
   else
     perform set_config('app.ended_today', '', true);
   end if;
 
   perform set_config('app.seed_day', v_seed_day::text, true);
-  perform set_config('app.bella', v_bella::text, true);
+  perform set_config('app.joanna', v_joanna::text, true);
 
   raise notice 'setup: dzis=% godzina=%', v_today, v_hour;
 end $$;
@@ -246,14 +259,14 @@ do $$
 declare
   v int;
 begin
-  insert into public.bookings (schedule_day_id, horse_id, hour, rider_id)
-  values (current_setting('app.seed_day')::bigint, current_setting('app.bella')::bigint, 11,
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id)
+  values (current_setting('app.seed_day')::bigint, current_setting('app.joanna')::bigint, 11,
           '44444444-4444-4444-4444-444444444444');
   get diagnostics v = row_count;
   if v <> 1 then
     raise exception 'FAIL 6: rezerwacja zwolnionego slotu dotknela % wierszy', v;
   end if;
-  raise notice 'PASS 6: zwolniony slot Bella@11 zarezerwowany przez innego jezdzca';
+  raise notice 'PASS 6: zwolnione miejsce u Joanny o 11 zarezerwowane przez innego jezdzca';
 
   -- Inny jezdziec nie widzi zanonimizowanych zapisow.
   select count(*) into v from public.bookings where rider_id is null;
