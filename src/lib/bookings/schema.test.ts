@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { bookingSchema, cancelSchema } from "@/lib/bookings/schema";
 
-const VALID = { stableId: "1", day: "2026-08-20", horseId: "2", hour: "12" };
+const VALID = { stableId: "1", day: "2026-08-20", instructorId: "2", hour: "12" };
 
 describe("bookingSchema", () => {
   it("przyjmuje poprawne pola formularza i koercjuje liczby ze stringów", () => {
     const parsed = bookingSchema.parse(VALID);
 
-    expect(parsed).toEqual({ stableId: 1, day: "2026-08-20", horseId: 2, hour: 12 });
+    expect(parsed).toEqual({ stableId: 1, day: "2026-08-20", instructorId: 2, hour: 12 });
   });
 
   it("odrzuca niepoprawną datę kalendarzową", () => {
@@ -23,7 +23,7 @@ describe("bookingSchema", () => {
 
   it("odrzuca niedodatnie identyfikatory", () => {
     expect(bookingSchema.safeParse({ ...VALID, stableId: "0" }).success).toBe(false);
-    expect(bookingSchema.safeParse({ ...VALID, horseId: "abc" }).success).toBe(false);
+    expect(bookingSchema.safeParse({ ...VALID, instructorId: "abc" }).success).toBe(false);
   });
 
   it("komunikaty błędów są po polsku", () => {
@@ -42,8 +42,8 @@ describe("bookingSchema", () => {
   it.each([
     ["stableId", "", "Nieprawidłowy ośrodek"],
     ["stableId", "   ", "Nieprawidłowy ośrodek"],
-    ["horseId", "", "Nieprawidłowy koń"],
-    ["horseId", "   ", "Nieprawidłowy koń"],
+    ["instructorId", "", "Nieprawidłowy instruktor"],
+    ["instructorId", "   ", "Nieprawidłowy instruktor"],
     ["hour", "", "Nieprawidłowa godzina"],
     ["hour", "   ", "Nieprawidłowa godzina"],
   ])("puste pole %s (%j) daje komunikat tego pola", (field, blank, message) => {

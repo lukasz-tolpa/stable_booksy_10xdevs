@@ -41,7 +41,8 @@ export interface StatsRiderRow {
 interface RiderBooking {
   /** `null` — zapis bez jeźdźca (konto usunięto). */
   riderId: string | null;
-  horseId: number;
+  /** `null` — jazda bez przydzielonego konia: liczy się u jeźdźca, ale bez rozbicia na konia. */
+  horseId: number | null;
 }
 
 export interface RiderRowsInput {
@@ -70,19 +71,22 @@ export function computeRiderRows(input: RiderRowsInput): StatsRiderRow[] {
   const riderNames = new Map(input.riders.map((rider) => [rider.id, rider.name]));
   const horseNames = new Map(input.horses.map((horse) => [horse.id, horse.name]));
 
-  const tallies = new Map<string | null, { cancellations: number; ridesByHorse: Map<number, number> }>();
+  const tallies = new Map<string | null, { rides: number; cancellations: number; ridesByHorse: Map<number, number> }>();
   const tallyOf = (riderId: string | null) => {
     let tally = tallies.get(riderId);
     if (!tally) {
-      tally = { cancellations: 0, ridesByHorse: new Map() };
+      tally = { rides: 0, cancellations: 0, ridesByHorse: new Map() };
       tallies.set(riderId, tally);
     }
     return tally;
   };
 
   for (const ride of input.rides) {
-    const { ridesByHorse } = tallyOf(ride.riderId);
-    ridesByHorse.set(ride.horseId, (ridesByHorse.get(ride.horseId) ?? 0) + 1);
+    const tally = tallyOf(ride.riderId);
+    tally.rides += 1;
+    if (ride.horseId !== null) {
+      tally.ridesByHorse.set(ride.horseId, (tally.ridesByHorse.get(ride.horseId) ?? 0) + 1);
+    }
   }
   for (const cancellation of input.cancellations) {
     tallyOf(cancellation.riderId).cancellations += 1;
@@ -90,9 +94,9 @@ export function computeRiderRows(input: RiderRowsInput): StatsRiderRow[] {
 
   return [...tallies]
     .map(([riderId, tally]): StatsRiderRow => {
-      if (riderId === null) {
-        const rides = [...tally.ridesByHorse.values()].reduce((sum, count) => sum + count, 0);
+      const rides = tally.rides;
 
+      if (riderId === null) {
         return {
           riderId,
           name: ANONYMISED_RIDERS,
@@ -110,7 +114,6 @@ export function computeRiderRows(input: RiderRowsInput): StatsRiderRow[] {
           rides,
         }))
         .sort((a, b) => b.rides - a.rides || a.horseName.localeCompare(b.horseName, "pl") || a.horseId - b.horseId);
-      const rides = horses.reduce((sum, horse) => sum + horse.rides, 0);
 
       return {
         riderId,

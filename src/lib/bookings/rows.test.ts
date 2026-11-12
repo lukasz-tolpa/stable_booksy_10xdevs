@@ -1,56 +1,70 @@
 import { describe, expect, it } from "vitest";
+import type { DayBooking } from "@/lib/bookings/queries";
 import { composeBookingRows } from "@/lib/bookings/rows";
 
 const HORSES = [
   { id: 1, name: "Bella" },
   { id: 2, name: "Kasztan" },
-  { id: 3, name: "Łatka" },
 ];
 
-describe("composeBookingRows", () => {
-  it("sortuje po godzinie rosnąco, a w ramach godziny po nazwie konia", () => {
-    const rows = composeBookingRows(
-      [
-        { horseId: 2, hour: 12, riderName: "Piotr Nowak", anonymised: false },
-        { horseId: 2, hour: 10, riderName: "Anna Kowalska", anonymised: false },
-        { horseId: 1, hour: 12, riderName: "Anna Kowalska", anonymised: false },
-      ],
-      HORSES,
-    );
+function booking(overrides: Partial<DayBooking>): DayBooking {
+  return {
+    hour: 10,
+    instructorId: 1,
+    instructorName: "Joanna Wrona",
+    horseId: null,
+    riderName: "Anna Kowalska",
+    anonymised: false,
+    ...overrides,
+  };
+}
 
-    expect(rows.map((r) => `${String(r.hour)}:${r.horseName}`)).toEqual(["10:Kasztan", "12:Bella", "12:Kasztan"]);
+describe("composeBookingRows", () => {
+  it("wiersz ma godzinę, instruktora, jeźdźca i konia — zapis bez konia jest podpisany „bez konia”", () => {
+    expect(composeBookingRows([booking({})], HORSES)).toEqual([
+      { hour: 10, instructorName: "Joanna Wrona", riderName: "Anna Kowalska", horseName: "bez konia" },
+    ]);
   });
 
-  it("sortuje polskie nazwy koni zgodnie z locale pl", () => {
+  it("przydzielony koń dostaje nazwę z listy stada, a spoza niej — nazwę zastępczą", () => {
+    const rows = composeBookingRows([booking({ horseId: 2 }), booking({ hour: 11, horseId: 99 })], HORSES);
+
+    expect(rows.map((r) => r.horseName)).toEqual(["Kasztan", "(koń #99)"]);
+  });
+
+  it("sortuje po godzinie, potem po instruktorze i jeźdźcu (locale pl)", () => {
     const rows = composeBookingRows(
       [
-        { horseId: 3, hour: 10, riderName: null, anonymised: false },
-        { horseId: 2, hour: 10, riderName: null, anonymised: false },
+        booking({ hour: 12, instructorId: 2, instructorName: "Karol Jasny", riderName: "Piotr Nowak" }),
+        booking({ hour: 10, instructorName: "Łucja Lis", riderName: "Anna Kowalska" }),
+        booking({ hour: 10, instructorName: "Karol Jasny", riderName: "Zenon Ząb" }),
+        booking({ hour: 10, instructorName: "Karol Jasny", riderName: "Ćwirek Ola" }),
       ],
       HORSES,
     );
 
-    // "Łatka" po "Kasztan" — naiwne porównanie kodów znaków dałoby ten sam
-    // porządek, ale locale pl gwarantuje go też dla par typu "Ćma" vs "Duma".
-    expect(rows.map((r) => r.horseName)).toEqual(["Kasztan", "Łatka"]);
+    expect(rows.map((r) => `${String(r.hour)} ${r.instructorName} ${r.riderName}`)).toEqual([
+      "10 Karol Jasny Ćwirek Ola",
+      "10 Karol Jasny Zenon Ząb",
+      "10 Łucja Lis Anna Kowalska",
+      "12 Karol Jasny Piotr Nowak",
+    ]);
   });
 
   it("brak nazwiska jeźdźca dostaje fallback", () => {
-    const rows = composeBookingRows([{ horseId: 1, hour: 10, riderName: null, anonymised: false }], HORSES);
-
-    expect(rows[0].riderName).toBe("(bez nazwiska)");
+    expect(composeBookingRows([booking({ riderName: null })], HORSES)[0].riderName).toBe("(bez nazwiska)");
   });
 
   it("miniony zapis bez jeźdźca (konto usunięto) jest podpisany jako usunięty jeździec", () => {
-    const rows = composeBookingRows([{ horseId: 1, hour: 10, riderName: null, anonymised: true }], HORSES);
+    const rows = composeBookingRows([booking({ riderName: null, anonymised: true })], HORSES);
 
-    expect(rows).toEqual([{ hour: 10, horseName: "Bella", riderName: "Usunięty jeździec" }]);
+    expect(rows[0].riderName).toBe("Usunięty jeździec");
   });
 
-  it("koń spoza listy stada dostaje fallback z identyfikatorem", () => {
-    const rows = composeBookingRows([{ horseId: 99, hour: 10, riderName: "Anna Kowalska", anonymised: false }], HORSES);
+  it("instruktor, którego nazwy RLS nie oddał, dostaje nazwę zastępczą z identyfikatorem", () => {
+    const rows = composeBookingRows([booking({ instructorId: 7, instructorName: null })], HORSES);
 
-    expect(rows[0].horseName).toBe("(koń #99)");
+    expect(rows[0].instructorName).toBe("(instruktor #7)");
   });
 
   it("pusta lista zapisów daje pustą listę wierszy", () => {

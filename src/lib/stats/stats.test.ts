@@ -481,3 +481,37 @@ describe("computeStableStats — tabela koni (obciążenie konia)", () => {
     expect(stats.horses).toEqual([{ horseId: BELLA, name: "(koń #1)", rides: 1, rideHours: 1 }]);
   });
 });
+
+// #41: koń przy zapisie jest opcjonalny (ADR-0002) — statystyki muszą działać z jazdą bez konia.
+describe("computeStableStats — zapis bez konia", () => {
+  it("jazda bez konia liczy się w podsumowaniu i u jeźdźca, ale nie w tabeli koni", () => {
+    const stats = computeStableStats(
+      input({
+        days: [day("2026-11-05")],
+        bookings: [booking("2026-11-05", 10), booking("2026-11-05", 11, { horseId: null })],
+        riders: [{ id: "rider-anna", name: "Anna Kowalska" }],
+        horses: [
+          { id: BELLA, name: "Bella" },
+          { id: KASZTAN, name: "Kasztan" },
+        ],
+      }),
+      NOW,
+    );
+
+    expect(stats.summary.rides).toBe(2);
+    expect(stats.horses.map((row) => [row.name, row.rides])).toEqual([
+      ["Bella", 1],
+      ["Kasztan", 0],
+    ]);
+    expect(stats.riders).toEqual([
+      {
+        riderId: "rider-anna",
+        name: "Anna Kowalska",
+        rides: 2,
+        rideHours: 2,
+        cancellations: 0,
+        horses: [{ horseId: BELLA, horseName: "Bella", rides: 1 }],
+      },
+    ]);
+  });
+});

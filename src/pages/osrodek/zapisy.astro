@@ -107,8 +107,9 @@ const dayLabel = new Date(`${day}T00:00:00`).toLocaleDateString("pl-PL", {
                 {/* Cały tekst tego elementu to sama godzina. */}
                 <span class="row__when">{row.hour}:00</span>
                 <span class="row__meta">
-                  <span class="row__horse">{row.horseName}</span>
+                  <span class="row__horse">{row.instructorName}</span>
                   <span class="row__sub">{row.riderName}</span>
+                  <span class="row__sub">{row.horseName}</span>
                 </span>
               </li>
             ))}

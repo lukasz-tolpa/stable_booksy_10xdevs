@@ -8,11 +8,13 @@ import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
 import Layout from "@/layouts/Layout.astro";
 import { ROLE_HOME } from "@/lib/auth/roles";
-import { getMyBookings, getTakenSlots } from "@/lib/bookings/queries";
-import { assignedHorses, computeSlotSections, currentWarsawHour, type SlotSection } from "@/lib/bookings/slots";
+import { getMyBookings, getSlotOccupancy } from "@/lib/bookings/queries";
+import { computeSlotHours, currentWarsawHour, type SlotHour } from "@/lib/bookings/slots";
+import { formatFreeSeats } from "@/lib/format";
+import { listStableInstructors } from "@/lib/instructors/queries";
 import { addDays, defaultScheduleDate, isPastDate, parseScheduleDate, todayIso } from "@/lib/schedule/dates";
 import { getScheduleDay, type ScheduleDayData } from "@/lib/schedule/queries";
-import { getStableById, listStableHorses, type StableListItem } from "@/lib/stables/queries";
+import { getStableById, type StableListItem } from "@/lib/stables/queries";
 import { parseStableId } from "@/lib/stables/search";
 import { createClient } from "@/lib/supabase";
 import { logError } from "@/lib/log";
@@ -34,7 +36,7 @@ const supabase = createClient(Astro.request.headers, Astro.cookies);
 
 let stable: StableListItem | null = null;
 let scheduleDay: ScheduleDayData | null = null;
-let sections: SlotSection[] = [];
+let hours: SlotHour[] = [];
 let loadFailed = false;
 
 if (id !== null && supabase && user) {
@@ -46,19 +48,20 @@ if (id !== null && supabase && user) {
     }
 
     if (stable && scheduleDay) {
-      const [horses, takenSlots, myBookings] = await Promise.all([
-        listStableHorses(supabase, id),
-        getTakenSlots(supabase, id, day),
+      const [instructors, occupancy, myBookings] = await Promise.all([
+        listStableInstructors(supabase, id),
+        getSlotOccupancy(supabase, id, day),
         getMyBookings(supabase, scheduleDay.id, user.id),
       ]);
 
-      // Konie wg przydziału do dnia — reguła żyje w `assignedHorses` (czysta, testowana
-      // jednostkowo); nazwy dokłada lista stada.
-      sections = computeSlotSections({
+      // Sloty = instruktor × godzina z limitem miejsc (ADR-0002); reguła odczytu żyje
+      // w `computeSlotHours` (czysta, testowana jednostkowo).
+      hours = computeSlotHours({
         openHour: scheduleDay.openHour,
         closeHour: scheduleDay.closeHour,
-        horses: assignedHorses(horses, scheduleDay.horseIds),
-        takenSlots,
+        instructors,
+        seats: scheduleDay.seats,
+        occupancy,
         myBookings,
         currentHour: day === today ? currentWarsawHour() : null,
       });
@@ -154,42 +157,46 @@ const dayLabel = new Date(`${day}T00:00:00`).toLocaleDateString("pl-PL", {
                 <p>Ośrodek nie ułożył grafiku na ten dzień.</p>
                 <p>Wybierz inny dzień albo zajrzyj tu później.</p>
               </EmptyState>
-            ) : sections.length === 0 ? (
+            ) : hours.length === 0 ? (
               <EmptyState>
-                <p>Brak wolnych slotów tego dnia.</p>
-                <p>Wszystkie terminy są zajęte albo już minęły.</p>
+                <p>Ośrodek nie wystawił miejsc na ten dzień.</p>
+                <p>Wszystkie godziny już minęły albo żaden instruktor nie ma wolnych miejsc w grafiku.</p>
               </EmptyState>
             ) : (
               <ul class="hours">
-                {sections.map((section) => (
+                {hours.map((entry) => (
                   <li>
                     {/* Cały tekst tego elementu to sama godzina - scenariusze e2e
                         zawężają wiersz przez dokładne dopasowanie "11:00". */}
-                    <span class="hours__label">{section.hour}:00</span>
-                    <div class="slots">
-                      {section.horses.map((horse) =>
-                        horse.status === "mine" ? (
-                          <span class="slot slot--mine">
-                            <Check className="size-[15px]" aria-hidden="true" />
-                            {horse.name} — Twój zapis
-                          </span>
-                        ) : (
-                          /* `display: contents` na formularzu, żeby pigułki układały
-                             się w jednym wierszu flex mimo opakowania w <form>. */
-                          <form method="post" action="/api/bookings/create">
-                            <input type="hidden" name="stableId" value={id} />
-                            <input type="hidden" name="day" value={day} />
-                            <input type="hidden" name="horseId" value={horse.id} />
-                            <input type="hidden" name="hour" value={section.hour} />
-                            {/* Jedyną treścią przycisku jest imię konia - to nazwa
-                                dostępna, po której scenariusze go znajdują. */}
-                            <button type="submit" class="slot slot--free">
-                              {horse.name}
-                            </button>
-                          </form>
-                        ),
-                      )}
-                    </div>
+                    <span class="hours__label">{entry.hour}:00</span>
+                    <ul class="slots">
+                      {entry.slots.map((slot) => (
+                        <li class:list={["slot", `slot--${slot.status}`]}>
+                          <span class="slot__who">{slot.instructorName}</span>
+                          <span class="slot__seats">{formatFreeSeats(slot.freeSeats, slot.seats)}</span>
+                          {slot.status === "mine" ? (
+                            <span class="slot__tag slot__tag--mine">
+                              <Check className="size-[15px]" aria-hidden="true" />
+                              Twój zapis
+                            </span>
+                          ) : slot.status === "free" ? (
+                            <form method="post" action="/api/bookings/create">
+                              <input type="hidden" name="stableId" value={id} />
+                              <input type="hidden" name="day" value={day} />
+                              <input type="hidden" name="instructorId" value={slot.instructorId} />
+                              <input type="hidden" name="hour" value={entry.hour} />
+                              <button type="submit" class="slot__book">
+                                Zapisz się
+                              </button>
+                            </form>
+                          ) : slot.status === "full" ? (
+                            <span class="slot__tag">Brak miejsc</span>
+                          ) : (
+                            <span class="slot__tag">Masz już zapis o tej godzinie</span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
                   </li>
                 ))}
               </ul>
@@ -345,14 +352,38 @@ const dayLabel = new Date(`${day}T00:00:00`).toLocaleDateString("pl-PL", {
     color: var(--fg);
   }
   .slots {
-    display: flex;
-    flex-wrap: wrap;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
     gap: 8px;
   }
-  .slots form {
-    display: contents;
-  }
+  /* Slot = instruktor × godzina: nazwa, wolne miejsca, akcja albo stan. */
   .slot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 12px;
+    padding: 8px 8px 8px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+  }
+  .slot__who {
+    font-weight: 600;
+    font-size: 14.5px;
+  }
+  .slot__seats {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 13.5px;
+    color: var(--muted);
+  }
+  .slot form {
+    margin-left: auto;
+  }
+  .slot__book,
+  .slot__tag {
     display: inline-flex;
     align-items: center;
     gap: 7px;
@@ -367,7 +398,11 @@ const dayLabel = new Date(`${day}T00:00:00`).toLocaleDateString("pl-PL", {
     white-space: nowrap;
     border: 1px solid transparent;
   }
-  .slot--free {
+  .slot__tag {
+    margin-left: auto;
+    color: var(--muted);
+  }
+  .slot__book {
     background: var(--surface);
     color: var(--fg);
     border-color: var(--border-2);
@@ -378,17 +413,21 @@ const dayLabel = new Date(`${day}T00:00:00`).toLocaleDateString("pl-PL", {
       border-color 0.15s,
       color 0.15s;
   }
-  .slot--free:hover {
+  .slot__book:hover {
     background: var(--primary-soft);
     border-color: var(--primary);
     color: var(--primary-strong);
   }
-  .slot--free:focus-visible {
+  .slot__book:focus-visible {
     outline: 2px solid var(--primary);
     outline-offset: 2px;
   }
+  .slot--full,
+  .slot--unavailable {
+    background: var(--surface-2);
+  }
   /* Jedyne wystąpienie kasztanu na tym ekranie (DESIGN.md §7). */
-  .slot--mine {
+  .slot__tag--mine {
     background: var(--accent-soft);
     color: var(--accent-ink);
   }

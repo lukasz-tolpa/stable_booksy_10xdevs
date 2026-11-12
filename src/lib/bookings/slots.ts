@@ -1,108 +1,115 @@
 import { SCHEDULE_TIME_ZONE } from "@/lib/schedule/dates";
+import type { SlotSeats } from "@/lib/schedule/queries";
 
 /**
- * Wyliczanie wolnych slotów (godzina × koń) dla jeźdźca — jedyne miejsce, w którym
- * żyje reguła alokacji po stronie odczytu. Strona `.astro` tylko renderuje wynik.
+ * Sloty dnia widziane przez jeźdźca (ADR-0002, GLOSSARY „Slot", „Limit miejsc") — jedyne
+ * miejsce, w którym żyje reguła odczytu. Strona `.astro` tylko renderuje wynik.
  *
- * Godziny pracy to przedział półotwarty [openHour, closeHour): zakres 10-16 daje
- * sloty o 10, 11, 12, 13, 14 i 15.
- *
- * Godzina, w której nie ma ani jednego konia `free` ani `mine`, jest pomijana
- * w całości — PRD każe pokazywać wyłącznie wolne sloty, a na telefonie krótsza
- * lista wygrywa. Godzina z własnym zapisem pozostaje widoczna, żeby jeździec
- * widział swój zapis w kontekście dnia.
+ * Slot to jedna godzina jednego instruktora z limitem miejsc. Godziny pracy to przedział
+ * półotwarty [openHour, closeHour). Pomijane są sloty z limitem zero i godziny, które się
+ * zaczęły; godzina bez żadnego pokazanego slotu znika w całości.
  */
 
-/** Para identyfikująca slot; wspólny kształt zajętości i własnych zapisów. */
-export interface SlotKey {
-  horseId: number;
+/** Liczba aktywnych zapisów w slocie — z `get_slot_occupancy`, bez tożsamości jeźdźców. */
+export interface SlotOccupancy {
+  instructorId: number;
+  hour: number;
+  taken: number;
+}
+
+/** Własny aktywny zapis jeźdźca w oglądanym dniu. */
+export interface MySlot {
+  instructorId: number;
   hour: number;
 }
 
-/** `free` — do wzięcia; `mine` — własny aktywny zapis (renderowany jako „Twój zapis"). */
-export type SlotStatus = "free" | "mine";
+/**
+ * `free` — są wolne miejsca; `mine` — własny aktywny zapis; `full` — brak wolnych miejsc;
+ * `unavailable` — jeździec ma już aktywny zapis o tej godzinie u innego instruktora (baza
+ * odmówiłaby drugiego zapisu na tę godzinę).
+ */
+export type SlotStatus = "free" | "mine" | "full" | "unavailable";
 
-export interface SlotHorse {
-  id: number;
-  name: string;
+export interface RiderSlot {
+  instructorId: number;
+  instructorName: string;
+  seats: number;
+  freeSeats: number;
   status: SlotStatus;
 }
 
-export interface SlotSection {
+export interface SlotHour {
   hour: number;
-  horses: SlotHorse[];
+  slots: RiderSlot[];
 }
 
-export interface SlotSectionsInput {
+export interface SlotHoursInput {
   openHour: number;
   closeHour: number;
-  /** Konie przydzielone do dnia (kontrakt bazy: FK sprawdza przydział, nie flagę `active`). */
-  horses: { id: number; name: string }[];
-  /** Zajęte sloty całego dnia z `get_taken_slots` — łącznie z własnymi zapisami. */
-  takenSlots: SlotKey[];
-  /** Własne aktywne zapisy w tym dniu; podzbiór `takenSlots`. */
-  myBookings: SlotKey[];
+  /** Instruktorzy stadniny (także nieaktywni — ich sloty zostają otwarte) — źródło nazw. */
+  instructors: { id: number; name: string }[];
+  /** Limity miejsc dnia (`ScheduleDayData.seats`). */
+  seats: SlotSeats[];
+  occupancy: SlotOccupancy[];
+  myBookings: MySlot[];
   /**
    * Bieżąca godzina w strefie Europe/Warsaw, gdy oglądany dzień to dziś; `null` dla
-   * dni przyszłych. Slot o godzinie <= currentHour uznajemy za miniony (jazda już trwa).
+   * dni przyszłych. Slot o godzinie <= currentHour uznajemy za rozpoczęty (jazda już trwa).
    */
   currentHour: number | null;
 }
 
-/**
- * Konie ofiarowane jeźdźcowi danego dnia: reguła PRD „koń przydzielony do pracy
- * tego dnia". Jedynym kryterium jest przydział (`schedule_day_horses`) — flaga
- * `active` jest celowo ignorowana, zgodnie z kontraktem bazy (FK sprawdza przydział,
- * nie flagę) i decyzją z S-04: emerytowany koń, który wciąż jest przydzielony do
- * dnia, pozostaje do wzięcia; `active` steruje wyłącznie widokiem stada ośrodka.
- *
- * Kolejność wejścia jest zachowana (strona podaje `active desc, name asc`);
- * identyfikatory przydziału bez konia w stadzie są pomijane.
- */
-export function assignedHorses(
-  horses: readonly { id: number; name: string; active?: boolean }[],
-  assignedIds: readonly number[],
-): { id: number; name: string }[] {
-  const assigned = new Set(assignedIds);
-  return horses.filter((horse) => assigned.has(horse.id)).map(({ id, name }) => ({ id, name }));
+/** Nazwa zastępcza instruktora spoza listy — wiersz z identyfikatorem zamiast wywróconego widoku. */
+export function unknownInstructorName(instructorId: number): string {
+  return `(instruktor #${String(instructorId)})`;
 }
 
-function slotKeySet(slots: SlotKey[]): Set<string> {
-  return new Set(slots.map((slot) => `${String(slot.horseId)}:${String(slot.hour)}`));
+function key(instructorId: number, hour: number): string {
+  return `${String(instructorId)}:${String(hour)}`;
 }
 
-export function computeSlotSections(input: SlotSectionsInput): SlotSection[] {
-  const taken = slotKeySet(input.takenSlots);
-  const mine = slotKeySet(input.myBookings);
-  const sections: SlotSection[] = [];
+function statusOf(slot: SlotSeats, freeSeats: number, mine: Set<string>, myHours: Set<number>): SlotStatus {
+  if (mine.has(key(slot.instructorId, slot.hour))) return "mine";
+  if (myHours.has(slot.hour)) return "unavailable";
+  return freeSeats > 0 ? "free" : "full";
+}
 
-  for (let hour = input.openHour; hour < input.closeHour; hour++) {
-    if (input.currentHour !== null && hour <= input.currentHour) {
-      continue;
-    }
+export function computeSlotHours(input: SlotHoursInput): SlotHour[] {
+  const names = new Map(input.instructors.map((instructor) => [instructor.id, instructor.name]));
+  const taken = new Map(input.occupancy.map((entry) => [key(entry.instructorId, entry.hour), entry.taken]));
+  const mine = new Set(input.myBookings.map((booking) => key(booking.instructorId, booking.hour)));
+  const myHours = new Set(input.myBookings.map((booking) => booking.hour));
+  const byHour = new Map<number, RiderSlot[]>();
 
-    const horses: SlotHorse[] = [];
-    for (const horse of input.horses) {
-      const key = `${String(horse.id)}:${String(hour)}`;
-      // Kolejność sprawdzeń jest istotna: własny zapis występuje też w zajętości,
-      // więc `mine` musi iść przed `taken`.
-      if (mine.has(key)) {
-        horses.push({ id: horse.id, name: horse.name, status: "mine" });
-      } else if (!taken.has(key)) {
-        horses.push({ id: horse.id, name: horse.name, status: "free" });
-      }
-    }
+  for (const slot of input.seats) {
+    if (slot.seats <= 0) continue;
+    if (slot.hour < input.openHour || slot.hour >= input.closeHour) continue;
+    if (input.currentHour !== null && slot.hour <= input.currentHour) continue;
 
-    if (horses.length > 0) {
-      sections.push({ hour, horses });
-    }
+    const freeSeats = Math.max(0, slot.seats - (taken.get(key(slot.instructorId, slot.hour)) ?? 0));
+    const slots = byHour.get(slot.hour) ?? [];
+    slots.push({
+      instructorId: slot.instructorId,
+      instructorName: names.get(slot.instructorId) ?? unknownInstructorName(slot.instructorId),
+      seats: slot.seats,
+      freeSeats,
+      status: statusOf(slot, freeSeats, mine, myHours),
+    });
+    byHour.set(slot.hour, slots);
   }
 
-  return sections;
+  return [...byHour]
+    .sort(([a], [b]) => a - b)
+    .map(([hour, slots]) => ({
+      hour,
+      slots: slots.sort(
+        (a, b) => a.instructorName.localeCompare(b.instructorName, "pl") || a.instructorId - b.instructorId,
+      ),
+    }));
 }
 
 /**
- * Bieżąca godzina w strefie Europe/Warsaw — próg filtra minionych slotów.
+ * Bieżąca godzina w strefie Europe/Warsaw — próg filtra rozpoczętych slotów.
  *
  * Liczona jawnie w strefie ośrodka, nie środowiska: aplikacja stoi na Cloudflare
  * Workers (UTC), więc `new Date().getHours()` myliłoby się o godzinę lub dwie.

@@ -28,7 +28,8 @@ export interface StatsScheduleDay {
 /** Zapis (aktywny albo odwołany) z terminem: dniem grafiku i godziną. */
 export interface StatsBooking {
   day: string;
-  horseId: number;
+  /** Przydzielony koń; `null` — zapis bez konia (koń przy zapisie jest opcjonalny, ADR-0002). */
+  horseId: number | null;
   hour: number;
   status: BookingStatus;
   /** Konto jeźdźca, który złożył zapis; `null`, gdy konto usunięto (jeździec zanonimizowany). */
@@ -205,6 +206,8 @@ function computeHorseRows(
   }
 
   for (const booking of rideBookings) {
+    // Jazda bez przydzielonego konia nie obciąża żadnego konia.
+    if (booking.horseId === null) continue;
     ridesByHorse.set(booking.horseId, (ridesByHorse.get(booking.horseId) ?? 0) + 1);
   }
 
