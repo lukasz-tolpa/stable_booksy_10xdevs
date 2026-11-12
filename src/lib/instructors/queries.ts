@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/db/database.types";
+import type { OpenSeatRow } from "@/lib/instructors/open-seats";
 import type { Instructor } from "@/types";
 
 type Client = SupabaseClient<Database>;
@@ -29,4 +30,28 @@ export async function listStableInstructors(client: Client, stableId: number): P
   }
 
   return data;
+}
+
+/**
+ * Instruktorzy z wystawionymi miejscami (choć jeden slot z limitem > 0) w dniach stadniny
+ * od `today` włącznie — wejście dla `countDaysWithOpenSeats`. Filtr po `stable_id` konieczny,
+ * bo odczyt grafiku jest otwarty dla każdego zalogowanego.
+ */
+export async function listOpenSeatRows(client: Client, stableId: number, today: string): Promise<OpenSeatRow[]> {
+  const { data, error } = await client
+    .from("schedule_days")
+    .select("day, schedule_day_instructors(instructor_id, schedule_slots(seats))")
+    .eq("stable_id", stableId)
+    .gte("day", today)
+    .gt("schedule_day_instructors.schedule_slots.seats", 0);
+
+  if (error) {
+    throw error;
+  }
+
+  return data.flatMap((day) =>
+    day.schedule_day_instructors
+      .filter((entry) => entry.schedule_slots.length > 0)
+      .map((entry) => ({ instructorId: entry.instructor_id, day: day.day })),
+  );
 }
