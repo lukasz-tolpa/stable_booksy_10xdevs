@@ -5,32 +5,36 @@ import {
   STABLE_NAME,
   asError,
   bookButton,
-  hourSection,
   openStable,
+  slotItem,
   upcomingRow,
 } from "./helpers";
 
 /**
- * Ryzyko #3 (odmowa) i klauzula „nie jest już zajęta" z ryzyka #5. Zdanie z PRD:
- * „próba zapisu na slot, który stał się zajęty, jest odrzucana" — dokładnie tak,
- * jak spotyka to jeździec: slot był wolny, gdy strona się załadowała, a zajął go
- * ktoś inny, zanim kliknął. Wyrocznia: jeździec A widzi konkretny polski komunikat
- * (23505 przetłumaczone), a w „Moich zapisach" nie ma wiersza — żadna ścieżka nie
- * daje sukcesu bez utrwalonego wiersza.
+ * Ryzyko #3 (odmowa) i klauzula „nie jest już zajęta" z ryzyka #5, w modelu limitu
+ * miejsc (#41): próba zapisu na slot, w którym zabrakło miejsc, jest odrzucana —
+ * dokładnie tak, jak spotyka to jeździec: miejsce było wolne, gdy strona się
+ * załadowała, a zajął je ktoś inny, zanim kliknął. Wyrocznia: jeździec A widzi
+ * konkretny polski komunikat (SB009 z wyzwalacza `bookings_seat_limit`
+ * przetłumaczone), a w „Moich zapisach" nie ma wiersza — żadna ścieżka nie daje
+ * sukcesu bez utrwalonego wiersza.
  *
- * Slot: Bella o 14:00 w Stadninie Pod Debem, jutro — wolny w seedzie, inny niż
- * Kasztan@13 z pętli jeźdźca i niż Kasztan@12 skryptu współbieżności.
+ * Slot: Joanna Wrona o 14:00 w Stadninie Pod Debem, dzień seeda — 1 miejsce, wolne
+ * w seedzie; inny niż Karol@13 z pętli jeźdźca i niż Joanna@12 skryptu współbieżności.
  *
  * Sprzątanie: B odwołuje swój zapis tylko wtedy, gdy na pewno go założył
  * (`bookedByB`), a błąd samego sprzątania nigdy nie przykrywa błędu scenariusza.
  */
 test.use({ storageState: RIDER_A_STATE });
 
-const HORSE = "Bella";
+const INSTRUCTOR = "Joanna Wrona";
 const HOUR = 14;
-const TAKEN_MESSAGE = "Ten slot został właśnie zajęty. Wybierz inny termin lub konia.";
+const NO_SEATS_MESSAGE = "W tym slocie nie ma już wolnych miejsc. Wybierz inny termin lub instruktora.";
 
-test("jeździec klikający nieświeży slot dostaje polską odmowę i nie ma zapisu", async ({ page, browser }) => {
+test("jeździec klikający nieświeży slot bez wolnych miejsc dostaje polską odmowę i nie ma zapisu", async ({
+  page,
+  browser,
+}) => {
   const contextB = await browser.newContext({ storageState: RIDER_B_STATE });
   const pageB = await contextB.newPage();
   // Obiekt, nie `let`: przypisanie wewnątrz callbacka `test.step` jest niewidoczne
@@ -39,33 +43,37 @@ test("jeździec klikający nieświeży slot dostaje polską odmowę i nie ma zap
   let failure: Error | undefined;
 
   try {
-    await test.step("A ładuje stronę ośrodka, gdy slot jest jeszcze wolny", async () => {
+    await test.step("A ładuje stronę ośrodka, gdy miejsce jest jeszcze wolne", async () => {
       await openStable(page, STABLE_NAME);
-      await expect(bookButton(page, HOUR, HORSE)).toBeVisible();
+      await expect(slotItem(page, HOUR, INSTRUCTOR)).toContainText("1 z 1 wolne");
+      await expect(bookButton(page, HOUR, INSTRUCTOR)).toBeVisible();
     });
 
-    await test.step("B zajmuje ten sam slot w drugim kontekście", async () => {
+    await test.step("B zajmuje jedyne miejsce w drugim kontekście", async () => {
       await openStable(pageB, STABLE_NAME);
-      await bookButton(pageB, HOUR, HORSE).click();
+      await bookButton(pageB, HOUR, INSTRUCTOR).click();
       await pageB.waitForURL(/sukces=1/);
-      await expect(hourSection(pageB, HOUR).getByText(`${HORSE} — Twój zapis`)).toBeVisible();
+      await expect(slotItem(pageB, HOUR, INSTRUCTOR)).toContainText("Twój zapis");
       state.bookedByB = true;
     });
 
     await test.step("A klika nieświeży przycisk i dostaje konkretną odmowę", async () => {
-      await bookButton(page, HOUR, HORSE).click();
+      await bookButton(page, HOUR, INSTRUCTOR).click();
       await page.waitForURL(/error=/);
-      await expect(page.getByText(TAKEN_MESSAGE)).toBeVisible();
-      // Strona po odmowie jest wyrenderowana z bazy: cudzy zapis nie jest pokazywany,
-      // a A nie ma plakietki własnego zapisu.
-      await expect(bookButton(page, HOUR, HORSE)).toHaveCount(0);
-      await expect(hourSection(page, HOUR).getByText(`${HORSE} — Twój zapis`)).toHaveCount(0);
+      await expect(page.getByText(NO_SEATS_MESSAGE)).toBeVisible();
+      // Strona po odmowie jest wyrenderowana z bazy: slot jest pełny, a A nie ma
+      // plakietki własnego zapisu.
+      const slot = slotItem(page, HOUR, INSTRUCTOR);
+      await expect(slot).toContainText("0 z 1 wolne");
+      await expect(slot).toContainText("Brak miejsc");
+      await expect(bookButton(page, HOUR, INSTRUCTOR)).toHaveCount(0);
+      await expect(slot.getByText("Twój zapis")).toHaveCount(0);
     });
 
     await test.step("A nie ma zapisu w Moich zapisach", async () => {
       await page.goto("/jezdziec/zapisy");
       await expect(page.getByText("Nie masz nadchodzących zapisów.")).toBeVisible();
-      await expect(upcomingRow(page, STABLE_NAME, HORSE)).toHaveCount(0);
+      await expect(upcomingRow(page, STABLE_NAME, INSTRUCTOR)).toHaveCount(0);
     });
   } catch (error: unknown) {
     failure = asError(error);
@@ -74,7 +82,7 @@ test("jeździec klikający nieświeży slot dostaje polską odmowę i nie ma zap
   if (state.bookedByB) {
     try {
       await pageB.goto("/jezdziec/zapisy");
-      await upcomingRow(pageB, STABLE_NAME, HORSE).getByRole("button", { name: "Odwołaj" }).click();
+      await upcomingRow(pageB, STABLE_NAME, INSTRUCTOR).getByRole("button", { name: "Odwołaj" }).click();
       await pageB.waitForURL(/sukces=1/);
       await expect(pageB.getByText("Zapis został odwołany.")).toBeVisible();
     } catch (cleanupError: unknown) {
