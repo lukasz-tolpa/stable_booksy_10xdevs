@@ -121,6 +121,38 @@ export type Database = {
           },
         ]
       }
+      instructors: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: number
+          name: string
+          stable_id: number
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: never
+          name: string
+          stable_id: number
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: never
+          name?: string
+          stable_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instructors_stable_id_fkey"
+            columns: ["stable_id"]
+            isOneToOne: false
+            referencedRelation: "stables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string

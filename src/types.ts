@@ -16,12 +16,14 @@ export type BookingStatus = "active" | "cancelled";
 export type Profile = Tables["profiles"]["Row"];
 export type Stable = Tables["stables"]["Row"];
 export type Horse = Tables["horses"]["Row"];
+export type Instructor = Tables["instructors"]["Row"];
 export type ScheduleDay = Tables["schedule_days"]["Row"];
 export type ScheduleDayHorse = Tables["schedule_day_horses"]["Row"];
 export type Booking = Tables["bookings"]["Row"];
 
 export type StableInsert = Tables["stables"]["Insert"];
 export type HorseInsert = Tables["horses"]["Insert"];
+export type InstructorInsert = Tables["instructors"]["Insert"];
 export type ScheduleDayInsert = Tables["schedule_days"]["Insert"];
 export type ScheduleDayHorseInsert = Tables["schedule_day_horses"]["Insert"];
 export type BookingInsert = Tables["bookings"]["Insert"];
