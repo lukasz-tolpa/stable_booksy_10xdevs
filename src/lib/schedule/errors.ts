@@ -2,8 +2,13 @@
  * Tłumaczenie kodów błędu bazy na komunikaty dla ośrodka.
  *
  * To jedyne miejsce, w którym aplikacja interpretuje guardraile z migracji — sama ich
- * nie powiela. Cztery kody, cztery różne czynności po stronie użytkownika:
+ * nie powiela. Od #40 wszystkie odmowy zapisu grafiku podnosi baza: wyzwalacz z S-02
+ * (SB001, SB002) i funkcja `public.save_schedule_day` (SB003–SB008, migracja
+ * `20261113090000_schedule_day_instructors_and_seats.sql`). Każdy kod to inna czynność
+ * po stronie ośrodka.
  */
+
+import { formatClockHour } from "@/lib/format";
 
 /** Zmiana daty dnia, który ma aktywne zapisy (trigger z S-02). */
 export const SCHEDULE_DATE_CONFLICT = "SB001";
@@ -16,27 +21,29 @@ export const SCHEDULE_HOURS_CONFLICT = "SB002";
  */
 export const FOREIGN_KEY_VIOLATION = "23503";
 
-/**
- * Kody walidacji wykonywanej PRZED zapisem. Baza wyłapałaby oba przypadki, ale dopiero
- * w połowie wielokrokowej operacji — a wtedy wcześniejsze kroki są już wykonane.
- * `23503` w dodatku oznacza obie sytuacje naraz, więc bez tego rozróżnienia ośrodek
- * dostawał komunikat o zapisach także wtedy, gdy problemem był cudzy koń.
- */
-export const HORSE_NOT_IN_STABLE = "APP001";
-export const HORSE_HAS_BOOKINGS = "APP002";
-
-/** Błąd walidacji przed zapisem; niesie `code` czytany tak samo jak kod Postgresa. */
-export class ScheduleSaveError extends Error {
-  readonly code: string;
-
-  constructor(code: string) {
-    super(code);
-    this.name = "ScheduleSaveError";
-    this.code = code;
-  }
-}
+/** Koń spoza stadniny w zapisie dnia (dawniej `APP001` w aplikacji). */
+export const HORSE_NOT_IN_STABLE = "SB003";
+/** Wypisanie konia, który ma zapisy w tym dniu, także odwołane (dawniej `APP002`). */
+export const HORSE_HAS_BOOKINGS = "SB004";
+/** Instruktor spoza stadniny w zapisie dnia. */
+export const INSTRUCTOR_NOT_IN_STABLE = "SB005";
+/** Nieaktywny instruktor dodawany do dnia, w którym go wcześniej nie było. */
+export const INSTRUCTOR_INACTIVE = "SB006";
+/** Suma limitów miejsc w jednej godzinie przekracza liczbę koni dnia; komunikat bazy niesie godzinę. */
+export const SEATS_EXCEED_HORSES = "SB007";
+/** Grafik na dzień miniony (czas Europe/Warsaw). */
+export const SCHEDULE_DAY_PAST = "SB008";
 
 const FALLBACK = "Nie udało się zapisać grafiku. Spróbuj ponownie.";
+
+/**
+ * Godzina, suma limitów i liczba koni z komunikatu SB007 („... o godzinie 13 (3) ... (2)");
+ * `null`, gdy komunikat ma inny kształt.
+ */
+function parseSeatsExcess(message: string | undefined): { hour: number; seats: number; horses: number } | null {
+  const match = message ? /godzinie (\d+) \((\d+)\).*\((\d+)\)/.exec(message) : null;
+  return match ? { hour: Number(match[1]), seats: Number(match[2]), horses: Number(match[3]) } : null;
+}
 
 /**
  * Polska odmiana rzeczownika „zapis" po liczbie: 1 zapis, 2-4 zapisy, 5+ zapisów,
@@ -95,6 +102,18 @@ export function scheduleErrorMessage(code: string | undefined, dbMessage?: strin
       // Bez rady „doprowadź do odwołania": odwołany zapis też przypina konia, więc odwołanie
       // niczego tu nie odblokuje — mówimy, co jest, i co da się zrobić.
       return "Nie można wypisać konia, który ma zapisy w tym dniu — także odwołane, bo historia zapisów zostaje przy koniu. Wypisać można tylko konia bez zapisów tego dnia.";
+    case INSTRUCTOR_NOT_IN_STABLE:
+      return "Wybrany instruktor nie należy do Twojego ośrodka.";
+    case INSTRUCTOR_INACTIVE:
+      return "Nieaktywnego instruktora nie można dodać do dnia, w którym wcześniej nie pracował. Najpierw go aktywuj.";
+    case SEATS_EXCEED_HORSES: {
+      const excess = parseSeatsExcess(dbMessage);
+      return excess
+        ? `O ${formatClockHour(excess.hour)} suma limitów miejsc (${String(excess.seats)}) przekracza liczbę koni pracujących tego dnia (${String(excess.horses)}). Obniż limity w tej godzinie albo dodaj konia.`
+        : "W jednej z godzin suma limitów miejsc przekracza liczbę koni pracujących tego dnia. Obniż limity albo dodaj konia.";
+    }
+    case SCHEDULE_DAY_PAST:
+      return "Nie można układać grafiku na przeszłe dni";
     default:
       return FALLBACK;
   }

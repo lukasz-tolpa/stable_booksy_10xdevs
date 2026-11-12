@@ -19,6 +19,9 @@ export type Horse = Tables["horses"]["Row"];
 export type Instructor = Tables["instructors"]["Row"];
 export type ScheduleDay = Tables["schedule_days"]["Row"];
 export type ScheduleDayHorse = Tables["schedule_day_horses"]["Row"];
+export type ScheduleDayInstructor = Tables["schedule_day_instructors"]["Row"];
+/** Slot: godzina instruktora w dniu z limitem miejsc. Zapisywany wyłącznie przez `save_schedule_day`. */
+export type ScheduleSlot = Tables["schedule_slots"]["Row"];
 export type Booking = Tables["bookings"]["Row"];
 
 export type StableInsert = Tables["stables"]["Insert"];

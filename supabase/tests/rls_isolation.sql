@@ -60,37 +60,47 @@ begin
   end if;
   raise notice 'PASS: proba zmiany cudzego konia dotknela 0 wierszy';
 
+  -- Od #40 grafik zapisuje wylacznie public.save_schedule_day, a bezposredni zapis do tabel
+  -- grafiku jest odebrany (42501) - takze do cudzej stadniny. Funkcja bierze stadnine z sesji;
+  -- jej izolacje dowodzi supabase/tests/schedule_day_save.sql.
   begin
     insert into public.schedule_days (stable_id, day, open_hour, close_hour)
     select id, current_date + 5, 8, 12 from public.stables where name = 'Stajnia Nad Rzeka';
     raise exception 'FAIL: osrodek A wstawil grafik do cudzej stadniny';
   exception when insufficient_privilege then
-    raise notice 'PASS: insert grafiku do cudzej stadniny odrzucony przez RLS';
+    raise notice 'PASS: insert grafiku do cudzej stadniny odrzucony (42501)';
   end;
 
-  -- Podmiana identyfikatora dnia: UPDATE cudzego dnia (rozszerzenie, zeby trigger nie
-  -- odmowil pierwszy) i DELETE cudzego przydzialu konia maja dotknac 0 wierszy.
-  update public.schedule_days set open_hour = 8 where id = v_day_b;
-  get diagnostics v = row_count;
-  if v <> 0 then
-    raise exception 'FAIL: osrodek A zmienil % wierszy cudzego dnia (id=%)', v, v_day_b;
-  end if;
-  raise notice 'PASS: update cudzego dnia po id dotknal 0 wierszy';
+  -- Podmiana identyfikatora dnia: UPDATE cudzego dnia i DELETE cudzego przydzialu konia.
+  begin
+    update public.schedule_days set open_hour = 8 where id = v_day_b;
+    raise exception 'FAIL: osrodek A zmienil cudzy dzien (id=%)', v_day_b;
+  exception when insufficient_privilege then
+    raise notice 'PASS: update cudzego dnia po id odrzucony (42501)';
+  end;
 
-  delete from public.schedule_day_horses where schedule_day_id = v_day_b and horse_id = v_grom;
-  get diagnostics v = row_count;
-  if v <> 0 then
-    raise exception 'FAIL: osrodek A usunal % cudzych przydzialow koni', v;
-  end if;
-  raise notice 'PASS: delete cudzego przydzialu konia dotknal 0 wierszy';
+  begin
+    delete from public.schedule_day_horses where schedule_day_id = v_day_b and horse_id = v_grom;
+    raise exception 'FAIL: osrodek A usunal cudzy przydzial konia';
+  exception when insufficient_privilege then
+    raise notice 'PASS: delete cudzego przydzialu konia odrzucony (42501)';
+  end;
 
-  -- Dopisanie konia do cudzego dnia (Luna nie jest przydzielona u B) - WITH CHECK odrzuca.
   begin
     insert into public.schedule_day_horses (schedule_day_id, horse_id, stable_id)
     values (v_day_b, v_luna, v_stable_b);
     raise exception 'FAIL: osrodek A dopisal konia do cudzego dnia';
   exception when insufficient_privilege then
-    raise notice 'PASS: insert przydzialu do cudzego dnia odrzucony przez RLS';
+    raise notice 'PASS: insert przydzialu do cudzego dnia odrzucony (42501)';
+  end;
+
+  -- Przez funkcje: cudzy kon do wlasnego dnia jest odrzucany (SB003), a cudzy dzien
+  -- jest nieosiagalny, bo funkcja nie przyjmuje stadniny z argumentu.
+  begin
+    perform public.save_schedule_day(current_date + 1, 10, 16, array[v_kasztan, v_grom], array[]::bigint[], '[]'::jsonb);
+    raise exception 'FAIL: osrodek A dopisal cudzego konia przez save_schedule_day';
+  exception when sqlstate 'SB003' then
+    raise notice 'PASS: cudzy kon w save_schedule_day odrzucony (SB003)';
   end;
 
   -- Brama roli: konto osrodka nie zapisze sie na jazde nawet we wlasnym imieniu.

@@ -135,6 +135,38 @@ join public.horses h on h.stable_id = sd.stable_id
 where h.name in ('Bella', 'Kasztan', 'Grom');
 
 -- ---------------------------------------------------------------------------
+-- Instruktorzy i limity miejsc na jutro (#40)
+-- ---------------------------------------------------------------------------
+
+-- Seed pisze jako postgres, wiec omija save_schedule_day - limity musza wiec same spelniac
+-- regule sumy (suma limitow w godzinie <= liczba koni dnia): Pod Debem 2 konie, Nad Rzeka 1.
+-- Zapis jezdzca nadal idzie na pare kon x godzina; limity zaczna dzialac w #41.
+insert into public.instructors (stable_id, name)
+select s.id, i.name
+from public.stables s
+join (
+  values
+    ('Stadnina Pod Debem', 'Joanna Wrona'),
+    ('Stadnina Pod Debem', 'Karol Jasny'),
+    ('Stajnia Nad Rzeka',  'Tomasz Lis')
+) as i(stable_name, name) on i.stable_name = s.name;
+
+-- Karol nie pracuje jutro - dostepny do dodania w formularzu grafiku.
+insert into public.schedule_day_instructors (schedule_day_id, instructor_id, stable_id)
+select sd.id, i.id, i.stable_id
+from public.schedule_days sd
+join public.instructors i on i.stable_id = sd.stable_id
+where i.name in ('Joanna Wrona', 'Tomasz Lis');
+
+-- Pelna siatka godzin dnia, jak tworzy ja save_schedule_day: Joanna 2 miejsca, Tomasz 1.
+insert into public.schedule_slots (schedule_day_id, instructor_id, hour, seats)
+select sdi.schedule_day_id, sdi.instructor_id, h, case i.name when 'Joanna Wrona' then 2 else 1 end
+from public.schedule_day_instructors sdi
+join public.schedule_days sd on sd.id = sdi.schedule_day_id
+join public.instructors i on i.id = sdi.instructor_id
+cross join lateral generate_series(sd.open_hour, sd.close_hour - 1) h;
+
+-- ---------------------------------------------------------------------------
 -- Zapisy
 -- ---------------------------------------------------------------------------
 

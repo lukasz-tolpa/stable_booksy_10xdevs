@@ -3,8 +3,12 @@ import {
   FOREIGN_KEY_VIOLATION,
   HORSE_HAS_BOOKINGS,
   HORSE_NOT_IN_STABLE,
+  INSTRUCTOR_INACTIVE,
+  INSTRUCTOR_NOT_IN_STABLE,
   SCHEDULE_DATE_CONFLICT,
+  SCHEDULE_DAY_PAST,
   SCHEDULE_HOURS_CONFLICT,
+  SEATS_EXCEED_HORSES,
   extractConflictCount,
   pluralizeBookings,
   scheduleErrorMessage,
@@ -83,6 +87,46 @@ describe("scheduleErrorMessage", () => {
     expect(preCheck).toBe(scheduleErrorMessage(FOREIGN_KEY_VIOLATION, "violates foreign key constraint"));
     expect(preCheck).toContain("także odwołane");
     expect(preCheck).not.toContain("doprowadź");
+  });
+
+  it("suma limitów ponad liczbę koni wskazuje godzinę, sumę i liczbę koni", () => {
+    const msg = scheduleErrorMessage(
+      SEATS_EXCEED_HORSES,
+      "Suma limitow miejsc o godzinie 13 (3) przekracza liczbe koni pracujacych tego dnia (2)",
+    );
+
+    expect(msg).toBe(
+      "O 13:00 suma limitów miejsc (3) przekracza liczbę koni pracujących tego dnia (2). Obniż limity w tej godzinie albo dodaj konia.",
+    );
+  });
+
+  it("suma limitów bez czytelnego komunikatu bazy nadal mówi, co poprawić", () => {
+    expect(scheduleErrorMessage(SEATS_EXCEED_HORSES)).toBe(
+      "W jednej z godzin suma limitów miejsc przekracza liczbę koni pracujących tego dnia. Obniż limity albo dodaj konia.",
+    );
+  });
+
+  it("instruktor spoza stadniny, nieaktywny instruktor i dzień miniony mają własne komunikaty", () => {
+    expect(scheduleErrorMessage(INSTRUCTOR_NOT_IN_STABLE)).toBe("Wybrany instruktor nie należy do Twojego ośrodka.");
+    expect(scheduleErrorMessage(INSTRUCTOR_INACTIVE)).toBe(
+      "Nieaktywnego instruktora nie można dodać do dnia, w którym wcześniej nie pracował. Najpierw go aktywuj.",
+    );
+    expect(scheduleErrorMessage(SCHEDULE_DAY_PAST)).toBe("Nie można układać grafiku na przeszłe dni");
+  });
+
+  it("kody grafiku są rozróżnialne", () => {
+    const codes = [
+      SCHEDULE_DATE_CONFLICT,
+      SCHEDULE_HOURS_CONFLICT,
+      HORSE_NOT_IN_STABLE,
+      HORSE_HAS_BOOKINGS,
+      INSTRUCTOR_NOT_IN_STABLE,
+      INSTRUCTOR_INACTIVE,
+      SEATS_EXCEED_HORSES,
+      SCHEDULE_DAY_PAST,
+    ];
+
+    expect(new Set(codes).size).toBe(codes.length);
   });
 
   it("nierozpoznany kod daje wariant domyślny", () => {
