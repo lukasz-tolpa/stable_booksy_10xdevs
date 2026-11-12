@@ -156,6 +156,9 @@ const inactive = instructors.filter((instructor) => !instructor.active);
     font-size: 17px;
     margin: 0;
   }
+  .instructor :global(svg) {
+    flex-shrink: 0;
+  }
   .instructor button {
     display: inline-flex;
     align-items: center;
