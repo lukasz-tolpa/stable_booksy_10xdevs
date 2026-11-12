@@ -1,3 +1,7 @@
+## Project rules
+
+The rules for working in this repository are in @AGENTS.md. The rest of this file describes the 10xDevs toolkit skills.
+
 ## 10xDevs AI Toolkit — Module 1, Lesson 1
 
 Bootstrap a greenfield project end-to-end with the **shaping chain**:

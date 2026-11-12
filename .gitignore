@@ -40,3 +40,9 @@ playwright/.auth/
 
 # zrzuty ekranu z scripts/shots.mjs (narzedzie do porownania z prototypami)
 shots/
+
+# worktree agentow (kopie repo - bez tego `eslint .` lintuje kazda z nich)
+.claude/worktrees/
+
+# pliki robocze
+_tmp-*

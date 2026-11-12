@@ -242,6 +242,25 @@ local role authenticated; set local request.jwt.claims =
   Kasztan@12 (`test:db` concurrency script) — all at Stadnina Pod Debem,
   tomorrow. Do not run `npm run test:db` and `npm run test:e2e` against the
   same database at the same time.
+- **Past data**: the seed schedules only tomorrow and the past cannot be
+  clicked together in a browser, so the `setup` project loads
+  `supabase/demo/history.sql` (idempotent; also `npm run db:demo`).
+  `stable-stats.spec.ts` asserts consistency on it — table sums equal the
+  period summary — never fixed numbers, because the history is relative to
+  the load day. After the history is loaded, `npm run test:db` needs a
+  fresh `npx supabase db reset`.
+- **Locator traps**: locators are role, label and exact text, so visual work
+  can break tests without touching logic. Keep these exactly as they are:
+  the hour element's entire text is `"{h}:00"`; a booking button's entire
+  content is the horse name, with no `aria-label`; the own-booking pill
+  reads `{horse} — Twój zapis` with an em dash (U+2014); the cancelled
+  chip's entire text is `odwołany`; the search field's label is `Szukaj
+ośrodka`; each upcoming-booking `<li>` holds the cancel button, the
+  stable name and the horse name together; the statistics summary is the
+  region "Podsumowanie okresu" with four `<dd>` tiles in the order rides,
+  ride hours, occupancy, cancellations. Before adding prose to a screen,
+  check it does not repeat a validation message verbatim — a lead paragraph
+  containing "Wybierz rodzaj konta" once made that text match two elements.
 - **Sabotage check**: before trusting a new assertion break its guard (drop
   the insert, rename `?sukces=`, relabel the button, remap a code to the
   fallback) and watch the scenario go red at that step; revert.
@@ -352,7 +371,7 @@ authenticated` + `request.jwt.claims`). The CLI's default Postgres image on
   prototype's sign-up lead "Wybierz rodzaj konta — …" repeats the role validation
   message verbatim, so any text locator resolved to two elements; the sentence was
   reworded. Everything the suite finds by role, label or exact text is now listed
-  in AGENTS.md → "Design" as a locator contract (hour = `"{h}:00"` alone, booking
+  in §6.3 ("Locator traps") as a locator contract (hour = `"{h}:00"` alone, booking
   button = horse name with no `aria-label`, `— Twój zapis` with U+2014, chip =
   `odwołany`). Slots taken by other riders stay **unrendered**, unlike the
   prototype's third legend entry — see `context/changes/ui-redesign/follow-ups/taken-slot.md`.

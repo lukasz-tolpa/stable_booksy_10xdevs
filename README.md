@@ -151,7 +151,8 @@ context/            dokumenty projektu (patrz niżej)
 | `context/foundation/infrastructure.md` | Środowiska i wdrożenie                                        |
 | `context/foundation/test-plan.md`      | Strategia testów i wzorce ich dopisywania                     |
 | `context/foundation/lessons.md`        | Reguły wyciągnięte z poprzednich zmian                        |
-| `AGENTS.md`                            | Zasady pracy w repozytorium, w tym kontrakt warstwy wizualnej |
+| `AGENTS.md`                            | Zasady pracy w repozytorium i wskaźniki do pozostałych plików |
+| `CODING_STANDARDS.md`                  | Reguły stosowane przy przeglądzie kodu                        |
 | `DESIGN.md`                            | System wizualny: tokeny, typografia, stany                    |
 
 Historia zmian leży w `context/archive/`, po jednym folderze na wycinek, razem z planem

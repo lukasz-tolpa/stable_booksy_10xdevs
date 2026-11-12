@@ -11,6 +11,7 @@ import {
   STABLE_STATE,
   waitForIslands,
 } from "./helpers";
+import { loadDemoHistory } from "../scripts/db-demo.mjs";
 
 /**
  * Sesje dla scenariuszy: dwóch świeżych jeźdźców zakładanych przez prawdziwy
@@ -38,6 +39,15 @@ async function signUpRider(page: Page, tag: string, fullName: string): Promise<v
 
 setup.beforeAll(() => {
   mkdirSync(AUTH_DIR, { recursive: true });
+});
+
+/**
+ * Miniona historia dla strony statystyk (`stable-stats.spec.ts`). Seed układa grafik
+ * wyłącznie na jutro, a przeszłości nie da się wyklikać w przeglądarce. Ładowanie jest
+ * idempotentne, więc powtórka i kolejne uruchomienie niczego nie dublują.
+ */
+setup("miniona historia demo ośrodka", () => {
+  loadDemoHistory();
 });
 
 setup("jeździec A — świeże konto", async ({ page }) => {
