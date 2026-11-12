@@ -95,11 +95,12 @@ function formatDay(day: string): string {
                   <span class="row__when">
                     {formatDay(row.day)}, {row.hour}:00
                   </span>
-                  {/* Nazwa ośrodka i konia siedzą w tym samym wierszu co przycisk -
-                      scenariusz odwołania zawęża <li> po wszystkich trzech naraz. */}
+                  {/* Ośrodek i instruktor siedzą w tym samym wierszu co przycisk -
+                      scenariusz odwołania zawęża <li> po nich naraz. */}
                   <span class="row__meta">
                     <span class="row__sub">{row.stableName}</span>
-                    <span class="row__horse">{row.horseName}</span>
+                    <span class="row__horse">{row.instructorName}</span>
+                    {row.horseLabel && <span class="row__sub">{row.horseLabel}</span>}
                   </span>
                   <form method="post" action="/api/bookings/cancel" class="row__action">
                     <input type="hidden" name="bookingId" value={row.id} />
@@ -129,10 +130,12 @@ function formatDay(day: string): string {
                   </span>
                   <span class="row__meta">
                     <span class="row__sub">{row.stableName}</span>
-                    <span class="row__horse">{row.horseName}</span>
+                    <span class="row__horse">{row.instructorName}</span>
+                    {row.horseLabel && <span class="row__sub">{row.horseLabel}</span>}
                     {/* Cały tekst tego elementu to samo słowo - scenariusz odwołania
                         szuka wiersza po dokładnym dopasowaniu. */}
                     {row.status === "cancelled" && <span class="tag">odwołany</span>}
+                    {row.cancelledByLabel && <span class="row__sub">{row.cancelledByLabel}</span>}
                   </span>
                 </li>
               ))}

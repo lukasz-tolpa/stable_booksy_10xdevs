@@ -8,8 +8,8 @@
 --   * nowo wskazany instruktor ma limit zero we wszystkich godzinach,
 --   * nieaktywnego instruktora nie da sie dodac do dnia, w ktorym go nie bylo (SB006),
 --     a zdezaktywowany po ulozeniu dnia zostaje w nim,
---   * kontrole przeniesione z aplikacji: kon spoza stadniny (SB003), wypisanie konia z zapisami
---     (SB004); instruktor spoza stadniny (SB005); dzien miniony (SB008); zawezenie godzin pod
+--   * kontrole przeniesione z aplikacji: kon spoza stadniny (SB003), wypisanie konia przydzielonego
+--     do aktywnego zapisu (SB004); instruktor spoza stadniny (SB005); dzien miniony (SB008); zawezenie godzin pod
 --     zapisem nadal SB002 (wyzwalacz z S-02),
 --   * bezposredni zapis do tabel grafiku (dni, konie w dniu, instruktorzy w dniu, sloty) jest
 --     odebrany - 42501 takze dla wlasciciela,
@@ -51,6 +51,20 @@ begin
 
   insert into public.instructors (stable_id, name) values (v_stable, 'Ania Testowa') returning id into v_id;
   perform set_config('app.ania', v_id::text, true);
+
+  -- Ania pracuje jutro (1 miejsce w kazdej godzinie), a seedowy zapis Anny przechodzi od Joanny
+  -- do Ani o 11 z przydzielona Bella: przypadki ponizej wypisuja Joanne (bez zapisow - inaczej
+  -- SB011) i probuja wypisac Belle (SB004) oraz zawezic dzien pod zapisem (SB002).
+  insert into public.schedule_day_instructors (schedule_day_id, instructor_id, stable_id)
+  values (current_setting('app.day')::bigint, v_id, v_stable);
+  insert into public.schedule_slots (schedule_day_id, instructor_id, hour, seats)
+  select current_setting('app.day')::bigint, v_id, h, 1 from generate_series(10, 15) h;
+  update public.schedule_slots set seats = 0
+  where schedule_day_id = current_setting('app.day')::bigint
+    and instructor_id = (select id from public.instructors where stable_id = v_stable and name = 'Joanna Wrona');
+  update public.bookings
+     set instructor_id = v_id, horse_id = current_setting('app.bella')::bigint
+   where schedule_day_id = current_setting('app.day')::bigint and hour = 11 and status = 'active';
   insert into public.instructors (stable_id, name) values (v_stable, 'Basia Testowa') returning id into v_id;
   perform set_config('app.basia', v_id::text, true);
   insert into public.instructors (stable_id, name, active) values (v_stable, 'Ola Nieaktywna', false) returning id into v_id;
@@ -156,13 +170,13 @@ begin
     v_failures := v_failures + 1;
   end if;
 
-  -- 5. Wypisanie konia z zapisem (Bella@11 Anny z seeda) -> SB004, nawet przy zerowych limitach.
+  -- 5. Wypisanie konia przydzielonego do aktywnego zapisu (Bella przy zapisie Anny u Ani o 11) -> SB004.
   begin
     perform public.save_schedule_day(v_tomorrow, 10, 16, array[v_kasztan, v_iskra], array[v_ania], '[]'::jsonb);
     raise notice 'FAIL 5: wypisanie konia z zapisem przeszlo';
     v_failures := v_failures + 1;
   exception when sqlstate 'SB004' then
-    raise notice 'PASS 5: wypisanie konia z zapisem odrzucone (SB004)';
+    raise notice 'PASS 5: wypisanie konia przydzielonego do aktywnego zapisu odrzucone (SB004)';
   end;
 
   -- 6. Zawezenie godzin pod aktywnym zapisem nadal odrzucane (SB002, wyzwalacz z S-02).
@@ -305,6 +319,9 @@ begin
   perform set_config('app.grom', (
     select h.id::text from public.horses h join public.stables s on s.id = h.stable_id
     where s.owner_id = '22222222-2222-2222-2222-222222222222' and h.name = 'Grom'), true);
+  perform set_config('app.tomasz', (
+    select i.id::text from public.instructors i join public.stables s on s.id = i.stable_id
+    where s.owner_id = '22222222-2222-2222-2222-222222222222' and i.name = 'Tomasz Lis'), true);
 end $$;
 
 set local role authenticated;
@@ -314,12 +331,15 @@ do $$
 declare
   v_day_a bigint := current_setting('app.day_a')::bigint;
   v_grom bigint := current_setting('app.grom')::bigint;
+  v_tomasz bigint := current_setting('app.tomasz')::bigint;
   v_open int;
   v_close int;
 begin
   -- Funkcja nie przyjmuje stadniny z zewnatrz: wywolanie osrodka B na te sama date
-  -- zmienia wylacznie dzien B, dzien A zostaje 10-16.
-  perform public.save_schedule_day(current_date + 1, 8, 12, array[v_grom], array[]::bigint[], '[]'::jsonb);
+  -- zmienia wylacznie dzien B, dzien A zostaje 10-16. Tomasz zostaje w dniu z miejscem o 10,
+  -- bo ma tam aktywny zapis Piotra (inaczej SB010/SB011).
+  perform public.save_schedule_day(current_date + 1, 8, 12, array[v_grom], array[v_tomasz],
+    jsonb_build_array(jsonb_build_object('instructor_id', v_tomasz, 'hour', 10, 'seats', 1)));
   select open_hour, close_hour into v_open, v_close from public.schedule_days where id = v_day_a;
   if v_open <> 10 or v_close <> 16 then
     raise exception 'FAIL: wywolanie osrodka B zmienilo dzien A na %-%', v_open, v_close;

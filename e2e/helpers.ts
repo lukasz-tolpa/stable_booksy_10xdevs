@@ -5,7 +5,10 @@ import { expect, type Locator, type Page } from "@playwright/test";
  * strony nie mają `data-testid` i mają go nie potrzebować (test-plan §6.3).
  */
 
-/** Ośrodek z seeda używany przez oba scenariusze (jutro: 10–16, Bella + Kasztan). */
+/**
+ * Ośrodek z seeda używany przez oba scenariusze (jutro: 10–16, Bella + Kasztan; Joanna Wrona
+ * z 1 miejscem w każdej godzinie, Karol Jasny bez grafiku).
+ */
 export const STABLE_NAME = "Stadnina Pod Debem";
 /** Hasło wszystkich kont z seeda i kont zakładanych przez setup. */
 export const PASSWORD = "sekret123";
@@ -47,35 +50,41 @@ export async function waitForIslands(page: Page): Promise<void> {
 
 /**
  * Sekcja godziny na stronie ośrodka (lista „Wolne sloty") albo wiersz godziny na
- * liście „Zapisy dnia" ośrodka. Przycisk zapisu nazywa się wyłącznie imieniem
- * konia, a godzina siedzi w sąsiednim akapicie, więc najpierw zawężamy do `<li>`
- * z dokładnym tekstem godziny („1:00" jest podciągiem „11:00" — stąd `exact`).
+ * liście „Zapisy dnia" ośrodka. Godzina siedzi we własnym elemencie, więc zawężamy do
+ * `<li>` z dokładnym tekstem godziny („1:00" jest podciągiem „11:00" — stąd `exact`).
+ * Na stronie ośrodka pasuje tylko zewnętrzny `<li>` godziny: sloty instruktorów to
+ * zagnieżdżone `<li>` bez osobnego elementu z godziną.
  */
 export function hourSection(page: Page, hour: number): Locator {
   return page.getByRole("listitem").filter({ has: page.getByText(`${String(hour)}:00`, { exact: true }) });
 }
 
-/** Przycisk zapisu na konia w danej godzinie. */
-export function bookButton(page: Page, hour: number, horse: string): Locator {
-  return hourSection(page, hour).getByRole("button", { name: horse, exact: true });
+/** Slot instruktora w danej godzinie na stronie ośrodka: nazwa, wolne miejsca, akcja albo stan. */
+export function slotItem(page: Page, hour: number, instructor: string): Locator {
+  return hourSection(page, hour).getByRole("listitem").filter({ hasText: instructor });
+}
+
+/** Przycisk „Zapisz się" w slocie instruktora o danej godzinie. */
+export function bookButton(page: Page, hour: number, instructor: string): Locator {
+  return slotItem(page, hour, instructor).getByRole("button", { name: "Zapisz się", exact: true });
 }
 
 /** Nadchodzący zapis w „Moje zapisy" — wiersz z przyciskiem „Odwołaj". */
-export function upcomingRow(page: Page, stable: string, horse: string): Locator {
+export function upcomingRow(page: Page, stable: string, instructor: string): Locator {
   return page
     .getByRole("listitem")
     .filter({ has: page.getByRole("button", { name: "Odwołaj" }) })
     .filter({ hasText: stable })
-    .filter({ hasText: horse });
+    .filter({ hasText: instructor });
 }
 
 /** Wiersz w „Minione i odwołane" oznaczony jako odwołany. */
-export function cancelledRow(page: Page, stable: string, horse: string): Locator {
+export function cancelledRow(page: Page, stable: string, instructor: string): Locator {
   return page
     .getByRole("listitem")
     .filter({ has: page.getByText("odwołany", { exact: true }) })
     .filter({ hasText: stable })
-    .filter({ hasText: horse });
+    .filter({ hasText: instructor });
 }
 
 /**
@@ -87,6 +96,7 @@ export function cancelledRow(page: Page, stable: string, horse: string): Locator
 export async function assertSlotsRendered(page: Page): Promise<void> {
   await expect(page.getByRole("heading", { level: 2, name: "Wolne sloty" })).toBeVisible();
   await expect(page.getByText("Ośrodek nie ułożył grafiku na ten dzień."), SEED_HINT).toHaveCount(0);
+  await expect(page.getByText("Ośrodek nie wystawił miejsc na ten dzień."), SEED_HINT).toHaveCount(0);
   await expect(
     page
       .getByRole("listitem")

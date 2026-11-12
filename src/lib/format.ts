@@ -17,6 +17,11 @@ export function formatClockHour(hour: number): string {
   return `${String(hour)}:00`;
 }
 
+/** Wolne miejsca slotu wobec limitu, np. `2 z 4 wolne`. */
+export function formatFreeSeats(freeSeats: number, seats: number): string {
+  return `${formatNumber(freeSeats)} z ${formatNumber(seats)} wolne`;
+}
+
 /** Godziny jako jeden tekst, np. `3 h` — do etykiet wykresów i ich tabel z danymi. */
 export function formatHours(hours: number): string {
   return `${formatNumber(hours)} ${HOURS_UNIT}`;

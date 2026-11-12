@@ -1,17 +1,19 @@
 import type { DayBooking } from "@/lib/bookings/queries";
+import { unknownInstructorName } from "@/lib/bookings/slots";
 
 /**
- * Składanie wierszy listy zapisów dnia (FR-005) — jedyna logika slice'a S-05.
+ * Składanie wierszy listy zapisów dnia ośrodka (FR-005): godzina, instruktor, jeździec, koń.
  *
- * `bookings` nie ma klucza obcego wprost do `horses` (identyfikacja konia idzie
- * przez `schedule_day_horses`), więc nazwy koni dokłada się z listy stada —
- * ten sam wzorzec co widok slotów jeźdźca w S-04.
+ * Koń przy zapisie jest opcjonalny (ADR-0002) — przydziela go ośrodek. Nazwy koni dokłada się
+ * z listy stada, bo `bookings` wskazuje konia przez przydział do dnia, nie wprost.
  */
 
 export interface BookingRow {
   hour: number;
-  horseName: string;
+  instructorName: string;
   riderName: string;
+  /** Nazwa przydzielonego konia albo `NO_HORSE`. */
+  horseName: string;
 }
 
 /**
@@ -19,6 +21,9 @@ export interface BookingRow {
  * definicja: ten sam tekst pokazują lista zapisów dnia i statystyki ośrodka.
  */
 export const UNNAMED_RIDER = "(bez nazwiska)";
+
+/** Zapis jeszcze bez przydzielonego konia na liście dnia ośrodka. */
+export const NO_HORSE = "bez konia";
 
 /**
  * Nazwa zastępcza konia, którego nie ma na liście stada. Taki koń nie powinien wystąpić
@@ -38,8 +43,15 @@ export function composeBookingRows(bookings: DayBooking[], horses: { id: number;
   return bookings
     .map((booking) => ({
       hour: booking.hour,
-      horseName: horseNames.get(booking.horseId) ?? unknownHorseName(booking.horseId),
+      instructorName: booking.instructorName ?? unknownInstructorName(booking.instructorId),
       riderName: booking.anonymised ? ANONYMISED_RIDER : (booking.riderName ?? UNNAMED_RIDER),
+      horseName:
+        booking.horseId === null ? NO_HORSE : (horseNames.get(booking.horseId) ?? unknownHorseName(booking.horseId)),
     }))
-    .sort((a, b) => a.hour - b.hour || a.horseName.localeCompare(b.horseName, "pl"));
+    .sort(
+      (a, b) =>
+        a.hour - b.hour ||
+        a.instructorName.localeCompare(b.instructorName, "pl") ||
+        a.riderName.localeCompare(b.riderName, "pl"),
+    );
 }

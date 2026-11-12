@@ -15,13 +15,13 @@ function formInt(message: string) {
 /**
  * Formularz zapisu na jazdę. Ograniczenie godziny odpowiada check constraintowi
  * `bookings_hour_check` z migracji F-01 — walidacja tutaj daje komunikat po polsku
- * zamiast surowego błędu Postgresa. Zakres pracy ośrodka i zajętość slotu pilnuje
- * baza (23514/23505); guard dat przeszłych i minionych godzin robi endpoint.
+ * zamiast surowego błędu Postgresa. Zakres pracy ośrodka, limit miejsc i jeden zapis na godzinę pilnuje
+ * baza (23514/SB009/23505); guard dat przeszłych i minionych godzin robi endpoint.
  */
 export const bookingSchema = z.object({
   stableId: formInt("Nieprawidłowy ośrodek").pipe(z.number().positive({ error: "Nieprawidłowy ośrodek" })),
   day: z.string().refine(isValidIsoDate, { error: "Nieprawidłowa data" }),
-  horseId: formInt("Nieprawidłowy koń").pipe(z.number().positive({ error: "Nieprawidłowy koń" })),
+  instructorId: formInt("Nieprawidłowy instruktor").pipe(z.number().positive({ error: "Nieprawidłowy instruktor" })),
   hour: formInt("Nieprawidłowa godzina").pipe(z.number().max(23, { error: "Nieprawidłowa godzina" })),
 });
 

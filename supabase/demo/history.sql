@@ -6,11 +6,18 @@
 -- na jezdzca, zero zapisow bez jezdzca) - po zaladowaniu tej historii `npm run test:db`
 -- wymaga ponownego `npx supabase db reset`.
 --
+-- Model limitu miejsc (#41, ADR-0002). Pisze jako postgres z pominieciem save_schedule_day,
+-- wiec sama trzyma regule sumy (suma limitow w godzinie <= liczba koni dnia) i limity slotow.
+--
 -- Zawartosc (wszystko przed dzisiejszym dniem, wiec jutrzejszy grafik seeda zostaje nietkniety):
 --   * grafik 10-16 na ostatnie 24 dni bez poniedzialkow; Bella i Kasztan codziennie,
 --     Iskra w weekendy
---   * jazdy Anny i Piotra wedlug stalego wzoru z numeru dnia, godziny i konia
---   * odwolania Piotra na czesci wolnych slotow
+--   * instruktorzy z seeda: Joanna Wrona i Karol Jasny po 1 miejscu w kazdej godzinie,
+--     w weekendy Joanna 2 (3 konie); Karol prowadzi jazdy na Kasztanie, Joanna - na Belli i Iskrze
+--   * jazdy Anny i Piotra wedlug stalego wzoru z numeru dnia, godziny i konia - KAZDA z
+--     przydzielonym koniem, zeby statystyki koni i jezdzcow pozostaly spojne; jeden jezdziec
+--     najwyzej raz w godzinie (trzeci kon w godzinie zostaje bez jazdy)
+--   * odwolania Piotra na czesci wolnych slotow (bez konia - odwolanie czysci przydzial)
 --   * jazdy bez jezdzca (ADR-0001) o 12:00 w dniach starszych niz 15 dni
 --   * dzien sprzed 30 dni z grafikiem i bez zadnego zapisu
 --
@@ -45,33 +52,78 @@ begin
     and sd.day < current_date
     and (h.name in ('Bella', 'Kasztan') or extract(isodow from sd.day) in (6, 7));
 
-  -- Aktywne zapisy w minionych godzinach = jazdy.
-  insert into public.bookings (schedule_day_id, horse_id, hour, rider_id)
-  select sdh.schedule_day_id,
-         sdh.horse_id,
-         hr::smallint,
-         case when (extract(doy from sd.day)::int + hr + sdh.horse_id) % 3 = 0 then v_piotr else v_anna end
-  from public.schedule_day_horses sdh
-  join public.schedule_days sd on sd.id = sdh.schedule_day_id
-  cross join generate_series(10, 15) as hr
-  where sd.stable_id = v_stable
-    and sd.day between current_date - 24 and current_date - 1
-    and (extract(doy from sd.day)::int * 7 + hr * 3 + sdh.horse_id * 5) % 4 < 2;
+  insert into public.schedule_day_instructors (schedule_day_id, instructor_id, stable_id)
+  select sd.id, i.id, v_stable
+  from public.schedule_days sd
+  join public.instructors i on i.stable_id = v_stable and i.name in ('Joanna Wrona', 'Karol Jasny')
+  where sd.stable_id = v_stable and sd.day < current_date;
 
-  insert into public.bookings (schedule_day_id, horse_id, hour, rider_id, status, cancelled_at)
+  -- Suma limitow = liczba koni dnia (2 w tygodniu, 3 w weekend).
+  insert into public.schedule_slots (schedule_day_id, instructor_id, hour, seats)
+  select sdi.schedule_day_id,
+         sdi.instructor_id,
+         hr,
+         case when i.name = 'Joanna Wrona' and extract(isodow from sd.day) in (6, 7) then 2 else 1 end
+  from public.schedule_day_instructors sdi
+  join public.schedule_days sd on sd.id = sdi.schedule_day_id
+  join public.instructors i on i.id = sdi.instructor_id
+  cross join generate_series(10, 15) as hr
+  where sd.stable_id = v_stable and sd.day < current_date;
+
+  -- Aktywne zapisy w minionych godzinach = jazdy, kazda z koniem. Kandydaci (kon, godzina)
+  -- wedlug dawnego wzoru; w godzinie pierwszy kandydat dostaje jednego jezdzca, drugi -
+  -- drugiego, trzeci odpada (jezdziec ma najwyzej jeden zapis na godzine).
+  insert into public.bookings (schedule_day_id, instructor_id, horse_id, hour, rider_id)
+  select c.schedule_day_id,
+         i.id,
+         c.horse_id,
+         c.hr::smallint,
+         case when (c.rank + c.doy + c.hr) % 2 = 0 then v_anna else v_piotr end
+  from (
+    select sdh.schedule_day_id,
+           sdh.horse_id,
+           h.name as horse_name,
+           hr,
+           extract(doy from sd.day)::int as doy,
+           row_number() over (partition by sdh.schedule_day_id, hr order by sdh.horse_id) as rank
+    from public.schedule_day_horses sdh
+    join public.schedule_days sd on sd.id = sdh.schedule_day_id
+    join public.horses h on h.id = sdh.horse_id
+    cross join generate_series(10, 15) as hr
+    where sd.stable_id = v_stable
+      and sd.day between current_date - 24 and current_date - 1
+      and (extract(doy from sd.day)::int * 7 + hr * 3 + sdh.horse_id * 5) % 4 < 2
+  ) c
+  join public.instructors i
+    on i.stable_id = v_stable
+   and i.name = case when c.horse_name = 'Kasztan' then 'Karol Jasny' else 'Joanna Wrona' end
+  where c.rank <= 2;
+
+  -- Odwolania Piotra: bez konia, u instruktora wedlug tego samego podzialu; tylko w godzinach,
+  -- w ktorych Piotr nie ma jazdy (odwolany zapis nie zajmuje miejsca, ale zostawiamy wzor czytelny).
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status, cancelled_at, cancelled_by)
   select sdh.schedule_day_id,
-         sdh.horse_id,
+         i.id,
          hr::smallint,
          v_piotr,
          'cancelled',
-         sd.day - interval '1 day'
+         sd.day - interval '1 day',
+         'rider'
   from public.schedule_day_horses sdh
   join public.schedule_days sd on sd.id = sdh.schedule_day_id
+  join public.horses h on h.id = sdh.horse_id
+  join public.instructors i
+    on i.stable_id = v_stable
+   and i.name = case when h.name = 'Kasztan' then 'Karol Jasny' else 'Joanna Wrona' end
   cross join generate_series(10, 15) as hr
   where sd.stable_id = v_stable
     and sd.day between current_date - 24 and current_date - 1
     and (extract(doy from sd.day)::int * 7 + hr * 3 + sdh.horse_id * 5) % 4 = 3
-    and (extract(doy from sd.day)::int + hr) % 5 = 0;
+    and (extract(doy from sd.day)::int + hr) % 5 = 0
+    and not exists (
+      select 1 from public.bookings b
+      where b.schedule_day_id = sdh.schedule_day_id and b.hour = hr and b.rider_id = v_piotr
+    );
 
   update public.bookings b
   set rider_id = null
@@ -88,7 +140,8 @@ $$;
 
 select count(*) filter (where b.status = 'active') as jazdy,
        count(*) filter (where b.status = 'cancelled') as odwolania,
-       count(*) filter (where b.rider_id is null) as bez_jezdzca
+       count(*) filter (where b.rider_id is null) as bez_jezdzca,
+       count(*) filter (where b.status = 'active' and b.horse_id is null) as jazdy_bez_konia
 from public.bookings b
 join public.schedule_days sd on sd.id = b.schedule_day_id
 join public.stables s on s.id = sd.stable_id

@@ -135,12 +135,11 @@ join public.horses h on h.stable_id = sd.stable_id
 where h.name in ('Bella', 'Kasztan', 'Grom');
 
 -- ---------------------------------------------------------------------------
--- Instruktorzy i limity miejsc na jutro (#40)
+-- Instruktorzy i limity miejsc na jutro (#40, #41)
 -- ---------------------------------------------------------------------------
 
 -- Seed pisze jako postgres, wiec omija save_schedule_day - limity musza wiec same spelniac
 -- regule sumy (suma limitow w godzinie <= liczba koni dnia): Pod Debem 2 konie, Nad Rzeka 1.
--- Zapis jezdzca nadal idzie na pare kon x godzina; limity zaczna dzialac w #41.
 insert into public.instructors (stable_id, name)
 select s.id, i.name
 from public.stables s
@@ -151,34 +150,36 @@ join (
     ('Stajnia Nad Rzeka',  'Tomasz Lis')
 ) as i(stable_name, name) on i.stable_name = s.name;
 
--- Karol nie pracuje jutro - dostepny do dodania w formularzu grafiku.
+-- Karol nie pracuje jutro - scenariusz e2e dodaje go w formularzu grafiku (miejsce o 13),
+-- a testy bazy dokladaja go jako postgres. Drugi kon Pod Debem zostawia na to miejsce w sumie.
 insert into public.schedule_day_instructors (schedule_day_id, instructor_id, stable_id)
 select sd.id, i.id, i.stable_id
 from public.schedule_days sd
 join public.instructors i on i.stable_id = sd.stable_id
 where i.name in ('Joanna Wrona', 'Tomasz Lis');
 
--- Pelna siatka godzin dnia, jak tworzy ja save_schedule_day: Joanna 2 miejsca, Tomasz 1.
+-- Pelna siatka godzin dnia, jak tworzy ja save_schedule_day: Joanna i Tomasz po 1 miejscu.
 insert into public.schedule_slots (schedule_day_id, instructor_id, hour, seats)
-select sdi.schedule_day_id, sdi.instructor_id, h, case i.name when 'Joanna Wrona' then 2 else 1 end
+select sdi.schedule_day_id, sdi.instructor_id, h, 1
 from public.schedule_day_instructors sdi
 join public.schedule_days sd on sd.id = sdi.schedule_day_id
-join public.instructors i on i.id = sdi.instructor_id
 cross join lateral generate_series(sd.open_hour, sd.close_hour - 1) h;
 
 -- ---------------------------------------------------------------------------
 -- Zapisy
 -- ---------------------------------------------------------------------------
 
--- Anna jezdzi Pod Debem o 11, Piotr Nad Rzeka o 10.
--- Kazdy zapis w innej stadninie - to jest material dla testu izolacji RLS.
-insert into public.bookings (schedule_day_id, horse_id, hour, rider_id)
-select sd.id, h.id, b.hour, b.rider_id
+-- Anna jezdzi Pod Debem u Joanny o 11, Piotr Nad Rzeka u Tomasza o 10 - oba bez konia
+-- (przydzial konia nalezy do osrodka). Kazdy zapis w innej stadninie - material dla testu
+-- izolacji RLS. Zarezerwowane sloty testow: Karol@13 (petla jezdzca e2e), Joanna@14
+-- (odmowa e2e), Joanna@12 (skrypt wspolbieznosci test:db).
+insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id)
+select sd.id, i.id, b.hour, b.rider_id
 from (
   values
-    ('Stadnina Pod Debem', 'Bella', 11::smallint, '33333333-3333-3333-3333-333333333333'::uuid),
-    ('Stajnia Nad Rzeka',  'Grom',  10::smallint, '44444444-4444-4444-4444-444444444444'::uuid)
-) as b(stable_name, horse_name, hour, rider_id)
+    ('Stadnina Pod Debem', 'Joanna Wrona', 11::smallint, '33333333-3333-3333-3333-333333333333'::uuid),
+    ('Stajnia Nad Rzeka',  'Tomasz Lis',   10::smallint, '44444444-4444-4444-4444-444444444444'::uuid)
+) as b(stable_name, instructor_name, hour, rider_id)
 join public.stables s on s.name = b.stable_name
 join public.schedule_days sd on sd.stable_id = s.id
-join public.horses h on h.stable_id = s.id and h.name = b.horse_name;
+join public.instructors i on i.stable_id = s.id and i.name = b.instructor_name;

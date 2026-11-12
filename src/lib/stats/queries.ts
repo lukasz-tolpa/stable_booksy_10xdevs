@@ -14,9 +14,11 @@ export interface StatsRows {
   riders: StatsRider[];
 }
 
-/** Zapis w kształcie PostgREST: konto jeźdźca i jego profil (nazwa) przez FK `rider_id`. */
+/** Zapis w kształcie PostgREST: przydzielony koń, konto jeźdźca i jego profil (nazwa) przez FK `rider_id`. */
 export interface RawStatsBooking {
   hour: number;
+  /** `null` — zapis bez przydzielonego konia (ADR-0002). */
+  horse_id: number | null;
   /** Kolumna `text` z check constraint — zawężana do `BookingStatus` w `toBookingStatus`. */
   status: string;
   /** `null` — zapis bez jeźdźca: konto usunięto, zapis został w historii ośrodka (ADR-0001). */
@@ -25,18 +27,13 @@ export interface RawStatsBooking {
   profiles: { full_name: string | null } | null;
 }
 
-/** Przydział konia do dnia w kształcie PostgREST: koń i zapisy na niego. */
-export interface RawStatsDayHorse {
-  horse_id: number;
-  bookings: RawStatsBooking[];
-}
-
-/** Dzień grafiku w kształcie zwracanym przez PostgREST: przydziały koni z zapisami. */
+/** Dzień grafiku w kształcie zwracanym przez PostgREST: konie pracujące tego dnia i zapisy dnia. */
 export interface RawStatsDay {
   day: string;
   open_hour: number;
   close_hour: number;
-  schedule_day_horses: RawStatsDayHorse[];
+  schedule_day_horses: { horse_id: number }[];
+  bookings: RawStatsBooking[];
 }
 
 /** Jedna strona dni grafiku: wiersze `from…to` włącznie, jak w `range()` PostgREST. */
@@ -85,22 +82,20 @@ export async function collectStatsRows(loadPage: StatsPageLoader, pageSize: numb
         closeHour: day.close_hour,
         horseIds: day.schedule_day_horses.map((entry) => entry.horse_id),
       });
-      for (const entry of day.schedule_day_horses) {
-        for (const booking of entry.bookings) {
-          rows.bookings.push({
-            day: day.day,
-            horseId: entry.horse_id,
-            hour: booking.hour,
-            status: toBookingStatus(booking.status),
-            riderId: booking.rider_id,
-          });
-          // Zapis bez jeźdźca nie ma kogo dopisać — trafi do wiersza „Usunięci jeźdźcy".
-          if (booking.rider_id !== null && !seenRiders.has(booking.rider_id)) {
-            seenRiders.add(booking.rider_id);
-            // Brak profilu lub nazwy zostaje `null` — tekst zastępczy należy do warstwy
-            // czystej (`computeRiderRows`), nie do zapytania.
-            rows.riders.push({ id: booking.rider_id, name: booking.profiles?.full_name ?? null });
-          }
+      for (const booking of day.bookings) {
+        rows.bookings.push({
+          day: day.day,
+          horseId: booking.horse_id,
+          hour: booking.hour,
+          status: toBookingStatus(booking.status),
+          riderId: booking.rider_id,
+        });
+        // Zapis bez jeźdźca nie ma kogo dopisać — trafi do wiersza „Usunięci jeźdźcy".
+        if (booking.rider_id !== null && !seenRiders.has(booking.rider_id)) {
+          seenRiders.add(booking.rider_id);
+          // Brak profilu lub nazwy zostaje `null` — tekst zastępczy należy do warstwy
+          // czystej (`computeRiderRows`), nie do zapytania.
+          rows.riders.push({ id: booking.rider_id, name: booking.profiles?.full_name ?? null });
         }
       }
     }
@@ -115,9 +110,9 @@ export async function collectStatsRows(loadPage: StatsPageLoader, pageSize: numb
  * Dni grafiku stadniny z okresu wraz z przydziałami koni i WSZYSTKIMI zapisami —
  * także odwołanymi (lista dnia czyta tylko aktywne; statystyki liczą odwołania).
  *
- * Jedno zapytanie na stronę: zapisy dociąga embedded select przez złożony FK
- * `bookings → schedule_day_horses`, więc termin zapisu (dzień) przychodzi z wiersza
- * nadrzędnego i nie trzeba przekazywać listy identyfikatorów dni w adresie.
+ * Jedno zapytanie na stronę: zapisy dociąga embedded select przez FK `bookings → schedule_days`
+ * (od #41 zapis wskazuje dzień wprost, a koń jest opcjonalny), więc termin zapisu (dzień)
+ * przychodzi z wiersza nadrzędnego i nie trzeba przekazywać listy identyfikatorów dni w adresie.
  *
  * Nazwę jeźdźca dociąga embedded select przez FK `rider_id → profiles`, na tej samej
  * zasadzie co lista zapisów dnia (`getDayBookings`): polityka RLS na `profiles`
@@ -134,7 +129,7 @@ export function getStatsRows(client: Client, stableId: number, period: StatsPeri
     client
       .from("schedule_days")
       .select(
-        "day, open_hour, close_hour, schedule_day_horses(horse_id, bookings(hour, status, rider_id, profiles(full_name)))",
+        "day, open_hour, close_hour, schedule_day_horses(horse_id), bookings(hour, status, horse_id, rider_id, profiles(full_name))",
       )
       .eq("stable_id", stableId)
       .gte("day", period.from)

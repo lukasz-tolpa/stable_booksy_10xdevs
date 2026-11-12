@@ -47,7 +47,7 @@ export const POST: APIRoute = async (context) => {
   const parsed = bookingSchema.safeParse({
     stableId: formValue(form, "stableId"),
     day: formValue(form, "day"),
-    horseId: formValue(form, "horseId"),
+    instructorId: formValue(form, "instructorId"),
     hour: formValue(form, "hour"),
   });
 
@@ -55,10 +55,10 @@ export const POST: APIRoute = async (context) => {
     return backToStable(context, rawStableId, rawDay, { error: firstErrorMessage(parsed.error) });
   }
 
-  const { stableId, day, horseId, hour } = parsed.data;
+  const { stableId, day, instructorId, hour } = parsed.data;
 
   // Guardy dat PRZED mutacją: baza nie pilnuje przeszłości (RLS przepuszcza INSERT
-  // w miniony dzień), więc to jedyna linia obrony. Ten sam próg co w computeSlotSections:
+  // w miniony dzień), więc to jedyna linia obrony. Ten sam próg co w computeSlotHours:
   // slot o godzinie <= bieżącej (Europe/Warsaw) uznajemy za miniony.
   if (isPastDate(day)) {
     return backToStable(context, stableId, day, { error: "Nie można zapisać się na miniony dzień." });
@@ -90,7 +90,7 @@ export const POST: APIRoute = async (context) => {
       return backToStable(context, stableId, day, { error: "Ośrodek nie ułożył grafiku na ten dzień." });
     }
 
-    await createBooking(supabase, { scheduleDayId: scheduleDay.id, horseId, hour, riderId: user.id });
+    await createBooking(supabase, { scheduleDayId: scheduleDay.id, instructorId, hour, riderId: user.id });
   } catch (error) {
     // Guardraile żyją w bazie; tutaj wyłącznie tłumaczymy ich kody na komunikat.
     return backToStable(context, stableId, day, { error: bookingErrorMessage(errorCode(error)) });
