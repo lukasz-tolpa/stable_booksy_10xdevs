@@ -33,14 +33,14 @@ export async function listStableInstructors(client: Client, stableId: number): P
 }
 
 /**
- * Instruktorzy z wystawionymi miejscami (choć jeden slot z limitem > 0) w dniach stadniny
- * od `today` włącznie — wejście dla `countDaysWithOpenSeats`. Filtr po `stable_id` konieczny,
- * bo odczyt grafiku jest otwarty dla każdego zalogowanego.
+ * Sloty z wystawionymi miejscami (limit > 0) w dniach stadniny od `today` włącznie — wejście
+ * dla `countDaysWithOpenSeats`, który odrzuca godziny już rozpoczęte. Filtr po `stable_id`
+ * konieczny, bo odczyt grafiku jest otwarty dla każdego zalogowanego.
  */
 export async function listOpenSeatRows(client: Client, stableId: number, today: string): Promise<OpenSeatRow[]> {
   const { data, error } = await client
     .from("schedule_days")
-    .select("day, schedule_day_instructors(instructor_id, schedule_slots(seats))")
+    .select("day, schedule_day_instructors(instructor_id, schedule_slots(hour, seats))")
     .eq("stable_id", stableId)
     .gte("day", today)
     .gt("schedule_day_instructors.schedule_slots.seats", 0);
@@ -50,8 +50,8 @@ export async function listOpenSeatRows(client: Client, stableId: number, today: 
   }
 
   return data.flatMap((day) =>
-    day.schedule_day_instructors
-      .filter((entry) => entry.schedule_slots.length > 0)
-      .map((entry) => ({ instructorId: entry.instructor_id, day: day.day })),
+    day.schedule_day_instructors.flatMap((entry) =>
+      entry.schedule_slots.map((slot) => ({ instructorId: entry.instructor_id, day: day.day, hour: slot.hour })),
+    ),
   );
 }
