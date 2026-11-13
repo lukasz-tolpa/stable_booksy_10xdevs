@@ -4,18 +4,28 @@ import Banner from "@/components/Banner.astro";
 import { PRODUCT_NAME } from "@/lib/brand";
 import { missingConfigs } from "@/lib/config-status";
 
+/**
+ * Cały `<head>` składa się tutaj (#65) — strony podają tylko te właściwości
+ * i niczego nie dopisują do `<head>` same.
+ */
 interface Props {
   title?: string;
+  /** Opis dla wyników wyszukiwania (`<meta name="description">`); bez niego znacznika nie ma. */
+  description?: string;
+  /** Zakaz indeksowania (`noindex, follow`) — logowanie, rejestracja, potwierdzenie e-maila, 404. */
+  noindex?: boolean;
 }
 
-const { title = PRODUCT_NAME } = Astro.props;
+const { title = PRODUCT_NAME, description, noindex = false } = Astro.props;
 ---
 
 <!doctype html>
 <html lang="pl">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    {description && <meta name="description" content={description} />}
+    {noindex && <meta name="robots" content="noindex, follow" />}
     <!-- Jasny motyw jako jedyny (DESIGN.md §1) - bez tego przeglądarka mogłaby
          przemalować kontrolki formularzy pod systemowy tryb ciemny. -->
     <meta name="color-scheme" content="light" />
