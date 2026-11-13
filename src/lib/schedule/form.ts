@@ -32,6 +32,14 @@ export function horseDefaults(
   };
 }
 
+/**
+ * Data dnia, z którego pochodzi szkic formularza (baner na górze), albo `null`. Baner dostaje
+ * tylko dzień nieułożony z podpowiedzią — przy edycji ułożonego dnia by mylił.
+ */
+export function prefillFrom(scheduleDay: ScheduleDayData | null, latestDay: ScheduleDayData | null): string | null {
+  return scheduleDay ? null : (latestDay?.day ?? null);
+}
+
 /** Podsumowanie minionego dnia (tylko do odczytu): zakres godzin, konie i instruktorzy dnia. */
 export interface PastDaySummary {
   /** Zakres jak w formularzu, np. `10–16` (godzina zamknięcia wyłącznie). */

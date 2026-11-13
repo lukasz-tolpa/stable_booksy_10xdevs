@@ -6,6 +6,42 @@ const SEATS_MESSAGE = "Limit miejsc musi być liczbą całkowitą, zero lub wię
 /** Górna granica kolumny `schedule_slots.seats` (smallint); realnie ogranicza ją liczba koni. */
 const MAX_SEATS = 32767;
 
+const OPEN_HOUR_MESSAGE = "Godzina otwarcia musi być z zakresu 0-23";
+const CLOSE_HOUR_MESSAGE = "Godzina zamknięcia musi być z zakresu 1-24";
+const HOURS_ORDER_MESSAGE = "Godzina zamknięcia musi być późniejsza niż godzina otwarcia";
+
+/** Godziny pracy: wspólne dla zapisu i walidacji po stronie klienta, żeby komunikaty brzmiały tak samo. */
+const hourFields = {
+  openHour: z.coerce.number().int().min(0, { error: OPEN_HOUR_MESSAGE }).max(23, { error: OPEN_HOUR_MESSAGE }),
+  closeHour: z.coerce.number().int().min(1, { error: CLOSE_HOUR_MESSAGE }).max(24, { error: CLOSE_HOUR_MESSAGE }),
+};
+
+const hoursOrder = [
+  (data: { openHour: number; closeHour: number }) => data.closeHour > data.openHour,
+  { error: HOURS_ORDER_MESSAGE, path: ["closeHour"] },
+] as const;
+
+const scheduleHoursSchema = z.object(hourFields).refine(...hoursOrder);
+
+/**
+ * Walidacja godzin pracy po stronie klienta: pierwszy komunikat schematu grafiku albo `null`.
+ * Ten sam schemat co na serwerze, więc komunikaty brzmią tak samo (pułapka z `test-plan.md` §6.3).
+ * Niewybrana godzina (`""`) to brak godziny — schemat zrzutowałby ją na 0.
+ */
+export function hoursError(openHour: string, closeHour: string): string | null {
+  if (openHour === "") {
+    return OPEN_HOUR_MESSAGE;
+  }
+
+  if (closeHour === "") {
+    return CLOSE_HOUR_MESSAGE;
+  }
+
+  const result = scheduleHoursSchema.safeParse({ openHour, closeHour });
+
+  return result.success ? null : (result.error.issues[0]?.message ?? null);
+}
+
 /**
  * Formularz grafiku dnia. Ograniczenia godzin odpowiadają check constraintom
  * `schedule_days_open_hour_check`, `schedule_days_close_hour_check` i
@@ -18,12 +54,7 @@ const MAX_SEATS = 32767;
 export const scheduleDaySchema = z
   .object({
     day: z.string().refine(isValidIsoDate, { error: "Nieprawidłowa data" }),
-    openHour: z.coerce.number().int().min(0, { error: "Godzina otwarcia musi być z zakresu 0-23" }).max(23, {
-      error: "Godzina otwarcia musi być z zakresu 0-23",
-    }),
-    closeHour: z.coerce.number().int().min(1, { error: "Godzina zamknięcia musi być z zakresu 1-24" }).max(24, {
-      error: "Godzina zamknięcia musi być z zakresu 1-24",
-    }),
+    ...hourFields,
     // Pusta lista jest dozwolona: dzień z godzinami, ale bez koni to legalny stan -
     // jeździec zobaczy wtedy zero wolnych slotów, co jest poprawne.
     horseIds: z.array(z.coerce.number().int().positive()),
@@ -42,10 +73,7 @@ export const scheduleDaySchema = z
       }),
     ),
   })
-  .refine((data) => data.closeHour > data.openHour, {
-    error: "Godzina zamknięcia musi być późniejsza niż godzina otwarcia",
-    path: ["closeHour"],
-  });
+  .refine(...hoursOrder);
 
 export type ScheduleDayInput = z.infer<typeof scheduleDaySchema>;
 
