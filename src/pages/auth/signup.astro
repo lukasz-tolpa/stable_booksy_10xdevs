@@ -4,7 +4,12 @@ import Topbar from "@/components/Topbar.astro";
 import Card from "@/components/ui/Card.astro";
 import Layout from "@/layouts/Layout.astro";
 
+import { SIGNUP_ROLE_PARAM, signupRoleFromParam } from "@/lib/auth/roles";
+
 const error = Astro.url.searchParams.get("error");
+// Strona główna prowadzi tu z `?rola=jezdziec|osrodek`; formularz dostaje rolę tylko
+// jako zaznaczenie początkowe, które użytkownik może zmienić.
+const initialRole = signupRoleFromParam(Astro.url.searchParams.get(SIGNUP_ROLE_PARAM));
 ---
 
 <Layout title="Rejestracja">
@@ -17,7 +22,7 @@ const error = Astro.url.searchParams.get("error");
            komunikatem walidacji roli, więc każdy lokator tekstowy trafiałby w dwa
            elementy naraz. Zdanie niesie ten sam sens innymi słowami. -->
       <p class="lead">Zacznij od rodzaju konta — resztę ustawisz w środku.</p>
-      <SignUpForm serverError={error} client:load />
+      <SignUpForm serverError={error} initialRole={initialRole} client:load />
       <p class="switch">
         Masz już konto? <a href="/auth/signin">Zaloguj się</a>
       </p>

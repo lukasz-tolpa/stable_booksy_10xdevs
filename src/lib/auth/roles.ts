@@ -55,6 +55,25 @@ export function isUserRole(value: string | null | undefined): value is UserRole 
   return USER_ROLES.some((role) => role === value);
 }
 
+/** Nazwa parametru adresu rejestracji, który wstępnie zaznacza rodzaj konta. */
+export const SIGNUP_ROLE_PARAM = "rola";
+
+/** Wartości parametru `rola` — polskie, bo to one są widoczne w adresie. */
+const SIGNUP_ROLE_PARAM_VALUES: ReadonlyMap<string, UserRole> = new Map([
+  ["jezdziec", "rider"],
+  ["osrodek", "stable"],
+]);
+
+/**
+ * Rola wstępnie zaznaczona w formularzu rejestracji, z parametru `rola` w adresie.
+ * `null` = formularz bez zaznaczenia: brak parametru, pusta albo nieznana wartość.
+ * Dopasowanie jest dokładne, także co do wielkości liter.
+ */
+export function signupRoleFromParam(value: string | null | undefined): UserRole | null {
+  if (!value) return null;
+  return SIGNUP_ROLE_PARAM_VALUES.get(value) ?? null;
+}
+
 /**
  * Dopasowanie po granicy segmentu, nie po samym `startsWith` — inaczej `/osrodekxyz`
  * zostałby uznany za część przestrzeni ośrodka.
