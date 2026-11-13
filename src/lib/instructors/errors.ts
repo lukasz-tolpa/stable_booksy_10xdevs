@@ -10,6 +10,15 @@ export const INSTRUCTOR_NAME_TAKEN = "23505";
 
 const FALLBACK = "Nie udało się dodać instruktora. Spróbuj ponownie.";
 
+/** Konto ośrodka bez stadniny (dodanie i przełączenie instruktora). */
+export const INSTRUCTOR_NO_STABLE = "Twoje konto nie ma jeszcze stadniny";
+/** Formularz przełączenia stanu z nieczytelnym polem. */
+export const INSTRUCTOR_TOGGLE_INVALID = "Nieprawidłowe dane formularza";
+/** Cudzy albo nieistniejący instruktor — jeden komunikat, bez wyroczni istnienia. */
+export const INSTRUCTOR_NOT_FOUND = "Nie znaleziono instruktora w Twojej stadninie.";
+/** Przełączenie stanu nie powiodło się z przyczyny spoza reguł (awaria). */
+export const INSTRUCTOR_TOGGLE_FAILED = "Nie udało się zmienić stanu instruktora. Spróbuj ponownie.";
+
 export function instructorErrorMessage(code: string | undefined): string {
   switch (code) {
     case INSTRUCTOR_NAME_TAKEN:

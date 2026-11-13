@@ -1,19 +1,14 @@
-import type { APIContext, APIRoute } from "astro";
+import type { APIRoute } from "astro";
 import { SIGN_IN_ROUTE } from "@/lib/auth/roles";
 import { firstErrorMessage } from "@/lib/auth/schemas";
 import { errorCode } from "@/lib/db-errors";
 import { formValue } from "@/lib/form-data";
-import { INSTRUCTOR_NAME_TAKEN, instructorErrorMessage } from "@/lib/instructors/errors";
+import { INSTRUCTOR_NAME_TAKEN, INSTRUCTOR_NO_STABLE, instructorErrorMessage } from "@/lib/instructors/errors";
+import { backToInstructors } from "@/lib/instructors/redirect";
 import { newInstructorSchema } from "@/lib/instructors/schemas";
 import { logError } from "@/lib/log";
 import { getOwnedStableId } from "@/lib/stables/queries";
 import { createClient } from "@/lib/supabase";
-
-const INSTRUCTORS_ROUTE = "/osrodek/instruktorzy";
-
-function backToList(context: APIContext, message?: string) {
-  return context.redirect(message ? `${INSTRUCTORS_ROUTE}?error=${encodeURIComponent(message)}` : INSTRUCTORS_ROUTE);
-}
 
 export const POST: APIRoute = async (context) => {
   const form = await context.request.formData();
@@ -21,12 +16,12 @@ export const POST: APIRoute = async (context) => {
   const parsed = newInstructorSchema.safeParse({ name: formValue(form, "name") });
 
   if (!parsed.success) {
-    return backToList(context, firstErrorMessage(parsed.error));
+    return backToInstructors(context, firstErrorMessage(parsed.error));
   }
 
   const supabase = createClient(context.request.headers, context.cookies);
   if (!supabase) {
-    return backToList(context, "Supabase nie jest skonfigurowany");
+    return backToInstructors(context, "Supabase nie jest skonfigurowany");
   }
 
   const {
@@ -41,7 +36,7 @@ export const POST: APIRoute = async (context) => {
   // odrzuciłaby cudzą.
   const stableId = await getOwnedStableId(supabase, user.id);
   if (stableId === null) {
-    return backToList(context, "Twoje konto nie ma jeszcze stadniny");
+    return backToInstructors(context, INSTRUCTOR_NO_STABLE);
   }
 
   // Unikalności nazwy nie sprawdzamy zapytaniem przed INSERT-em: strzeże jej indeks
@@ -58,8 +53,8 @@ export const POST: APIRoute = async (context) => {
     if (code !== INSTRUCTOR_NAME_TAKEN) {
       logError("api:instructors/create", error);
     }
-    return backToList(context, instructorErrorMessage(code));
+    return backToInstructors(context, instructorErrorMessage(code));
   }
 
-  return backToList(context);
+  return backToInstructors(context);
 };

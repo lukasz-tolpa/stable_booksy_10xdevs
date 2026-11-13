@@ -316,7 +316,7 @@ local role authenticated; set local request.jwt.claims =
   set** in `src/lib/<area>/errors.test.ts` (`it.each` over odd inputs; no
   provider text such as `fetch`, `duplicate key`, `violates`).
 - **Validation before the first mutation**: numeric form fields go through
-  the digit-only helper in the area's `schema.ts` (`formInt`) so a missing or
+  the digit-only helper `formInt` from `src/lib/form-data.ts` so a missing or
   blank field is a per-field validation message, never `0` refused by the
   database with a misleading text. Cover blanks with `it.each` per field.
 - **Ownership** follows the Phase 1 RLS pattern (§6.2): explicit

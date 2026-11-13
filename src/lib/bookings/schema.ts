@@ -1,16 +1,6 @@
 import { z } from "zod";
+import { formInt } from "@/lib/form-data";
 import { isValidIsoDate } from "@/lib/schedule/dates";
-
-/**
- * Liczba całkowita z pola formularza. Przyjmuje wyłącznie ciąg cyfr (po przycięciu
- * białych znaków) — `z.coerce.number()` zamieniałby brakujące lub puste pole na `0`,
- * przez co brak `hour` przechodził walidację i odbijał się dopiero od bazy
- * z mylącym komunikatem o godzinach pracy. Brak pola ma być błędem walidacji
- * z komunikatem tego pola (walidacja przed pierwszą mutacją, lekcja S-02).
- */
-function formInt(message: string) {
-  return z.string().trim().regex(/^\d+$/, { error: message }).transform(Number);
-}
 
 /**
  * Formularz zapisu na jazdę. Ograniczenie godziny odpowiada check constraintowi
