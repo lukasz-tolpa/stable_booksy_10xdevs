@@ -28,7 +28,7 @@ describe("instructorDefaults", () => {
     });
   });
 
-  it("nowy dzień podpowiada aktywnych instruktorów z ostatniego dnia z ich limitami, bez nieaktywnego", () => {
+  it("nowy dzień podpowiada aktywnych instruktorów z ostatniego dnia z limitem 0, bez nieaktywnego", () => {
     const latest = day(
       [1, 2],
       [
@@ -37,9 +37,10 @@ describe("instructorDefaults", () => {
       ],
     );
 
+    // US 76 (#38): limity wystawia się świadomie dla każdego dnia — nowy dzień nie kopiuje miejsc.
     expect(instructorDefaults(null, latest, instructors)).toEqual({
       selectedInstructorIds: [1],
-      seats: [{ instructorId: 1, hour: 10, seats: 2 }],
+      seats: [],
       selectableInstructors: [ania, celina],
     });
   });
