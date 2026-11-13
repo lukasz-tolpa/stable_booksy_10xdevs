@@ -55,6 +55,34 @@ export function isUserRole(value: string | null | undefined): value is UserRole 
   return USER_ROLES.some((role) => role === value);
 }
 
+/** Nazwa parametru adresu rejestracji, który wstępnie zaznacza rodzaj konta. */
+export const SIGNUP_ROLE_PARAM = "rola";
+
+/**
+ * Wartość parametru `rola` każdej roli — polska, bo to ona jest widoczna w adresie.
+ * Jedyna tabela: adres rejestracji czyta ją wprost, odczyt parametru szuka w niej roli.
+ */
+const SIGNUP_ROLE_PARAM_VALUES: Record<UserRole, string> = {
+  rider: "jezdziec",
+  stable: "osrodek",
+};
+
+export const SIGN_UP_ROUTE = "/auth/signup";
+
+/** Adres rejestracji z wstępnie zaznaczonym rodzajem konta — odwrotność `signupRoleFromParam`. */
+export function signupRouteForRole(role: UserRole): string {
+  return `${SIGN_UP_ROUTE}?${SIGNUP_ROLE_PARAM}=${SIGNUP_ROLE_PARAM_VALUES[role]}`;
+}
+
+/**
+ * Rola wstępnie zaznaczona w formularzu rejestracji, z parametru `rola` w adresie.
+ * `null` = formularz bez zaznaczenia: brak parametru, pusta albo nieznana wartość.
+ * Dopasowanie jest dokładne, także co do wielkości liter.
+ */
+export function signupRoleFromParam(value: string | null | undefined): UserRole | null {
+  return USER_ROLES.find((role) => SIGNUP_ROLE_PARAM_VALUES[role] === value) ?? null;
+}
+
 /**
  * Dopasowanie po granicy segmentu, nie po samym `startsWith` — inaczej `/osrodekxyz`
  * zostałby uznany za część przestrzeni ośrodka.
