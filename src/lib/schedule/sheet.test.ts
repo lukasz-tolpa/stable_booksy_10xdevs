@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   fillAll,
   lastRideLabel,
+  parseSeatInput,
   seatKey,
   sheetRows,
   stepSeat,
@@ -49,7 +50,7 @@ describe("fillAll", () => {
     );
   });
 
-  it("nie zmienia szkicu, z którego liczy", () => {
+  it("nie zmienia limitów, z których liczy", () => {
     const seats = seatMap([[KAROL, 10, 1]]);
 
     fillAll(seats, KAROL, [10], 3);
@@ -85,8 +86,8 @@ describe("sheetRows", () => {
     ]);
 
     expect(sheetRows([10, 11], [KAROL, OLA], seats, 3)).toEqual([
-      { hour: 10, total: 2, load: "free" },
-      { hour: 11, total: 2, load: "free" },
+      { hour: 10, total: 2, fill: "free" },
+      { hour: 11, total: 2, fill: "free" },
     ]);
   });
 
@@ -98,25 +99,46 @@ describe("sheetRows", () => {
       [OLA, 11, 2],
     ]);
 
-    expect(sheetRows([10, 11], [KAROL, OLA], seats, 3).map((row) => row.load)).toEqual(["full", "over"]);
+    expect(sheetRows([10, 11], [KAROL, OLA], seats, 3).map((row) => row.fill)).toEqual(["full", "over"]);
   });
 
-  it("odznaczony instruktor nie wlicza się do sumy, choć szkic pamięta jego limity", () => {
+  it("odznaczony instruktor nie wlicza się do sumy, choć formularz pamięta jego limity", () => {
     const seats = seatMap([
       [KAROL, 10, 1],
       [OLA, 10, 3],
     ]);
 
-    expect(sheetRows([10], [KAROL], seats, 2)).toEqual([{ hour: 10, total: 1, load: "free" }]);
+    expect(sheetRows([10], [KAROL], seats, 2)).toEqual([{ hour: 10, total: 1, fill: "free" }]);
+  });
+
+  it("godzina bez wystawionych miejsc przy koniach w dniu jest wolna, a nie pełna", () => {
+    expect(sheetRows([10], [KAROL], {}, 2)).toEqual([{ hour: 10, total: 0, fill: "free" }]);
   });
 
   it("dzień bez koni: godzina bez miejsc jest wolna, a każde wystawione miejsce ją przekracza", () => {
     const seats = seatMap([[KAROL, 11, 1]]);
 
     expect(sheetRows([10, 11], [KAROL], seats, 0)).toEqual([
-      { hour: 10, total: 0, load: "free" },
-      { hour: 11, total: 1, load: "over" },
+      { hour: 10, total: 0, fill: "free" },
+      { hour: 11, total: 1, fill: "over" },
     ]);
+  });
+});
+
+describe("parseSeatInput", () => {
+  it("liczba całkowita z pola to limit miejsc", () => {
+    expect(parseSeatInput("3")).toBe(3);
+    expect(parseSeatInput(" 12 ")).toBe(12);
+  });
+
+  it("puste pole, ujemna liczba albo tekst to limit 0", () => {
+    expect(parseSeatInput("")).toBe(0);
+    expect(parseSeatInput("-2")).toBe(0);
+    expect(parseSeatInput("abc")).toBe(0);
+  });
+
+  it("ułamek obcina do całych miejsc", () => {
+    expect(parseSeatInput("2.7")).toBe(2);
   });
 });
 

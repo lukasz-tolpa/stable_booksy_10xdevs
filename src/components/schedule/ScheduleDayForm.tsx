@@ -9,20 +9,21 @@ import { hoursError, seatFieldName } from "@/lib/schedule/schema";
 import {
   fillAll,
   lastRideLabel,
+  parseSeatInput,
   seatAt,
   seatKey,
   sheetRows,
   stepSeat,
   withoutInstructor,
   workingHours,
-  type HourLoad,
+  type HourFill,
   type SeatMap,
 } from "@/lib/schedule/sheet";
 import { cn } from "@/lib/utils";
 import type { HorseListItem } from "@/lib/stables/queries";
 
 /**
- * Układ wg wariantu A z prototypu (#45): na górze baner szkicu z poprzedniego dnia, dwie listy
+ * Układ wg wariantu A z prototypu (#45): na górze baner szkicu z ostatnio ułożonego dnia, dwie listy
  * godzin pracy z podpisem „ostatnia jazda o …”, konie i instruktorzy jako chipy, a pod nimi
  * arkusz limitów miejsc: wiersz to godzina jazd, kolumna to instruktor pracujący tego dnia,
  * ostatnia kolumna „Koni zajętych” liczy sumę limitów na żywo (#45).
@@ -44,7 +45,7 @@ interface Props {
   selectedInstructorIds: number[];
   instructors: InstructorListItem[];
   seats: SlotSeats[];
-  /** Data dnia, z którego pochodzi szkic (`prefillFrom` z `@/lib/schedule/form`), albo `null`. */
+  /** Data dnia, z którego pochodzi szkic (`prefillSourceDay` z `@/lib/schedule/form`), albo `null`. */
   prefillFrom: string | null;
   serverError?: string | null;
 }
@@ -71,8 +72,11 @@ const FILL_SHORTCUTS = [
 ];
 
 /**
- * Komórka arkusza: −, pole liczbowe i +. Pole niesie nazwę limitu z kontraktu formularza
- * i etykietę „{instruktor}, {h}:00” (lokator e2e); przyciski mają własne opisy.
+ * Komórka arkusza: −, pole liczbowe i +. Pole ma etykietę „{instruktor}, {h}:00” (lokator e2e)
+ * i podczas pisania może być chwilowo puste; przy opuszczeniu pokazuje limit z `parseSeatInput`.
+ * Do serwera idzie zawsze ten limit — z ukrytego pola o nazwie z kontraktu formularza — także
+ * przy zapisie Enterem prosto z pola. Przyciski −/+ są poza kolejnością Tab (pomoc dla myszy
+ * i dotyku; z klawiatury limit zmienia się w polu, także strzałkami) i mają własne opisy.
  */
 function SeatStepper({
   name,
@@ -85,6 +89,8 @@ function SeatStepper({
   value: number;
   onChange: (value: number) => void;
 }) {
+  const [typing, setTyping] = useState<string | null>(null);
+
   return (
     <div
       className={cn(
@@ -92,8 +98,10 @@ function SeatStepper({
         value > 0 ? "border-primary bg-primary-soft" : "border-border-2 bg-surface",
       )}
     >
+      <input type="hidden" name={name} value={value} />
       <button
         type="button"
+        tabIndex={-1}
         disabled={value === 0}
         onClick={() => {
           onChange(stepSeat(value, -1));
@@ -104,15 +112,17 @@ function SeatStepper({
         −
       </button>
       <input
-        name={name}
         type="number"
         min={0}
         inputMode="numeric"
         aria-label={label}
-        value={value}
+        value={typing ?? value}
         onChange={(e) => {
-          const typed = Math.trunc(Number(e.target.value));
-          onChange(Number.isFinite(typed) && typed > 0 ? typed : 0);
+          setTyping(e.target.value);
+          onChange(parseSeatInput(e.target.value));
+        }}
+        onBlur={() => {
+          setTyping(null);
         }}
         className={cn(
           "focus:border-primary focus:ring-primary-soft w-12 [appearance:textfield] rounded-md border border-transparent bg-transparent py-1 text-center font-mono text-[15px] tabular-nums focus:ring-[3px] focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
@@ -121,6 +131,7 @@ function SeatStepper({
       />
       <button
         type="button"
+        tabIndex={-1}
         onClick={() => {
           onChange(stepSeat(value, 1));
         }}
@@ -134,16 +145,16 @@ function SeatStepper({
 }
 
 /** Kolumna „Koni zajętych”: suma limitów na tle koni dnia; stan nigdy nie jest tylko kolorem. */
-function HourLoadCell({ total, horseCount, load }: { total: number; horseCount: number; load: HourLoad }) {
+function HourFillCell({ total, horseCount, fill }: { total: number; horseCount: number; fill: HourFill }) {
   return (
     <span className="inline-flex items-center justify-end gap-2">
-      {load === "over" && (
+      {fill === "over" && (
         <span className="text-danger-ink inline-flex items-center gap-1 text-[12.5px] font-semibold">
           <CircleAlert className="size-3.5 shrink-0" aria-hidden="true" />
           za mało koni
         </span>
       )}
-      {load === "full" && (
+      {fill === "full" && (
         <span className="bg-success-soft text-success-ink inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-semibold">
           <Check className="size-3.5 shrink-0" aria-hidden="true" />
           pełna
@@ -152,7 +163,7 @@ function HourLoadCell({ total, horseCount, load }: { total: number; horseCount: 
       <span
         className={cn(
           "font-mono text-[13px] tabular-nums",
-          load === "over" ? "text-danger-ink font-semibold" : "text-muted-foreground",
+          fill === "over" ? "text-danger-ink font-semibold" : "text-muted-foreground",
         )}
       >
         {total} / {horseCount}
@@ -294,7 +305,7 @@ export default function ScheduleDayForm({
       <input type="hidden" name="day" value={day} />
 
       {prefillFrom && (
-        <p className="bg-warn-soft text-warn-ink border-warn mb-6 flex items-start gap-2 rounded-md border-l-[3px] px-3.5 py-2.5 text-[13.5px]">
+        <p className="bg-primary-soft text-foreground border-primary mb-6 flex items-start gap-2 rounded-md border-l-[3px] px-3.5 py-2.5 text-[13.5px]">
           <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
           <span>
             Szkic z dnia <span className="font-mono tabular-nums">{prefillFrom}</span> — dopóki nie zapiszesz, jeźdźcy
@@ -452,7 +463,7 @@ export default function ScheduleDayForm({
               </thead>
               <tbody>
                 {rows.map((row) => {
-                  const over = row.load === "over";
+                  const over = row.fill === "over";
                   const hourLabel = formatClockHour(row.hour);
 
                   return (
@@ -479,7 +490,7 @@ export default function ScheduleDayForm({
                         </td>
                       ))}
                       <td className="px-3 py-2 text-right whitespace-nowrap">
-                        <HourLoadCell total={row.total} horseCount={selected.length} load={row.load} />
+                        <HourFillCell total={row.total} horseCount={selected.length} fill={row.fill} />
                       </td>
                     </tr>
                   );

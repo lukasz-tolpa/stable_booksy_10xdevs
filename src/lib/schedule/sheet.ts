@@ -4,7 +4,7 @@
  */
 import { formatClockHour } from "@/lib/format";
 
-/** Limity miejsc szkicu: klucz `seatKey(instruktor, godzina)` → limit. Brak wpisu to limit 0. */
+/** Limity miejsc w formularzu: klucz `seatKey(instruktor, godzina)` → limit. Brak wpisu to limit 0. */
 export type SeatMap = Record<string, number>;
 
 export function seatKey(instructorId: number, hour: number): string {
@@ -16,12 +16,12 @@ export function seatAt(seats: SeatMap, instructorId: number, hour: number): numb
 }
 
 /** Stan godziny wobec koni dnia: suma limitów < konie | suma == konie (i > 0) | suma > konie. */
-export type HourLoad = "free" | "full" | "over";
+export type HourFill = "free" | "full" | "over";
 
 export interface HourRow {
   hour: number;
   total: number;
-  load: HourLoad;
+  fill: HourFill;
 }
 
 /**
@@ -32,11 +32,11 @@ export function sheetRows(hours: number[], instructorIds: number[], seats: SeatM
   return hours.map((hour) => {
     const total = instructorIds.reduce((sum, instructorId) => sum + seatAt(seats, instructorId, hour), 0);
 
-    return { hour, total, load: hourLoad(total, horseCount) };
+    return { hour, total, fill: hourFill(total, horseCount) };
   });
 }
 
-function hourLoad(total: number, horseCount: number): HourLoad {
+function hourFill(total: number, horseCount: number): HourFill {
   if (total > horseCount) {
     return "over";
   }
@@ -71,13 +71,23 @@ export function fillAll(seats: SeatMap, instructorId: number, hours: number[], v
 }
 
 /**
- * Nowo zaznaczony instruktor startuje od 0 we wszystkich godzinach (US 76 z #38) — także wtedy,
- * gdy wcześniej odznaczono go z wpisanymi limitami.
+ * Usuwa wszystkie wpisy limitów danego instruktora, także z godzin spoza zakresu; wpisy innych
+ * instruktorów zostają. Brak wpisu to limit 0.
  */
 export function withoutInstructor(seats: SeatMap, instructorId: number): SeatMap {
   const prefix = `${String(instructorId)}.`;
 
   return Object.fromEntries(Object.entries(seats).filter(([key]) => !key.startsWith(prefix)));
+}
+
+/**
+ * Limit miejsc z tekstu pola komórki, liczony przy opuszczeniu pola i przed wysłaniem:
+ * puste, ujemne albo nie-liczba to 0, ułamek obcina do całych miejsc.
+ */
+export function parseSeatInput(text: string): number {
+  const typed = Math.trunc(Number(text));
+
+  return Number.isFinite(typed) && typed > 0 ? typed : 0;
 }
 
 /** Przycisk − / + w komórce arkusza; limit miejsc nigdy nie schodzi poniżej zera. */
