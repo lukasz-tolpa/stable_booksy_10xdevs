@@ -4,10 +4,10 @@ import { firstErrorMessage } from "@/lib/auth/schemas";
 import { bookingErrorMessage } from "@/lib/bookings/errors";
 import { createBooking } from "@/lib/bookings/queries";
 import { bookingSchema } from "@/lib/bookings/schema";
-import { currentWarsawHour } from "@/lib/bookings/slots";
+import { hasSlotStarted } from "@/lib/bookings/slots";
 import { errorCode } from "@/lib/db-errors";
 import { formValue } from "@/lib/form-data";
-import { isPastDate, parseScheduleDate, todayIso } from "@/lib/schedule/dates";
+import { isPastDate, parseScheduleDate } from "@/lib/schedule/dates";
 import { getScheduleDay } from "@/lib/schedule/queries";
 import { parseStableId } from "@/lib/stables/search";
 import { createClient } from "@/lib/supabase";
@@ -58,13 +58,13 @@ export const POST: APIRoute = async (context) => {
   const { stableId, day, instructorId, hour } = parsed.data;
 
   // Guardy dat PRZED mutacją: baza nie pilnuje przeszłości (RLS przepuszcza INSERT
-  // w miniony dzień), więc to jedyna linia obrony. Ten sam próg co w computeSlotHours:
-  // slot o godzinie <= bieżącej (Europe/Warsaw) uznajemy za miniony.
+  // w miniony dzień), więc to jedyna linia obrony. Próg `hasSlotStarted`, ten sam co przy
+  // odwołaniu; dzień miniony dostaje własny komunikat.
   if (isPastDate(day)) {
     return backToStable(context, stableId, day, { error: "Nie można zapisać się na miniony dzień." });
   }
 
-  if (day === todayIso() && hour <= currentWarsawHour()) {
+  if (hasSlotStarted(day, hour)) {
     return backToStable(context, stableId, day, { error: "Ta godzina już minęła. Wybierz późniejszy slot." });
   }
 

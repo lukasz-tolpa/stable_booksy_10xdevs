@@ -3,10 +3,10 @@ import { SIGN_IN_ROUTE } from "@/lib/auth/roles";
 import { firstErrorMessage } from "@/lib/auth/schemas";
 import { cancelBookingAsStable, getStableBooking } from "@/lib/bookings/queries";
 import { cancelSchema } from "@/lib/bookings/schema";
-import { currentWarsawHour } from "@/lib/bookings/slots";
+import { hasSlotStarted } from "@/lib/bookings/slots";
 import { backToDayBookings } from "@/lib/bookings/stable-redirect";
 import { formValue } from "@/lib/form-data";
-import { isPastDate, parseScheduleDate, todayIso } from "@/lib/schedule/dates";
+import { parseScheduleDate } from "@/lib/schedule/dates";
 import { getOwnedStableId } from "@/lib/stables/queries";
 import { createClient } from "@/lib/supabase";
 
@@ -47,10 +47,9 @@ export const POST: APIRoute = async (context) => {
       return backToDayBookings(context, formDay, { error: NOT_FOUND_MESSAGE });
     }
 
-    // Ten sam próg co przy odwołaniu przez jeźdźca: slot o godzinie <= bieżącej
-    // (Europe/Warsaw) w dniu dzisiejszym już się zaczął. Baza pozwala na odwołanie
-    // także wstecz, więc to jedyna linia obrony.
-    if (isPastDate(booking.day) || (booking.day === todayIso() && booking.hour <= currentWarsawHour())) {
+    // Ten sam próg co przy odwołaniu przez jeźdźca. Baza pozwala na odwołanie także wstecz,
+    // więc to jedyna linia obrony.
+    if (hasSlotStarted(booking.day, booking.hour)) {
       return backToDayBookings(context, booking.day, { error: "Nie można odwołać jazdy, która już się zaczęła." });
     }
 

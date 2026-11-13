@@ -1,4 +1,4 @@
-import { SCHEDULE_TIME_ZONE } from "@/lib/schedule/dates";
+import { isPastDate, SCHEDULE_TIME_ZONE, todayIso } from "@/lib/schedule/dates";
 import type { SlotSeats } from "@/lib/schedule/queries";
 
 /**
@@ -123,4 +123,15 @@ export function currentWarsawHour(now: Date = new Date()): number {
   }).format(now);
 
   return Number(formatted);
+}
+
+/**
+ * Czy slot (dzień grafiku × godzina) już się zaczął — jedyna definicja progu „godzina już się
+ * zaczęła" (Europe/Warsaw): dzień miniony w całości, a dziś godzina <= bieżąca (jazda trwa).
+ * Po tym progu jeździec nie zapisze się ani nie odwoła, a ośrodek nie odwoła zapisu; baza go
+ * nie pilnuje, więc w endpointach to jedyna linia obrony.
+ */
+export function hasSlotStarted(day: string, hour: number, now: Date = new Date()): boolean {
+  const today = todayIso(now);
+  return isPastDate(day, today) || (day === today && hour <= currentWarsawHour(now));
 }

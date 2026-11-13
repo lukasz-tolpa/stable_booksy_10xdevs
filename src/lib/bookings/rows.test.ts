@@ -10,7 +10,8 @@ const HORSES = [
 
 /** Dzień listy jutro względem „teraz" — żaden zapis nie zaczął się, chyba że test mówi inaczej. */
 const DAY = "2026-11-14";
-const NOW = { today: "2026-11-13", currentHour: 12 };
+/** 2026-11-13, 12:30 w Warszawie (czas zimowy, UTC+1). */
+const NOW = new Date("2026-11-13T11:30:00Z");
 
 function booking(overrides: Partial<DayBooking>): DayBooking {
   return {
@@ -81,7 +82,7 @@ describe("composeDayBookingSections — zapisy aktywne", () => {
   });
 
   it("zapis daje się odwołać przed terminem, a nie od chwili, gdy jego godzina się zaczęła (Europe/Warsaw)", () => {
-    const today = sections([booking({ id: 1, hour: 12 }), booking({ id: 2, hour: 13 })], { day: NOW.today }).active;
+    const today = sections([booking({ id: 1, hour: 12 }), booking({ id: 2, hour: 13 })], { day: "2026-11-13" }).active;
     expect(today.map((r) => [r.hour, r.cancellable])).toEqual([
       [12, false],
       [13, true],

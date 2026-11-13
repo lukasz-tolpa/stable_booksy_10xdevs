@@ -3,9 +3,8 @@ import { SIGN_IN_ROUTE } from "@/lib/auth/roles";
 import { firstErrorMessage } from "@/lib/auth/schemas";
 import { cancelBooking, getRiderBookingForCancel } from "@/lib/bookings/queries";
 import { cancelSchema } from "@/lib/bookings/schema";
-import { currentWarsawHour } from "@/lib/bookings/slots";
+import { hasSlotStarted } from "@/lib/bookings/slots";
 import { formValue } from "@/lib/form-data";
-import { isPastDate, todayIso } from "@/lib/schedule/dates";
 import { createClient } from "@/lib/supabase";
 
 const MY_BOOKINGS_ROUTE = "/jezdziec/zapisy";
@@ -54,10 +53,9 @@ export const POST: APIRoute = async (context) => {
       return backToMyBookings(context, { error: NOT_FOUND_MESSAGE });
     }
 
-    // Ten sam próg co przy zapisie (S-04): slot o godzinie <= bieżącej
-    // (Europe/Warsaw) w dniu dzisiejszym już się zaczął. RLS pozwala na
-    // UPDATE także wstecz, więc to jedyna linia obrony.
-    if (isPastDate(booking.day) || (booking.day === todayIso() && booking.hour <= currentWarsawHour())) {
+    // Ten sam próg co przy zapisie (S-04). RLS pozwala na UPDATE także wstecz,
+    // więc to jedyna linia obrony.
+    if (hasSlotStarted(booking.day, booking.hour)) {
       return backToMyBookings(context, { error: "Nie można odwołać jazdy, która już się zaczęła." });
     }
 

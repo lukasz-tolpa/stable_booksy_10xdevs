@@ -1,14 +1,13 @@
 import type { RiderBooking } from "@/lib/bookings/queries";
-import { unknownInstructorName } from "@/lib/bookings/slots";
+import { hasSlotStarted, unknownInstructorName } from "@/lib/bookings/slots";
 
 /**
  * Lista zapisów jeźdźca: podział na „nadchodzące" (z akcją odwołania) i „historię"
  * (minione lub odwołane, bez akcji) oraz podpisy wiersza — instruktor, koń albo informacja
  * o oczekiwaniu na przydział, kto odwołał.
  *
- * Próg „slot się zaczął" jest identyczny z regułą zapisu: slot o godzinie <= bieżącej
- * (Europe/Warsaw) w dniu dzisiejszym uznajemy za rozpoczęty. `today`/`currentHour` są
- * wstrzykiwane parametrami, żeby testy nie zależały od zegara.
+ * Próg „slot się zaczął" to `hasSlotStarted` — ten sam co przy zapisie i odwołaniu. `now`
+ * jest wstrzykiwane parametrem, żeby testy nie zależały od zegara.
  */
 
 export interface RiderBookingRow {
@@ -55,16 +54,12 @@ function cancelledByLabel(booking: RiderBooking): string | null {
   return booking.cancelledBy === "stable" ? "przez ośrodek" : "przez Ciebie";
 }
 
-export function splitRiderBookings(
-  bookings: RiderBooking[],
-  now: { today: string; currentHour: number },
-): RiderBookingSections {
+export function splitRiderBookings(bookings: RiderBooking[], now: Date = new Date()): RiderBookingSections {
   const upcoming: RiderBookingRow[] = [];
   const history: RiderBookingRow[] = [];
 
   for (const booking of bookings) {
-    const started = booking.day < now.today || (booking.day === now.today && booking.hour <= now.currentHour);
-    const isUpcoming = booking.status === "active" && !started;
+    const isUpcoming = booking.status === "active" && !hasSlotStarted(booking.day, booking.hour, now);
     const row: RiderBookingRow = {
       id: booking.id,
       day: booking.day,

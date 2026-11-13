@@ -9,7 +9,6 @@ import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
 import { getDayBookings } from "@/lib/bookings/queries";
 import { composeDayBookingSections, NO_HORSE, type DayBookingSections } from "@/lib/bookings/rows";
-import { currentWarsawHour } from "@/lib/bookings/slots";
 import { addDays, parseScheduleDate, todayIso } from "@/lib/schedule/dates";
 import { getScheduleDay, type ScheduleDayData } from "@/lib/schedule/queries";
 import { getOwnedStableId, listStableHorses } from "@/lib/stables/queries";
@@ -43,13 +42,7 @@ if (supabase && profile) {
           getDayBookings(supabase, scheduleDay.id),
           listStableHorses(supabase, stableId),
         ]);
-        sections = composeDayBookingSections({
-          bookings,
-          horses,
-          dayHorseIds: scheduleDay.horseIds,
-          day,
-          now: { today: todayIso(), currentHour: currentWarsawHour() },
-        });
+        sections = composeDayBookingSections({ bookings, horses, dayHorseIds: scheduleDay.horseIds, day });
       }
     }
   } catch (error) {

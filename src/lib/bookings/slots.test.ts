@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeSlotHours, currentWarsawHour, type SlotHoursInput } from "@/lib/bookings/slots";
+import { computeSlotHours, currentWarsawHour, hasSlotStarted, type SlotHoursInput } from "@/lib/bookings/slots";
 
 const JOANNA = { id: 1, name: "Joanna Wrona" };
 const KAROL = { id: 2, name: "Karol Jasny" };
@@ -178,6 +178,36 @@ describe("computeSlotHours", () => {
     );
 
     expect(hours[0].slots[0]).toMatchObject({ freeSeats: 0, status: "full" });
+  });
+});
+
+describe("hasSlotStarted", () => {
+  // 2026-11-13 12:30 w Warszawie (czas zimowy, UTC+1). Próg odwołania przez jeźdźca i przez
+  // ośrodek oraz zapisu: slot o godzinie <= bieżącej w dniu dzisiejszym już się zaczął.
+  const NOW = new Date("2026-11-13T11:30:00Z");
+
+  it("slot dnia minionego już się zaczął, nawet o późnej godzinie", () => {
+    expect(hasSlotStarted("2026-11-12", 23, NOW)).toBe(true);
+  });
+
+  it("dziś slot o godzinie późniejszej niż bieżąca jeszcze się nie zaczął", () => {
+    expect(hasSlotStarted("2026-11-13", 13, NOW)).toBe(false);
+  });
+
+  it("dziś slot bieżącej godziny już się zaczął (jazda trwa), wcześniejszy też", () => {
+    expect(hasSlotStarted("2026-11-13", 12, NOW)).toBe(true);
+    expect(hasSlotStarted("2026-11-13", 11, NOW)).toBe(true);
+  });
+
+  it("jutro żaden slot się nie zaczął, także o północy", () => {
+    expect(hasSlotStarted("2026-11-14", 0, NOW)).toBe(false);
+  });
+
+  it("dzień liczy w strefie Europe/Warsaw: o 23:30 UTC w Warszawie jest już następna doba", () => {
+    const afterWarsawMidnight = new Date("2026-11-13T23:30:00Z");
+
+    expect(hasSlotStarted("2026-11-14", 0, afterWarsawMidnight)).toBe(true);
+    expect(hasSlotStarted("2026-11-14", 1, afterWarsawMidnight)).toBe(false);
   });
 });
 
