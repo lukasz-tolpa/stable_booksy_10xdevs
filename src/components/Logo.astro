@@ -1,0 +1,62 @@
+---
+import { LOGO_PARTS, PRODUCT_NAME } from "@/lib/brand";
+
+interface Props {
+  /**
+   * Tło, na którym stoi logo: `light` — górny pasek, `dark` — ciemna zieleń stopki
+   * strony głównej. Rozmiar dziedziczy z miejsca użycia. DESIGN.md §4 „Logo”.
+   */
+  surface: "light" | "dark";
+}
+
+const { surface } = Astro.props;
+---
+
+{
+  /* Logo to żywy tekst, ale dla czytnika ekranu jeden obrazek o nazwie produktu:
+     `role="img"` chowa rozbicie na wiersze i kolory, więc nazwa nie jest czytana
+     w kawałkach ani dwa razy. W linku (górny pasek) ta nazwa staje się nazwą linku. */
+}
+<span class:list={["logo", `logo--${surface}`]} role="img" aria-label={PRODUCT_NAME}>
+  <span class="logo__lead">{LOGO_PARTS.sentence}</span><span class="logo__tld">{LOGO_PARTS.tld}</span>
+</span>
+
+<style>
+  /* Dwa wiersze: „get on a” (0,55 wysokości) nad „.horse”. */
+  .logo {
+    display: inline-grid;
+    justify-items: start;
+    gap: 0.03em;
+    font-family: var(--font-display);
+    font-weight: 800;
+    line-height: 1;
+    white-space: nowrap;
+  }
+  .logo__lead {
+    font-size: 0.55em;
+    /* Naturalna interlinia kroju, jak w koncepcji (wariant B) — przy `1`
+       „.horse” podjeżdża pod „get on a”. */
+    line-height: normal;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    word-spacing: 0.18em;
+  }
+  .logo__tld {
+    line-height: 0.95;
+    letter-spacing: -0.05em;
+  }
+
+  .logo--light {
+    color: var(--primary-strong);
+  }
+  .logo--light .logo__tld {
+    color: var(--accent);
+  }
+
+  .logo--dark {
+    color: var(--color-primary-foreground);
+  }
+  .logo--dark .logo__tld {
+    color: var(--accent-on-dark);
+  }
+</style>
