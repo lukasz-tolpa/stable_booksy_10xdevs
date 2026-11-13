@@ -24,6 +24,10 @@ _Avoid_: termin, okienko
 Liczba jeźdźców, których instruktor przyjmie w jednym slocie; zero oznacza, że w tej godzinie nie prowadzi jazdy. Suma limitów wszystkich instruktorów w jednej godzinie nie przekracza liczby koni pracujących tego dnia.
 _Avoid_: pojemność, liczba miejsc
 
+**Szkic**:
+Niezapisany grafik dnia, który formularz podpowiedział z ostatnio ułożonego dnia ośrodka. Jeźdźcy go nie widzą — dzień pojawia się u nich dopiero po zapisie.
+_Avoid_: wersja robocza, projekt grafiku
+
 **Zapis**:
 Jedno miejsce w slocie zajęte przez jednego jeźdźca; jest aktywny albo odwołany. Jeździec ma w ośrodku najwyżej jeden aktywny zapis na daną godzinę.
 _Avoid_: rezerwacja, booking

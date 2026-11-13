@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { horseDefaults, instructorDefaults, pastDaySummary, prefillFrom } from "@/lib/schedule/form";
+import { horseDefaults, instructorDefaults, pastDaySummary, prefillSourceDay } from "@/lib/schedule/form";
 import type { ScheduleDayData } from "@/lib/schedule/queries";
 
 const ania = { id: 1, name: "Ania", active: true };
@@ -92,17 +92,17 @@ describe("horseDefaults", () => {
   });
 });
 
-describe("prefillFrom", () => {
+describe("prefillSourceDay", () => {
   it("nowy dzień z podpowiedzią podaje datę dnia, z którego pochodzi szkic", () => {
-    expect(prefillFrom(null, { ...horseDay([1]), day: "2030-05-12" })).toBe("2030-05-12");
+    expect(prefillSourceDay(null, { ...horseDay([1]), day: "2030-05-12" })).toBe("2030-05-12");
   });
 
   it("ułożony dzień nie dostaje banera, nawet gdy istnieje późniejszy ułożony dzień", () => {
-    expect(prefillFrom(horseDay([1]), { ...horseDay([1]), day: "2030-05-20" })).toBeNull();
+    expect(prefillSourceDay(horseDay([1]), { ...horseDay([1]), day: "2030-05-20" })).toBeNull();
   });
 
   it("bez żadnego ułożonego dnia nie ma z czego podpowiadać", () => {
-    expect(prefillFrom(null, null)).toBeNull();
+    expect(prefillSourceDay(null, null)).toBeNull();
   });
 });
 
