@@ -1,6 +1,7 @@
 ---
 import { Check } from "lucide-react";
 import Banner from "@/components/Banner.astro";
+import Logo from "@/components/Logo.astro";
 import Topbar from "@/components/Topbar.astro";
 import DayTimeline from "@/components/landing/DayTimeline.astro";
 import Card from "@/components/ui/Card.astro";
@@ -173,6 +174,12 @@ const demo = landingDemo();
       }
     </section>
   </main>
+  <!-- DESIGN.md §6: stopka to drugie ciemne tło strony i niesie wyłącznie logo pełne. -->
+  <footer class="foot">
+    <div class="container-page">
+      <Logo layout="full" />
+    </div>
+  </footer>
 </Layout>
 
 <style>
@@ -192,7 +199,7 @@ const demo = landingDemo();
     background: var(--accent-soft);
     color: var(--fg);
   }
-  /* Jedyne ciemne tło sekcji w aplikacji (DESIGN.md §1); biel tekstu daje utility. */
+  /* Ciemne tło sekcji - obok stopki jedno z dwóch w aplikacji (DESIGN.md §1); biel tekstu daje utility. */
   .half--stable {
     background: var(--primary-strong);
   }
@@ -457,6 +464,12 @@ const demo = landingDemo();
     justify-content: center;
     gap: 12px;
     width: 100%;
+  }
+
+  /* ── Stopka: logo pełne na zieleni połowy ośrodka ─────────────────────── */
+  .foot {
+    padding-block: 56px 64px;
+    background: var(--primary-strong);
   }
 
   /* ── Linia o logowaniu pod połowami ───────────────────────────────────── */
