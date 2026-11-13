@@ -1,23 +1,37 @@
 import React, { useState } from "react";
-import { CalendarCheck, CircleAlert } from "lucide-react";
+import { CalendarCheck, Check, CircleAlert } from "lucide-react";
 import { ServerError } from "@/components/auth/ServerError";
 import { SubmitButton } from "@/components/auth/SubmitButton";
 import { formatClockHour } from "@/lib/format";
 import type { InstructorListItem } from "@/lib/instructors/queries";
 import type { SlotSeats } from "@/lib/schedule/queries";
 import { seatFieldName } from "@/lib/schedule/schema";
+import {
+  fillAll,
+  seatAt,
+  seatKey,
+  sheetRows,
+  stepSeat,
+  withoutInstructor,
+  workingHours,
+  type HourLoad,
+  type SeatMap,
+} from "@/lib/schedule/sheet";
 import { cn } from "@/lib/utils";
 import type { HorseListItem } from "@/lib/stables/queries";
 
 /**
  * Wygląd wg `osrodek-grafik.html`: dwie kontrolki godzin w mono obok siebie, konie
  * i instruktorzy jako karty-checkboxy, po dwie w rzędzie na szerokim ekranie, a pod nimi
- * siatka limitów miejsc instruktor × godzina.
+ * arkusz limitów miejsc: wiersz to godzina jazd, kolumna to instruktor pracujący tego dnia,
+ * ostatnia kolumna „Koni zajętych” liczy sumę limitów na żywo (#45).
  *
  * Konie i instruktorzy zostają osobnymi polami `checkbox` o wspólnej nazwie (`horseIds`,
  * `instructorIds`): serwer czyta powtórzone wpisy z `FormData`. Limit miejsc to jedno pole
- * na instruktora i godzinę (`seatFieldName`); siatka pokazuje wyłącznie godziny bieżącego
- * zakresu, więc godziny spoza niego nie są wysyłane.
+ * na instruktora i godzinę (`seatFieldName`); arkusz pokazuje wyłącznie godziny bieżącego
+ * zakresu, więc godziny spoza niego nie są wysyłane. Wszystko, co arkusz liczy, pochodzi
+ * z `@/lib/schedule/sheet`; przekroczenie liczby koni nie blokuje zapisu — strażnikiem jest
+ * baza (SB007).
  */
 
 interface Props {
@@ -35,10 +49,110 @@ interface Props {
 const controlClass =
   "w-full min-h-[46px] rounded-md border border-border-2 bg-surface px-3.5 py-3 font-mono text-[15px] tabular-nums text-foreground transition-colors hover:border-faint focus:border-primary focus:ring-[3px] focus:ring-primary-soft focus:outline-none";
 
-const seatControlClass =
-  "w-full min-h-[40px] rounded-md border border-border-2 bg-surface px-2 py-2 text-center font-mono text-[15px] tabular-nums text-foreground transition-colors hover:border-faint focus:border-primary focus:ring-[3px] focus:ring-primary-soft focus:outline-none";
+const stepButtonClass =
+  "grid size-8 flex-none cursor-pointer place-items-center rounded-md text-[17px] text-foreground transition-colors hover:bg-surface-3 focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-default disabled:opacity-30 disabled:hover:bg-transparent";
 
-const seatKey = (instructorId: number, hour: number) => `${String(instructorId)}.${String(hour)}`;
+const shortcutClass =
+  "cursor-pointer rounded border border-border-2 bg-surface px-1.5 py-0.5 font-mono text-[11.5px] font-normal whitespace-nowrap transition-colors hover:bg-surface-3 focus-visible:outline-2 focus-visible:outline-primary";
+
+/** Skróty w nagłówku kolumny instruktora; „wyczyść” zeruje limity we wszystkich godzinach zakresu. */
+const FILL_SHORTCUTS = [
+  { value: 1, label: "wszędzie 1" },
+  { value: 2, label: "wszędzie 2" },
+  { value: 3, label: "wszędzie 3" },
+  { value: 0, label: "wyczyść" },
+];
+
+/**
+ * Komórka arkusza: −, pole liczbowe i +. Pole niesie nazwę limitu z kontraktu formularza
+ * i etykietę „{instruktor}, {h}:00” (lokator e2e); przyciski mają własne opisy.
+ */
+function SeatStepper({
+  name,
+  label,
+  value,
+  onChange,
+}: {
+  name: string;
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <div
+      className={cn(
+        "inline-flex items-center gap-0.5 rounded-lg border p-0.5 transition-colors",
+        value > 0 ? "border-primary bg-primary-soft" : "border-border-2 bg-surface",
+      )}
+    >
+      <button
+        type="button"
+        disabled={value === 0}
+        onClick={() => {
+          onChange(stepSeat(value, -1));
+        }}
+        aria-label={`${label}: mniej`}
+        className={stepButtonClass}
+      >
+        −
+      </button>
+      <input
+        name={name}
+        type="number"
+        min={0}
+        inputMode="numeric"
+        aria-label={label}
+        value={value}
+        onChange={(e) => {
+          const typed = Math.trunc(Number(e.target.value));
+          onChange(Number.isFinite(typed) && typed > 0 ? typed : 0);
+        }}
+        className={cn(
+          "focus:border-primary focus:ring-primary-soft w-12 [appearance:textfield] rounded-md border border-transparent bg-transparent py-1 text-center font-mono text-[15px] tabular-nums focus:ring-[3px] focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+          value > 0 ? "text-foreground font-semibold" : "text-faint",
+        )}
+      />
+      <button
+        type="button"
+        onClick={() => {
+          onChange(stepSeat(value, 1));
+        }}
+        aria-label={`${label}: więcej`}
+        className={stepButtonClass}
+      >
+        +
+      </button>
+    </div>
+  );
+}
+
+/** Kolumna „Koni zajętych”: suma limitów na tle koni dnia; stan nigdy nie jest tylko kolorem. */
+function HourLoadCell({ total, horseCount, load }: { total: number; horseCount: number; load: HourLoad }) {
+  return (
+    <span className="inline-flex items-center justify-end gap-2">
+      {load === "over" && (
+        <span className="text-danger-ink inline-flex items-center gap-1 text-[12.5px] font-semibold">
+          <CircleAlert className="size-3.5 shrink-0" aria-hidden="true" />
+          za mało koni
+        </span>
+      )}
+      {load === "full" && (
+        <span className="bg-success-soft text-success-ink inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-semibold">
+          <Check className="size-3.5 shrink-0" aria-hidden="true" />
+          pełna
+        </span>
+      )}
+      <span
+        className={cn(
+          "font-mono text-[13px] tabular-nums",
+          load === "over" ? "text-danger-ink font-semibold" : "text-muted-foreground",
+        )}
+      >
+        {total} / {horseCount}
+      </span>
+    </span>
+  );
+}
 
 interface Choice {
   id: number;
@@ -116,10 +230,9 @@ export default function ScheduleDayForm({
   const [closeHour, setCloseHour] = useState(String(initialClose));
   const [selected, setSelected] = useState<number[]>(selectedHorseIds);
   const [selectedInstructors, setSelectedInstructors] = useState<number[]>(selectedInstructorIds);
-  const [seats, setSeats] = useState<Record<string, string>>(() =>
-    Object.fromEntries(initialSeats.map((slot) => [seatKey(slot.instructorId, slot.hour), String(slot.seats)])),
+  const [seats, setSeats] = useState<SeatMap>(() =>
+    Object.fromEntries(initialSeats.map((slot) => [seatKey(slot.instructorId, slot.hour), slot.seats])),
   );
-  const [fillValues, setFillValues] = useState<Record<number, string>>({});
   const [error, setError] = useState<string | undefined>();
 
   function validate() {
@@ -162,32 +275,26 @@ export default function ScheduleDayForm({
       return;
     }
 
-    // Nowo wskazany instruktor startuje od zera we wszystkich godzinach - także wtedy,
-    // gdy wcześniej odznaczono go z wpisanymi limitami.
-    const prefix = `${String(id)}.`;
-    setSeats((prev) => Object.fromEntries(Object.entries(prev).filter(([key]) => !key.startsWith(prefix))));
+    setSeats((prev) => withoutInstructor(prev, id));
     setSelectedInstructors((prev) => [...prev, id]);
   }
 
   const open = Number(openHour);
   const close = Number(closeHour);
-  const hoursValid = openHour !== "" && closeHour !== "" && Number.isInteger(open) && Number.isInteger(close);
-  const hours = hoursValid && close > open && open >= 0 && close <= 24 ? range(open, close) : [];
-
-  function fillInstructor(instructorId: number) {
-    const value = fillValues[instructorId] ?? "";
-    setSeats((prev) => ({
-      ...prev,
-      ...Object.fromEntries(hours.map((hour) => [seatKey(instructorId, hour), value === "" ? "0" : value])),
-    }));
-  }
+  // `Number("")` to 0, więc puste pole trzeba odsiać, zanim zakres trafi do `workingHours`.
+  const hours = openHour === "" || closeHour === "" ? [] : workingHours(open, close);
+  const workingInstructors = instructors.filter((instructor) => selectedInstructors.includes(instructor.id));
+  const rows = sheetRows(
+    hours,
+    workingInstructors.map((instructor) => instructor.id),
+    seats,
+    selected.length,
+  );
 
   const slotsHint =
     hours.length > 0
       ? `Jazdy od ${formatClockHour(open)} do ${formatClockHour(close - 1)} — każda godzina instruktora to osobny slot z własnym limitem.`
       : null;
-
-  const workingInstructors = instructors.filter((instructor) => selectedInstructors.includes(instructor.id));
 
   return (
     <form method="POST" action="/api/schedule/save" onSubmit={handleSubmit} noValidate>
@@ -284,78 +391,81 @@ export default function ScheduleDayForm({
         <fieldset className="min-w-0">
           <legend className="text-foreground mb-1 text-[13px] font-semibold">Limity miejsc</legend>
           <p className="text-muted-foreground mb-3 text-[13px]">
-            Ilu jeźdźców instruktor przyjmie w danej godzinie; 0 — nie prowadzi jazdy. Suma limitów w jednej godzinie
-            nie może przekroczyć liczby koni pracujących tego dnia ({selected.length}).
+            Limit miejsc to liczba jeźdźców, których instruktor przyjmie w danej godzinie; 0 — nie prowadzi jazdy.
           </p>
-          <div className="grid gap-4">
-            {workingInstructors.map((instructor) => {
-              const fillId = `fill-${String(instructor.id)}`;
-
-              return (
-                <section key={instructor.id} className="border-border-2 rounded-md border p-3.5">
-                  <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
-                    <h3 className="m-0 min-w-0 text-[15px] font-semibold [overflow-wrap:anywhere]">
-                      {instructor.name}
-                    </h3>
-                    <div className="flex items-end gap-2">
-                      <div className="flex w-[72px] flex-col gap-1">
-                        <label htmlFor={fillId} className="text-muted-foreground text-[12px] font-semibold">
-                          Każda godzina
-                        </label>
-                        <input
-                          id={fillId}
-                          type="number"
-                          min={0}
-                          inputMode="numeric"
-                          value={fillValues[instructor.id] ?? ""}
-                          onChange={(e) => {
-                            setFillValues((prev) => ({ ...prev, [instructor.id]: e.target.value }));
-                          }}
-                          className={seatControlClass}
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          fillInstructor(instructor.id);
-                        }}
-                        aria-label={`Wypełnij wszystkie godziny: ${instructor.name}`}
-                        className="border-border-2 bg-surface hover:bg-surface-2 focus-visible:outline-primary font-display min-h-[40px] rounded-full border px-3.5 text-[13.5px] font-semibold whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-2"
-                      >
-                        Wypełnij
-                      </button>
-                    </div>
-                  </div>
-                  <ul className="grid list-none grid-cols-[repeat(auto-fill,minmax(64px,1fr))] gap-2 p-0">
-                    {hours.map((hour) => {
-                      const inputId = `seats-${String(instructor.id)}-${String(hour)}`;
-
-                      return (
-                        <li key={hour} className="flex flex-col gap-1">
-                          <label htmlFor={inputId} className="text-muted-foreground font-mono text-[12px]">
-                            <span className="sr-only">{instructor.name}, </span>
-                            {formatClockHour(hour)}
-                          </label>
-                          <input
-                            id={inputId}
-                            name={seatFieldName(instructor.id, hour)}
-                            type="number"
-                            min={0}
-                            inputMode="numeric"
-                            value={seats[seatKey(instructor.id, hour)] ?? "0"}
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              setSeats((prev) => ({ ...prev, [seatKey(instructor.id, hour)]: value }));
+          <div className="border-border-2 overflow-x-auto rounded-lg border">
+            <table className="w-full border-collapse text-[14px]">
+              <thead className="bg-surface-2">
+                <tr>
+                  <th
+                    scope="col"
+                    className="bg-surface-2 sticky left-0 z-10 px-3 py-2.5 text-left text-[12.5px] font-semibold"
+                  >
+                    Godzina
+                  </th>
+                  {workingInstructors.map((instructor) => (
+                    <th key={instructor.id} scope="col" className="px-2 py-2.5 text-center align-top">
+                      <span className="block text-[13px] font-semibold [overflow-wrap:anywhere]">
+                        {instructor.name}
+                      </span>
+                      <span className="mt-1.5 flex flex-wrap justify-center gap-1">
+                        {FILL_SHORTCUTS.map(({ value, label }) => (
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() => {
+                              setSeats((prev) => fillAll(prev, instructor.id, hours, value));
                             }}
-                            className={seatControlClass}
+                            aria-label={`${instructor.name}: ${label}`}
+                            className={shortcutClass}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </span>
+                    </th>
+                  ))}
+                  <th scope="col" className="px-3 py-2.5 text-right text-[12.5px] font-semibold whitespace-nowrap">
+                    Koni zajętych
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => {
+                  const over = row.load === "over";
+                  const hourLabel = formatClockHour(row.hour);
+
+                  return (
+                    <tr key={row.hour} className={cn("border-border border-t", over && "bg-danger-soft")}>
+                      <th
+                        scope="row"
+                        className={cn(
+                          "sticky left-0 z-10 px-3 py-2 text-left font-mono font-normal tabular-nums",
+                          over ? "bg-danger-soft" : "bg-surface",
+                        )}
+                      >
+                        {hourLabel}
+                      </th>
+                      {workingInstructors.map((instructor) => (
+                        <td key={instructor.id} className="px-2 py-2 text-center">
+                          <SeatStepper
+                            name={seatFieldName(instructor.id, row.hour)}
+                            label={`${instructor.name}, ${hourLabel}`}
+                            value={seatAt(seats, instructor.id, row.hour)}
+                            onChange={(value) => {
+                              setSeats((prev) => ({ ...prev, [seatKey(instructor.id, row.hour)]: value }));
+                            }}
                           />
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </section>
-              );
-            })}
+                        </td>
+                      ))}
+                      <td className="px-3 py-2 text-right whitespace-nowrap">
+                        <HourLoadCell total={row.total} horseCount={selected.length} load={row.load} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </fieldset>
       )}
@@ -373,8 +483,4 @@ export default function ScheduleDayForm({
       </div>
     </form>
   );
-}
-
-function range(from: number, to: number): number[] {
-  return Array.from({ length: to - from }, (_, index) => from + index);
 }
