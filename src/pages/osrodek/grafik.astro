@@ -8,7 +8,7 @@ import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
 import ScheduleDayForm from "@/components/schedule/ScheduleDayForm";
 import { addDays, defaultScheduleDate, isPastDate, parseScheduleDate } from "@/lib/schedule/dates";
-import { horseDefaults, instructorDefaults, pastDaySummary } from "@/lib/schedule/form";
+import { horseDefaults, instructorDefaults, pastDaySummary, prefillSourceDay } from "@/lib/schedule/form";
 import { getLatestScheduleDay, getScheduleDay, type ScheduleDayData } from "@/lib/schedule/queries";
 import { listStableInstructors, type InstructorListItem } from "@/lib/instructors/queries";
 import { getOwnedStableId, listStableHorses, type HorseListItem } from "@/lib/stables/queries";
@@ -135,16 +135,11 @@ const dayLabel = new Date(`${day}T00:00:00`).toLocaleDateString("pl-PL", {
             selectedInstructorIds={instructorForm.selectedInstructorIds}
             instructors={instructorForm.selectableInstructors}
             seats={instructorForm.seats}
+            prefillFrom={prefillSourceDay(scheduleDay, latestDay)}
             serverError={error}
             client:load
           />
         </Card>
-      )
-    }
-
-    {
-      !scheduleDay && latestDay && !readOnly && (
-        <p class="prefill">Pola wypełniono wartościami z ostatnio ułożonego dnia ({latestDay.day}).</p>
       )
     }
   </main>
@@ -192,15 +187,6 @@ const dayLabel = new Date(`${day}T00:00:00`).toLocaleDateString("pl-PL", {
   }
   .past__none {
     margin: 16px 0 0;
-    color: var(--muted);
-  }
-
-  .prefill {
-    margin: 12px 0 0;
-    text-align: center;
-    font-size: 13px;
-    /* `--muted`, nie `--faint`: to zdanie niesie informację, a nie dekorację.
-       Najjaśniejszy token daje na tle strony 3,33:1, czyli poniżej progu AA. */
     color: var(--muted);
   }
 </style>

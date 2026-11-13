@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseScheduleDayForm, seatFieldName } from "@/lib/schedule/schema";
+import { hoursError, parseScheduleDayForm, seatFieldName } from "@/lib/schedule/schema";
 
 function form(entries: [string, string][]): FormData {
   const data = new FormData();
@@ -65,12 +65,77 @@ describe("parseScheduleDayForm", () => {
     expect(result.data?.seats).toEqual([]);
   });
 
+  it("pusta godzina otwarcia to komunikat zakresu, a nie otwarcie o 0:00", () => {
+    const result = parseScheduleDayForm(
+      form([
+        ["day", "2030-05-14"],
+        ["openHour", ""],
+        ["closeHour", "12"],
+      ]),
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.message).toBe("Godzina otwarcia musi być z zakresu 0-23");
+  });
+
+  it("pusta godzina zamknięcia to komunikat zakresu zamknięcia", () => {
+    const result = parseScheduleDayForm(
+      form([
+        ["day", "2030-05-14"],
+        ["openHour", "10"],
+        ["closeHour", " "],
+      ]),
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.message).toBe("Godzina zamknięcia musi być z zakresu 1-24");
+  });
+
   it("odrzuca ujemny albo ułamkowy limit z polskim komunikatem", () => {
     for (const value of ["-1", "1.5", "abc"]) {
       const result = parseScheduleDayForm(form([...DAY, ["instructorIds", "7"], [seatFieldName(7, 10), value]]));
 
       expect(result.success).toBe(false);
       expect(result.error?.issues[0]?.message).toBe("Limit miejsc musi być liczbą całkowitą, zero lub więcej");
+    }
+  });
+});
+
+describe("hoursError", () => {
+  it("poprawny zakres nie daje komunikatu", () => {
+    expect(hoursError("10", "16")).toBeNull();
+    expect(hoursError("0", "24")).toBeNull();
+  });
+
+  it("brak godziny otwarcia to komunikat o zakresie otwarcia", () => {
+    expect(hoursError("", "16")).toBe("Godzina otwarcia musi być z zakresu 0-23");
+  });
+
+  it("brak godziny zamknięcia to komunikat o zakresie zamknięcia", () => {
+    expect(hoursError("10", "")).toBe("Godzina zamknięcia musi być z zakresu 1-24");
+  });
+
+  it("zamknięcie nie później niż otwarcie to komunikat o kolejności", () => {
+    expect(hoursError("12", "12")).toBe("Godzina zamknięcia musi być późniejsza niż godzina otwarcia");
+    expect(hoursError("15", "10")).toBe("Godzina zamknięcia musi być późniejsza niż godzina otwarcia");
+  });
+
+  it("komunikat klienta brzmi tak samo jak odmowa serwera dla tych samych godzin", () => {
+    for (const [open, close] of [
+      ["24", "24"],
+      ["10", "25"],
+      ["15", "10"],
+    ]) {
+      const server = parseScheduleDayForm(
+        form([
+          ["day", "2030-05-14"],
+          ["openHour", open],
+          ["closeHour", close],
+        ]),
+      );
+
+      expect(server.success).toBe(false);
+      expect(hoursError(open, close)).toBe(server.error?.issues[0]?.message);
     }
   });
 });
