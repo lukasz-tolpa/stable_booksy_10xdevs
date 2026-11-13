@@ -12,7 +12,7 @@ const error = Astro.url.searchParams.get("error");
 const initialRole = signupRoleFromParam(Astro.url.searchParams.get(SIGNUP_ROLE_PARAM));
 ---
 
-<Layout title="Rejestracja">
+<Layout title="Rejestracja" noindex>
   <Topbar />
   <div class="container-narrow authwrap">
     <Card class="w-full max-w-[420px]" padding={28}>

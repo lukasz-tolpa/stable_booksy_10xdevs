@@ -161,6 +161,24 @@ context/            dokumenty projektu (patrz niżej)
 Historia zmian leży w `context/archive/`, po jednym folderze na wycinek, razem z planem
 i przeglądem implementacji.
 
+## SEO
+
+- **Adres strony** — jeden: `site` w `astro.config.mjs`. Z niego powstają adres kanoniczny,
+  podgląd linku (Open Graph), dane strukturalne (JSON-LD), mapa strony i linia `Sitemap:`
+  w `robots.txt`. Po podpięciu domeny wystarczy zmienić `site`.
+- **Mapa strony i `robots.txt`** — reguła „co trafia do mapy strony” (tylko strona główna)
+  i treść `robots.txt` są w `src/lib/seo/robots.ts`, z testami obok. Tytuł, opis i dane
+  strukturalne strony głównej: `src/lib/seo/home.ts`; znaczniki w `<head>` składa
+  `src/layouts/Layout.astro`.
+- **Obraz podglądu linku** — `public/og-image.png` (1200×630), pełne logo ze stopki na
+  ciemnej zieleni. Po zmianie logo odśwież go zrzutem z działającej aplikacji
+  (baza nie jest potrzebna) i zacommituj wynik:
+
+  ```bash
+  npx astro dev --port 4400
+  SHOTS_BASE_URL=http://localhost:4400 npm run og-image
+  ```
+
 ## Wdrożenie i CI
 
 Gałąź `main` przyjmuje wyłącznie scalenia przez pull request, z trzema wymaganymi bramkami:

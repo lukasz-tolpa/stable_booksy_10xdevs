@@ -151,7 +151,24 @@ bez zdjęć.
 - **Nagłówki** obu połów wyglądają tak samo: 800, `clamp(44px, 5.8vw, 86px)`,
   `letter-spacing: -0.05em` — skala większa niż w §3, tylko tutaj. „Jeżdżę
   konno." to jedyne `h1` strony, „Prowadzę ośrodek." to `h2`.
-- **W każdej połowie**: nagłówek, trzy zdania (18 px), ilustracja interfejsu,
+- **Zdanie definiujące** stoi w zamknięciu „Jeden dzień”, pod jego
+  nagłówkiem i nad przyciskami, na `--bg` — nie nad połowami, bo tam rozbijało
+  pierwszy widok: „getona.horse to aplikacja do zapisów
+  na jazdy konne: jeździec zapisuje się na wolne miejsce u instruktora, a ośrodek
+  jeździecki układa grafik dnia i przydziela konie." Body Inter 17 px,
+  `line-height: 1.5`, `--fg`, wyśrodkowane, `max-width: 760px`. Kontrast
+  `--fg` na `--bg`: `rgb(18 36 26)` na `rgb(245 250 246)` = **15,38:1**.
+- **Fraza pod hasłem** — jedna linia tuż pod nagłówkiem połowy (oba w
+  `<hgroup>`, linia to `<p>`, nie nagłówek): „Zapisy na jazdy konne online" pod
+  „Jeżdżę konno.", „System zapisów dla ośrodka jeździeckiego" pod „Prowadzę
+  ośrodek.". Krój display 600, `clamp(19px, 1.7vw, 23px)`, `letter-spacing:
+-0.01em`, w kolorze tekstu swojej połowy: `--fg` na `--accent-soft`
+  (`rgb(18 36 26)` na `rgb(251 231 216)` = **13,55:1**) i biel na
+  `--primary-strong` (`rgb(255 255 255)` na `rgb(0 82 49)` = **9,33:1**).
+  Kontrast liczony jak w §2, z sRGB po przycięciu do gamutu. Zdanie i frazy są
+  tekstem dla ludzi i wyszukiwarek (GLOSSARY.md, nota o słowach), te same dla
+  gościa i zalogowanego; hasła połów się nie zmieniają.
+- **W każdej połowie**: nagłówek z frazą, trzy zdania (18 px), ilustracja interfejsu,
   przycisk. Przyciski to pigułki 54 px, poniżej 560 px na całą szerokość.
   Przycisk prowadzi do rejestracji z zaznaczonym rodzajem konta.
 - **Ilustracje interfejsu** to statyczne rysunki w białej karcie z
@@ -240,7 +257,7 @@ How the system above is wired into the code. Written for agents, hence English.
 - **No dark mode.** The stable half and the footer of the landing page are dark _sections_ (§1, §6), not a theme. `global.css` carries no `.dark` block and no `@custom-variant dark`, and `Layout.astro` pins `<meta name="color-scheme" content="light">`.
 - **Tokens live once**, in `src/styles/global.css`. `:root` holds the §2 names verbatim (`--surface`, `--muted`, `--primary`, `--accent`, …), so prototypes read 1:1 and `<style>` blocks use `var(--…)`. `@theme` carries typography and radii as literal values; `@theme inline` re-exports the palette as Tailwind utilities. `scripts/check-tokens.mjs` (part of `npm run lint`) rejects colour and font literals anywhere else; a new colour gets a token here.
 - **Two name collisions with shadcn.** shadcn's `--muted` and `--accent` are _background_ colours; this document's are _text_ and _chestnut_. So `bg-muted` / `bg-accent` keep the shadcn meaning, helper text is `text-muted-foreground`, and chestnut is `bg-chestnut` / `bg-chestnut-soft` / `text-chestnut-ink`. A name from §2 is never mapped onto a shadcn utility.
-- **Shared blocks** live in `src/components/ui/`: `Card`, `EmptyState`, `FailureState`, `RoleBadge`, `DayNav`, `BarChart`, next to the shadcn components ("new-york" style, added with `npx shadcn@latest add [name]`).
+- **Shared blocks** live in `src/components/ui/`: `Card`, `EmptyState`, `FailureState`, `NoticeCard` (centred heading + lead + link card: confirm-email, 404), `RoleBadge`, `DayNav`, `BarChart`, next to the shadcn components ("new-york" style, added with `npx shadcn@latest add [name]`).
 - **Charts** are `BarChart.astro`: server-rendered HTML + CSS bars, no charting library and no client JavaScript, so it runs unchanged on workerd SSR. `orientation` is `vertical` for time series and `horizontal` for rankings. The series comes ready from the view model; the component computes only its axis scale. The drawing is `aria-hidden` and the same data sits in a `<details>` table ("Pokaż dane wykresu w tabeli"). Single series: `--primary` bars, a 2 px `--border-2` stub for zero, mono `--muted` labels, no chestnut.
 - **Astro scoped styles stop at a child component's root.** `.foo h1` works when the markup sits in the page; to style a `<Card>` from outside, pass Tailwind utilities (`class="w-full max-w-[420px]"`) or wrap the slot content in your own element.
 - **Chestnut today** (cap of two per screen, §7): the rider `RoleBadge`, the own-booking slot pill and the "Zapisz grafik" button. The landing page is exempt (§6): its rider half is chestnut throughout. The logo's ".horse" (`Logo.astro`, top bar and landing footer) does not count towards the cap; `--accent-on-dark` is used by the full logo only.
