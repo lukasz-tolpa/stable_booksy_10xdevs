@@ -7,6 +7,7 @@ import DayTimeline from "@/components/landing/DayTimeline.astro";
 import Card from "@/components/ui/Card.astro";
 import Layout from "@/layouts/Layout.astro";
 import { HOME_DESCRIPTION, HOME_TITLE, homeStructuredData } from "@/lib/seo/home";
+import { requireSite } from "@/lib/seo/site";
 import { landingEntries } from "@/lib/auth/landing";
 import { slotStatusLabel } from "@/lib/bookings/slots";
 import { formatClockHour, formatFreeSeats } from "@/lib/format";
@@ -34,11 +35,10 @@ const CTA_CLASS = {
 const demo = landingDemo();
 
 // Wyniki wyszukiwania i podgląd linku (#66); adresy z `site` w astro.config.mjs.
-if (!Astro.site) throw new Error("Brak `site` w astro.config.mjs — dane strukturalne nie zbudują adresów.");
-const structuredData = homeStructuredData(Astro.site);
+const structuredData = homeStructuredData(requireSite(Astro.site, "dane strukturalne nie zbudują adresów"));
 ---
 
-<Layout title={HOME_TITLE} description={HOME_DESCRIPTION} linkPreview structuredData={structuredData}>
+<Layout fullTitle={HOME_TITLE} description={HOME_DESCRIPTION} linkPreview structuredData={structuredData}>
   {error && <Banner variant="error">{error}</Banner>}
   <Topbar container="page" />
   <!-- DESIGN.md §6: dwie połowy zamiast hero. Tła sięgają krawędzi okna, treść każdej
@@ -251,7 +251,9 @@ const structuredData = homeStructuredData(Astro.site);
        w jednej linii mimo różnej wysokości ilustracji. */
     .half {
       align-items: start;
-      padding-block: clamp(56px, 11vh, 140px) 56px;
+      /* Mały górny odstęp, bo nad połowami stoi zdanie definiujące - przyciski obu połów
+         mają się zmieścić w pierwszym widoku 1440×900 (e2e strony głównej). */
+      padding-block: clamp(36px, 6vh, 140px) 56px;
     }
     .half--rider .half__inner {
       justify-self: end;

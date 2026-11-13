@@ -91,6 +91,26 @@ test("gość wchodzi ze strony głównej do rejestracji swojej roli albo do logo
     await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
   });
 
+  await test.step("na ekranie 1440×900 oba przyciski połów mieszczą się w pierwszym widoku", async () => {
+    const desktop = page.viewportSize();
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/");
+    for (const [half, name] of [
+      [riderHalf(page), "Załóż konto jeźdźca"],
+      [stableHalf(page), "Załóż konto ośrodka"],
+    ] as const) {
+      const box = await half.getByRole("link", { name, exact: true }).boundingBox();
+      expect(box, `„${name}” jest na stronie`).not.toBeNull();
+      if (box) {
+        expect(box.y + box.height, `dół „${name}” nad krawędzią okna`).toBeLessThanOrEqual(900);
+      }
+    }
+    if (desktop) {
+      await page.setViewportSize(desktop);
+    }
+    await page.goto("/");
+  });
+
   await test.step("pod połowami stoi „Jeden dzień z getona.horse” z sześcioma momentami po kolei", async () => {
     await expect(page.getByRole("heading", { level: 2, name: DAY_HEADING, exact: true })).toBeVisible();
     await expect(daySection(page).getByRole("listitem").getByRole("heading", { level: 3 })).toHaveText(DAY_TITLES);
@@ -180,6 +200,7 @@ test("gość wchodzi ze strony głównej do rejestracji swojej roli albo do logo
  * a układ strony wstawia zakaz indeksowania tam, gdzie trzeba.
  */
 test("roboty widzą tylko publiczną część strony", async ({ page, request }) => {
+  // Elementy `<head>` nie mają roli ani etykiety, więc lokatorem jest selektor CSS.
   const robotsMeta = page.locator('head meta[name="robots"]');
 
   await test.step("robots.txt blokuje przestrzeń ośrodka, jeźdźca i API i wskazuje mapę strony", async () => {
@@ -188,9 +209,10 @@ test("roboty widzą tylko publiczną część strony", async ({ page, request })
     expect(response.headers()["content-type"]).toContain("text/plain");
     const lines = (await response.text()).split("\n");
     expect(lines).toContain("User-agent: *");
-    expect(lines).toContain("Disallow: /osrodek/");
-    expect(lines).toContain("Disallow: /jezdziec/");
-    expect(lines).toContain("Disallow: /api/");
+    // Bez ukośnika na końcu, żeby zakaz objął też strony startowe ról `/osrodek` i `/jezdziec`.
+    expect(lines).toContain("Disallow: /osrodek");
+    expect(lines).toContain("Disallow: /jezdziec");
+    expect(lines).toContain("Disallow: /api");
     expect(lines.filter((line) => line.startsWith("Disallow:") && line.includes("/auth"))).toEqual([]);
     expect(lines).toContain("Content-Signal: search=yes, ai-input=yes, ai-train=no");
     // Adres pochodzi z `site` w astro.config.mjs, nie z adresu serwera testowego.
@@ -235,6 +257,7 @@ test("roboty widzą tylko publiczną część strony", async ({ page, request })
 test("strona główna wygląda dobrze w wynikach wyszukiwania i w podglądzie linku", async ({ page, request }) => {
   if (!astroConfig.site) throw new Error("Brak `site` w astro.config.mjs.");
   const home = new URL("/", astroConfig.site).href;
+  // Elementy `<head>` nie mają roli ani etykiety, więc lokatorem jest selektor CSS.
   const meta = (attribute: "name" | "property", key: string) => page.locator(`head meta[${attribute}="${key}"]`);
   const canonical = page.locator('head link[rel="canonical"]');
   const jsonLd = page.locator('head script[type="application/ld+json"]');

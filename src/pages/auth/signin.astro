@@ -3,12 +3,11 @@ import SignInForm from "@/components/auth/SignInForm";
 import Topbar from "@/components/Topbar.astro";
 import Card from "@/components/ui/Card.astro";
 import Layout from "@/layouts/Layout.astro";
-import { PRODUCT_NAME } from "@/lib/brand";
 
 const error = Astro.url.searchParams.get("error");
 ---
 
-<Layout title={`Logowanie – ${PRODUCT_NAME}`} noindex>
+<Layout title="Logowanie" noindex>
   <Topbar />
   <div class="container-narrow authwrap">
     <Card class="w-full max-w-[420px]" padding={28}>

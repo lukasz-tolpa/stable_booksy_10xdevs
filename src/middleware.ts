@@ -19,7 +19,8 @@ function signInWithMessage(message: string): string {
   return `${SIGN_IN_ROUTE}?error=${encodeURIComponent(message)}`;
 }
 
-async function handle(context: APIContext, next: MiddlewareNext): Promise<Response> {
+/** Strażnik sesji i tras: ustala użytkownika i rolę, przekierowuje z cudzej przestrzeni. */
+async function guardSessionAndRoute(context: APIContext, next: MiddlewareNext): Promise<Response> {
   const supabase = createClient(context.request.headers, context.cookies);
   context.locals.user = null;
   context.locals.profile = null;
@@ -121,4 +122,6 @@ async function handle(context: APIContext, next: MiddlewareNext): Promise<Respon
 
 // Każda odpowiedź strony (także przekierowania) wychodzi z nagłówkami bezpieczeństwa.
 // Pliki statyczne nie przechodzą przez worker — dla nich te same nagłówki są w public/_headers.
-export const onRequest = defineMiddleware(async (context, next) => withSecurityHeaders(await handle(context, next)));
+export const onRequest = defineMiddleware(async (context, next) =>
+  withSecurityHeaders(await guardSessionAndRoute(context, next)),
+);

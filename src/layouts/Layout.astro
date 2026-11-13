@@ -4,13 +4,18 @@ import Banner from "@/components/Banner.astro";
 import { PRODUCT_NAME } from "@/lib/brand";
 import { missingConfigs } from "@/lib/config-status";
 import { OG_IMAGE, jsonLd } from "@/lib/seo/home";
+import { requireSite } from "@/lib/seo/site";
+import { pageTitle } from "@/lib/seo/title";
 
 /**
  * Cały `<head>` składa się tutaj (#65) — strony podają tylko te właściwości
  * i niczego nie dopisują do `<head>` same.
  */
 interface Props {
+  /** Nazwa strony; układ dopisuje do niej „ – getona.horse” (`pageTitle`). Bez niej tytuł to sama nazwa produktu. */
   title?: string;
+  /** Pełny tytuł bez dopisku — tylko strona główna, której tytuł zaczyna się od nazwy produktu (#66). */
+  fullTitle?: string;
   /** Opis dla wyników wyszukiwania (`<meta name="description">`); bez niego znacznika nie ma. */
   description?: string;
   /** Zakaz indeksowania (`noindex, follow`) — logowanie, rejestracja, potwierdzenie e-maila, 404. */
@@ -24,13 +29,12 @@ interface Props {
   structuredData?: object;
 }
 
-const { title = PRODUCT_NAME, description, noindex = false, linkPreview = false, structuredData } = Astro.props;
+const { title: name, fullTitle, description, noindex = false, linkPreview = false, structuredData } = Astro.props;
+const title = fullTitle ?? pageTitle(name);
 
-if (linkPreview && !Astro.site) {
-  throw new Error("Brak `site` w astro.config.mjs — podgląd linku nie zbuduje adresów.");
-}
-const pageUrl = linkPreview && Astro.site ? new URL(Astro.url.pathname, Astro.site).href : undefined;
-const imageUrl = linkPreview && Astro.site ? new URL(OG_IMAGE.path, Astro.site).href : undefined;
+const site = linkPreview ? requireSite(Astro.site, "podgląd linku nie zbuduje adresów") : undefined;
+const pageUrl = site ? new URL(Astro.url.pathname, site).href : undefined;
+const imageUrl = site ? new URL(OG_IMAGE.path, site).href : undefined;
 ---
 
 <!doctype html>

@@ -33,9 +33,18 @@ describe("robotsTxt", () => {
   it("dotyczy wszystkich robotów i blokuje przestrzeń ośrodka, jeźdźca i API", () => {
     const robots = lines(SITE);
     expect(robots).toContain("User-agent: *");
-    expect(robots).toContain("Disallow: /osrodek/");
-    expect(robots).toContain("Disallow: /jezdziec/");
-    expect(robots).toContain("Disallow: /api/");
+    expect(robots).toContain("Disallow: /osrodek");
+    expect(robots).toContain("Disallow: /jezdziec");
+    expect(robots).toContain("Disallow: /api");
+  });
+
+  it("blokuje także strony startowe ról, które nie mają ukośnika na końcu", () => {
+    const prefixes = lines(SITE)
+      .filter((line) => line.startsWith("Disallow: "))
+      .map((line) => line.slice("Disallow: ".length));
+    for (const home of ["/osrodek", "/jezdziec"]) {
+      expect(prefixes.some((prefix) => home.startsWith(prefix))).toBe(true);
+    }
   });
 
   it("nie blokuje logowania ani rejestracji, żeby robot zobaczył zakaz indeksowania", () => {
