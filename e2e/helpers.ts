@@ -9,7 +9,7 @@ import { expect, type Locator, type Page } from "@playwright/test";
  * Ośrodek z seeda używany przez oba scenariusze (jutro: 10–16, Bella + Kasztan; Joanna Wrona
  * z 1 miejscem w każdej godzinie, Karol Jasny bez grafiku).
  */
-export const STABLE_NAME = "Stadnina Pod Debem";
+export const STABLE_NAME = "Stadnina Pod Dębem";
 /** Hasło wszystkich kont z seeda i kont zakładanych przez setup. */
 export const PASSWORD = "sekret123";
 export const STABLE_EMAIL = "osrodek.debem@example.com";

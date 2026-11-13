@@ -16,7 +16,7 @@
 --   * izolacja: funkcja dziala wylacznie na stadninie wolajacego; jezdziec i niezalogowany jej
 --     nie wywolaja.
 --
--- Jako kto: przygotowanie danych jako postgres, wywolania jako wlasciciel "Stadniny Pod Debem"
+-- Jako kto: przygotowanie danych jako postgres, wywolania jako wlasciciel "Stadniny Pod Dębem"
 -- (sub 1111...) przez role authenticated. Kazda persona we wlasnej transakcji z ROLLBACK.
 --
 -- Wymaga swiezego seeda (`npx supabase db reset` tego samego dnia - dni z seeda sa na jutro).
@@ -25,7 +25,7 @@
 
 \set ON_ERROR_STOP on
 
-\echo '=== Zapis grafiku dnia: wlasciciel Pod Debem ==='
+\echo '=== Zapis grafiku dnia: wlasciciel Pod Dębem ==='
 
 begin;
 

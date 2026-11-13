@@ -17,7 +17,7 @@
 -- i godzina. Odwolanie czysci przydzial konia, wiec odwolany zapis nie przypina tez konia do dnia
 -- (dawny przypadek 8 - "odwolany zapis przypina konia" - zmienil znaczenie w #41).
 --
--- Stan dnia Pod Debem na jutro po setupie: 10-16, Bella + Kasztan; Joanna 1 miejsce w kazdej
+-- Stan dnia Pod Dębem na jutro po setupie: 10-16, Bella + Kasztan; Joanna 1 miejsce w kazdej
 -- godzinie, Karol 1 miejsce o 14 i 15. Aktywny: Anna u Joanny o 11 z Bella. Odwolane: Piotr
 -- u Karola o 14, Piotr u Joanny o 15 (odwolany po przydziale Kasztana).
 --
@@ -157,7 +157,7 @@ begin
   perform set_config('app.cancelled_hour', v_cancelled_hour::text, true);
 end $$;
 
-\echo '=== Ochrona zapisow przed zmiana grafiku: wlasciciel Pod Debem (save_schedule_day) ==='
+\echo '=== Ochrona zapisow przed zmiana grafiku: wlasciciel Pod Dębem (save_schedule_day) ==='
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
@@ -380,8 +380,8 @@ end $$;
 
 \echo '=== Ochrona zapisow przed zmiana grafiku: obcy wlasciciel ==='
 
--- Ta sama transakcja, inna persona: wlasciciel Stajni Nad Rzeka probuje zmienic dzien
--- Pod Debem wprost. Bezposredni zapis do tabel grafiku jest odebrany (42501).
+-- Ta sama transakcja, inna persona: wlasciciel Stajni Nad Rzeką probuje zmienic dzien
+-- Pod Dębem wprost. Bezposredni zapis do tabel grafiku jest odebrany (42501).
 set local request.jwt.claims = '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}';
 
 do $$

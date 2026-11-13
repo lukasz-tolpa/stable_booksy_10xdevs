@@ -28,7 +28,7 @@ const PASSWORD = "sekret123";
 const RIDER_EMAIL = "anna.kowalska@example.com";
 const STABLE_EMAIL = "osrodek.debem@example.com";
 /** Ośrodek z seeda - grafik ma tylko on. */
-const STABLE_NAME = "Stadnina Pod Debem";
+const STABLE_NAME = "Stadnina Pod Dębem";
 
 /** Prototypy są rysowane w tych dwóch szerokościach - DESIGN.md §4. */
 const VIEWPORTS = [
