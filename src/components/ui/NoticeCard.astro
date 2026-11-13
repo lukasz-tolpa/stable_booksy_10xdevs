@@ -1,0 +1,67 @@
+---
+import Card from "@/components/ui/Card.astro";
+
+// Karta-komunikat na środku strony: opcjonalny znak, nagłówek `h1`, jedno zdanie
+// w `--muted` i link dalej. Potwierdzenie e-maila i strona 404 — szerokość i odstępy
+// jak karta logowania (420 px, padding 28 px).
+interface Props {
+  heading: string;
+  lead: string;
+  href: string;
+  linkText: string;
+  /** Znak nad nagłówkiem (emoji). */
+  emoji?: string;
+}
+
+const { heading, lead, href, linkText, emoji } = Astro.props;
+---
+
+<div class="container-narrow noticewrap">
+  <Card class="w-full max-w-[420px]" padding={28}>
+    <div class="notice">
+      {emoji && <div class="emoji">{emoji}</div>}
+      <h1>{heading}</h1>
+      <p class="lead">{lead}</p>
+      <a href={href}>{linkText}</a>
+    </div>
+  </Card>
+</div>
+
+<style>
+  .noticewrap {
+    display: flex;
+    justify-content: center;
+    padding-block: 36px 56px;
+  }
+  .notice {
+    text-align: center;
+  }
+  .emoji {
+    font-size: 44px;
+    line-height: 1;
+    margin-bottom: 14px;
+  }
+  h1 {
+    font-size: 26px;
+    margin: 0 0 8px;
+  }
+  .lead {
+    font-size: 14.5px;
+    color: var(--muted);
+    margin: 0 0 22px;
+  }
+  .notice a {
+    font-size: 14.5px;
+    color: var(--primary);
+    font-weight: 600;
+  }
+  .notice a:hover {
+    color: var(--primary-strong);
+    text-decoration: underline;
+  }
+  .notice a:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+</style>

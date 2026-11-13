@@ -14,7 +14,7 @@ A mechanical rule that keeps coming up in review belongs in one of these checks,
 
 - **One place computes.** A page or component that derives a number, sorts rows or picks a label from raw data is doing the work of its `src/lib/<area>/` module. The module returns a view model; markup renders it.
 - **One formatter per kind of value.** Numbers and hours go through `src/lib/format.ts`; error text goes through the area's `errors.ts`. A second inline formatter is a finding.
-- **Shared blocks before new markup.** `Card`, `EmptyState`, `FailureState`, `RoleBadge`, `DayNav`, `BarChart` in `src/components/ui/`. A hand-built surface with border, radius and shadow is a re-cut `Card`.
+- **Shared blocks before new markup.** `Card`, `EmptyState`, `FailureState`, `NoticeCard`, `RoleBadge`, `DayNav`, `BarChart` in `src/components/ui/`. A hand-built surface with border, radius and shadow is a re-cut `Card`.
 - **`EmptyState` is not `FailureState`.** "Nothing to show" and "we could not load it" get different blocks and different copy.
 - **Domain names.** Identifiers, test descriptions and UI copy use the terms in `GLOSSARY.md`; a synonym for a glossary term is a finding.
 

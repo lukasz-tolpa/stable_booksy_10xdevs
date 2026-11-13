@@ -1,6 +1,6 @@
 ---
 import Topbar from "@/components/Topbar.astro";
-import Card from "@/components/ui/Card.astro";
+import NoticeCard from "@/components/ui/NoticeCard.astro";
 import Layout from "@/layouts/Layout.astro";
 
 // Strona błędu 404 (#65): zakaz indeksowania, żeby nieistniejące adresy nie trafiały
@@ -10,47 +10,10 @@ Astro.response.status = 404;
 
 <Layout title="Nie ma takiej strony" noindex>
   <Topbar />
-  <div class="container-narrow authwrap">
-    <Card class="w-full max-w-[420px]" padding={28}>
-      <div class="notfound">
-        <h1>Nie ma takiej strony</h1>
-        <p class="lead">Adres jest błędny albo strona została usunięta.</p>
-        <a href="/">Wróć na stronę główną</a>
-      </div>
-    </Card>
-  </div>
+  <NoticeCard
+    heading="Nie ma takiej strony"
+    lead="Adres jest błędny albo strona została usunięta."
+    href="/"
+    linkText="Wróć na stronę główną"
+  />
 </Layout>
-
-<style>
-  .authwrap {
-    display: flex;
-    justify-content: center;
-    padding-block: 36px 56px;
-  }
-  .notfound {
-    text-align: center;
-  }
-  h1 {
-    font-size: 26px;
-    margin: 0 0 8px;
-  }
-  .lead {
-    font-size: 14.5px;
-    color: var(--muted);
-    margin: 0 0 22px;
-  }
-  .notfound a {
-    font-size: 14.5px;
-    color: var(--primary);
-    font-weight: 600;
-  }
-  .notfound a:hover {
-    color: var(--primary-strong);
-    text-decoration: underline;
-  }
-  .notfound a:focus-visible {
-    outline: 2px solid var(--primary);
-    outline-offset: 3px;
-    border-radius: 6px;
-  }
-</style>
