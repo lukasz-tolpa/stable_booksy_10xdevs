@@ -146,6 +146,15 @@ test("gość wchodzi ze strony głównej do rejestracji swojej roli albo do logo
     await expect(page.getByRole("heading", { level: 1, name: "Zaloguj się", exact: true })).toBeVisible();
   });
 
+  await test.step("„Zapisz się” na ilustracji listy slotów prowadzi gościa do logowania", async () => {
+    await page.goto("/");
+    // Ilustracja jest ukryta przed czytnikami (`aria-hidden`), więc lokator ról jej nie widzi;
+    // to skrót dla myszy, a tekst jest jedynym, co widzi użytkownik.
+    await riderHalf(page).getByText("Zapisz się", { exact: true }).click();
+    await page.waitForURL("**/auth/signin");
+    await expect(page.getByRole("heading", { level: 1, name: "Zaloguj się", exact: true })).toBeVisible();
+  });
+
   await test.step("logo „getona.horse” w górnym pasku wraca na stronę główną", async () => {
     await topbarLogo(page).click();
     await page.waitForURL((url) => url.pathname === "/");

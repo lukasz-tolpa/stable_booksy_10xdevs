@@ -51,7 +51,10 @@ const demo = landingDemo();
             <li>Odwołujesz sam, bez tłumaczenia się przez telefon.</li>
           </ul>
 
-          <!-- Ilustracja, nie kontrolki: bez <button>, ukryta przed czytnikami, opisana zdaniem niżej. -->
+          <!-- Ilustracja, nie kontrolki: bez <button>, ukryta przed czytnikami, opisana zdaniem niżej.
+               Wyjątek: „Zapisz się” jest skrótem dla myszy i dotyku (`bookRoute` z `landingEntries`).
+               `tabindex="-1"`, bo leży w drzewie `aria-hidden`; klawiatura i czytnik mają ten sam
+               cel w pasku („Zaloguj się”, „Mój panel”) i w przycisku połowy. -->
           <div class="demo" aria-hidden="true">
             <Card padding={16}>
               {
@@ -65,7 +68,13 @@ const demo = landingDemo();
                           <span class="demo-slot__who">{slot.instructorName}</span>
                           <span class="demo-slot__seats mono-nums">{formatFreeSeats(slot.freeSeats, slot.seats)}</span>
                           {label === null ? (
-                            <span class="demo-slot__pill demo-slot__pill--book">Zapisz się</span>
+                            entries.bookRoute ? (
+                              <a class="demo-slot__pill demo-slot__pill--book" href={entries.bookRoute} tabindex="-1">
+                                Zapisz się
+                              </a>
+                            ) : (
+                              <span class="demo-slot__pill demo-slot__pill--book">Zapisz się</span>
+                            )
                           ) : (
                             <span class:list={["demo-slot__pill", slot.status === "mine" && "demo-slot__pill--mine"]}>
                               {slot.status === "mine" && <Check className="size-[15px]" />}
@@ -313,6 +322,15 @@ const demo = landingDemo();
   .demo-slot__pill--book {
     border-color: var(--border-2);
     box-shadow: var(--shadow-sm);
+  }
+  a.demo-slot__pill--book {
+    transition:
+      background 0.15s,
+      border-color 0.15s;
+  }
+  a.demo-slot__pill--book:hover {
+    background: var(--primary-soft);
+    border-color: var(--primary);
   }
   .demo-slot__pill--mine {
     background: var(--accent-soft);

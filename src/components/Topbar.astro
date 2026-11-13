@@ -62,15 +62,14 @@ const homeRoute = role ? homeRouteForRole(role) : null;
         </>
       ) : (
         <>
-          {/* Gość: na wąskim ekranie ten napis znika, bo stojące obok „Zaloguj się"
-              i „Załóż konto" mówią to samo, a pasek łamał się przez niego na trzy
-              rzędy. Zalogowany zachowuje swój wiersz — tam adres i rola niosą treść. */}
-          <span class="nav-user nav-user--guest">
-            <span class="nav-mail">Nie jesteś zalogowany</span>
-          </span>
+          {/* Gość: bez napisu o stanie sesji — „Zaloguj się” i „Załóż konto” mówią
+              to same. Rejestracja jest wyróżniona pigułką, logowanie zostaje cichym
+              linkiem (wariant B z gałęzi `prototype/pasek-goscia`). */}
           <div class="nav-links">
             <a href="/auth/signin">Zaloguj się</a>
-            <a href="/auth/signup">Załóż konto</a>
+            <a href="/auth/signup" class="nav-cta">
+              Załóż konto
+            </a>
           </div>
         </>
       )
@@ -160,6 +159,16 @@ const homeRoute = role ? homeRouteForRole(role) : null;
   .nav-links button:hover {
     color: var(--primary-strong);
     background: var(--primary-soft);
+  }
+  /* Jedyne wypełnione wezwanie w pasku: „Załóż konto” u gościa. */
+  .nav-links a.nav-cta {
+    color: #fff;
+    background: var(--primary);
+    font-weight: 600;
+  }
+  .nav-links a.nav-cta:hover {
+    color: #fff;
+    background: var(--primary-strong);
   }
   .nav-links a:focus-visible,
   .nav-links button:focus-visible {
@@ -259,9 +268,6 @@ const homeRoute = role ? homeRouteForRole(role) : null;
      dostępnych, więc schodziły do osobnych rzędów. Ciaśniejsze pigułki i mniejsza
      marka mieszczą je także na 320 px. */
   @media (width < 768px) {
-    .nav-user--guest {
-      display: none;
-    }
     .brand {
       font-size: 19px;
     }

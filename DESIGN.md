@@ -87,7 +87,9 @@ obrysem niczego innego i nie stoi na jasnym tle.
   górny pasek landingu `max-width: 1200px` (połowy landingu sięgają krawędzi
   okna, §6).
 - Topbar sticky 68 px, białe tło z `backdrop-filter: blur(14px)`, hairline
-  na dole. Po lewej logo zwarte (niżej), link do strony głównej.
+  na dole. Po lewej logo zwarte (niżej), link do strony głównej. Gość ma po
+  prawej cichy link „Zaloguj się" i jedyną wypełnioną pigułkę paska „Załóż
+  konto" (`--primary`, biały tekst 600) — bez napisu o stanie sesji.
 - **Logo** to nazwa produktu „getona.horse" z żywego tekstu w kroju display —
   jeden komponent `src/components/Logo.astro`, dwa układy; pisownię trzyma
   `src/lib/brand.ts`. Bez pliku graficznego; ikoną zostaje biała głowa konia.
@@ -158,7 +160,10 @@ bez zdjęć.
   „Zapisz się", „Twój zapis") i fragment arkusza limitów (kolumna „Koni
   zajętych" z plakietką „pełna"). Te same tokeny i proporcje co prawdziwe
   ekrany, ale bez `<button>` i tabel: `aria-hidden` plus jedno zdanie opisu
-  dla czytników ekranu. Obie rysują ten sam dzień z jednego źródła
+  dla czytników ekranu. Jedyny wyjątek to „Zapisz się" na liście slotów: link
+  dla myszy i dotyku (`tabindex="-1"`, hover `--primary-soft`) — gość trafia
+  na logowanie, zalogowany jeździec na listę ośrodków, ośrodek na swoje zapisy;
+  profil bez roli dostaje sam rysunek. Obie rysują ten sam dzień z jednego źródła
   (`src/lib/landing/demo.ts`) regułami prawdziwych widoków, więc limity w
   arkuszu i na liście slotów zawsze się zgadzają.
 - **Obrys fokusu**: `--primary-strong` na połowie jeźdźca, biały na połowie

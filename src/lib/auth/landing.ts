@@ -1,4 +1,5 @@
 import { SIGN_IN_ROUTE, homeRouteForRole, isUserRole, signupRouteForRole } from "@/lib/auth/roles";
+import { STABLE_DAY_BOOKINGS_ROUTE } from "@/lib/bookings/stable-redirect";
 import type { UserRole } from "@/types";
 
 /** Przycisk połowy strony głównej: napis i adres. */
@@ -21,6 +22,17 @@ export interface LandingClosingAction extends LandingAction {
 export type LandingEntries = Record<UserRole, LandingAction | null> & {
   signInRoute: string | null;
   closing: LandingClosingAction[];
+  /** Dokąd prowadzi „Zapisz się” z ilustracji listy slotów (`null` = zostaje nieklikalne). */
+  bookRoute: string | null;
+};
+
+/**
+ * Cel „Zapisz się” z ilustracji dla zalogowanego: jeździec trafia tam, gdzie naprawdę
+ * się zapisuje (lista ośrodków), ośrodek — do zapisów jeźdźców w swoim grafiku.
+ */
+const BOOK_ROUTES: Record<UserRole, string> = {
+  rider: homeRouteForRole("rider"),
+  stable: STABLE_DAY_BOOKINGS_ROUTE,
 };
 
 /** Kolejność połów na stronie - w tej samej stoją przyciski zamknięcia. */
@@ -52,7 +64,17 @@ export function landingEntries(visitor: LandingVisitor): LandingEntries {
     const action = halves[role];
     return action ? [{ role, ...action }] : [];
   });
-  return { ...halves, signInRoute: visitor === null ? SIGN_IN_ROUTE : null, closing };
+  return {
+    ...halves,
+    signInRoute: visitor === null ? SIGN_IN_ROUTE : null,
+    closing,
+    bookRoute: bookRoute(visitor),
+  };
+}
+
+function bookRoute(visitor: LandingVisitor): string | null {
+  if (visitor === null) return SIGN_IN_ROUTE;
+  return isUserRole(visitor.profileRole) ? BOOK_ROUTES[visitor.profileRole] : null;
 }
 
 function halfActions(visitor: LandingVisitor): Record<UserRole, LandingAction | null> {
