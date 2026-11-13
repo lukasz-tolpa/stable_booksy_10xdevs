@@ -278,10 +278,7 @@ export default function ScheduleDayForm({
     setSelectedInstructors((prev) => [...prev, id]);
   }
 
-  const open = Number(openHour);
-  const close = Number(closeHour);
-  // `Number("")` to 0, więc puste pole trzeba odsiać, zanim zakres trafi do `workingHours`.
-  const hours = openHour === "" || closeHour === "" ? [] : workingHours(open, close);
+  const hours = workingHours(openHour, closeHour);
   const workingInstructors = instructors.filter((instructor) => selectedInstructors.includes(instructor.id));
   const rows = sheetRows(
     hours,
@@ -290,7 +287,7 @@ export default function ScheduleDayForm({
     selected.length,
   );
 
-  const lastRide = hours.length > 0 ? lastRideLabel(open, close) : null;
+  const lastRide = lastRideLabel(openHour, closeHour);
 
   return (
     <form method="POST" action="/api/schedule/save" onSubmit={handleSubmit} noValidate>

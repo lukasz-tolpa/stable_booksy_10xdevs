@@ -45,13 +45,21 @@ function hourLoad(total: number, horseCount: number): HourLoad {
 }
 
 /**
- * Godziny jazd dnia: przedział półotwarty [otwarcie, zamknięcie). Zakres, którego nie przyjmie
- * `scheduleDaySchema` (pusty, odwrócony, poza dobą, niecałe godziny), nie daje żadnej godziny.
+ * Godziny jazd dnia z pól godzin pracy: przedział półotwarty [otwarcie, zamknięcie). Zakres,
+ * którego nie przyjmie `scheduleDaySchema` (niewybrana godzina, pusty, odwrócony, poza dobą,
+ * niecałe godziny), nie daje żadnej godziny.
  */
-export function workingHours(open: number, close: number): number[] {
-  const valid = Number.isInteger(open) && Number.isInteger(close) && open >= 0 && close <= 24 && close > open;
+export function workingHours(openText: string, closeText: string): number[] {
+  const open = fieldHour(openText);
+  const close = fieldHour(closeText);
+  const valid = open !== null && close !== null && close <= 24 && close > open;
 
   return valid ? Array.from({ length: close - open }, (_, index) => open + index) : [];
+}
+
+/** Godzina z pola formularza: sam ciąg cyfr, tak jak `formInt` w schemacie; inaczej `null`. */
+function fieldHour(text: string): number | null {
+  return /^\d+$/.test(text.trim()) ? Number(text) : null;
 }
 
 /**
@@ -78,7 +86,7 @@ export function stepSeat(current: number, delta: 1 | -1): number {
 }
 
 /** Podpowiedź przy godzinach pracy: koniec zakresu to zamknięcie, a nie ostatnia jazda. */
-export function lastRideLabel(open: number, close: number): string | null {
+export function lastRideLabel(open: string, close: string): string | null {
   const hours = workingHours(open, close);
 
   return hours.length > 0 ? `ostatnia jazda o ${formatClockHour(hours[hours.length - 1])}` : null;

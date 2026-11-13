@@ -133,33 +133,42 @@ describe("stepSeat", () => {
 
 describe("lastRideLabel", () => {
   it("zakres 10–16 mówi, że ostatnia jazda jest o 15:00", () => {
-    expect(lastRideLabel(10, 16)).toBe("ostatnia jazda o 15:00");
+    expect(lastRideLabel("10", "16")).toBe("ostatnia jazda o 15:00");
   });
 
   it("pusty i odwrócony zakres nie mają ostatniej jazdy", () => {
-    expect(lastRideLabel(12, 12)).toBeNull();
-    expect(lastRideLabel(16, 10)).toBeNull();
+    expect(lastRideLabel("12", "12")).toBeNull();
+    expect(lastRideLabel("16", "10")).toBeNull();
+  });
+
+  it("niewybrana godzina nie ma ostatniej jazdy", () => {
+    expect(lastRideLabel("", "16")).toBeNull();
   });
 });
 
 describe("workingHours", () => {
   it("zakres 10–16 daje godziny jazd od 10 do 15 (zamknięcie wyłącznie)", () => {
-    expect(workingHours(10, 16)).toEqual([10, 11, 12, 13, 14, 15]);
+    expect(workingHours("10", "16")).toEqual([10, 11, 12, 13, 14, 15]);
   });
 
   it("pusty i odwrócony zakres nie dają żadnej godziny", () => {
-    expect(workingHours(12, 12)).toEqual([]);
-    expect(workingHours(16, 10)).toEqual([]);
+    expect(workingHours("12", "12")).toEqual([]);
+    expect(workingHours("16", "10")).toEqual([]);
+  });
+
+  it("niewybrana godzina otwarcia albo zamknięcia nie daje żadnej godziny (a nie zakresu od 0:00)", () => {
+    expect(workingHours("", "3")).toEqual([]);
+    expect(workingHours("10", "")).toEqual([]);
   });
 
   it("zakres poza dobą albo z ułamkiem godziny nie daje żadnej godziny", () => {
-    expect(workingHours(-1, 3)).toEqual([]);
-    expect(workingHours(22, 25)).toEqual([]);
-    expect(workingHours(10.5, 12)).toEqual([]);
-    expect(workingHours(Number.NaN, 12)).toEqual([]);
+    expect(workingHours("-1", "3")).toEqual([]);
+    expect(workingHours("22", "25")).toEqual([]);
+    expect(workingHours("10.5", "12")).toEqual([]);
+    expect(workingHours("abc", "12")).toEqual([]);
   });
 
   it("cała doba to godziny od 0 do 23", () => {
-    expect(workingHours(0, 24)).toHaveLength(24);
+    expect(workingHours("0", "24")).toHaveLength(24);
   });
 });
