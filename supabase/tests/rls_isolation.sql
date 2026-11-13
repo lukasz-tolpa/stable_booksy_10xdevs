@@ -27,6 +27,7 @@ begin
   perform set_config('app.day_a', (select sd.id::text from public.schedule_days sd join public.stables s on s.id = sd.stable_id where s.owner_id = '11111111-1111-1111-1111-111111111111' and sd.day = current_date + 1), true);
   perform set_config('app.day_b', (select sd.id::text from public.schedule_days sd join public.stables s on s.id = sd.stable_id where s.owner_id = '22222222-2222-2222-2222-222222222222' and sd.day = current_date + 1), true);
   perform set_config('app.kasztan', (select h.id::text from public.horses h join public.stables s on s.id = h.stable_id where s.owner_id = '11111111-1111-1111-1111-111111111111' and h.name = 'Kasztan'), true);
+  perform set_config('app.joanna', (select i.id::text from public.instructors i join public.stables s on s.id = i.stable_id where s.owner_id = '11111111-1111-1111-1111-111111111111' and i.name = 'Joanna Wrona'), true);
   perform set_config('app.grom', (select h.id::text from public.horses h join public.stables s on s.id = h.stable_id where s.owner_id = '22222222-2222-2222-2222-222222222222' and h.name = 'Grom'), true);
   perform set_config('app.luna', (select h.id::text from public.horses h join public.stables s on s.id = h.stable_id where s.owner_id = '22222222-2222-2222-2222-222222222222' and h.name = 'Luna'), true);
   if current_setting('app.day_a') = '' or current_setting('app.day_b') = '' then
@@ -43,6 +44,7 @@ declare
   v_day_b bigint := current_setting('app.day_b')::bigint;
   v_day_a bigint := current_setting('app.day_a')::bigint;
   v_kasztan bigint := current_setting('app.kasztan')::bigint;
+  v_joanna bigint := current_setting('app.joanna')::bigint;
   v_grom bigint := current_setting('app.grom')::bigint;
   v_luna bigint := current_setting('app.luna')::bigint;
   v_stable_b bigint := current_setting('app.stable_b')::bigint;
@@ -60,45 +62,55 @@ begin
   end if;
   raise notice 'PASS: proba zmiany cudzego konia dotknela 0 wierszy';
 
+  -- Od #40 grafik zapisuje wylacznie public.save_schedule_day, a bezposredni zapis do tabel
+  -- grafiku jest odebrany (42501) - takze do cudzej stadniny. Funkcja bierze stadnine z sesji;
+  -- jej izolacje dowodzi supabase/tests/schedule_day_save.sql.
   begin
     insert into public.schedule_days (stable_id, day, open_hour, close_hour)
     select id, current_date + 5, 8, 12 from public.stables where name = 'Stajnia Nad Rzeka';
     raise exception 'FAIL: osrodek A wstawil grafik do cudzej stadniny';
   exception when insufficient_privilege then
-    raise notice 'PASS: insert grafiku do cudzej stadniny odrzucony przez RLS';
+    raise notice 'PASS: insert grafiku do cudzej stadniny odrzucony (42501)';
   end;
 
-  -- Podmiana identyfikatora dnia: UPDATE cudzego dnia (rozszerzenie, zeby trigger nie
-  -- odmowil pierwszy) i DELETE cudzego przydzialu konia maja dotknac 0 wierszy.
-  update public.schedule_days set open_hour = 8 where id = v_day_b;
-  get diagnostics v = row_count;
-  if v <> 0 then
-    raise exception 'FAIL: osrodek A zmienil % wierszy cudzego dnia (id=%)', v, v_day_b;
-  end if;
-  raise notice 'PASS: update cudzego dnia po id dotknal 0 wierszy';
+  -- Podmiana identyfikatora dnia: UPDATE cudzego dnia i DELETE cudzego przydzialu konia.
+  begin
+    update public.schedule_days set open_hour = 8 where id = v_day_b;
+    raise exception 'FAIL: osrodek A zmienil cudzy dzien (id=%)', v_day_b;
+  exception when insufficient_privilege then
+    raise notice 'PASS: update cudzego dnia po id odrzucony (42501)';
+  end;
 
-  delete from public.schedule_day_horses where schedule_day_id = v_day_b and horse_id = v_grom;
-  get diagnostics v = row_count;
-  if v <> 0 then
-    raise exception 'FAIL: osrodek A usunal % cudzych przydzialow koni', v;
-  end if;
-  raise notice 'PASS: delete cudzego przydzialu konia dotknal 0 wierszy';
+  begin
+    delete from public.schedule_day_horses where schedule_day_id = v_day_b and horse_id = v_grom;
+    raise exception 'FAIL: osrodek A usunal cudzy przydzial konia';
+  exception when insufficient_privilege then
+    raise notice 'PASS: delete cudzego przydzialu konia odrzucony (42501)';
+  end;
 
-  -- Dopisanie konia do cudzego dnia (Luna nie jest przydzielona u B) - WITH CHECK odrzuca.
   begin
     insert into public.schedule_day_horses (schedule_day_id, horse_id, stable_id)
     values (v_day_b, v_luna, v_stable_b);
     raise exception 'FAIL: osrodek A dopisal konia do cudzego dnia';
   exception when insufficient_privilege then
-    raise notice 'PASS: insert przydzialu do cudzego dnia odrzucony przez RLS';
+    raise notice 'PASS: insert przydzialu do cudzego dnia odrzucony (42501)';
+  end;
+
+  -- Przez funkcje: cudzy kon do wlasnego dnia jest odrzucany (SB003), a cudzy dzien
+  -- jest nieosiagalny, bo funkcja nie przyjmuje stadniny z argumentu.
+  begin
+    perform public.save_schedule_day(current_date + 1, 10, 16, array[v_kasztan, v_grom], array[]::bigint[], '[]'::jsonb);
+    raise exception 'FAIL: osrodek A dopisal cudzego konia przez save_schedule_day';
+  exception when sqlstate 'SB003' then
+    raise notice 'PASS: cudzy kon w save_schedule_day odrzucony (SB003)';
   end;
 
   -- Brama roli: konto osrodka nie zapisze sie na jazde nawet we wlasnym imieniu.
-  -- Slot poprawny (dzien istnieje, godzina w zakresie), zeby jedyna odmowa byla RLS,
-  -- a nie 23503/23514 z triggera BEFORE INSERT.
+  -- Slot poprawny (Joanna o 12 ma wolne miejsce), zeby jedyna odmowa byla RLS,
+  -- a nie 23503/23514/SB009 z wyzwalacza BEFORE INSERT.
   begin
-    insert into public.bookings (schedule_day_id, horse_id, hour, rider_id)
-    values (v_day_a, v_kasztan, 12, '11111111-1111-1111-1111-111111111111');
+    insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id)
+    values (v_day_a, v_joanna, 12, '11111111-1111-1111-1111-111111111111');
     raise exception 'FAIL: konto osrodka zapisalo sie na jazde';
   exception when insufficient_privilege then
     raise notice 'PASS: insert zapisu przez konto osrodka odrzucony przez RLS (brama roli)';
@@ -149,7 +161,7 @@ begin
   raise notice 'PASS: jezdziec widzi wylacznie swoje zapisy';
 
   update public.bookings
-     set status = 'cancelled', cancelled_at = now()
+     set status = 'cancelled', cancelled_at = now(), cancelled_by = 'rider'
    where rider_id = '44444444-4444-4444-4444-444444444444';
   get diagnostics v = row_count;
   if v <> 0 then
@@ -160,7 +172,7 @@ begin
   -- Podmiana identyfikatora: odwolanie cudzego zapisu PO ID (tak wola endpoint cancel),
   -- nie po rider_id - tez 0 wierszy.
   update public.bookings
-     set status = 'cancelled', cancelled_at = now()
+     set status = 'cancelled', cancelled_at = now(), cancelled_by = 'rider'
    where id = v_piotr_booking;
   get diagnostics v = row_count;
   if v <> 0 then
@@ -193,11 +205,11 @@ begin
   raise notice 'PASS: zmiana stanu konia przez jezdzca dotknela 0 wierszy';
 
   begin
-    insert into public.bookings (schedule_day_id, horse_id, hour, rider_id)
-    select sd.id, h.id, 13, '44444444-4444-4444-4444-444444444444'
+    insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id)
+    select sd.id, i.id, 13, '44444444-4444-4444-4444-444444444444'
     from public.schedule_days sd
     join public.stables s on s.id = sd.stable_id and s.name = 'Stadnina Pod Debem'
-    join public.horses h on h.stable_id = s.id and h.name = 'Bella'
+    join public.instructors i on i.stable_id = s.id and i.name = 'Joanna Wrona'
     -- Filtr po dacie jest konieczny: od S-02 stadnina moze miec wiele ulozonych dni,
     -- a bez niego zapytanie wstawia po jednym zapisie na kazdy z nich.
     where sd.day = current_date + 1;
@@ -206,11 +218,11 @@ begin
     raise notice 'PASS: zapis w cudzym imieniu odrzucony przez RLS';
   end;
 
-  insert into public.bookings (schedule_day_id, horse_id, hour, rider_id)
-  select sd.id, h.id, 13, '33333333-3333-3333-3333-333333333333'
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id)
+  select sd.id, i.id, 13, '33333333-3333-3333-3333-333333333333'
   from public.schedule_days sd
   join public.stables s on s.id = sd.stable_id and s.name = 'Stadnina Pod Debem'
-  join public.horses h on h.stable_id = s.id and h.name = 'Bella'
+  join public.instructors i on i.stable_id = s.id and i.name = 'Joanna Wrona'
   where sd.day = current_date + 1;
   get diagnostics v = row_count;
   if v <> 1 then
@@ -246,31 +258,42 @@ end $$;
 
 rollback;
 
-\echo '=== Zajetosc slotow (S-04): funkcja get_taken_slots ==='
+\echo '=== Zajetosc slotow (#41): funkcja get_slot_occupancy ==='
 
 begin;
+
+-- Zajetosc ujawnia wylacznie liczby: zadnej kolumny tozsamosci w wyniku funkcji.
+do $$
+begin
+  if pg_get_function_result('public.get_slot_occupancy(bigint, date)'::regprocedure)
+     <> 'TABLE(instructor_id bigint, hour smallint, taken integer)' then
+    raise exception 'FAIL: get_slot_occupancy zwraca %',
+      pg_get_function_result('public.get_slot_occupancy(bigint, date)'::regprocedure);
+  end if;
+  raise notice 'PASS: get_slot_occupancy zwraca tylko (instruktor, godzina, liczba zajetych miejsc)';
+end $$;
+
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"33333333-3333-3333-3333-333333333333","role":"authenticated"}';
 
 do $$
 declare
   v int;
+  r record;
 begin
-  -- Funkcja security definer pokazuje zajetosc slotow cudzej stadniny
-  -- (zapis Piotra: Grom o 10 w Stajni Nad Rzeka), ale wylacznie pary
-  -- (kon, godzina) - zadnej tozsamosci jezdzca.
-  select count(*) into v
-  from public.get_taken_slots(
+  -- Funkcja security definer pokazuje zajetosc slotow cudzej stadniny (zapis Piotra:
+  -- Tomasz Lis o 10 w Stajni Nad Rzeka) jako liczbe - bez tozsamosci jezdzca.
+  select count(*) as n, sum(o.taken) as taken, min(o.hour) as hour into r
+  from public.get_slot_occupancy(
     (select id from public.stables where name = 'Stajnia Nad Rzeka'),
     current_date + 1
-  );
-  if v <> 1 then
-    raise exception 'FAIL: jezdziec widzi % zajetych slotow Stajni Nad Rzeka zamiast 1', v;
+  ) o;
+  if r.n <> 1 or r.taken <> 1 or r.hour <> 10 then
+    raise exception 'FAIL: zajetosc Stajni Nad Rzeka: slotow=% zajetych=% godzina=%', r.n, r.taken, r.hour;
   end if;
-  raise notice 'PASS: funkcja pokazuje zajetosc cudzej stadniny (1 slot)';
+  raise notice 'PASS: funkcja pokazuje zajetosc cudzej stadniny (1 miejsce o 10)';
 
-  -- ...podczas gdy bezposredni odczyt bookings tej samej stadniny nadal daje
-  -- 0 wierszy - polityka SELECT z F-01 pozostaje nienaruszona.
+  -- ...podczas gdy bezposredni odczyt bookings tej samej stadniny nadal daje 0 wierszy.
   select count(*) into v
   from public.bookings b
   join public.schedule_days sd on sd.id = b.schedule_day_id
@@ -281,20 +304,15 @@ begin
   end if;
   raise notice 'PASS: bezposredni odczyt cudzych bookings nadal pusty';
 
-  -- Odwolany zapis znika z zajetosci: funkcja filtruje status='active'.
-  -- Anna odwoluje wlasny zapis (Bella o 11 w Pod Debem) w tej transakcji;
-  -- rollback na koncu bloku przywraca stan seeda.
-  select count(*) into v
-  from public.get_taken_slots(
-    (select id from public.stables where name = 'Stadnina Pod Debem'),
-    current_date + 1
-  );
+  -- Odwolany zapis znika z zajetosci: funkcja liczy wylacznie aktywne.
+  select coalesce(sum(taken), 0) into v
+  from public.get_slot_occupancy((select id from public.stables where name = 'Stadnina Pod Debem'), current_date + 1);
   if v <> 1 then
-    raise exception 'FAIL: przed odwolaniem funkcja widzi % slotow Pod Debem zamiast 1', v;
+    raise exception 'FAIL: przed odwolaniem funkcja widzi % zajetych miejsc Pod Debem zamiast 1', v;
   end if;
 
   update public.bookings
-     set status = 'cancelled', cancelled_at = now()
+     set status = 'cancelled', cancelled_at = now(), cancelled_by = 'rider'
    where rider_id = '33333333-3333-3333-3333-333333333333';
   get diagnostics v = row_count;
   if v <> 1 then
@@ -302,17 +320,14 @@ begin
   end if;
 
   select count(*) into v
-  from public.get_taken_slots(
-    (select id from public.stables where name = 'Stadnina Pod Debem'),
-    current_date + 1
-  );
+  from public.get_slot_occupancy((select id from public.stables where name = 'Stadnina Pod Debem'), current_date + 1);
   if v <> 0 then
     raise exception 'FAIL: odwolany zapis nadal widoczny w zajetosci (% wierszy)', v;
   end if;
-  raise notice 'PASS: odwolany zapis znika z zajetosci (filtr status=active)';
+  raise notice 'PASS: odwolany zapis znika z zajetosci (tylko aktywne)';
 
   -- Nieistniejacy osrodek: pusty zbior, nie blad.
-  select count(*) into v from public.get_taken_slots(999999, current_date + 1);
+  select count(*) into v from public.get_slot_occupancy(999999, current_date + 1);
   if v <> 0 then
     raise exception 'FAIL: nieistniejacy osrodek zwraca % wierszy', v;
   end if;
@@ -327,10 +342,10 @@ set local role anon;
 do $$
 begin
   begin
-    perform * from public.get_taken_slots(1, current_date + 1);
-    raise exception 'FAIL: anon wywolal get_taken_slots';
+    perform * from public.get_slot_occupancy(1, current_date + 1);
+    raise exception 'FAIL: anon wywolal get_slot_occupancy';
   exception when insufficient_privilege then
-    raise notice 'PASS: anon nie moze wywolac get_taken_slots';
+    raise notice 'PASS: anon nie moze wywolac get_slot_occupancy';
   end;
 end $$;
 

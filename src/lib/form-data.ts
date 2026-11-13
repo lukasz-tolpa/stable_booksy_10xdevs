@@ -1,3 +1,16 @@
+import { z } from "zod";
+
+/**
+ * Liczba całkowita z pola formularza (schemat Zod). Przyjmuje wyłącznie ciąg cyfr (po
+ * przycięciu białych znaków) — `z.coerce.number()` zamieniałby brakujące lub puste pole na
+ * `0` (brak `hour` odbijał się dopiero od bazy z mylącym komunikatem), a `"abc"` dawał
+ * angielski komunikat Zoda. Brak pola ma być błędem walidacji z komunikatem tego pola
+ * (walidacja przed pierwszą mutacją, lekcja S-02).
+ */
+export function formInt(message: string) {
+  return z.string().trim().regex(/^\d+$/, { error: message }).transform(Number);
+}
+
 /**
  * Bezpieczny odczyt pola tekstowego z formularza.
  *

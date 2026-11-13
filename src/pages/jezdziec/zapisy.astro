@@ -9,8 +9,7 @@ import FailureState from "@/components/ui/FailureState.astro";
 import { ROLE_HOME } from "@/lib/auth/roles";
 import { getRiderBookings } from "@/lib/bookings/queries";
 import { splitRiderBookings, type RiderBookingSections } from "@/lib/bookings/rider-list";
-import { currentWarsawHour } from "@/lib/bookings/slots";
-import { todayIso } from "@/lib/schedule/dates";
+import { formatClockHour } from "@/lib/format";
 import { createClient } from "@/lib/supabase";
 import { logError } from "@/lib/log";
 
@@ -29,7 +28,7 @@ let loadFailed = false;
 if (supabase && user) {
   try {
     const bookings = await getRiderBookings(supabase, user.id);
-    sections = splitRiderBookings(bookings, { today: todayIso(), currentHour: currentWarsawHour() });
+    sections = splitRiderBookings(bookings);
   } catch (error) {
     loadFailed = true;
     logError("page:jezdziec/zapisy", error);
@@ -93,13 +92,14 @@ function formatDay(day: string): string {
               {sections.upcoming.map((row) => (
                 <li>
                   <span class="row__when">
-                    {formatDay(row.day)}, {row.hour}:00
+                    {formatDay(row.day)}, {formatClockHour(row.hour)}
                   </span>
-                  {/* Nazwa ośrodka i konia siedzą w tym samym wierszu co przycisk -
-                      scenariusz odwołania zawęża <li> po wszystkich trzech naraz. */}
+                  {/* Ośrodek i instruktor siedzą w tym samym wierszu co przycisk -
+                      scenariusz odwołania zawęża <li> po nich naraz. */}
                   <span class="row__meta">
                     <span class="row__sub">{row.stableName}</span>
-                    <span class="row__horse">{row.horseName}</span>
+                    <span class="row__horse">{row.instructorName}</span>
+                    {row.horseLabel && <span class="row__sub">{row.horseLabel}</span>}
                   </span>
                   <form method="post" action="/api/bookings/cancel" class="row__action">
                     <input type="hidden" name="bookingId" value={row.id} />
@@ -125,14 +125,16 @@ function formatDay(day: string): string {
               {sections.history.map((row) => (
                 <li>
                   <span class="row__when">
-                    {formatDay(row.day)}, {row.hour}:00
+                    {formatDay(row.day)}, {formatClockHour(row.hour)}
                   </span>
                   <span class="row__meta">
                     <span class="row__sub">{row.stableName}</span>
-                    <span class="row__horse">{row.horseName}</span>
+                    <span class="row__horse">{row.instructorName}</span>
+                    {row.horseLabel && <span class="row__sub">{row.horseLabel}</span>}
                     {/* Cały tekst tego elementu to samo słowo - scenariusz odwołania
                         szuka wiersza po dokładnym dopasowaniu. */}
                     {row.status === "cancelled" && <span class="tag">odwołany</span>}
+                    {row.cancelledByLabel && <span class="row__sub">{row.cancelledByLabel}</span>}
                   </span>
                 </li>
               ))}

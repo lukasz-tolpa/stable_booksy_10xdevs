@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatHours, formatNumber } from "@/lib/format";
+import { formatFreeSeats, formatHours, formatNumber } from "@/lib/format";
 
 // Polski zapis grupuje tysiące twardą spacją (U+00A0) dopiero od pięciu cyfr.
 describe("formatNumber", () => {
@@ -7,6 +7,14 @@ describe("formatNumber", () => {
     expect(formatNumber(7)).toBe("7");
     expect(formatNumber(12345)).toBe("12 345");
     expect(formatNumber(1.5)).toBe("1,5");
+  });
+});
+
+describe("formatFreeSeats", () => {
+  // Oracle: AC #41 — „2 z 4 wolne".
+  it("zapisuje wolne miejsca slotu wobec limitu", () => {
+    expect(formatFreeSeats(2, 4)).toBe("2 z 4 wolne");
+    expect(formatFreeSeats(0, 1)).toBe("0 z 1 wolne");
   });
 });
 

@@ -41,35 +41,55 @@ export type Database = {
       bookings: {
         Row: {
           cancelled_at: string | null
+          cancelled_by: string | null
           created_at: string
-          horse_id: number
+          horse_id: number | null
           hour: number
           id: number
+          instructor_id: number
           rider_id: string | null
           schedule_day_id: number
           status: string
         }
         Insert: {
           cancelled_at?: string | null
+          cancelled_by?: string | null
           created_at?: string
-          horse_id: number
+          horse_id?: number | null
           hour: number
           id?: never
+          instructor_id: number
           rider_id?: string | null
           schedule_day_id: number
           status?: string
         }
         Update: {
           cancelled_at?: string | null
+          cancelled_by?: string | null
           created_at?: string
-          horse_id?: number
+          horse_id?: number | null
           hour?: number
           id?: never
+          instructor_id?: number
           rider_id?: string | null
           schedule_day_id?: number
           status?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "bookings_assigned_horse_fkey"
+            columns: ["schedule_day_id", "horse_id"]
+            isOneToOne: false
+            referencedRelation: "schedule_day_horses"
+            referencedColumns: ["schedule_day_id", "horse_id"]
+          },
+          {
+            foreignKeyName: "bookings_instructor_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructors"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "bookings_rider_id_fkey"
             columns: ["rider_id"]
@@ -78,11 +98,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "bookings_scheduled_horse_fkey"
-            columns: ["schedule_day_id", "horse_id"]
+            foreignKeyName: "bookings_schedule_day_fkey"
+            columns: ["schedule_day_id"]
             isOneToOne: false
-            referencedRelation: "schedule_day_horses"
-            referencedColumns: ["schedule_day_id", "horse_id"]
+            referencedRelation: "schedule_days"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -114,6 +134,38 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "horses_stable_id_fkey"
+            columns: ["stable_id"]
+            isOneToOne: false
+            referencedRelation: "stables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      instructors: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: number
+          name: string
+          stable_id: number
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: never
+          name: string
+          stable_id: number
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: never
+          name?: string
+          stable_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instructors_stable_id_fkey"
             columns: ["stable_id"]
             isOneToOne: false
             referencedRelation: "stables"
@@ -178,6 +230,42 @@ export type Database = {
           },
         ]
       }
+      schedule_day_instructors: {
+        Row: {
+          created_at: string
+          instructor_id: number
+          schedule_day_id: number
+          stable_id: number
+        }
+        Insert: {
+          created_at?: string
+          instructor_id: number
+          schedule_day_id: number
+          stable_id: number
+        }
+        Update: {
+          created_at?: string
+          instructor_id?: number
+          schedule_day_id?: number
+          stable_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedule_day_instructors_day_fkey"
+            columns: ["schedule_day_id", "stable_id"]
+            isOneToOne: false
+            referencedRelation: "schedule_days"
+            referencedColumns: ["id", "stable_id"]
+          },
+          {
+            foreignKeyName: "schedule_day_instructors_instructor_fkey"
+            columns: ["instructor_id", "stable_id"]
+            isOneToOne: false
+            referencedRelation: "instructors"
+            referencedColumns: ["id", "stable_id"]
+          },
+        ]
+      }
       schedule_days: {
         Row: {
           close_hour: number
@@ -213,6 +301,35 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "stables"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      schedule_slots: {
+        Row: {
+          hour: number
+          instructor_id: number
+          schedule_day_id: number
+          seats: number
+        }
+        Insert: {
+          hour: number
+          instructor_id: number
+          schedule_day_id: number
+          seats?: number
+        }
+        Update: {
+          hour?: number
+          instructor_id?: number
+          schedule_day_id?: number
+          seats?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedule_slots_day_instructor_fkey"
+            columns: ["schedule_day_id", "instructor_id"]
+            isOneToOne: false
+            referencedRelation: "schedule_day_instructors"
+            referencedColumns: ["schedule_day_id", "instructor_id"]
           },
         ]
       }
@@ -256,12 +373,24 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_taken_slots: {
+      get_slot_occupancy: {
         Args: { p_day: string; p_stable_id: number }
         Returns: {
-          horse_id: number
           hour: number
+          instructor_id: number
+          taken: number
         }[]
+      }
+      save_schedule_day: {
+        Args: {
+          p_close_hour: number
+          p_day: string
+          p_horse_ids: number[]
+          p_instructor_ids: number[]
+          p_open_hour: number
+          p_seats?: Json
+        }
+        Returns: number
       }
     }
     Enums: {

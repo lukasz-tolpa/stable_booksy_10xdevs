@@ -154,12 +154,22 @@ the relevant rollout phase ships; before that, the sub-section reads
   `npm run test:db`).
 - **Naming**: `<area>_<scenario>.sql` (e.g. `rls_isolation.sql`,
   `schedule_change_guardrails.sql`); `<scenario>.sh` for multi-connection
-  proofs (`concurrent_double_booking.sh`).
+  proofs (`concurrent_seat_booking.sh`).
 - **Reference tests**: `rls_isolation.sql` — persona + `row_count` pattern;
   `schedule_change_guardrails.sql` — setup as `postgres` → mutations as the
   owner through RLS → re-read after every refusal → foreign owner touches 0
-  rows; `concurrent_double_booking.sh` — N parallel `psql` processes as two
-  riders, `23505` + constraint name, release path after cancellation.
+  rows; `concurrent_seat_booking.sh` — N parallel `psql` processes as N
+  temporary riders on one slot with `SEATS` seats (default 2, held open by
+  `pg_sleep(HOLD_SECONDS)` after the insert): exactly `SEATS` succeed, the rest
+  get `SB009` from `bookings_seat_limit`, release path after cancellation,
+  occupancy via `get_slot_occupancy`; it deletes its riders and restores the
+  seat limit. `booking_seats.sql` — seat limit, one booking per rider per hour,
+  cancellation rules, horse only on an active booking. `stable_booking_actions.sql`
+  — the stable assigns, changes and clears a horse through RLS (horse off the
+  day `23503`, horse taken in the hour `23505`, no time threshold), a rider
+  cannot touch the assignment (`42501`), the stable cancels with
+  `cancelled_by = 'stable'` (horse and seat freed, the rider rebooks the slot),
+  foreign stable and foreign rider touch 0 rows, `SB004` on unassigning.
 - **Run locally**: `npm run test:db` with a running stack (`npx supabase
 start`) and a seed loaded **today** (`npx supabase db reset`) — the runner
   refuses when the seeded days are no longer "tomorrow", because `seed.sql`
@@ -200,10 +210,17 @@ local role authenticated; set local request.jwt.claims =
   (project `setup`, runs before `chromium`).
 - **Naming**: `<scenario>.spec.ts`, one `test` per user-visible outcome, split
   into `test.step`s named after what the user sees.
-- **Reference tests**: `rider-loop.spec.ts` — the full loop (catalogue →
-  slot list vs. PRD → book → "Twój zapis" badge → stable's day list → "Moje
-  zapisy" → cancel → slot freed); `booking-refusal.spec.ts` — two browser
-  contexts racing on one slot, refusal text, no row, flag-guarded cleanup.
+- **Reference tests**: `rider-loop.spec.ts` — the full loop (stable adds an
+  instructor seat in the schedule form → catalogue → slot list vs. schedule →
+  book without a horse → "Twój zapis" → stable's day list with "bez konia" →
+  "Moje zapisy" with "Koń zostanie przydzielony" → stable assigns Bella
+  (select "Koń", "Zapisz konia"), rider sees it → stable cancels ("Odwołaj
+  zapis" → "Potwierdź odwołanie"), row moves to the "Odwołane" region, rider
+  sees "przez ośrodek" → rider rebooks the freed seat and cancels it → seat
+  freed → instructor removed again). The stable's day list has two regions,
+  "Aktywne" and "Odwołane" (`dayBookingRow(page, section, hour, instructor)`),
+  because the same slot can sit in both; `booking-refusal.spec.ts` — two browser contexts
+  racing on a one-seat slot, `SB009` text, no row, flag-guarded cleanup.
 - **Run locally**: `npx supabase start` → `npx supabase db reset` (seed days
   are `current_date + 1`; a stale seed fails fast with the hint "Seed
   nieaktualny…") → `npm run test:e2e`. Root `.dev.vars` must point at
@@ -226,10 +243,11 @@ local role authenticated; set local request.jwt.claims =
   two **fresh riders** signed up as `e2e-rider-<a|b>-<timestamp>@example.com`
   (confirmations are off locally) and the seeded stable signed in read-only;
   saved as storage states under `playwright/.auth/` (gitignored). Selectors
-  are role / label / text only, scoped to the hour `listitem`
-  (`hourSection(page, 13).getByRole('button', { name: 'Kasztan', exact: true })`)
-  because a booking button is named by the horse alone and "1:00" is a
-  substring of "11:00". Waits are `waitForURL(/sukces=1/)` / `(/error=/)` —
+  are role / label / text only, scoped to the hour `listitem` and then the
+  instructor's slot `listitem` (`bookButton(page, 13, 'Karol Jasny')` =
+  `slotItem(...).getByRole('button', { name: 'Zapisz się', exact: true })`)
+  because every booking button has the same name and "1:00" is a substring
+  of "11:00". Waits are `waitForURL(/sukces=1/)` / `(/error=/)` —
   every mutation is a plain form POST + 302. Before filling a React island
   form call `waitForIslands(page)` (waits for `astro-island[ssr]` to vanish;
   a pre-hydration `fill` is wiped by the island's controlled state). The
@@ -238,10 +256,39 @@ local role authenticated; set local request.jwt.claims =
   Every scenario cancels what it booked; a run that dies mid-way leaves an
   active booking and the next run goes red on "slot free" — repair with
   `npx supabase db reset`.
-- **Seed slots reserved**: Kasztan@13 (rider loop), Bella@14 (refusal),
-  Kasztan@12 (`test:db` concurrency script) — all at Stadnina Pod Debem,
-  tomorrow. Do not run `npm run test:db` and `npm run test:e2e` against the
+- **Seed slots reserved**: Karol Jasny@13 (rider loop — Karol does not work in
+  the seed; the scenario adds him with 1 seat at 13:00 and removes him after),
+  Joanna Wrona@14 (refusal, 1 seat), Joanna Wrona@12 (`test:db` concurrency
+  script, which raises the limit temporarily) — all at Stadnina Pod Debem,
+  tomorrow. Anna holds Joanna@11, Piotr holds Tomasz Lis@10 at Stajnia Nad Rzeka;
+  seed bookings have no horse. Do not run `npm run test:db` and `npm run test:e2e` against the
   same database at the same time.
+- **Past data**: the seed schedules only tomorrow and the past cannot be
+  clicked together in a browser, so the `setup` project loads
+  `supabase/demo/history.sql` (idempotent; also `npm run db:demo`).
+  `stable-stats.spec.ts` asserts consistency on it — the riders table's rides
+  equal the period summary; the horse table sums to fewer rides (the history
+  has rides without a horse) and the riders' cancellations to fewer than the
+  period's (the history has stable cancellations, which count only in the
+  period) — never fixed numbers, because the history is relative to the load
+  day. Removing those rows from the history turns the strict inequalities red. After the history is loaded, `npm run test:db` needs a
+  fresh `npx supabase db reset`.
+- **Locator traps**: locators are role, label and exact text, so visual work
+  can break tests without touching logic. Keep these exactly as they are:
+  the hour element's entire text is `"{h}:00"`; each instructor slot is a
+  nested `<li>` holding the instructor name, `"{free} z {seats} wolne"` and
+  either the button `Zapisz się` (no `aria-label`), the pill `Twój zapis`,
+  `Brak miejsc` or `Masz już zapis o tej godzinie`; the schedule form's seat
+  input is labelled `"{instructor}, {h}:00"` and the instructor checkbox by the
+  name alone; the cancelled chip's entire text is `odwołany`; the search
+  field's label is `Szukaj ośrodka`; each upcoming-booking `<li>` holds the
+  cancel button, the stable name, the instructor name and the horse label
+  together; the stable's day-list row holds the hour, instructor, rider and
+  horse or `bez konia`; the statistics summary is the
+  region "Podsumowanie okresu" with four `<dd>` tiles in the order rides,
+  ride hours, occupancy, cancellations. Before adding prose to a screen,
+  check it does not repeat a validation message verbatim — a lead paragraph
+  containing "Wybierz rodzaj konta" once made that text match two elements.
 - **Sabotage check**: before trusting a new assertion break its guard (drop
   the insert, rename `?sukces=`, relabel the button, remap a code to the
   fallback) and watch the scenario go red at that step; revert.
@@ -269,7 +316,7 @@ local role authenticated; set local request.jwt.claims =
   set** in `src/lib/<area>/errors.test.ts` (`it.each` over odd inputs; no
   provider text such as `fetch`, `duplicate key`, `violates`).
 - **Validation before the first mutation**: numeric form fields go through
-  the digit-only helper in the area's `schema.ts` (`formInt`) so a missing or
+  the digit-only helper `formInt` from `src/lib/form-data.ts` so a missing or
   blank field is a per-field validation message, never `0` refused by the
   database with a misleading text. Cover blanks with `it.each` per field.
 - **Ownership** follows the Phase 1 RLS pattern (§6.2): explicit
@@ -352,7 +399,7 @@ authenticated` + `request.jwt.claims`). The CLI's default Postgres image on
   prototype's sign-up lead "Wybierz rodzaj konta — …" repeats the role validation
   message verbatim, so any text locator resolved to two elements; the sentence was
   reworded. Everything the suite finds by role, label or exact text is now listed
-  in AGENTS.md → "Design" as a locator contract (hour = `"{h}:00"` alone, booking
+  in §6.3 ("Locator traps") as a locator contract (hour = `"{h}:00"` alone, booking
   button = horse name with no `aria-label`, `— Twój zapis` with U+2014, chip =
   `odwołany`). Slots taken by other riders stay **unrendered**, unlike the
   prototype's third legend entry — see `context/changes/ui-redesign/follow-ups/taken-slot.md`.

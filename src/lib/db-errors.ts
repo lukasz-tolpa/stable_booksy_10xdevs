@@ -17,6 +17,29 @@ export function errorCode(error: unknown): string | undefined {
     : undefined;
 }
 
+const CONSTRAINT_NAME = /constraint "([^"]+)"/;
+
+/**
+ * Nazwa naruszonego ograniczenia (indeksu unikalnego, FK, CHECK-a) — tam, gdzie kilka ograniczeń
+ * dzieli jeden SQLSTATE. PostgREST nie oddaje jej osobnym polem, więc czytamy ją z wbudowanego
+ * formatu komunikatu Postgresa (`... violates <rodzaj> constraint "<nazwa>"`), nie z treści
+ * `raise exception` naszych migracji. Odmowa z wyzwalacza nie ma nazwy — `undefined`.
+ */
+export function errorConstraint(error: unknown): string | undefined {
+  const message = errorMessage(error);
+  return message ? CONSTRAINT_NAME.exec(message)?.[1] : undefined;
+}
+
+/**
+ * Pole DETAIL błędu Postgresa (`details` w odpowiedzi PostgREST). Tu odmowy bazy niosą dane
+ * w stabilnym formacie (JSON) — w przeciwieństwie do treści komunikatu, którą wolno zmieniać.
+ */
+export function errorDetails(error: unknown): string | undefined {
+  return typeof error === "object" && error !== null && "details" in error && typeof error.details === "string"
+    ? error.details
+    : undefined;
+}
+
 /** Treść błędu dostawcy — tylko do dalszej interpretacji, nigdy do pokazania wprost. */
 export function errorMessage(error: unknown): string | undefined {
   return typeof error === "object" && error !== null && "message" in error && typeof error.message === "string"

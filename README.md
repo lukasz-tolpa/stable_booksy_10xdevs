@@ -18,24 +18,27 @@ której Kalendarz Google ani Booksy nie pilnują. Stąd ta aplikacja.
 | Rola         | Co robi                                                                                 |
 | ------------ | --------------------------------------------------------------------------------------- |
 | **Ośrodek**  | Zakłada stadninę, prowadzi stado koni, układa grafik dnia, widzi listę zapisów na dzień |
-| **Jeździec** | Przegląda ośrodki, wybiera wolny slot godzina × koń, zapisuje się i odwołuje zapis      |
+| **Jeździec** | Przegląda ośrodki, zapisuje się na miejsce u instruktora o danej godzinie i odwołuje    |
 
 Rola jest wybierana przy rejestracji i zapisywana w profilu przez trigger bazy. Pośrednik
 (`src/middleware.ts`) pilnuje tras: konto ośrodka nie wejdzie na ekrany jeźdźca i odwrotnie.
 
 ## Jak to działa
 
-Najważniejsza reguła nie mieszka w kodzie aplikacji, tylko w bazie. Jeden slot to trójka
-(dzień grafiku, koń, godzina), a podwójnej rezerwacji pilnuje częściowy unikalny indeks
-`bookings_active_slot_key`. Gdy dwóch jeźdźców kliknie ten sam slot w tej samej chwili,
-dokładnie jeden zapis przechodzi, a drugi dostaje po polsku „Ten slot został właśnie
-zajęty". Tak samo działają pozostałe gwarancje: zapis poza godzinami pracy odrzuca trigger,
-a zmiana grafiku, która porzuciłaby istniejące zapisy, jest blokowana z własnym kodem błędu.
+Najważniejsza reguła nie mieszka w kodzie aplikacji, tylko w bazie. Jeden slot to godzina
+jednego instruktora w dniu grafiku z limitem miejsc, a limitu pilnuje trigger
+`bookings_seat_limit`, który blokuje wiersz slotu na czas zapisu. Gdy kilku jeźdźców kliknie
+ostatnie miejsce w tej samej chwili, przechodzi dokładnie tyle zapisów, ile było miejsc,
+a pozostali dostają po polsku „W tym slocie nie ma już wolnych miejsc". Konia do zapisu
+przydziela później ośrodek. Tak samo działają pozostałe gwarancje: zapis poza godzinami
+pracy odrzuca trigger, a zmiana grafiku, która porzuciłaby istniejące zapisy, jest blokowana
+z własnym kodem błędu.
 
 Godziny pracy to zakres półotwarty: 10–16 oznacza sloty od 10:00 do 15:00.
 
-Jeździec nigdy nie widzi, kto zajął slot. Zajętość przychodzi z jednej funkcji
-`get_taken_slots`, która zwraca wyłącznie parę (koń, godzina), bez tożsamości.
+Jeździec nigdy nie widzi, kto zajął miejsce. Zajętość przychodzi z funkcji
+`get_slot_occupancy`, która zwraca wyłącznie (instruktor, godzina, liczba zapisów), bez
+tożsamości.
 
 ## Stos
 
@@ -151,7 +154,8 @@ context/            dokumenty projektu (patrz niżej)
 | `context/foundation/infrastructure.md` | Środowiska i wdrożenie                                        |
 | `context/foundation/test-plan.md`      | Strategia testów i wzorce ich dopisywania                     |
 | `context/foundation/lessons.md`        | Reguły wyciągnięte z poprzednich zmian                        |
-| `AGENTS.md`                            | Zasady pracy w repozytorium, w tym kontrakt warstwy wizualnej |
+| `AGENTS.md`                            | Zasady pracy w repozytorium i wskaźniki do pozostałych plików |
+| `CODING_STANDARDS.md`                  | Reguły stosowane przy przeglądzie kodu                        |
 | `DESIGN.md`                            | System wizualny: tokeny, typografia, stany                    |
 
 Historia zmian leży w `context/archive/`, po jednym folderze na wycinek, razem z planem

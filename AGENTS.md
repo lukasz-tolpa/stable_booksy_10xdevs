@@ -1,77 +1,44 @@
 # Repository Guidelines
 
-Stable Booksy is an MVP booking system for horse-riding stables (roles: Ośrodek/admin, Jeździec/rider) built on Astro 6 SSR + React 19 islands + Supabase (auth/Postgres) + shadcn/ui, deployed to Cloudflare Workers. Scaffolded from `10x-astro-starter`.
+Stable Booksy is a booking system for horse-riding stables (roles: Ośrodek/stable, Jeździec/rider) built on Astro 6 SSR + React 19 islands + Supabase (auth/Postgres) + shadcn/ui, deployed to Cloudflare Workers. UI copy is Polish.
+
+## Where things are written down
+
+- **Domain vocabulary and decisions** — `GLOSSARY.md`, `docs/adr/`. Use the glossary's terms in code, tests and copy.
+- **Visual system and how it is implemented** — `DESIGN.md` (§8 covers tokens, shared blocks, charts, scoped-style traps). Read it before touching markup or styles.
+- **Test patterns** — `context/foundation/test-plan.md` §6: unit (§6.1), database (§6.2), e2e incl. locator traps and reserved seed slots (§6.3), endpoints (§6.4), gates and the edit hook (§6.6).
+- **Review rules** — `CODING_STANDARDS.md`. Read it when reviewing a diff.
+- **Recurring pitfalls** — `context/foundation/lessons.md`.
+- **Product** — `context/foundation/prd.md`, `roadmap.md` (living docs, edited in place). `context/changes/<id>/` holds in-flight change folders; `context/archive/` is immutable.
+- **Commands** — `package.json` scripts; CI — `.github/workflows/ci.yml`.
 
 ## Hard rules
 
-- `.github/workflows/ci.yml` triggers on push/PR to `main`. Job `ci` runs lint, unit tests and build; job `db-tests` starts Postgres from the Supabase CLI (`npx supabase db start`, image pinned by the committed `supabase/postgres-version`, which CI copies to `supabase/.temp/`) and runs `npm run test:db`; job `e2e` starts the Supabase auth stack (`npx supabase start -x …`, keeping kong + gotrue + postgrest), writes `.dev.vars` from `supabase status -o env` and runs `npm run test:e2e` against `astro preview`; job `ci` also runs `npm run check` (`astro check`). The three jobs are required status checks in the `main` ruleset (`.github/rulesets/main-gates.json`, applied via API): `main` accepts only pull-request merges with all three green and rejects direct pushes. Production is deployed by Cloudflare Workers Builds from `main` (Git integration), not by Actions. After `npx supabase link` compare `supabase/.temp/postgres-version` with the committed file and update the committed one if they differ.
-- Vitest (`npm test`) covers pure logic under `src/lib/**` only — no DB, server, or component tests. Database guarantees are verified by the psql scripts in `supabase/tests/` via `npm run test:db` — see "Database" below. Run it locally after ANY change to migrations or RLS policies (CI runs it too, but locally is faster); nothing else will catch a regression.
-- Playwright (`npm run test:e2e`, specs in `e2e/`) is the only layer that exercises SSR pages, forms, redirects and session cookies. It needs Docker with the full local stack (`npx supabase start`), a seed loaded today (`npx supabase db reset`) and a root `.dev.vars` pointing at `http://127.0.0.1:54321` — the built worker reads secrets from the `.dev.vars` snapshot taken at `astro build`, never from the process environment. Run it after any change to `src/pages/**`, the booking/cancel endpoints, RLS on `bookings`, or the seed. Patterns and reserved seed slots: `context/foundation/test-plan.md` §6.3/§6.4.
-- `src/db/database.types.ts` is generated. Never edit it by hand — run `npm run db:types` (needs a running local stack). It is excluded from ESLint in `eslint.config.js` for that reason.
-- `claude.md` is the generic 10xDevs toolkit meta-doc, not project rules. The real project-specific architecture rules live in `@CLAUDE.md.scaffold` (sidelined during bootstrap because `claude.md` already existed) — read it for auth-flow file map, rendering mode, and conventions below.
-- `context/foundation/` holds living docs (PRD, tech-stack, roadmap) edited in place; `context/changes/<id>/` holds in-flight change folders. Never write to `context/archive/`.
+- `main` accepts only pull-request merges with `ci`, `db-tests` and `e2e` green (ruleset `.github/rulesets/main-gates.json`). Production deploys from `main` through Cloudflare Workers Builds, not Actions.
+- `src/db/database.types.ts` is generated: after any schema change run `npm run db:types` (local stack running) and commit the result. The rest of the app imports the domain aliases in `src/types.ts`.
+- Three test layers, each the only guard for its area:
+  - `npm test` (Vitest) — pure logic under `src/lib/**` only.
+  - `npm run test:db` — database guarantees. Run after ANY change to migrations or RLS. Needs a seed loaded today and untouched: `npx supabase db reset` first.
+  - `npm run test:e2e` (Playwright) — the only layer that exercises SSR pages, forms, redirects and cookies. Run after any change to `src/pages/**`, RLS on `bookings`, or the seed.
+- The seed schedules only tomorrow. Past history for the statistics page is `supabase/demo/history.sql`, loaded by `npm run db:demo` and by the e2e setup. Once loaded, `npm run test:db` needs a fresh `npx supabase db reset`.
+- The built worker reads secrets from the `.dev.vars` snapshot taken at `astro build`, never from the process environment. `.dev.vars*` hold secrets.
+- `npm run lint` is ESLint plus `scripts/check-tokens.mjs`, which rejects colour and font literals outside `src/styles/global.css`.
+- A new migration is named `YYYYMMDDHHmmss_short_description.sql` and enables RLS on every table it creates.
+- After `npx supabase link`, copy `supabase/.temp/postgres-version` over the committed `supabase/postgres-version` if they differ — CI pins its Postgres image from the committed file.
+- This machine is short on memory. In a git worktree run `node scripts/agent-worktree.mjs setup <base-branch> <new-branch>` instead of `npm install`, and `node scripts/agent-worktree.mjs teardown` when done; start the dev server or Docker only when asked.
 
-## Project Structure
+## Database
 
-- `src/pages/` — Astro routes: `index.astro`, `dashboard.astro` (protected), `auth/{signin,signup,confirm-email}.astro`, `api/auth/{signin,signup,signout}.ts`.
-- `src/components/` — Astro components for static content (`Banner.astro`, `Topbar.astro`) and `ui/` (shadcn plus the shared blocks `Card`, `EmptyState`, `FailureState`, `RoleBadge`, `DayNav` — see "Design"); React islands only where interactive, under `components/auth/*.tsx`.
-- `src/lib/stats/` — the stable statistics module: `computeStableStats` (`stats.ts`) is the only place that computes anything and returns the page's view model; `queries.ts` loads the period's rows, `riders.ts` / `rankings.ts` / `time-series.ts` build its parts, `period.ts` resolves the `?od=&do=` range. `src/components/stats/` — `RiderTable`, `HorseStatsTable` and their shared `stats.css`, rendered by `src/pages/osrodek/statystyki.astro`; they only render the view model.
-- `src/lib/` — `supabase.ts` (SSR client), `utils.ts` (`cn()` helper), `format.ts` (`formatNumber` / `formatHours` — the only number/hour formatters), `config-status.ts`, `log.ts` (`logError(scope, error)` — the only `console.error` in `src/`, derived fields only), `auth/errors.ts` (closed Polish set for GoTrue `error.code`), `auth/session.ts` (helpers returning discriminated results for sign-out, role, current user, sign-up). `src/middleware.ts` gates routes from the map in `@/lib/auth/roles`.
-- `supabase/` — `migrations/` (schema, RLS), `seed.sql` (local demo data, loaded by `db reset`), `tests/` (verification scripts). New migrations follow `YYYYMMDDHHmmss_short_description.sql` and must enable RLS per table.
-- `src/db/` — generated database types; `src/types.ts` — domain aliases (`Booking`, `ScheduleDay`, …) that the rest of the app imports instead of the generated file.
-- `context/foundation/` — see `@context/foundation/README.md` for the PRD/tech-stack/roadmap workflow.
+- A slot is one instructor × one hour of a schedule day with a seat limit (`schedule_slots.seats`, ADR-0002); `hour` is a `smallint`, working hours are the half-open range `[open_hour, close_hour)` — 10–16 means slots 10…15. A rider books a seat with an instructor (`bookings.instructor_id`); the horse (`bookings.horse_id`) is optional and only on an active booking — the stable assigns it.
+- The seat limit is the trigger `bookings_seat_limit`, not application code: it locks the slot row (`FOR UPDATE`) and refuses a booking over the limit with `SB009`; a missing slot or day surfaces as `23503`, "outside working hours" as `23514`. One active booking per rider per hour is the partial unique index `bookings_rider_hour_key` (`23505`); one active booking per assigned horse per hour is `bookings_horse_hour_key`. Trigger `bookings_cancellation` makes a cancelled booking final, lets each role write only itself into `cancelled_by` (`42501`) and clears the horse. Only the stable changes `horse_id` (trigger `bookings_horse_assignment`, `42501` for a rider; no time threshold); the "slot already started" threshold for cancelling — by either role — lives in the endpoints. Rider-facing messages live in `src/lib/bookings/errors.ts`; stable-facing schedule codes (`SB001`–`SB011`) in `src/lib/schedule/errors.ts`; horse-assignment refusals in `src/lib/bookings/stable-errors.ts`.
+- The schedule (day, horses, instructors, seat limits) is written only by `public.save_schedule_day`, in one transaction; direct INSERT/UPDATE/DELETE on `schedule_days`, `schedule_day_horses`, `schedule_day_instructors` and `schedule_slots` is revoked (`42501`). Seeds and demo data write as `postgres` and must keep the seat-sum rule themselves.
+- `bookings.rider_id` is nullable: NULL means an anonymised rider (ADR-0001). Deleting a profile first deletes all of the rider's bookings whose slot hour has not ended (trigger `profiles_release_future_bookings`, boundary `private.booking_slot_ended` in `Europe/Warsaw`), then the FK sets `rider_id` to NULL on the rest. Any code that shows a rider next to a booking handles the missing rider.
+- Riders cannot SELECT other riders' bookings (RLS). Slot occupancy comes from the RPC `public.get_slot_occupancy(stable_id, day)` — `security definer`, returns only `(instructor_id, hour, taken)`. Wrapper in `src/lib/bookings/queries.ts`.
+- Demo accounts from `supabase/seed.sql` (password `sekret123`): `osrodek.debem@example.com`, `osrodek.rzeka@example.com` (stables); `anna.kowalska@example.com`, `piotr.nowak@example.com` (riders).
 
-## Build, Test, and Development
+## Conventions the config does not show
 
-- `npm run dev` — start dev server (Cloudflare workerd runtime).
-- `npm run build` — production build; CI runs `npx astro sync` first.
-- `npm run lint` / `npm run lint:fix` — type-checked ESLint.
-- `npm run check` — `astro check` typecheck (also in pre-push and CI).
-- `npm run format` — Prettier (astro + tailwindcss plugins).
-- `npx supabase start` — local Supabase (requires Docker); `npx supabase db reset` — rebuild schema from migrations + load `seed.sql`.
-- `npm run db:types` — regenerate `src/db/database.types.ts` from the local database.
-
-### Database
-
-- Slots are `(schedule_day, horse, hour)`; `hour` is a `smallint`, working hours are the half-open range `[open_hour, close_hour)` — 10–16 means slots 10…15.
-- The no-double-booking guarantee is the partial unique index `bookings_active_slot_key`, not application code. A rejected concurrent write surfaces as `23505`; "outside working hours" surfaces as `23514` from a trigger; "horse no longer assigned that day" as `23503`. Rider-facing messages for these live in `src/lib/bookings/errors.ts`; stable-facing schedule codes (`SB001`/`SB002`/`APP001`/`APP002`) in `src/lib/schedule/errors.ts`.
-- `bookings.rider_id` is nullable: NULL means an anonymised rider (ADR-0001). Deleting a profile sets it to NULL on bookings whose slot hour has ended (FK `on delete set null`) after the trigger `profiles_release_future_bookings` has deleted all of the rider's bookings — active and cancelled — that have not ended yet (`private.booking_slot_ended`, `Europe/Warsaw`). Any code that shows a rider next to a booking must handle the missing rider.
-- Riders cannot SELECT other riders' bookings (RLS). Slot occupancy comes from the project's single RPC, `public.get_taken_slots(stable_id, day)` — a `security definer` function returning only (horse_id, hour) of active bookings, no rider identity. Call it via `client.rpc(...)`; wrapper in `src/lib/bookings/queries.ts`.
-- Verification: `npm run test:db` (local stack running, seed loaded **today** — the runner refuses a stale seed; run `npx supabase db reset` first). Without a host `psql` it falls back to `docker exec` into the local container. It runs, in order:
-  - `rls_isolation.sql` — cross-stable, cross-rider and cross-role isolation (identifier swapping → 0 rows or `42501`).
-  - `schedule_change_guardrails.sql` — schedule edits vs. existing bookings as the owner through RLS (`SB001`/`SB002`/`23503`, booking re-read after refusal; cancelled bookings pin the horse).
-  - `rider_deletion_anonymisation.sql` — account deletion (ADR-0001): past rides and cancellations stay with `rider_id` NULL, all future bookings (active and cancelled) are deleted and the freed slots can be booked again, the `Europe/Warsaw` "slot hour has ended" boundary, visibility of rider-less bookings (own stable only).
-  - `concurrent_double_booking.sh` — N parallel writes to one slot as two riders, exactly one success, `23505` on `bookings_active_slot_key`, slot released after cancellation.
-  - How to add one: `context/foundation/test-plan.md` §6.2.
-- Demo accounts from `seed.sql` (password `sekret123`): `osrodek.debem@example.com`, `osrodek.rzeka@example.com` (stables); `anna.kowalska@example.com`, `piotr.nowak@example.com` (riders).
-
-## Design
-
-- `DESIGN.md` (repo root) is the visual source of truth — the light "Horse to go" system. There is **no dark mode**: `global.css` carries no `.dark` block and no `@custom-variant dark`, and `Layout.astro` pins `<meta name="color-scheme" content="light">`. Do not reintroduce either.
-- Tokens live once, in `src/styles/global.css`. `:root` holds the DESIGN.md §2 names verbatim (`--surface`, `--muted`, `--primary`, `--accent`, …) so prototypes read 1:1 and `<style>` blocks can use `var(--…)`. `@theme` carries typography and radii as literal values; `@theme inline` re-exports the palette as Tailwind utilities.
-- **Two name collisions with shadcn.** shadcn's `--muted` and `--accent` are _background_ colours, DESIGN.md's are _text_ and _chestnut_. So `bg-muted`/`bg-accent` keep shadcn meaning, helper text is `text-muted-foreground`, and chestnut is `bg-chestnut` / `bg-chestnut-soft` / `text-chestnut-ink`. Never map a DESIGN.md name onto a shadcn utility.
-- Shared blocks live in `src/components/ui/`: `Card`, `EmptyState`, `FailureState`, `RoleBadge`, `DayNav`. Prefer them over re-cutting a card or an empty state per page. `EmptyState` and `FailureState` are different on purpose — "nothing to show" is not "we could not load it".
-- **Charts** are drawn by `src/components/ui/BarChart.astro` — server-rendered HTML + CSS bars, no charting library and no client JavaScript (works unchanged on workerd SSR). Do not add a chart dependency; extend this component. Props: `title`, `items` (`{ label, longLabel?, value, valueText? }`), `orientation` (`vertical` for time series, `horizontal` for rankings/categories), `labelHeader`, `valueHeader`. The series comes ready from the view model in `@/lib/stats/stats` — the component computes only its axis scale, the page only formats labels. Every chart carries its text equivalent: the drawing is `aria-hidden` and the same data sits in a `<details>` table ("Pokaż dane wykresu w tabeli"), so never render a chart without it. Single series = `--primary` bars, zero values keep a 2 px `--border-2` stub, labels in mono `--muted`; no chestnut in charts.
-- Astro scoped styles do **not** reach a child component's root element. A selector like `.foo h1` works when the markup sits in the page; to style a `<Card>` from outside, pass Tailwind utilities (`class="w-full max-w-[420px]"`) or wrap the slot content in your own element.
-- Chestnut is the accent, capped at two appearances per screen (DESIGN.md §7). Today: the rider `RoleBadge`, the own-booking slot pill and the "Zapisz grafik" button.
-- Prototypes in `context/changes/ui-redesign/design/*.html` are the geometry contract, not code to copy. They use container queries against a fake `.app` wrapper; the app has no such wrapper, so the same breakpoints are written as media queries.
-- **Locator traps.** e2e finds things by role, label and exact text, so visual work can break tests without touching logic. Keep these exactly as they are: the hour element's entire text is `"{h}:00"`; a booking button's entire content is the horse name, with no `aria-label`; the own-booking pill reads `{horse} — Twój zapis` with an em dash (U+2014); the cancelled chip's entire text is `odwołany`; the search field's label is `Szukaj ośrodka`; each upcoming-booking `<li>` holds the cancel button, the stable name and the horse name together. Before adding prose to a screen, check it does not repeat a validation message verbatim — a lead paragraph that contained "Wybierz rodzaj konta" made that text match two elements at once.
-- `scripts/shots.mjs` captures every screen at 390 px and 1440 px into `shots/` (gitignored) against a running preview. It sits outside `e2e/` on purpose so the suite never collects it. `scripts/hero.mjs` documents how `public/hero.webp` was produced; the build never runs it.
-
-## Coding Style & Conventions
-
-- Path alias `@/*` → `./src/*`. Node `22.14.0` per `.nvmrc`.
-- Use `cn()` from `@/lib/utils` for conditional Tailwind classes; never concatenate class strings manually.
-- shadcn/ui components live in `src/components/ui/` ("new-york" style); add new ones with `npx shadcn@latest add [name]`.
-- API routes set `prerender = false` and validate input with zod.
-- The result of every dependency call is checked and logged; provider messages never reach the UI. Auth errors go through `authFailureMessage` / `authErrorMessage` (`src/lib/auth/`), database errors through the area's `errors.ts`; SSR pages log in their `catch` with `logError("page:<route>", error)`. Details and the stub-client test pattern: `context/foundation/test-plan.md` §6.4.
-- Husky is installed by the `prepare` script (`npm install`). Pre-commit runs lint-staged: `*.{ts,tsx,astro}` → `eslint --fix`, `*.{json,css,md}` → `prettier --write`; pre-push runs `npm test` + `npm run check`.
-- Claude Code hook (`.claude/settings.json` → `.claude/hooks/post-edit.mjs`) runs Prettier on every Write/Edit and `vitest related` for files under `src/lib/bookings/`, `src/lib/schedule/`, `src/lib/auth/`, `src/lib/log.ts`, `src/pages/api/`; a failure comes back as stderr + exit 2. No ESLint per edit (7–9 s per file). Details and sabotage checks: `context/foundation/test-plan.md` §6.6.
-
-## Testing
-
-Vitest, colocated `*.test.ts` next to the module under `src/lib/**` (node environment, `@` alias). Polish `it()` descriptions, no mocks or fake timers — inject time/values as defaulted parameters (`todayIso(now)`, `currentWarsawHour(now)`).
-
-## Security & Configuration
-
-`SUPABASE_URL`/`SUPABASE_KEY` are server-only secrets declared in `astro.config.mjs`'s env schema — see `@README.md` ("Supabase Configuration") for local/cloud setup steps.
+- Statistics are computed in one place: `computeStableStats` in `src/lib/stats/stats.ts` returns the page's view model; the page and components only render it.
+- Charts use `src/components/ui/BarChart.astro` (server-rendered, no client JavaScript); extend it rather than adding a chart dependency.
+- Time and "today" are injected as defaulted parameters (`todayIso(now)`, `currentWarsawHour(now)`), so tests need no mocks or fake timers. Vitest files sit next to their module with Polish `it()` descriptions.
+- The Claude Code hook `.claude/hooks/post-edit.mjs` runs Prettier on every Write/Edit and related Vitest tests in risk areas; its failure comes back as stderr. ESLint runs at commit (lint-staged) and in CI.
