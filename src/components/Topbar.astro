@@ -102,7 +102,7 @@ const protoVariant = PROTO_VARIANTS.some((v) => v.key === protoParam) ? protoPar
   </div>
 </header>
 
-{protoParam !== null && !user && <PrototypeSwitcher variants={PROTO_VARIANTS} current={protoVariant} />}
+{protoParam !== null && !user && <PrototypeSwitcher variants={PROTO_VARIANTS} current={protoVariant ?? "0"} />}
 
 <style>
   /* DESIGN.md §4: sticky 68 px, białe tło z rozmyciem, hairline na dole. */
