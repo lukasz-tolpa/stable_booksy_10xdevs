@@ -58,21 +58,20 @@ export function isUserRole(value: string | null | undefined): value is UserRole 
 /** Nazwa parametru adresu rejestracji, który wstępnie zaznacza rodzaj konta. */
 export const SIGNUP_ROLE_PARAM = "rola";
 
-/** Wartości parametru `rola` — polskie, bo to one są widoczne w adresie. */
-const SIGNUP_ROLE_PARAM_VALUES: ReadonlyMap<string, UserRole> = new Map([
-  ["jezdziec", "rider"],
-  ["osrodek", "stable"],
-]);
+/**
+ * Wartość parametru `rola` każdej roli — polska, bo to ona jest widoczna w adresie.
+ * Jedyna tabela: adres rejestracji czyta ją wprost, odczyt parametru szuka w niej roli.
+ */
+const SIGNUP_ROLE_PARAM_VALUES: Record<UserRole, string> = {
+  rider: "jezdziec",
+  stable: "osrodek",
+};
 
 export const SIGN_UP_ROUTE = "/auth/signup";
 
-/**
- * Adres rejestracji z wstępnie zaznaczonym rodzajem konta — odwrotność
- * `signupRoleFromParam`, z tej samej tabeli wartości.
- */
+/** Adres rejestracji z wstępnie zaznaczonym rodzajem konta — odwrotność `signupRoleFromParam`. */
 export function signupRouteForRole(role: UserRole): string {
-  const value = [...SIGNUP_ROLE_PARAM_VALUES].find(([, mapped]) => mapped === role)?.[0];
-  return value ? `${SIGN_UP_ROUTE}?${SIGNUP_ROLE_PARAM}=${value}` : SIGN_UP_ROUTE;
+  return `${SIGN_UP_ROUTE}?${SIGNUP_ROLE_PARAM}=${SIGNUP_ROLE_PARAM_VALUES[role]}`;
 }
 
 /**
@@ -81,8 +80,7 @@ export function signupRouteForRole(role: UserRole): string {
  * Dopasowanie jest dokładne, także co do wielkości liter.
  */
 export function signupRoleFromParam(value: string | null | undefined): UserRole | null {
-  if (!value) return null;
-  return SIGNUP_ROLE_PARAM_VALUES.get(value) ?? null;
+  return USER_ROLES.find((role) => SIGNUP_ROLE_PARAM_VALUES[role] === value) ?? null;
 }
 
 /**

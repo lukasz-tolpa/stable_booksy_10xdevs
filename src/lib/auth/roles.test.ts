@@ -6,6 +6,7 @@ import {
   isUserRole,
   routeGuardFor,
   signupRoleFromParam,
+  signupRouteForRole,
 } from "@/lib/auth/roles";
 
 describe("signupRoleFromParam", () => {
@@ -37,6 +38,16 @@ describe("signupRoleFromParam", () => {
   it("nie zaznacza niczego przy innej wielkości liter", () => {
     expect(signupRoleFromParam("Osrodek")).toBeNull();
     expect(signupRoleFromParam("JEZDZIEC")).toBeNull();
+  });
+});
+
+describe("signupRouteForRole", () => {
+  it("daje adres rejestracji z parametrem roli jeźdźca", () => {
+    expect(signupRouteForRole("rider")).toBe("/auth/signup?rola=jezdziec");
+  });
+
+  it("daje adres rejestracji z parametrem roli ośrodka", () => {
+    expect(signupRouteForRole("stable")).toBe("/auth/signup?rola=osrodek");
   });
 });
 

@@ -5,6 +5,9 @@ import Topbar from "@/components/Topbar.astro";
 import Card from "@/components/ui/Card.astro";
 import Layout from "@/layouts/Layout.astro";
 import { landingEntries } from "@/lib/auth/landing";
+import { slotStatusLabel } from "@/lib/bookings/slots";
+import { formatClockHour, formatFreeSeats } from "@/lib/format";
+import { landingDemo } from "@/lib/landing/demo";
 
 // Nieudane wylogowanie wraca tutaj z komunikatem w ?error= (ten sam wzorzec co na
 // pozostałych stronach; treść jest polska i pochodzi z @/lib/auth/errors).
@@ -13,7 +16,10 @@ const error = Astro.url.searchParams.get("error");
 // Co stoi w każdej połowie (rejestracja roli, „Mój panel” albo nic) i czy jest linia
 // o logowaniu, rozstrzyga `landingEntries` - strona tylko to rysuje.
 const { user, profile } = Astro.locals;
-const entries = landingEntries(user !== null, profile?.role);
+const entries = landingEntries(user ? { profileRole: profile?.role } : null);
+
+// Obie ilustracje rysują ten sam dzień z jednego źródła, tymi samymi regułami co prawdziwe widoki.
+const demo = landingDemo();
 ---
 
 <Layout>
@@ -34,23 +40,33 @@ const entries = landingEntries(user !== null, profile?.role);
         <!-- Ilustracja, nie kontrolki: bez <button>, ukryta przed czytnikami, opisana zdaniem niżej. -->
         <div class="demo" aria-hidden="true">
           <Card padding={16}>
-            <span class="demo-hour mono-nums">11:00</span>
-            <div class="demo-slot">
-              <span class="demo-slot__who">Joanna Wrona</span>
-              <span class="demo-slot__seats mono-nums">2 z 3 wolne</span>
-              <span class="demo-slot__pill demo-slot__pill--book">Zapisz się</span>
-            </div>
-            <div class="demo-slot">
-              <span class="demo-slot__who">Karol Jasny</span>
-              <span class="demo-slot__seats mono-nums">0 z 2 wolne</span>
-              <span class="demo-slot__pill demo-slot__pill--mine">
-                <Check className="size-[15px]" />
-                Twój zapis
-              </span>
-            </div>
+            {
+              demo.riderHours.map((entry) => (
+                <div class="demo-hourgroup">
+                  <span class="demo-hour mono-nums">{formatClockHour(entry.hour)}</span>
+                  {entry.slots.map((slot) => {
+                    const label = slotStatusLabel(slot.status);
+                    return (
+                      <div class="demo-slot">
+                        <span class="demo-slot__who">{slot.instructorName}</span>
+                        <span class="demo-slot__seats mono-nums">{formatFreeSeats(slot.freeSeats, slot.seats)}</span>
+                        {label === null ? (
+                          <span class="demo-slot__pill demo-slot__pill--book">Zapisz się</span>
+                        ) : (
+                          <span class:list={["demo-slot__pill", slot.status === "mine" && "demo-slot__pill--mine"]}>
+                            {slot.status === "mine" && <Check className="size-[15px]" />}
+                            {label}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))
+            }
           </Card>
         </div>
-        <p class="sr-only">Ilustracja: lista wolnych miejsc u instruktorów o wybranej godzinie.</p>
+        <p class="sr-only">Ilustracja: lista wolnych miejsc u instruktorów w kolejnych godzinach.</p>
 
         {
           entries.rider && (
@@ -73,29 +89,34 @@ const entries = landingEntries(user !== null, profile?.role);
 
         <div class="demo" aria-hidden="true">
           <Card padding={16}>
-            <div class="sheet">
+            <div class="sheet" style={`--sheet-cols:${String(demo.sheet.instructors.length)}`}>
               <span class="sheet__head">Godzina</span>
-              <span class="sheet__head sheet__head--seat">Joanna</span>
-              <span class="sheet__head sheet__head--seat">Karol</span>
+              {demo.sheet.instructors.map((name) => <span class="sheet__head sheet__head--seat">{name}</span>)}
               <span class="sheet__head sheet__head--fill">Koni zajętych</span>
 
-              <span class="sheet__cell mono-nums">10:00</span>
-              <span class="sheet__cell sheet__cell--seat"><span class="seat seat--set mono-nums">3</span></span>
-              <span class="sheet__cell sheet__cell--seat"><span class="seat seat--set mono-nums">2</span></span>
-              <span class="sheet__cell sheet__cell--fill">
-                <span class="full">
-                  <Check className="size-3.5 shrink-0" />
-                  pełna
-                </span>
-                <span class="fill mono-nums">5 / 5</span>
-              </span>
-
-              <span class="sheet__cell mono-nums">11:00</span>
-              <span class="sheet__cell sheet__cell--seat"><span class="seat seat--set mono-nums">3</span></span>
-              <span class="sheet__cell sheet__cell--seat"><span class="seat mono-nums">0</span></span>
-              <span class="sheet__cell sheet__cell--fill">
-                <span class="fill mono-nums">3 / 5</span>
-              </span>
+              {
+                demo.sheet.rows.map((row) => (
+                  <>
+                    <span class="sheet__cell mono-nums">{formatClockHour(row.hour)}</span>
+                    {row.seats.map((seats) => (
+                      <span class="sheet__cell sheet__cell--seat">
+                        <span class:list={["seat", "mono-nums", seats > 0 && "seat--set"]}>{seats}</span>
+                      </span>
+                    ))}
+                    <span class="sheet__cell sheet__cell--fill">
+                      {row.fill === "full" && (
+                        <span class="full">
+                          <Check className="size-3.5 shrink-0" />
+                          pełna
+                        </span>
+                      )}
+                      <span class="fill mono-nums">
+                        {row.total} / {demo.sheet.horseCount}
+                      </span>
+                    </span>
+                  </>
+                ))
+              }
             </div>
           </Card>
         </div>
@@ -200,12 +221,15 @@ const entries = landingEntries(user !== null, profile?.role);
     width: 100%;
     min-width: 0;
     color: var(--fg);
-    /* Karta leży na kolorowym tle, więc dostaje cień overlayu zamiast hairline'u. */
+    /* Karta zachowuje swój hairline; na kolorowym tle opakowanie dokłada jej cień overlayu. */
     border-radius: var(--r-lg);
     box-shadow: var(--shadow-md);
   }
 
   /* Fragment listy slotów - proporcje ze strony ośrodka jeźdźca. */
+  .demo-hourgroup + .demo-hourgroup {
+    margin-top: 14px;
+  }
   .demo-hour {
     display: block;
     margin-bottom: 10px;
@@ -258,7 +282,7 @@ const entries = landingEntries(user !== null, profile?.role);
   /* Fragment arkusza limitów - siatka zamiast tabeli, bo to rysunek, nie dane. */
   .sheet {
     display: grid;
-    grid-template-columns: auto 1fr 1fr auto;
+    grid-template-columns: auto repeat(var(--sheet-cols), 1fr) auto;
     font-size: 14.5px;
   }
   .sheet__head {
@@ -351,7 +375,7 @@ const entries = landingEntries(user !== null, profile?.role);
   }
   .cta--rider {
     background: var(--accent);
-    color: var(--surface);
+    color: var(--color-primary-foreground);
   }
   .cta--rider:hover {
     background: var(--accent-ink);
@@ -367,9 +391,9 @@ const entries = landingEntries(user !== null, profile?.role);
   .cta--stable:hover {
     background: var(--primary-soft);
   }
-  /* Zielony obrys zniknąłby na zielonym tle - tu obrys jest biały. */
+  /* Zielony obrys zniknąłby na zielonym tle - tu obrys jest biały jak tekst połowy. */
   .cta--stable:focus-visible {
-    outline: 2px solid var(--surface);
+    outline: 2px solid var(--color-primary-foreground);
     outline-offset: 3px;
   }
 
