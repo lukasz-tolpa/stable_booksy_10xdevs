@@ -1,0 +1,223 @@
+---
+// Sekcja „Jeden dzień ze Stable Booksy” (DESIGN.md §6): oś czasu z momentami dnia.
+// Treść i zrzuty pochodzą z `@/lib/landing/day` - ten komponent tylko je rysuje.
+import { ROLE_LABELS } from "@/lib/auth/constants";
+import { DAY_HEADING, DAY_MOMENTS } from "@/lib/landing/day";
+
+/** Od tej szerokości okna oś stoi pośrodku i przeglądarka bierze zrzut „komputer”. */
+const WIDE = "(width >= 900px)";
+---
+
+<section class="day container-page" aria-labelledby="day-heading">
+  <h2 id="day-heading" class="day__heading">{DAY_HEADING}</h2>
+  <ol class="day__list">
+    {
+      DAY_MOMENTS.map((moment) => (
+        <li class:list={["moment", `moment--${moment.role ?? "both"}`]}>
+          <div class="moment__copy">
+            <span class="moment__time mono-nums">{moment.time}</span>
+            {moment.role && <span class="moment__role">{ROLE_LABELS[moment.role]}</span>}
+            <h3 class="moment__title">{moment.title}</h3>
+            {moment.text && <p class="moment__text">{moment.text}</p>}
+          </div>
+          {moment.shot && (
+            <figure class="shot">
+              <span class="shot__bar" aria-hidden="true">
+                <i />
+                <i />
+                <i />
+              </span>
+              <div class="shot__view">
+                <picture>
+                  <source
+                    media={WIDE}
+                    srcset={moment.shot.desktop.src}
+                    width={moment.shot.desktop.width}
+                    height={moment.shot.desktop.height}
+                  />
+                  <img
+                    src={moment.shot.phone.src}
+                    width={moment.shot.phone.width}
+                    height={moment.shot.phone.height}
+                    alt={moment.shot.alt}
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </picture>
+              </div>
+            </figure>
+          )}
+        </li>
+      ))
+    }
+  </ol>
+</section>
+
+<style>
+  .day {
+    padding-block: 72px 24px;
+  }
+  .day__heading {
+    margin: 0;
+    font-size: clamp(32px, 4vw, 52px);
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -0.04em;
+    text-wrap: balance;
+  }
+  .day__list {
+    position: relative;
+    margin: 48px 0 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 56px;
+  }
+
+  /* ── Moment: godzina, rola, tytuł, tekst, zrzut - jedno pod drugim ────── */
+  .moment {
+    display: grid;
+    gap: 20px;
+    /* Element siatki nie zwęża się poniżej treści - bez tego zrzut rozpychałby stronę. */
+    min-width: 0;
+  }
+  .moment__copy {
+    min-width: 0;
+  }
+  .moment__time {
+    display: block;
+    font-size: 14.5px;
+    color: var(--muted);
+  }
+  /* Rola jest podpisana słowem; kolor (jak w połowach) tylko ją powtarza. */
+  .moment__role {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 3px 12px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.5;
+  }
+  .moment--stable .moment__role {
+    background: var(--primary-soft);
+    color: var(--primary-strong);
+  }
+  .moment--rider .moment__role {
+    background: var(--accent-soft);
+    color: var(--accent-ink);
+  }
+  .moment__title {
+    margin: 12px 0 0;
+    font-size: clamp(24px, 2.8vw, 36px);
+    font-weight: 700;
+    line-height: 1.12;
+    letter-spacing: -0.03em;
+    text-wrap: balance;
+  }
+  .moment__text {
+    margin: 12px 0 0;
+    max-width: 40ch;
+    font-size: 17px;
+    line-height: 1.5;
+    color: var(--muted);
+  }
+  /* „Jazda.” - cel całego dnia: bez zrzutu, dużym krojem w kolorze głównym. */
+  .moment--both .moment__title {
+    margin-top: 4px;
+    font-size: clamp(60px, 10vw, 136px);
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.05em;
+    color: var(--primary);
+  }
+
+  /* ── Zrzut w ramce okna ───────────────────────────────────────────────── */
+  .shot {
+    /* Wysokość kadru jako ułamek szerokości ramki. Zrzut zawsze ma pełną szerokość;
+       wyższy od kadru jest ucinany od dołu, niższy stoi w całości. Przycina
+       `max-height` kadru, nie `object-fit: cover`, bo cover ucinałby boki niskich zrzutów. */
+    --shot-ratio: 1.3;
+    container-type: inline-size;
+    width: 100%;
+    /* Poniżej 900 px zrzut „telefon” (390 px CSS) nie jest rozciągany ponad swoją ostrość. */
+    max-width: 420px;
+    margin: 0;
+    overflow: hidden;
+    background: var(--bg);
+    border: 1px solid var(--border-2);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-md);
+  }
+  .shot__bar {
+    display: flex;
+    gap: 6px;
+    padding: 10px 12px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .shot__bar i {
+    width: 9px;
+    height: 9px;
+    border-radius: 999px;
+    background: var(--border-2);
+  }
+  .shot__view {
+    max-height: calc(100cqw * var(--shot-ratio));
+    overflow: hidden;
+  }
+  .shot img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  /* ── Od 900 px: oś pośrodku, tekst i zrzut po przeciwnych stronach ────── */
+  @media (width >= 900px) {
+    .day {
+      padding-block: 96px 32px;
+    }
+    .day__heading {
+      text-align: center;
+    }
+    .day__list {
+      margin-top: 64px;
+      gap: 72px;
+    }
+    .day__list::before {
+      content: "";
+      position: absolute;
+      inset-block: 0;
+      left: 50%;
+      width: 1px;
+      background: var(--border-2);
+    }
+    .moment {
+      grid-template-columns: 1fr 1fr;
+      /* Węższy odstęp przy 900 px zostawia zrzutom więcej miejsca. */
+      gap: 0 clamp(48px, 6.5vw, 96px);
+      align-items: center;
+    }
+    /* Jeździec: tekst po lewej, dosunięty do osi, zrzut po prawej. Ośrodek odwrotnie. */
+    .moment--rider .moment__copy {
+      justify-self: end;
+      text-align: right;
+    }
+    .moment--stable .moment__copy {
+      order: 2;
+    }
+    /* „Jazda.” stoi na osi; własne tło przerywa pod nią linię. */
+    .moment--both {
+      position: relative;
+      grid-template-columns: 1fr;
+      justify-items: center;
+      padding-block: 20px;
+      background: var(--bg);
+      text-align: center;
+    }
+    .shot {
+      --shot-ratio: 0.75;
+      max-width: none;
+    }
+  }
+</style>

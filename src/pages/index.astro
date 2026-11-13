@@ -2,11 +2,13 @@
 import { Check } from "lucide-react";
 import Banner from "@/components/Banner.astro";
 import Topbar from "@/components/Topbar.astro";
+import DayTimeline from "@/components/landing/DayTimeline.astro";
 import Card from "@/components/ui/Card.astro";
 import Layout from "@/layouts/Layout.astro";
 import { landingEntries } from "@/lib/auth/landing";
 import { slotStatusLabel } from "@/lib/bookings/slots";
 import { formatClockHour, formatFreeSeats } from "@/lib/format";
+import { DAY_CLOSING_HEADING } from "@/lib/landing/day";
 import { landingDemo } from "@/lib/landing/demo";
 
 // Nieudane wylogowanie wraca tutaj z komunikatem w ?error= (ten sam wzorzec co na
@@ -17,6 +19,12 @@ const error = Astro.url.searchParams.get("error");
 // o logowaniu, rozstrzyga `landingEntries` - strona tylko to rysuje.
 const { user, profile } = Astro.locals;
 const entries = landingEntries(user ? { profileRole: profile?.role } : null);
+// Zamknięcie sekcji „Jeden dzień” powtarza przyciski połów w ich kolejności - te same
+// wejścia, ta sama decyzja; połowa bez przycisku nie ma go też tutaj.
+const closingActions = (["rider", "stable"] as const).flatMap((role) => {
+  const action = entries[role];
+  return action ? [{ role, action }] : [];
+});
 
 // Obie ilustracje rysują ten sam dzień z jednego źródła, tymi samymi regułami co prawdziwe widoki.
 const demo = landingDemo();
@@ -26,129 +34,152 @@ const demo = landingDemo();
   {error && <Banner variant="error">{error}</Banner>}
   <Topbar container="page" />
   <!-- DESIGN.md §6: dwie połowy zamiast hero. Tła sięgają krawędzi okna, treść każdej
-       połowy ma własną szerokość i dosuwa się do środka strony. -->
+       połowy ma własną szerokość i dosuwa się do środka strony. Pod nimi „Jeden dzień”.
+       Sekcje są regionami nazwanymi swoim nagłówkiem: przyciski połów i zamknięcia mają
+       te same nazwy, więc rozróżnia je region (test-plan §6.3). -->
   <main class="landing">
-    <section class="half half--rider">
-      <div class="half__inner">
-        <h1 class="half__title">Jeżdżę konno.</h1>
-        <ul class="points">
-          <li>Widzisz wolne miejsca u każdego instruktora.</li>
-          <li>Zapisujesz się jednym kliknięciem.</li>
-          <li>Odwołujesz sam, bez tłumaczenia się przez telefon.</li>
-        </ul>
+    <div class="halves">
+      <section class="half half--rider" aria-labelledby="rider-heading">
+        <div class="half__inner">
+          <h1 id="rider-heading" class="half__title">Jeżdżę konno.</h1>
+          <ul class="points">
+            <li>Widzisz wolne miejsca u każdego instruktora.</li>
+            <li>Zapisujesz się jednym kliknięciem.</li>
+            <li>Odwołujesz sam, bez tłumaczenia się przez telefon.</li>
+          </ul>
 
-        <!-- Ilustracja, nie kontrolki: bez <button>, ukryta przed czytnikami, opisana zdaniem niżej. -->
-        <div class="demo" aria-hidden="true">
-          <Card padding={16}>
-            {
-              demo.riderHours.map((entry) => (
-                <div class="demo-hourgroup">
-                  <span class="demo-hour mono-nums">{formatClockHour(entry.hour)}</span>
-                  {entry.slots.map((slot) => {
-                    const label = slotStatusLabel(slot.status);
-                    return (
-                      <div class="demo-slot">
-                        <span class="demo-slot__who">{slot.instructorName}</span>
-                        <span class="demo-slot__seats mono-nums">{formatFreeSeats(slot.freeSeats, slot.seats)}</span>
-                        {label === null ? (
-                          <span class="demo-slot__pill demo-slot__pill--book">Zapisz się</span>
-                        ) : (
-                          <span class:list={["demo-slot__pill", slot.status === "mine" && "demo-slot__pill--mine"]}>
-                            {slot.status === "mine" && <Check className="size-[15px]" />}
-                            {label}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              ))
-            }
-          </Card>
-        </div>
-        <p class="sr-only">Ilustracja: lista wolnych miejsc u instruktorów w kolejnych godzinach.</p>
-
-        {
-          entries.rider && (
-            <a class="cta cta--rider" href={entries.rider.href}>
-              {entries.rider.label}
-            </a>
-          )
-        }
-      </div>
-    </section>
-
-    <section class="half half--stable text-primary-foreground">
-      <div class="half__inner">
-        <h2 class="half__title">Prowadzę ośrodek.</h2>
-        <ul class="points text-primary-foreground/85">
-          <li>Układasz grafik dnia: godziny, konie, instruktorzy.</li>
-          <li>Ustalasz limit miejsc; aplikacja pilnuje liczby koni.</li>
-          <li>Przydzielasz konie i widzisz obłożenie.</li>
-        </ul>
-
-        <div class="demo" aria-hidden="true">
-          <Card padding={16}>
-            <div class="sheet" style={`--sheet-cols:${String(demo.sheet.instructors.length)}`}>
-              <span class="sheet__head">Godzina</span>
-              {demo.sheet.instructors.map((name) => <span class="sheet__head sheet__head--seat">{name}</span>)}
-              <span class="sheet__head sheet__head--fill">Koni zajętych</span>
-
+          <!-- Ilustracja, nie kontrolki: bez <button>, ukryta przed czytnikami, opisana zdaniem niżej. -->
+          <div class="demo" aria-hidden="true">
+            <Card padding={16}>
               {
-                demo.sheet.rows.map((row) => (
-                  <>
-                    <span class="sheet__cell mono-nums">{formatClockHour(row.hour)}</span>
-                    {row.seats.map((seats) => (
-                      <span class="sheet__cell sheet__cell--seat">
-                        <span class:list={["seat", "mono-nums", seats > 0 && "seat--set"]}>{seats}</span>
-                      </span>
-                    ))}
-                    <span class="sheet__cell sheet__cell--fill">
-                      {row.fill === "full" && (
-                        <span class="full">
-                          <Check className="size-3.5 shrink-0" />
-                          pełna
-                        </span>
-                      )}
-                      <span class="fill mono-nums">
-                        {row.total} / {demo.sheet.horseCount}
-                      </span>
-                    </span>
-                  </>
+                demo.riderHours.map((entry) => (
+                  <div class="demo-hourgroup">
+                    <span class="demo-hour mono-nums">{formatClockHour(entry.hour)}</span>
+                    {entry.slots.map((slot) => {
+                      const label = slotStatusLabel(slot.status);
+                      return (
+                        <div class="demo-slot">
+                          <span class="demo-slot__who">{slot.instructorName}</span>
+                          <span class="demo-slot__seats mono-nums">{formatFreeSeats(slot.freeSeats, slot.seats)}</span>
+                          {label === null ? (
+                            <span class="demo-slot__pill demo-slot__pill--book">Zapisz się</span>
+                          ) : (
+                            <span class:list={["demo-slot__pill", slot.status === "mine" && "demo-slot__pill--mine"]}>
+                              {slot.status === "mine" && <Check className="size-[15px]" />}
+                              {label}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 ))
               }
-            </div>
-          </Card>
+            </Card>
+          </div>
+          <p class="sr-only">Ilustracja: lista wolnych miejsc u instruktorów w kolejnych godzinach.</p>
+
+          {
+            entries.rider && (
+              <a class="cta cta--rider" href={entries.rider.href}>
+                {entries.rider.label}
+              </a>
+            )
+          }
         </div>
-        <p class="sr-only">
-          Ilustracja: arkusz limitów miejsc z kolumną „Koni zajętych” i godziną oznaczoną jako pełna.
-        </p>
+      </section>
 
-        {
-          entries.stable && (
-            <a class="cta cta--stable" href={entries.stable.href}>
-              {entries.stable.label}
-            </a>
-          )
-        }
-      </div>
+      <section class="half half--stable text-primary-foreground" aria-labelledby="stable-heading">
+        <div class="half__inner">
+          <h2 id="stable-heading" class="half__title">Prowadzę ośrodek.</h2>
+          <ul class="points text-primary-foreground/85">
+            <li>Układasz grafik dnia: godziny, konie, instruktorzy.</li>
+            <li>Ustalasz limit miejsc; aplikacja pilnuje liczby koni.</li>
+            <li>Przydzielasz konie i widzisz obłożenie.</li>
+          </ul>
+
+          <div class="demo" aria-hidden="true">
+            <Card padding={16}>
+              <div class="sheet" style={`--sheet-cols:${String(demo.sheet.instructors.length)}`}>
+                <span class="sheet__head">Godzina</span>
+                {demo.sheet.instructors.map((name) => <span class="sheet__head sheet__head--seat">{name}</span>)}
+                <span class="sheet__head sheet__head--fill">Koni zajętych</span>
+
+                {
+                  demo.sheet.rows.map((row) => (
+                    <>
+                      <span class="sheet__cell mono-nums">{formatClockHour(row.hour)}</span>
+                      {row.seats.map((seats) => (
+                        <span class="sheet__cell sheet__cell--seat">
+                          <span class:list={["seat", "mono-nums", seats > 0 && "seat--set"]}>{seats}</span>
+                        </span>
+                      ))}
+                      <span class="sheet__cell sheet__cell--fill">
+                        {row.fill === "full" && (
+                          <span class="full">
+                            <Check className="size-3.5 shrink-0" />
+                            pełna
+                          </span>
+                        )}
+                        <span class="fill mono-nums">
+                          {row.total} / {demo.sheet.horseCount}
+                        </span>
+                      </span>
+                    </>
+                  ))
+                }
+              </div>
+            </Card>
+          </div>
+          <p class="sr-only">
+            Ilustracja: arkusz limitów miejsc z kolumną „Koni zajętych” i godziną oznaczoną jako pełna.
+          </p>
+
+          {
+            entries.stable && (
+              <a class="cta cta--stable" href={entries.stable.href}>
+                {entries.stable.label}
+              </a>
+            )
+          }
+        </div>
+      </section>
+
+      {
+        entries.signInRoute && (
+          <p class="signin">
+            Masz już konto? <a href={entries.signInRoute}>Zaloguj się</a>
+          </p>
+        )
+      }
+    </div>
+
+    <DayTimeline />
+
+    <section class="closing container-page" aria-labelledby="closing-heading">
+      <h2 id="closing-heading" class="closing__title">{DAY_CLOSING_HEADING}</h2>
+      {
+        closingActions.length > 0 && (
+          <div class="closing__actions">
+            {closingActions.map(({ role, action }) => (
+              <a class:list={["cta", role === "rider" ? "cta--rider" : "cta--stable-solid"]} href={action.href}>
+                {action.label}
+              </a>
+            ))}
+          </div>
+        )
+      }
     </section>
-
-    {
-      entries.signInRoute && (
-        <p class="signin">
-          Masz już konto? <a href={entries.signInRoute}>Zaloguj się</a>
-        </p>
-      )
-    }
   </main>
 </Layout>
 
 <style>
   /* ── Układ: jedna pod drugą, od 900 px obok siebie na wysokość okna ───── */
   .landing {
-    display: grid;
     background: var(--bg);
+  }
+  .halves {
+    display: grid;
   }
   .half {
     display: grid;
@@ -175,7 +206,7 @@ const demo = landingDemo();
     min-width: 0;
   }
   @media (width >= 900px) {
-    .landing {
+    .halves {
       grid-template-columns: 1fr 1fr;
       grid-template-rows: 1fr auto;
       /* 1 px to hairline pod górnym paskiem - bez niego strona przewijałaby się o piksel. */
@@ -395,6 +426,43 @@ const demo = landingDemo();
   .cta--stable:focus-visible {
     outline: 2px solid var(--color-primary-foreground);
     outline-offset: 3px;
+  }
+
+  /* Na jasnym tle zamknięcia sekcji przycisk ośrodka jest pełny, w zieleni swojej połowy. */
+  .cta--stable-solid {
+    background: var(--primary-strong);
+    color: var(--color-primary-foreground);
+  }
+  .cta--stable-solid:hover {
+    background: var(--primary);
+  }
+  .cta--stable-solid:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+
+  /* ── Zamknięcie sekcji „Jeden dzień” ──────────────────────────────────── */
+  .closing {
+    display: grid;
+    gap: 32px;
+    justify-items: center;
+    padding-block: 72px 96px;
+    text-align: center;
+  }
+  .closing__title {
+    margin: 0;
+    font-size: clamp(32px, 4vw, 52px);
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -0.04em;
+    text-wrap: balance;
+  }
+  .closing__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+    width: 100%;
   }
 
   /* ── Linia o logowaniu pod połowami ───────────────────────────────────── */
