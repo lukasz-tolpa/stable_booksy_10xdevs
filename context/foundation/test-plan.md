@@ -287,9 +287,18 @@ local role authenticated; set local request.jwt.claims =
   horse or `bez konia`; the statistics summary is the
   region "Podsumowanie okresu" with four `<dd>` tiles in the order rides,
   ride hours, occupancy, cancellations. The landing page (`landing.spec.ts`,
-  guest, no storage state) repeats top-bar link names: its half buttons are
-  found by their full names ("Załóż konto jeźdźca", "Załóż konto ośrodka") and
-  the sign-in link under the halves inside `main`; its interface illustrations
+  guest, no storage state) repeats link names: "Załóż konto jeźdźca" and
+  "Załóż konto ośrodka" (and "Mój panel" when signed in) stand twice, once in
+  a half and once in the closing of the "Jeden dzień" section, and the top bar
+  has its own "Zaloguj się" and "Załóż konto". A bare
+  `getByRole("link", { name: "Załóż konto ośrodka" })` is therefore a
+  strict-mode violation: scope it to the region named by its heading —
+  `getByRole("region", { name: "Jeżdżę konno." })`, `"Prowadzę ośrodek."`,
+  `"Jeden dzień ze Stable Booksy"`, `"Jutro może tak wyglądać Twój dzień."`
+  (each `<section>` is `aria-labelledby` its heading; renaming a heading
+  renames the region) — and the sign-in link under the halves to `main`. The
+  section's screenshots are `loading="lazy"`: scroll each into view before
+  asserting `naturalWidth`. The page's interface illustrations
   are `aria-hidden` and hold no `button`, so "Zapisz się" there never matches a
   role locator. Before adding prose to a screen,
   check it does not repeat a validation message verbatim — a lead paragraph
