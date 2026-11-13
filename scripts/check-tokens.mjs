@@ -24,7 +24,6 @@ const EXTENSIONS = new Set([".astro", ".css", ".tsx"]);
 const COLOUR_BASELINE = new Map([
   ["src/components/Topbar.astro", 1],
   ["src/components/ui/Card.astro", 1],
-  ["src/pages/index.astro", 6],
   ["src/pages/jezdziec/zapisy.astro", 1],
 ]);
 

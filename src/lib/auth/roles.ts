@@ -64,6 +64,17 @@ const SIGNUP_ROLE_PARAM_VALUES: ReadonlyMap<string, UserRole> = new Map([
   ["osrodek", "stable"],
 ]);
 
+export const SIGN_UP_ROUTE = "/auth/signup";
+
+/**
+ * Adres rejestracji z wstępnie zaznaczonym rodzajem konta — odwrotność
+ * `signupRoleFromParam`, z tej samej tabeli wartości.
+ */
+export function signupRouteForRole(role: UserRole): string {
+  const value = [...SIGNUP_ROLE_PARAM_VALUES].find(([, mapped]) => mapped === role)?.[0];
+  return value ? `${SIGN_UP_ROUTE}?${SIGNUP_ROLE_PARAM}=${value}` : SIGN_UP_ROUTE;
+}
+
 /**
  * Rola wstępnie zaznaczona w formularzu rejestracji, z parametru `rola` w adresie.
  * `null` = formularz bez zaznaczenia: brak parametru, pusta albo nieznana wartość.

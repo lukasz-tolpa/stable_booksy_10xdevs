@@ -286,7 +286,12 @@ local role authenticated; set local request.jwt.claims =
   together; the stable's day-list row holds the hour, instructor, rider and
   horse or `bez konia`; the statistics summary is the
   region "Podsumowanie okresu" with four `<dd>` tiles in the order rides,
-  ride hours, occupancy, cancellations. Before adding prose to a screen,
+  ride hours, occupancy, cancellations. The landing page (`landing.spec.ts`,
+  guest, no storage state) repeats top-bar link names: its half buttons are
+  found by their full names ("Załóż konto jeźdźca", "Załóż konto ośrodka") and
+  the sign-in link under the halves inside `main`; its interface illustrations
+  are `aria-hidden` and hold no `button`, so "Zapisz się" there never matches a
+  role locator. Before adding prose to a screen,
   check it does not repeat a validation message verbatim — a lead paragraph
   containing "Wybierz rodzaj konta" once made that text match two elements.
 - **Sabotage check**: before trusting a new assertion break its guard (drop
