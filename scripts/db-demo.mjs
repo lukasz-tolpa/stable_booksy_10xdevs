@@ -55,8 +55,7 @@ export function loadDemoHistory() {
   const result = runLocalSql(sql);
   if (result.status !== 0) {
     throw new Error(
-      `Nie udalo sie zaladowac historii demo. Czy lokalny stack dziala (npx supabase start)?
-${result.stderr}`,
+      `Nie udalo sie zaladowac historii demo. Czy lokalny stack dziala (npx supabase start)?\n${result.stderr}`,
     );
   }
   return `${result.stderr}${result.stdout}`.trim();

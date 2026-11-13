@@ -1,0 +1,62 @@
+{
+  "grafik": {
+    "desktop": {
+      "src": "/jeden-dzien/grafik-komputer.webp",
+      "width": 880,
+      "height": 678
+    },
+    "phone": {
+      "src": "/jeden-dzien/grafik-telefon.webp",
+      "width": 780,
+      "height": 1602
+    }
+  },
+  "sloty": {
+    "desktop": {
+      "src": "/jeden-dzien/sloty-komputer.webp",
+      "width": 880,
+      "height": 918
+    },
+    "phone": {
+      "src": "/jeden-dzien/sloty-telefon.webp",
+      "width": 780,
+      "height": 2178
+    }
+  },
+  "zapisy-dnia": {
+    "desktop": {
+      "src": "/jeden-dzien/zapisy-dnia-komputer.webp",
+      "width": 880,
+      "height": 190
+    },
+    "phone": {
+      "src": "/jeden-dzien/zapisy-dnia-telefon.webp",
+      "width": 780,
+      "height": 544
+    }
+  },
+  "moje-zapisy": {
+    "desktop": {
+      "src": "/jeden-dzien/moje-zapisy-komputer.webp",
+      "width": 880,
+      "height": 160
+    },
+    "phone": {
+      "src": "/jeden-dzien/moje-zapisy-telefon.webp",
+      "width": 780,
+      "height": 430
+    }
+  },
+  "statystyki": {
+    "desktop": {
+      "src": "/jeden-dzien/statystyki-komputer.webp",
+      "width": 880,
+      "height": 543
+    },
+    "phone": {
+      "src": "/jeden-dzien/statystyki-telefon.webp",
+      "width": 780,
+      "height": 1294
+    }
+  }
+}
