@@ -1,0 +1,234 @@
+---
+// PROTOTYP — do wyrzucenia. Wariant B „Dzień w stajni": zdjęcie z repo na cały ekran, jeden
+// duży nagłówek, a niżej opowieść prowadzona godzinami zamiast listy funkcji.
+const day = [
+  {
+    time: "wczoraj, 19:00",
+    who: "stable",
+    title: "Ośrodek układa grafik na jutro.",
+    text: "Godziny pracy, konie, instruktorzy. Przy każdym instruktorze limit miejsc na każdą godzinę.",
+  },
+  {
+    time: "19:20",
+    who: "rider",
+    title: "Anna zapisuje się na 11:00.",
+    text: "Wybiera ośrodek, dzień i instruktora. Jedno kliknięcie, bez telefonu do stajni.",
+  },
+  {
+    time: "dziś, 8:00",
+    who: "stable",
+    title: "Ośrodek przydziela konie.",
+    text: "Każdy zapis dostaje konia. Ten sam koń nie trafi do dwóch jeźdźców w jednej godzinie.",
+  },
+  {
+    time: "10:15",
+    who: "rider",
+    title: "Komuś coś wypadło.",
+    text: "Odwołuje zapis sam. Miejsce od razu wraca do grafiku i może je zająć ktoś inny.",
+  },
+  { time: "11:00", who: "both", title: "Jazda.", text: "" },
+  {
+    time: "koniec miesiąca",
+    who: "stable",
+    title: "Ośrodek patrzy w statystyki.",
+    text: "Obłożenie grafiku, godziny jazd, obciążenie każdego konia.",
+  },
+];
+const label = { stable: "Ośrodek", rider: "Jeździec", both: "" };
+---
+
+<main class="b">
+  <section class="b-hero">
+    <img src="/hero.webp" width="1536" height="1024" alt="Koń stojący na pastwisku przy ścianie lasu" />
+    <span class="b-veil"></span>
+    <div class="container-page b-hero__inner">
+      <h1>Dzień w&nbsp;stajni, poukładany.</h1>
+      <p>Grafik dnia dla ośrodka. Zapis na jazdę dla jeźdźca. Jedno miejsce dla obu.</p>
+      <div class="b-cta">
+        <a class="lp-btn lp-btn--primary" href="/auth/signup">Załóż konto</a>
+        <a class="lp-btn lp-btn--light" href="/auth/signin">Zaloguj się</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="b-day container-page">
+    <h2>Jak wygląda jeden dzień</h2>
+    <ol>
+      {
+        day.map((e) => (
+          <li class:list={`b-entry b-entry--${e.who}`}>
+            <span class="b-time mono-nums">{e.time}</span>
+            <div>
+              {label[e.who as keyof typeof label] && <span class="b-who">{label[e.who as keyof typeof label]}</span>}
+              <h3>{e.title}</h3>
+              {e.text && <p>{e.text}</p>}
+            </div>
+          </li>
+        ))
+      }
+    </ol>
+  </section>
+
+  <section class="b-doors">
+    <a href="/auth/signup" class="b-door b-door--rider">
+      <span>Jeżdżę konno</span>
+      <small>Znajdź ośrodek i zapisz się na jazdę →</small>
+    </a>
+    <a href="/auth/signup" class="b-door b-door--stable">
+      <span>Prowadzę ośrodek</span>
+      <small>Ułóż pierwszy grafik dnia →</small>
+    </a>
+  </section>
+</main>
+
+<style>
+  .b-hero {
+    position: relative;
+    display: grid;
+    align-items: end;
+    min-height: calc(100vh - var(--nav-h));
+    overflow: hidden;
+  }
+  .b-hero img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: 62% 46%;
+  }
+  .b-veil {
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(
+        90deg,
+        oklch(98% 0.008 150 / 0.94) 0%,
+        oklch(98% 0.008 150 / 0.7) 38%,
+        oklch(98% 0.008 150 / 0) 66%
+      ),
+      linear-gradient(180deg, oklch(98% 0.008 150 / 0) 70%, var(--bg) 100%);
+  }
+  .b-hero__inner {
+    position: relative;
+    padding-block: 64px 88px;
+  }
+  h1 {
+    max-width: 9ch;
+    font-size: clamp(50px, 7.2vw, 104px);
+    font-weight: 800;
+    line-height: 0.95;
+    padding-bottom: 0.08em;
+    letter-spacing: -0.055em;
+  }
+  .b-hero p {
+    margin: 28px 0 0;
+    max-width: 34ch;
+    font-size: 20px;
+    line-height: 1.45;
+    color: var(--fg);
+  }
+  .b-cta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 32px;
+  }
+
+  .b-day {
+    padding-block: 96px;
+  }
+  .b-day h2 {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0;
+    color: var(--muted);
+  }
+  .b-day ol {
+    list-style: none;
+    margin: 28px 0 0;
+    padding: 0;
+    border-top: 1px solid var(--border-2);
+  }
+  .b-entry {
+    display: grid;
+    gap: 6px 40px;
+    padding-block: 30px;
+    border-bottom: 1px solid var(--border-2);
+  }
+  @media (width >= 760px) {
+    .b-entry {
+      grid-template-columns: 220px 1fr;
+      align-items: baseline;
+    }
+  }
+  .b-time {
+    font-size: 15px;
+    color: var(--muted);
+  }
+  .b-who {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 13.5px;
+    font-weight: 700;
+  }
+  .b-entry--stable .b-who {
+    color: var(--primary);
+  }
+  .b-entry--rider .b-who {
+    color: var(--accent-ink);
+  }
+  .b-entry h3 {
+    font-size: clamp(26px, 3.4vw, 44px);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+  }
+  .b-entry--both h3 {
+    font-size: clamp(54px, 9vw, 120px);
+    font-weight: 800;
+    letter-spacing: -0.05em;
+    color: var(--primary);
+  }
+  .b-entry p {
+    margin: 10px 0 0;
+    max-width: 52ch;
+    font-size: 17px;
+    color: var(--muted);
+  }
+
+  .b-doors {
+    display: grid;
+  }
+  @media (width >= 760px) {
+    .b-doors {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+  .b-door {
+    display: grid;
+    gap: 12px;
+    padding: 72px clamp(24px, 6vw, 96px) 120px;
+    transition: filter 0.15s;
+  }
+  .b-door:hover {
+    filter: brightness(0.96);
+  }
+  .b-door span {
+    font-family: var(--font-display);
+    font-size: clamp(34px, 4.6vw, 64px);
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 1;
+  }
+  .b-door small {
+    font-size: 17px;
+  }
+  .b-door--rider {
+    background: var(--accent-soft);
+    color: var(--accent-ink);
+  }
+  .b-door--stable {
+    background: var(--primary);
+    color: oklch(100% 0 0);
+  }
+</style>

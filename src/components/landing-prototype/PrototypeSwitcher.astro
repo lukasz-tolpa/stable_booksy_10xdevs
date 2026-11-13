@@ -1,0 +1,77 @@
+---
+// PROTOTYP — do wyrzucenia. Pływający przełącznik wariantów (`?variant=`), tylko w trybie dev.
+interface Props {
+  variants: { key: string; name: string }[];
+  current: string;
+}
+
+const { variants, current } = Astro.props;
+const index = Math.max(
+  0,
+  variants.findIndex((v) => v.key === current),
+);
+const at = (step: number) => variants[(index + step + variants.length) % variants.length].key;
+---
+
+{
+  import.meta.env.DEV && (
+    <nav class="proto-switch" aria-label="Warianty prototypu">
+      <a href={`?variant=${at(-1)}`} data-proto="prev" aria-label="Poprzedni wariant">
+        ‹
+      </a>
+      <span>
+        {variants[index].key} ({variants[index].name}) · {index + 1}/{variants.length}
+      </span>
+      <a href={`?variant=${at(1)}`} data-proto="next" aria-label="Następny wariant">
+        ›
+      </a>
+    </nav>
+  )
+}
+
+<script is:inline>
+  document.addEventListener("keydown", (e) => {
+    const t = e.target;
+    if (t instanceof HTMLElement && (t.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName)))
+      return;
+    const key = e.key === "ArrowLeft" ? "prev" : e.key === "ArrowRight" ? "next" : null;
+    const link = key && document.querySelector(`[data-proto="${key}"]`);
+    if (link) link.click();
+  });
+</script>
+
+<style>
+  .proto-switch {
+    position: fixed;
+    left: 50%;
+    bottom: 20px;
+    transform: translateX(-50%);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 999px;
+    background: oklch(18% 0 0);
+    color: oklch(100% 0 0);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    white-space: nowrap;
+    box-shadow: 0 10px 30px oklch(0% 0 0 / 0.35);
+  }
+  .proto-switch a {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    font-size: 18px;
+    line-height: 1;
+  }
+  .proto-switch a:hover {
+    background: oklch(100% 0 0 / 0.15);
+  }
+  .proto-switch span {
+    padding-inline: 8px;
+  }
+</style>

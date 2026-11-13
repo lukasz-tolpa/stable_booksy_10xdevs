@@ -1,0 +1,77 @@
+---
+// PROTOTYP — do wyrzucenia. Trzy warianty strony głównej na trasie `/`, przełączane `?variant=A|B|C`
+// (0 = obecny landing, renderuje go sama strona). Pytanie: jak ma wyglądać landing, żeby nie
+// wyglądał jak szablon. Tylko w trybie dev.
+import VariantA from "./VariantA.astro";
+import VariantB from "./VariantB.astro";
+import VariantC from "./VariantC.astro";
+
+interface Props {
+  variant: string;
+}
+
+const { variant } = Astro.props;
+---
+
+{variant === "A" && <VariantA />}
+{variant === "B" && <VariantB />}
+{variant === "C" && <VariantC />}
+
+<style is:global>
+  /* Wspólne dla wariantów: tylko przyciski. Układ każdy wariant ma własny. */
+  .lp-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 54px;
+    padding: 15px 28px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    font-family: var(--font-display);
+    font-size: 17px;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    transition:
+      background 0.15s,
+      transform 0.08s;
+  }
+  .lp-btn:active {
+    transform: translateY(1px);
+  }
+  .lp-btn:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
+  }
+  .lp-btn--accent {
+    background: var(--accent);
+    color: oklch(100% 0 0);
+  }
+  .lp-btn--accent:hover {
+    background: var(--accent-ink);
+  }
+  .lp-btn--primary {
+    background: var(--primary);
+    color: oklch(100% 0 0);
+  }
+  .lp-btn--primary:hover {
+    background: var(--primary-strong);
+  }
+  .lp-btn--light {
+    background: var(--surface);
+    color: var(--fg);
+  }
+  .lp-btn--light:hover {
+    background: var(--surface-2);
+  }
+  .lp-link {
+    font-weight: 600;
+    color: var(--primary);
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+  .lp-link:hover {
+    color: var(--primary-strong);
+  }
+</style>

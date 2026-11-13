@@ -1,0 +1,380 @@
+---
+// PROTOTYP — do wyrzucenia. Wariant A „Grafik zamiast zdjęcia": bohaterem strony jest klikalna
+// lista slotów w wyglądzie z aplikacji. Niżej ten sam dzień widziany z dwóch stron.
+const hours = [
+  {
+    hour: "10:00",
+    slots: [
+      { name: "Joanna Wrona", free: 2, seats: 3 },
+      { name: "Karol Jasny", free: 1, seats: 2 },
+    ],
+  },
+  {
+    hour: "11:00",
+    slots: [
+      { name: "Joanna Wrona", free: 0, seats: 3 },
+      { name: "Karol Jasny", free: 2, seats: 2 },
+    ],
+  },
+  { hour: "12:00", slots: [{ name: "Joanna Wrona", free: 3, seats: 3 }] },
+];
+
+const sheet = [
+  { hour: "10:00", a: 3, b: 2, total: 5 },
+  { hour: "11:00", a: 3, b: 2, total: 5 },
+  { hour: "12:00", a: 3, b: 0, total: 3 },
+];
+---
+
+<main class="a">
+  <section class="a-hero container-page">
+    <div class="a-copy">
+      <h1>Wolne miejsca widać od razu.</h1>
+      <p class="a-sub">
+        Ośrodek układa grafik dnia. Jeździec wybiera godzinę i instruktora — i jest zapisany. Bez dzwonienia do stajni.
+      </p>
+      <div class="a-cta">
+        <a class="lp-btn lp-btn--accent" href="/auth/signup">Załóż konto</a>
+        <a class="lp-link" href="/auth/signin">Zaloguj się</a>
+      </div>
+    </div>
+
+    <div class="a-board" aria-label="Przykładowy dzień w ośrodku">
+      <div class="a-board__head">
+        <strong>Stadnina Pod Dębem</strong>
+        <span class="mono-nums">sobota, 14 listopada</span>
+      </div>
+      <ul class="a-hours">
+        {
+          hours.map((h) => (
+            <li>
+              <span class="a-hour mono-nums">{h.hour}</span>
+              <ul class="a-slots">
+                {h.slots.map((s) => (
+                  <li class="a-slot" data-free={s.free} data-seats={s.seats}>
+                    <span class="a-slot__name">{s.name}</span>
+                    <span class="a-slot__free mono-nums">
+                      <b>{s.free}</b> z {s.seats} wolne
+                    </span>
+                    {s.free > 0 ? (
+                      <button type="button" class="a-book">
+                        Zapisz się
+                      </button>
+                    ) : (
+                      <span class="a-full">Brak miejsc</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </li>
+          ))
+        }
+      </ul>
+      <p class="a-board__hint">To działa — kliknij „Zapisz się”.</p>
+    </div>
+  </section>
+
+  <section class="a-sides">
+    <div class="container-page">
+      <h2>Ten sam dzień, dwie strony.</h2>
+      <div class="a-sides__grid">
+        <article>
+          <p class="a-who a-who--stable">Ośrodek</p>
+          <h3>Ustawia, ilu jeźdźców przyjmie każdy instruktor.</h3>
+          <table class="a-sheet">
+            <thead>
+              <tr>
+                <th>Godzina</th>
+                <th>Joanna</th>
+                <th>Karol</th>
+                <th>Koni zajętych</th>
+              </tr>
+            </thead>
+            <tbody>
+              {
+                sheet.map((r) => (
+                  <tr>
+                    <td class="mono-nums">{r.hour}</td>
+                    <td class="mono-nums">{r.a}</td>
+                    <td class="mono-nums">{r.b === 0 ? "–" : r.b}</td>
+                    <td class="mono-nums">{r.total} / 5</td>
+                  </tr>
+                ))
+              }
+            </tbody>
+          </table>
+          <p>Aplikacja pilnuje, żeby miejsc nie było więcej niż koni. Konie do zapisów przydziela ośrodek.</p>
+        </article>
+        <article>
+          <p class="a-who a-who--rider">Jeździec</p>
+          <h3>Widzi tylko to, co naprawdę jest wolne.</h3>
+          <ol class="a-steps">
+            <li>Wybiera ośrodek i dzień.</li>
+            <li>Klika „Zapisz się” przy godzinie i instruktorze.</li>
+            <li>Zapis czeka w „Moich zapisach”. Można go odwołać, a miejsce wraca do grafiku.</li>
+          </ol>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="a-close container-page">
+    <h2>Jutrzejszy grafik może wisieć w sieci, a nie na drzwiach stajni.</h2>
+    <a class="lp-btn lp-btn--primary" href="/auth/signup">Załóż konto</a>
+  </section>
+</main>
+
+<script is:inline>
+  // PROTOTYP: zapis działa tylko na tej stronie, nic nie trafia do bazy.
+  document.querySelectorAll(".a-slot").forEach((slot) => {
+    const button = slot.querySelector(".a-book");
+    if (!button) return;
+    button.addEventListener("click", () => {
+      const booked = slot.classList.toggle("is-booked");
+      const free = Number(slot.dataset.free) - (booked ? 1 : 0);
+      slot.querySelector("b").textContent = String(free);
+      button.textContent = booked ? "✓ Twój zapis" : "Zapisz się";
+    });
+  });
+</script>
+
+<style>
+  .a-hero {
+    display: grid;
+    gap: 40px;
+    padding-block: 48px 64px;
+    align-items: center;
+  }
+  @media (width >= 900px) {
+    .a-hero {
+      grid-template-columns: 5fr 6fr;
+      gap: 64px;
+      min-height: calc(100vh - var(--nav-h));
+      padding-block: 56px;
+    }
+  }
+  h1 {
+    font-size: clamp(44px, 6.2vw, 88px);
+    font-weight: 800;
+    line-height: 0.98;
+    letter-spacing: -0.045em;
+    text-wrap: balance;
+  }
+  .a-sub {
+    margin: 26px 0 0;
+    max-width: 40ch;
+    font-size: 19px;
+    line-height: 1.5;
+    color: var(--muted);
+  }
+  .a-cta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 22px;
+    margin-top: 34px;
+  }
+
+  /* Tablica — wygląd siatki slotów z aplikacji (DESIGN.md §5), tylko większa. */
+  .a-board {
+    padding: 22px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-xl);
+    box-shadow: var(--shadow-md);
+  }
+  .a-board__head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 4px 16px;
+    margin-bottom: 16px;
+    font-family: var(--font-display);
+    font-size: 19px;
+  }
+  .a-board__head span {
+    font-size: 14px;
+    color: var(--muted);
+    align-self: center;
+  }
+  .a-hours,
+  .a-slots {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 10px;
+  }
+  .a-hours > li {
+    padding: 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+  }
+  .a-hour {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .a-slots {
+    gap: 8px;
+  }
+  .a-slot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 12px;
+    padding: 8px 8px 8px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+  }
+  .a-slot__name {
+    font-weight: 600;
+  }
+  .a-slot__free {
+    flex: 1;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .a-slot__free b {
+    font-weight: 400;
+  }
+  .a-book,
+  .a-full {
+    min-height: 44px;
+    padding: 0 18px;
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .a-book {
+    border: 1px solid var(--border-2);
+    background: var(--surface);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .a-book:hover {
+    background: var(--surface-2);
+  }
+  .a-book:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+  .is-booked .a-book {
+    border-color: transparent;
+    background: var(--accent-soft);
+    color: var(--accent-ink);
+  }
+  .a-full {
+    color: var(--muted);
+    border: 1px dashed var(--border-2);
+  }
+  .a-board__hint {
+    margin: 14px 0 0;
+    font-size: 13.5px;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  /* Dwie strony tego samego dnia */
+  .a-sides {
+    padding-block: 72px;
+    background: var(--surface);
+    border-block: 1px solid var(--border);
+  }
+  .a-sides h2,
+  .a-close h2 {
+    font-size: clamp(30px, 3.6vw, 48px);
+    font-weight: 800;
+    letter-spacing: -0.035em;
+    text-wrap: balance;
+  }
+  .a-sides__grid {
+    display: grid;
+    gap: 40px;
+    margin-top: 40px;
+  }
+  @media (width >= 820px) {
+    .a-sides__grid {
+      grid-template-columns: 1fr 1fr;
+      gap: 72px;
+    }
+  }
+  .a-who {
+    margin: 0 0 10px;
+    font-weight: 700;
+    font-size: 14px;
+  }
+  .a-who--stable {
+    color: var(--primary);
+  }
+  .a-who--rider {
+    color: var(--accent-ink);
+  }
+  .a-sides h3 {
+    font-size: 23px;
+    line-height: 1.2;
+    max-width: 24ch;
+  }
+  .a-sides article > p:last-child {
+    margin: 16px 0 0;
+    color: var(--muted);
+    max-width: 44ch;
+  }
+  .a-sheet {
+    width: 100%;
+    margin-top: 20px;
+    border-collapse: collapse;
+    font-size: 14.5px;
+  }
+  .a-sheet th {
+    padding: 8px 10px;
+    text-align: left;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border-2);
+  }
+  .a-sheet td {
+    padding: 11px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .a-sheet :is(th, td):last-child {
+    text-align: right;
+  }
+  .a-steps {
+    margin: 20px 0 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: step;
+    display: grid;
+    gap: 14px;
+  }
+  .a-steps li {
+    counter-increment: step;
+    display: grid;
+    grid-template-columns: 34px 1fr;
+    font-size: 16.5px;
+  }
+  .a-steps li::before {
+    content: counter(step);
+    font-family: var(--font-mono);
+    color: var(--accent-ink);
+    font-weight: 600;
+  }
+
+  .a-close {
+    padding-block: 88px 120px;
+    display: grid;
+    gap: 28px;
+    justify-items: start;
+  }
+  .a-close h2 {
+    max-width: 22ch;
+  }
+</style>

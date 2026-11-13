@@ -1,0 +1,221 @@
+---
+// PROTOTYP — do wyrzucenia. Wariant C „Dwa wejścia": cała strona to jedno pytanie — kim jesteś.
+// Dwie połowy ekranu, każda mówi własnym głosem i pokazuje własny kawałek aplikacji.
+---
+
+<main class="c">
+  <section class="c-half c-half--rider">
+    <div class="c-inner">
+      <h1>Jeżdżę konno.</h1>
+      <ul class="c-points">
+        <li>Widzisz wolne miejsca u każdego instruktora.</li>
+        <li>Zapisujesz się jednym kliknięciem.</li>
+        <li>Odwołujesz sam, bez tłumaczenia się przez telefon.</li>
+      </ul>
+
+      <div class="c-ui">
+        <span class="c-ui__hour mono-nums">11:00</span>
+        <div class="c-slot">
+          <strong>Joanna Wrona</strong>
+          <span class="mono-nums">2 z 3 wolne</span>
+          <em>Zapisz się</em>
+        </div>
+        <div class="c-slot">
+          <strong>Karol Jasny</strong>
+          <span class="mono-nums">0 z 2 wolne</span>
+          <em class="is-own">✓ Twój zapis</em>
+        </div>
+      </div>
+
+      <a class="lp-btn lp-btn--accent" href="/auth/signup">Załóż konto jeźdźca</a>
+    </div>
+  </section>
+
+  <section class="c-half c-half--stable">
+    <div class="c-inner">
+      <h2>Prowadzę ośrodek.</h2>
+      <ul class="c-points">
+        <li>Układasz grafik dnia: godziny, konie, instruktorzy.</li>
+        <li>Ustalasz limit miejsc; aplikacja pilnuje liczby koni.</li>
+        <li>Przydzielasz konie i widzisz obłożenie.</li>
+      </ul>
+
+      <div class="c-ui">
+        <table>
+          <thead>
+            <tr>
+              <th>Godzina</th>
+              <th>Joanna</th>
+              <th>Karol</th>
+              <th>Koni zajętych</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono-nums">10:00</td>
+              <td class="mono-nums">3</td>
+              <td class="mono-nums">2</td>
+              <td class="mono-nums">5 / 5 <i>pełna</i></td>
+            </tr>
+            <tr>
+              <td class="mono-nums">11:00</td>
+              <td class="mono-nums">3</td>
+              <td class="mono-nums">–</td>
+              <td class="mono-nums">3 / 5</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <a class="lp-btn lp-btn--light" href="/auth/signup">Załóż konto ośrodka</a>
+    </div>
+  </section>
+
+  <p class="c-signin">Masz już konto? <a class="lp-link" href="/auth/signin">Zaloguj się</a></p>
+</main>
+
+<style>
+  .c {
+    display: grid;
+  }
+  @media (width >= 900px) {
+    .c {
+      grid-template-columns: 1fr 1fr;
+    }
+    .c-half {
+      min-height: calc(100vh - var(--nav-h) - 72px);
+    }
+  }
+  .c-half {
+    display: grid;
+    align-items: center;
+    padding: 56px clamp(22px, 5vw, 88px);
+  }
+  .c-half--rider {
+    background: var(--accent-soft);
+    color: var(--fg);
+  }
+  .c-half--stable {
+    background: var(--primary-strong);
+    color: oklch(100% 0 0);
+  }
+  .c-inner {
+    display: grid;
+    gap: 30px;
+    justify-items: start;
+    max-width: 520px;
+  }
+  .c-half--rider .c-inner {
+    justify-self: end;
+  }
+  h1,
+  h2 {
+    font-size: clamp(46px, 5.8vw, 86px);
+    font-weight: 800;
+    line-height: 0.96;
+    letter-spacing: -0.05em;
+  }
+  .c-half--rider h1 {
+    color: var(--accent-ink);
+  }
+  .c-points {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 10px;
+    font-size: 18px;
+    line-height: 1.4;
+  }
+  .c-half--stable .c-points {
+    color: oklch(100% 0 0 / 0.86);
+  }
+
+  /* Kawałek prawdziwego interfejsu w białej karcie */
+  .c-ui {
+    width: 100%;
+    padding: 16px;
+    background: var(--surface);
+    color: var(--fg);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-md);
+  }
+  .c-ui__hour {
+    display: block;
+    margin-bottom: 10px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .c-slot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 12px;
+    padding: 8px 8px 8px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+  }
+  .c-slot + .c-slot {
+    margin-top: 8px;
+  }
+  .c-slot span {
+    flex: 1;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .c-slot em {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    padding: 0 16px;
+    border: 1px solid var(--border-2);
+    border-radius: 999px;
+    font-family: var(--font-display);
+    font-size: 14.5px;
+    font-style: normal;
+    font-weight: 600;
+  }
+  .c-slot em.is-own {
+    border-color: transparent;
+    background: var(--accent-soft);
+    color: var(--accent-ink);
+  }
+  .c-ui table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14.5px;
+  }
+  .c-ui th {
+    padding: 4px 8px 10px;
+    text-align: left;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .c-ui td {
+    padding: 11px 8px;
+    border-top: 1px solid var(--border);
+  }
+  .c-ui :is(th, td):last-child {
+    text-align: right;
+  }
+  .c-ui i {
+    margin-left: 6px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--success-soft);
+    color: var(--success-ink);
+    font-family: var(--font-body);
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 600;
+  }
+
+  .c-signin {
+    grid-column: 1 / -1;
+    margin: 0;
+    padding: 24px 24px 96px;
+    text-align: center;
+    font-size: 16px;
+  }
+</style>

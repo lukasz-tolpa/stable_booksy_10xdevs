@@ -6,6 +6,8 @@ import Topbar from "@/components/Topbar.astro";
 import Card from "@/components/ui/Card.astro";
 import RoleBadge from "@/components/ui/RoleBadge.astro";
 import Layout from "@/layouts/Layout.astro";
+import LandingPrototype from "@/components/landing-prototype/LandingPrototype.astro";
+import PrototypeSwitcher from "@/components/landing-prototype/PrototypeSwitcher.astro";
 import { homeRouteForRole, isUserRole } from "@/lib/auth/roles";
 
 // Nieudane wylogowanie wraca tutaj z komunikatem w ?error= (ten sam wzorzec co na
@@ -18,12 +20,24 @@ const error = Astro.url.searchParams.get("error");
 const { user, profile } = Astro.locals;
 const role = isUserRole(profile?.role) ? profile.role : null;
 const homeRoute = role ? homeRouteForRole(role) : null;
+
+// PROTOTYP — do wyrzucenia: warianty landingu pod `?variant=0|A|B|C`, tylko w trybie dev.
+const PROTO_VARIANTS = [
+  { key: "0", name: "obecny landing" },
+  { key: "A", name: "Grafik zamiast zdjęcia" },
+  { key: "B", name: "Dzień w stajni" },
+  { key: "C", name: "Dwa wejścia" },
+];
+const requested = Astro.url.searchParams.get("variant");
+const variant = import.meta.env.DEV ? (PROTO_VARIANTS.find((v) => v.key === requested)?.key ?? "A") : "0";
 ---
 
 <Layout>
   {error && <Banner variant="error">{error}</Banner>}
   <Topbar container="page" />
-  <main>
+  {import.meta.env.DEV && <PrototypeSwitcher variants={PROTO_VARIANTS} current={variant} />}
+  {variant !== "0" && <LandingPrototype variant={variant} />}
+  <main class:list={[variant !== "0" && "proto-hidden"]}>
     <!-- DESIGN.md §6: zdjęcie na całą szerokość, biel wchodzi z lewej (kadr ma konia
          po prawej), a na wąskim ekranie zdjęcie jest pasem 236 px wygaszanym u dołu. -->
     <section class="hero">
@@ -115,6 +129,9 @@ const homeRoute = role ? homeRouteForRole(role) : null;
 </Layout>
 
 <style>
+  .proto-hidden {
+    display: none;
+  }
   .eyebrow {
     font-family: var(--font-mono);
     font-size: 12px;
