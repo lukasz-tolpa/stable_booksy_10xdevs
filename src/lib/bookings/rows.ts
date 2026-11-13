@@ -4,7 +4,7 @@ import { cancelledByLabel } from "@/lib/bookings/status";
 
 /**
  * Składanie listy zapisów dnia ośrodka (FR-005): aktywne (godzina, instruktor, jeździec, koń,
- * wybór konia, odwołanie) i pod nimi odwołane, z oznaczeniem, kto odwołał.
+ * przydział konia, odwołanie) i pod nimi odwołane, z oznaczeniem, kto odwołał.
  *
  * Koń przy zapisie jest opcjonalny (ADR-0002) — przydziela go ośrodek. Nazwy koni dokłada się
  * z listy stada, bo `bookings` wskazuje konia przez przydział do dnia, nie wprost. `now` jest
@@ -37,7 +37,7 @@ export interface HorseOption {
   name: string;
 }
 
-/** Aktywny zapis na liście dnia: z wyborem konia i informacją, czy da się go jeszcze odwołać. */
+/** Aktywny zapis na liście dnia: z przydziałem konia i informacją, czy da się go jeszcze odwołać. */
 export interface ActiveBookingRow {
   id: number;
   hour: number;
