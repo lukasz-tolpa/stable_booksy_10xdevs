@@ -3,14 +3,18 @@ import { SIGN_IN_ROUTE } from "@/lib/auth/roles";
 import { firstErrorMessage } from "@/lib/auth/schemas";
 import { cancelBookingAsStable, getStableBooking } from "@/lib/bookings/queries";
 import { cancelSchema } from "@/lib/bookings/schema";
-import { currentWarsawHour } from "@/lib/bookings/slots";
+import { hasSlotStarted } from "@/lib/bookings/slots";
+import {
+  STABLE_BOOKING_NOT_FOUND,
+  STABLE_CANCEL_FAILED,
+  STABLE_CANCEL_SLOT_STARTED,
+} from "@/lib/bookings/stable-errors";
 import { backToDayBookings } from "@/lib/bookings/stable-redirect";
 import { formValue } from "@/lib/form-data";
-import { isPastDate, parseScheduleDate, todayIso } from "@/lib/schedule/dates";
+import { logError } from "@/lib/log";
+import { parseScheduleDate } from "@/lib/schedule/dates";
 import { getOwnedStableId } from "@/lib/stables/queries";
 import { createClient } from "@/lib/supabase";
-
-const NOT_FOUND_MESSAGE = "Nie znaleziono aktywnego zapisu w Twoim grafiku.";
 
 /**
  * Odwołanie zapisu przez ośrodek (#42): dowolny aktywny zapis własnego grafiku, przed jego
@@ -44,24 +48,25 @@ export const POST: APIRoute = async (context) => {
     const booking = stableId === null ? null : await getStableBooking(supabase, parsed.data.bookingId, stableId);
 
     if (booking?.status !== "active") {
-      return backToDayBookings(context, formDay, { error: NOT_FOUND_MESSAGE });
+      return backToDayBookings(context, formDay, { error: STABLE_BOOKING_NOT_FOUND });
     }
 
-    // Ten sam próg co przy odwołaniu przez jeźdźca: slot o godzinie <= bieżącej
-    // (Europe/Warsaw) w dniu dzisiejszym już się zaczął. Baza pozwala na odwołanie
-    // także wstecz, więc to jedyna linia obrony.
-    if (isPastDate(booking.day) || (booking.day === todayIso() && booking.hour <= currentWarsawHour())) {
-      return backToDayBookings(context, booking.day, { error: "Nie można odwołać jazdy, która już się zaczęła." });
+    // Ten sam próg co przy odwołaniu przez jeźdźca. Baza pozwala na odwołanie także wstecz,
+    // więc to jedyna linia obrony.
+    if (hasSlotStarted(booking.day, booking.hour)) {
+      return backToDayBookings(context, booking.day, { error: STABLE_CANCEL_SLOT_STARTED });
     }
 
     // `false` = wyścig (jeździec odwołał w międzyczasie) — z punktu widzenia ośrodka „nie znaleziono".
-    const cancelled = await cancelBookingAsStable(supabase, parsed.data.bookingId);
+    const cancelled = await cancelBookingAsStable(supabase, booking);
     if (!cancelled) {
-      return backToDayBookings(context, booking.day, { error: NOT_FOUND_MESSAGE });
+      return backToDayBookings(context, booking.day, { error: STABLE_BOOKING_NOT_FOUND });
     }
 
     return backToDayBookings(context, booking.day, { success: "odwolanie" });
-  } catch {
-    return backToDayBookings(context, formDay, { error: "Nie udało się odwołać zapisu. Spróbuj ponownie." });
+  } catch (error) {
+    // Odmowy reguł są rozstrzygane wyżej; tu trafia wyłącznie awaria zależności.
+    logError("api:bookings/stable-cancel", error);
+    return backToDayBookings(context, formDay, { error: STABLE_CANCEL_FAILED });
   }
 };

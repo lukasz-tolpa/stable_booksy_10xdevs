@@ -9,7 +9,8 @@ import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
 import { getDayBookings } from "@/lib/bookings/queries";
 import { composeDayBookingSections, NO_HORSE, type DayBookingSections } from "@/lib/bookings/rows";
-import { currentWarsawHour } from "@/lib/bookings/slots";
+import { stableBookingSuccessMessage } from "@/lib/bookings/stable-redirect";
+import { formatClockHour } from "@/lib/format";
 import { addDays, parseScheduleDate, todayIso } from "@/lib/schedule/dates";
 import { getScheduleDay, type ScheduleDayData } from "@/lib/schedule/queries";
 import { getOwnedStableId, listStableHorses } from "@/lib/stables/queries";
@@ -43,13 +44,7 @@ if (supabase && profile) {
           getDayBookings(supabase, scheduleDay.id),
           listStableHorses(supabase, stableId),
         ]);
-        sections = composeDayBookingSections({
-          bookings,
-          horses,
-          dayHorseIds: scheduleDay.horseIds,
-          day,
-          now: { today: todayIso(), currentHour: currentWarsawHour() },
-        });
+        sections = composeDayBookingSections({ bookings, horses, dayHorseIds: scheduleDay.horseIds, day });
       }
     }
   } catch (error) {
@@ -68,12 +63,7 @@ const dayLabel = new Date(`${day}T00:00:00`).toLocaleDateString("pl-PL", {
   year: "numeric",
 });
 
-const successMessage =
-  success === "przydzial"
-    ? "Przydział konia zapisany."
-    : success === "odwolanie"
-      ? "Zapis został odwołany. Miejsce w slocie wróciło do puli wolnych."
-      : null;
+const successMessage = stableBookingSuccessMessage(success);
 ---
 
 <Layout title={`Zapisy ${day}`}>
@@ -139,7 +129,7 @@ const successMessage =
                   {sections.active.map((row) => (
                     <li>
                       {/* Cały tekst tego elementu to sama godzina. */}
-                      <span class="row__when">{row.hour}:00</span>
+                      <span class="row__when">{formatClockHour(row.hour)}</span>
                       <span class="row__meta">
                         <span class="row__strong">{row.instructorName}</span>
                         <span class="row__sub">{row.riderName}</span>
@@ -178,8 +168,8 @@ const successMessage =
                               <input type="hidden" name="bookingId" value={row.id} />
                               <input type="hidden" name="day" value={day} />
                               <p>
-                                Odwołać zapis: {row.riderName}, {row.hour}:00 u {row.instructorName}? Tego nie da się
-                                cofnąć.
+                                Odwołać zapis: {row.riderName}, {formatClockHour(row.hour)} u {row.instructorName}? Tego
+                                nie da się cofnąć.
                               </p>
                               <button type="submit" class="btn-danger">
                                 Potwierdź odwołanie
@@ -204,7 +194,7 @@ const successMessage =
                 <ul class="rows rows--cancelled">
                   {sections.cancelled.map((row) => (
                     <li>
-                      <span class="row__when">{row.hour}:00</span>
+                      <span class="row__when">{formatClockHour(row.hour)}</span>
                       <span class="row__meta">
                         <span class="row__strong">{row.instructorName}</span>
                         <span class="row__sub">{row.riderName}</span>

@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { RiderBooking } from "@/lib/bookings/queries";
 import { splitRiderBookings } from "@/lib/bookings/rider-list";
 
-const NOW = { today: "2026-08-20", currentHour: 13 };
+/** 2026-08-20, 13:30 w Warszawie (czas letni, UTC+2). */
+const NOW = new Date("2026-08-20T11:30:00Z");
+const TODAY = "2026-08-20";
 
 function booking(overrides: Partial<RiderBooking>): RiderBooking {
   return {
@@ -67,9 +69,9 @@ describe("splitRiderBookings", () => {
   it("dzisiejszy zapis o godzinie po bieżącej jest nadchodzący, o bieżącej lub wcześniejszej — historią", () => {
     const { upcoming, history } = splitRiderBookings(
       [
-        booking({ id: 1, day: NOW.today, hour: 14 }),
-        booking({ id: 2, day: NOW.today, hour: 13 }),
-        booking({ id: 3, day: NOW.today, hour: 12 }),
+        booking({ id: 1, day: TODAY, hour: 14 }),
+        booking({ id: 2, day: TODAY, hour: 13 }),
+        booking({ id: 3, day: TODAY, hour: 12 }),
       ],
       NOW,
     );

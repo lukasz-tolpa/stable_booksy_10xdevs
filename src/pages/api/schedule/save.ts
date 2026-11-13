@@ -1,7 +1,7 @@
 import type { APIContext, APIRoute } from "astro";
 import { SIGN_IN_ROUTE } from "@/lib/auth/roles";
 import { firstErrorMessage } from "@/lib/auth/schemas";
-import { errorCode, errorMessage } from "@/lib/db-errors";
+import { errorCode, errorDetails } from "@/lib/db-errors";
 import { formValue } from "@/lib/form-data";
 import { isPastDate, parseScheduleDate } from "@/lib/schedule/dates";
 import { SCHEDULE_DAY_PAST, scheduleErrorMessage } from "@/lib/schedule/errors";
@@ -62,8 +62,8 @@ export const POST: APIRoute = async (context) => {
   try {
     await saveScheduleDay(supabase, parsed.data);
   } catch (error) {
-    // Guardraile żyją w bazie; tutaj wyłącznie tłumaczymy ich kody na komunikat.
-    return backToDay(context, parsed.data.day, scheduleErrorMessage(errorCode(error), errorMessage(error)));
+    // Guardraile żyją w bazie; tutaj wyłącznie tłumaczymy ich kody (i liczby z DETAIL) na komunikat.
+    return backToDay(context, parsed.data.day, scheduleErrorMessage(errorCode(error), errorDetails(error)));
   }
 
   return backToDay(context, parsed.data.day);

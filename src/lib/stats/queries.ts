@@ -1,9 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/db/database.types";
+import { toBookingStatus, toCancelledBy } from "@/lib/bookings/status";
 import type { StatsRider } from "@/lib/stats/riders";
-import type { CancelledBy } from "@/lib/bookings/queries";
 import type { StatsBooking, StatsPeriod, StatsScheduleDay } from "@/lib/stats/stats";
-import type { BookingStatus } from "@/types";
 
 type Client = SupabaseClient<Database>;
 
@@ -46,25 +45,6 @@ export interface RawStatsDay {
 
 /** Jedna strona dni grafiku: wiersze `from…to` włącznie, jak w `range()` PostgREST. */
 export type StatsPageLoader = (from: number, to: number) => PromiseLike<{ data: RawStatsDay[] | null; error: unknown }>;
-
-/**
- * Zawęża status z bazy do unii domenowej. Inna wartość oznacza, że schemat dostał nowy
- * status, o którym statystyki nie wiedzą — wyjątek (stan awarii) jest lepszy niż ciche
- * pominięcie albo policzenie takiego zapisu.
- */
-function toBookingStatus(status: string): BookingStatus {
-  if (status === "active" || status === "cancelled") return status;
-  throw new Error(`Nieznany status zapisu: ${status}`);
-}
-
-/**
- * Zawęża stronę odwołania z bazy. Jak przy statusie: wartość spoza unii oznacza zmianę
- * schematu, o której statystyki nie wiedzą — a od niej zależy, czy odwołanie trafi do jeźdźca.
- */
-function toCancelledBy(value: string | null): CancelledBy | null {
-  if (value === null || value === "rider" || value === "stable") return value;
-  throw new Error(`Nieznana strona odwołania zapisu: ${value}`);
-}
 
 /** Limit wierszy odpowiedzi PostgREST (`max_rows` w `supabase/config.toml`). */
 const PAGE_SIZE = 1000;

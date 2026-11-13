@@ -1,9 +1,10 @@
 import type { DayBooking } from "@/lib/bookings/queries";
-import { unknownInstructorName } from "@/lib/bookings/slots";
+import { hasSlotStarted, unknownInstructorName } from "@/lib/bookings/slots";
+import { cancelledByLabel } from "@/lib/bookings/status";
 
 /**
  * Składanie listy zapisów dnia ośrodka (FR-005): aktywne (godzina, instruktor, jeździec, koń,
- * wybór konia, odwołanie) i pod nimi odwołane, z oznaczeniem, kto odwołał.
+ * przydział konia, odwołanie) i pod nimi odwołane, z oznaczeniem, kto odwołał.
  *
  * Koń przy zapisie jest opcjonalny (ADR-0002) — przydziela go ośrodek. Nazwy koni dokłada się
  * z listy stada, bo `bookings` wskazuje konia przez przydział do dnia, nie wprost. `now` jest
@@ -36,7 +37,7 @@ export interface HorseOption {
   name: string;
 }
 
-/** Aktywny zapis na liście dnia: z wyborem konia i informacją, czy da się go jeszcze odwołać. */
+/** Aktywny zapis na liście dnia: z przydziałem konia i informacją, czy da się go jeszcze odwołać. */
 export interface ActiveBookingRow {
   id: number;
   hour: number;
@@ -79,7 +80,8 @@ export interface DayBookingSectionsInput {
   dayHorseIds: number[];
   /** Dzień listy, ISO. */
   day: string;
-  now: { today: string; currentHour: number };
+  /** Chwila, względem której liczymy próg „slot już się zaczął" (`hasSlotStarted`). */
+  now?: Date;
 }
 
 const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, "pl");
@@ -97,12 +99,10 @@ function riderLabel(booking: DayBooking): string {
 }
 
 export function composeDayBookingSections(input: DayBookingSectionsInput): DayBookingSections {
-  const { bookings, horses, dayHorseIds, day, now } = input;
+  const { bookings, horses, dayHorseIds, day, now = new Date() } = input;
   const horseNames = new Map(horses.map((horse) => [horse.id, horse.name]));
   const dayHorses = dayHorseIds.map((id) => ({ id, name: horseNames.get(id) ?? unknownHorseName(id) })).sort(byName);
   const activeBookings = bookings.filter((booking) => booking.status === "active");
-  // Próg identyczny z odwołaniem przez jeźdźca: godzina <= bieżąca w dniu dzisiejszym już się zaczęła.
-  const started = (hour: number) => day < now.today || (day === now.today && hour <= now.currentHour);
 
   const active = activeBookings
     .map((booking): ActiveBookingRow => {
@@ -120,7 +120,7 @@ export function composeDayBookingSections(input: DayBookingSectionsInput): DayBo
         horseName:
           booking.horseId === null ? NO_HORSE : (horseNames.get(booking.horseId) ?? unknownHorseName(booking.horseId)),
         horseOptions: dayHorses.filter((horse) => !takenByOthers.has(horse.id)),
-        cancellable: !started(booking.hour),
+        cancellable: !hasSlotStarted(day, booking.hour, now),
       };
     })
     .sort(byHourInstructorRider);
@@ -133,7 +133,8 @@ export function composeDayBookingSections(input: DayBookingSectionsInput): DayBo
         hour: booking.hour,
         instructorName: booking.instructorName ?? unknownInstructorName(booking.instructorId),
         riderName: riderLabel(booking),
-        cancelledByLabel: booking.cancelledBy === "stable" ? "przez ośrodek" : "przez jeźdźca",
+        // CHECK spójności: odwołany zapis zawsze ma `cancelled_by`.
+        cancelledByLabel: cancelledByLabel(booking.cancelledBy ?? "rider", "stable"),
       }),
     )
     .sort(byHourInstructorRider);

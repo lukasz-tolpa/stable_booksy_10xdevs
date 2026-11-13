@@ -1,4 +1,4 @@
-import { SCHEDULE_TIME_ZONE } from "@/lib/schedule/dates";
+import { isPastDate, SCHEDULE_TIME_ZONE, todayIso } from "@/lib/schedule/dates";
 import type { SlotSeats } from "@/lib/schedule/queries";
 
 /**
@@ -29,6 +29,17 @@ export interface MySlot {
  * odmówiłaby drugiego zapisu na tę godzinę).
  */
 export type SlotStatus = "free" | "mine" | "full" | "unavailable";
+
+const SLOT_STATUS_LABELS: Record<Exclude<SlotStatus, "free">, string> = {
+  mine: "Twój zapis",
+  full: "Brak miejsc",
+  unavailable: "Masz już zapis o tej godzinie",
+};
+
+/** Podpis pigułki slotu, na który nie da się zapisać; `null` — wolny slot ma przycisk zapisu. */
+export function slotStatusLabel(status: SlotStatus): string | null {
+  return status === "free" ? null : SLOT_STATUS_LABELS[status];
+}
 
 export interface RiderSlot {
   instructorId: number;
@@ -64,20 +75,21 @@ export function unknownInstructorName(instructorId: number): string {
   return `(instruktor #${String(instructorId)})`;
 }
 
-function key(instructorId: number, hour: number): string {
+/** Klucz slotu dnia (instruktor × godzina) w mapach zajętości i własnych zapisów. */
+function slotKey(instructorId: number, hour: number): string {
   return `${String(instructorId)}:${String(hour)}`;
 }
 
 function statusOf(slot: SlotSeats, freeSeats: number, mine: Set<string>, myHours: Set<number>): SlotStatus {
-  if (mine.has(key(slot.instructorId, slot.hour))) return "mine";
+  if (mine.has(slotKey(slot.instructorId, slot.hour))) return "mine";
   if (myHours.has(slot.hour)) return "unavailable";
   return freeSeats > 0 ? "free" : "full";
 }
 
 export function computeSlotHours(input: SlotHoursInput): SlotHour[] {
   const names = new Map(input.instructors.map((instructor) => [instructor.id, instructor.name]));
-  const taken = new Map(input.occupancy.map((entry) => [key(entry.instructorId, entry.hour), entry.taken]));
-  const mine = new Set(input.myBookings.map((booking) => key(booking.instructorId, booking.hour)));
+  const taken = new Map(input.occupancy.map((entry) => [slotKey(entry.instructorId, entry.hour), entry.taken]));
+  const mine = new Set(input.myBookings.map((booking) => slotKey(booking.instructorId, booking.hour)));
   const myHours = new Set(input.myBookings.map((booking) => booking.hour));
   const byHour = new Map<number, RiderSlot[]>();
 
@@ -86,7 +98,7 @@ export function computeSlotHours(input: SlotHoursInput): SlotHour[] {
     if (slot.hour < input.openHour || slot.hour >= input.closeHour) continue;
     if (input.currentHour !== null && slot.hour <= input.currentHour) continue;
 
-    const freeSeats = Math.max(0, slot.seats - (taken.get(key(slot.instructorId, slot.hour)) ?? 0));
+    const freeSeats = Math.max(0, slot.seats - (taken.get(slotKey(slot.instructorId, slot.hour)) ?? 0));
     const slots = byHour.get(slot.hour) ?? [];
     slots.push({
       instructorId: slot.instructorId,
@@ -123,4 +135,15 @@ export function currentWarsawHour(now: Date = new Date()): number {
   }).format(now);
 
   return Number(formatted);
+}
+
+/**
+ * Czy slot (dzień grafiku × godzina) już się zaczął — jedyna definicja progu „godzina już się
+ * zaczęła" (Europe/Warsaw): dzień miniony w całości, a dziś godzina <= bieżąca (jazda trwa).
+ * Po tym progu jeździec nie zapisze się ani nie odwoła, a ośrodek nie odwoła zapisu; baza go
+ * nie pilnuje, więc w endpointach to jedyna linia obrony.
+ */
+export function hasSlotStarted(day: string, hour: number, now: Date = new Date()): boolean {
+  const today = todayIso(now);
+  return isPastDate(day, today) || (day === today && hour <= currentWarsawHour(now));
 }

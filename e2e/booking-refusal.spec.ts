@@ -29,7 +29,7 @@ test.use({ storageState: RIDER_A_STATE });
 
 const INSTRUCTOR = "Joanna Wrona";
 const HOUR = 14;
-const NO_SEATS_MESSAGE = "W tym slocie nie ma już wolnych miejsc. Wybierz inny termin lub instruktora.";
+const NO_SEATS_MESSAGE = "W tym slocie nie ma już wolnych miejsc. Wybierz inną godzinę albo innego instruktora.";
 
 test("jeździec klikający nieświeży slot bez wolnych miejsc dostaje polską odmowę i nie ma zapisu", async ({
   page,

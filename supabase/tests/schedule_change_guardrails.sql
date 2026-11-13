@@ -46,6 +46,7 @@ declare
   v_cancelled_karol bigint;
   v_cancelled_hour bigint;
   v_empty_day bigint;
+  v_detail text;
   v int;
   v_failures int := 0;
   d record;
@@ -96,7 +97,14 @@ begin
     raise notice 'FAIL 3: zmiana daty przeszla, zapisy przewedrowalyby na inny termin';
     v_failures := v_failures + 1;
   exception when sqlstate 'SB001' then
-    raise notice 'PASS 3: zmiana daty dnia z zapisami odrzucona (SB001)';
+    -- Liczba aktywnych zapisow idzie w DETAIL jako JSON (kontrakt z `scheduleErrorMessage`).
+    get stacked diagnostics v_detail = pg_exception_detail;
+    if v_detail is not null and v_detail ~ '^\s*\{' and v_detail::jsonb = '{"bookings": 1}'::jsonb then
+      raise notice 'PASS 3: zmiana daty dnia z zapisami odrzucona (SB001), DETAIL: %', v_detail;
+    else
+      raise notice 'FAIL 3: DETAIL SB001 to % zamiast {"bookings": 1}', v_detail;
+      v_failures := v_failures + 1;
+    end if;
   end;
   select day into d from public.schedule_days where id = v_day;
   if d.day = current_date + 1 then
@@ -169,6 +177,7 @@ declare
   v_staff bigint[];
   v_full jsonb;
   v_joanna_only jsonb;
+  v_detail text;
   v int;
   v_failures int := 0;
   b record;
@@ -192,7 +201,13 @@ begin
     raise notice 'FAIL 1: zawezenie godzin przeszlo mimo zapisu w odcietej godzinie';
     v_failures := v_failures + 1;
   exception when sqlstate 'SB002' then
-    raise notice 'PASS 1: zawezenie godzin pod aktywnym zapisem odrzucone (SB002)';
+    get stacked diagnostics v_detail = pg_exception_detail;
+    if v_detail is not null and v_detail ~ '^\s*\{' and v_detail::jsonb = '{"bookings": 1}'::jsonb then
+      raise notice 'PASS 1: zawezenie godzin pod aktywnym zapisem odrzucone (SB002), DETAIL: %', v_detail;
+    else
+      raise notice 'FAIL 1: DETAIL SB002 to % zamiast {"bookings": 1}', v_detail;
+      v_failures := v_failures + 1;
+    end if;
   end;
 
   -- ...a zapis i dzien maja zostac dokladnie takie, jakie byly.
@@ -230,7 +245,14 @@ begin
     raise notice 'FAIL 3: obnizenie limitu ponizej liczby zapisow przeszlo';
     v_failures := v_failures + 1;
   exception when sqlstate 'SB010' then
-    raise notice 'PASS 3: limit ponizej liczby aktywnych zapisow odrzucony (SB010)';
+    get stacked diagnostics v_detail = pg_exception_detail;
+    if v_detail is not null and v_detail ~ '^\s*\{'
+       and v_detail::jsonb = '{"hour": 11, "seats": 0, "bookings": 1}'::jsonb then
+      raise notice 'PASS 3: limit ponizej liczby aktywnych zapisow odrzucony (SB010), DETAIL: %', v_detail;
+    else
+      raise notice 'FAIL 3: DETAIL SB010 to % zamiast {"hour": 11, "seats": 0, "bookings": 1}', v_detail;
+      v_failures := v_failures + 1;
+    end if;
   end;
   select seats into v from public.schedule_slots where schedule_day_id = v_day and instructor_id = v_joanna and hour = 11;
   if v = 1 then
@@ -259,7 +281,13 @@ begin
     raise notice 'FAIL 4: wypisanie instruktora z aktywnym zapisem przeszlo';
     v_failures := v_failures + 1;
   exception when sqlstate 'SB011' then
-    raise notice 'PASS 4: wypisanie instruktora z aktywnym zapisem odrzucone (SB011)';
+    get stacked diagnostics v_detail = pg_exception_detail;
+    if v_detail is not null and v_detail ~ '^\s*\{' and v_detail::jsonb = '{"bookings": 1}'::jsonb then
+      raise notice 'PASS 4: wypisanie instruktora z aktywnym zapisem odrzucone (SB011), DETAIL: %', v_detail;
+    else
+      raise notice 'FAIL 4: DETAIL SB011 to % zamiast {"bookings": 1}', v_detail;
+      v_failures := v_failures + 1;
+    end if;
   end;
   select count(*) into v from public.schedule_slots where schedule_day_id = v_day and instructor_id = v_joanna;
   select status into b from public.bookings where id = v_booking;

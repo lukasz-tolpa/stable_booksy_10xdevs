@@ -184,7 +184,7 @@ export default function ScheduleDayForm({
 
   const slotsHint =
     hours.length > 0
-      ? `Jazdy od ${formatClockHour(open)} do ${formatClockHour(close - 1)} — ${String(hours.length)} slotów na konia.`
+      ? `Jazdy od ${formatClockHour(open)} do ${formatClockHour(close - 1)} — każda godzina instruktora to osobny slot z własnym limitem.`
       : null;
 
   const workingInstructors = instructors.filter((instructor) => selectedInstructors.includes(instructor.id));

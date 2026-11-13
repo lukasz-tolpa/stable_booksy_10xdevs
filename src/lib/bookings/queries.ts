@@ -1,15 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/db/database.types";
 import type { MySlot, SlotOccupancy } from "@/lib/bookings/slots";
+import { toBookingStatus, toCancelledBy } from "@/lib/bookings/status";
+import type { BookingStatus, CancelledBy } from "@/types";
 
 type Client = SupabaseClient<Database>;
-
-/** Kto odwołał zapis — wartości kolumny `bookings.cancelled_by` (CHECK w migracji #41). */
-export type CancelledBy = "rider" | "stable";
-
-function toCancelledBy(value: string | null): CancelledBy | null {
-  return value === "rider" || value === "stable" ? value : null;
-}
 
 /**
  * Zajętość slotów (instruktor × godzina) ośrodka na dany dzień — przez RPC
@@ -60,7 +55,7 @@ export interface DayBooking {
   riderName: string | null;
   /** Zapis bez jeźdźca: konto usunięto, miniony zapis został w historii ośrodka (ADR-0001). */
   anonymised: boolean;
-  status: "active" | "cancelled";
+  status: BookingStatus;
   cancelledBy: CancelledBy | null;
 }
 
@@ -98,8 +93,8 @@ export async function getDayBookings(client: Client, scheduleDayId: number): Pro
     // `profiles` jest `null` dla zapisu bez jeźdźca, a także gdy RLS ukryje profil.
     riderName: row.profiles?.full_name ?? null,
     anonymised: row.rider_id === null,
-    // CHECK `bookings_status_check` dopuszcza wyłącznie te dwie wartości.
-    status: row.status === "cancelled" ? "cancelled" : "active",
+    // Nieznana wartość rzuca — strona loguje ją i pokazuje stan awarii.
+    status: toBookingStatus(row.status),
     cancelledBy: toCancelledBy(row.cancelled_by),
   }));
 }
@@ -114,7 +109,7 @@ export interface RiderBooking {
   instructorName: string | null;
   /** Przydzielony koń; `null` — jeszcze bez konia (zapis odwołany nigdy go nie ma). */
   horseName: string | null;
-  status: string;
+  status: BookingStatus;
   cancelledBy: CancelledBy | null;
 }
 
@@ -141,7 +136,7 @@ export async function getRiderBookings(client: Client, riderId: string): Promise
   return data.map((row) => ({
     id: row.id,
     hour: row.hour,
-    status: row.status,
+    status: toBookingStatus(row.status),
     cancelledBy: toCancelledBy(row.cancelled_by),
     instructorId: row.instructor_id,
     // Wygenerowane typy obiecują niepuste obiekty (FK not-null), ale w runtime RLS mógłby
@@ -224,6 +219,13 @@ export async function cancelBooking(client: Client, bookingId: number, riderId: 
   return data !== null;
 }
 
+/** Zapis z grafiku ośrodka: identyfikator i dzień grafiku, sprawdzony filtrem po stadninie. */
+export interface StableBooking extends CancellableBooking {
+  id: number;
+  /** Dzień grafiku stadniny ośrodka — jawny filtr własności w UPDATE-ach ośrodka. */
+  scheduleDayId: number;
+}
+
 /**
  * Pojedynczy zapis w grafiku stadniny ośrodka pod decyzję o przydziale konia albo odwołaniu:
  * dzień, godzina i status. Filtr po stadninie idzie jawnie przez `schedule_days!inner` —
@@ -234,10 +236,10 @@ export async function getStableBooking(
   client: Client,
   bookingId: number,
   stableId: number,
-): Promise<CancellableBooking | null> {
+): Promise<StableBooking | null> {
   const { data, error } = await client
     .from("bookings")
-    .select("hour, status, schedule_days!inner(day, stable_id)")
+    .select("id, schedule_day_id, hour, status, schedule_days!inner(day, stable_id)")
     .eq("id", bookingId)
     .eq("schedule_days.stable_id", stableId)
     .maybeSingle();
@@ -246,21 +248,31 @@ export async function getStableBooking(
     throw error;
   }
 
-  return data ? { hour: data.hour, status: data.status, day: data.schedule_days.day } : null;
+  return data
+    ? {
+        id: data.id,
+        scheduleDayId: data.schedule_day_id,
+        hour: data.hour,
+        status: data.status,
+        day: data.schedule_days.day,
+      }
+    : null;
 }
 
 /**
  * Przydział, zmiana albo cofnięcie (`horseId = null`) konia przez ośrodek — jeden UPDATE
- * `horse_id` pod RLS (zapisy własnej stadniny). Odmowy podnosi baza: 23503 koń nie pracuje
- * tego dnia, 23505 koń zajęty w tej godzinie (`horseAssignmentErrorMessage`); jeźdźcowi
- * odmawia wyzwalacz `bookings_horse_assignment` (42501). Bez progu czasu — także po terminie.
+ * `horse_id`. Własność dwa razy: jawny filtr po dniu grafiku stadniny (z `getStableBooking`)
+ * i RLS. Odmowy podnosi baza: 23503 koń nie pracuje tego dnia, 23505 koń zajęty w tej
+ * godzinie (`horseAssignmentErrorMessage`); jeźdźcowi odmawia wyzwalacz
+ * `bookings_horse_assignment` (42501). Bez progu czasu — także po terminie.
  * Filtr `status = 'active'`: odwołany w międzyczasie zapis daje `false`, nie błąd.
  */
-export async function assignHorse(client: Client, bookingId: number, horseId: number | null): Promise<boolean> {
+export async function assignHorse(client: Client, booking: StableBooking, horseId: number | null): Promise<boolean> {
   const { data, error } = await client
     .from("bookings")
     .update({ horse_id: horseId })
-    .eq("id", bookingId)
+    .eq("id", booking.id)
+    .eq("schedule_day_id", booking.scheduleDayId)
     .eq("status", "active")
     .select("id")
     .maybeSingle();
@@ -278,14 +290,16 @@ export async function assignHorse(client: Client, bookingId: number, horseId: nu
  * odwołującego i czyści przydział konia. Filtr `status = 'active'` rozstrzyga wyścig z
  * odwołaniem przez jeźdźca — drugi UPDATE trafia w 0 wierszy i zwraca `false`.
  *
- * Wołać po `getStableBooking` dla tej samej stadniny — ona robi jawny filtr po stadninie,
- * którego UPDATE przez PostgREST wyrazić nie umie (RLS i tak ogranicza do własnej stadniny).
+ * Własność dwa razy: jawny filtr po dniu grafiku stadniny — `booking` pochodzi z
+ * `getStableBooking`, filtrowanego po stadninie (UPDATE przez PostgREST nie wyrazi filtra po
+ * `schedule_days.stable_id` wprost) — i RLS.
  */
-export async function cancelBookingAsStable(client: Client, bookingId: number): Promise<boolean> {
+export async function cancelBookingAsStable(client: Client, booking: StableBooking): Promise<boolean> {
   const { data, error } = await client
     .from("bookings")
     .update({ status: "cancelled", cancelled_at: new Date().toISOString(), cancelled_by: "stable" })
-    .eq("id", bookingId)
+    .eq("id", booking.id)
+    .eq("schedule_day_id", booking.scheduleDayId)
     .eq("status", "active")
     .select("id")
     .maybeSingle();

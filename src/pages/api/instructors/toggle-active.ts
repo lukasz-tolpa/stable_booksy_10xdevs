@@ -1,16 +1,17 @@
-import type { APIContext, APIRoute } from "astro";
+import type { APIRoute } from "astro";
 import { SIGN_IN_ROUTE } from "@/lib/auth/roles";
 import { formValue } from "@/lib/form-data";
+import {
+  INSTRUCTOR_NO_STABLE,
+  INSTRUCTOR_NOT_FOUND,
+  INSTRUCTOR_TOGGLE_FAILED,
+  INSTRUCTOR_TOGGLE_INVALID,
+} from "@/lib/instructors/errors";
+import { backToInstructors } from "@/lib/instructors/redirect";
 import { toggleInstructorSchema } from "@/lib/instructors/schemas";
 import { logError } from "@/lib/log";
 import { getOwnedStableId } from "@/lib/stables/queries";
 import { createClient } from "@/lib/supabase";
-
-const INSTRUCTORS_ROUTE = "/osrodek/instruktorzy";
-
-function backToList(context: APIContext, message?: string) {
-  return context.redirect(message ? `${INSTRUCTORS_ROUTE}?error=${encodeURIComponent(message)}` : INSTRUCTORS_ROUTE);
-}
 
 /**
  * Dezaktywacja i ponowna aktywacja instruktora. Dezaktywacja nigdy nie jest odmawiana
@@ -25,12 +26,12 @@ export const POST: APIRoute = async (context) => {
   });
 
   if (!parsed.success) {
-    return backToList(context, "Nieprawidłowe dane formularza");
+    return backToInstructors(context, INSTRUCTOR_TOGGLE_INVALID);
   }
 
   const supabase = createClient(context.request.headers, context.cookies);
   if (!supabase) {
-    return backToList(context, "Supabase nie jest skonfigurowany");
+    return backToInstructors(context, "Supabase nie jest skonfigurowany");
   }
 
   const {
@@ -43,7 +44,7 @@ export const POST: APIRoute = async (context) => {
 
   const stableId = await getOwnedStableId(supabase, user.id);
   if (stableId === null) {
-    return backToList(context, "Twoje konto nie ma jeszcze stadniny");
+    return backToInstructors(context, INSTRUCTOR_NO_STABLE);
   }
 
   // Jawny warunek po stadninie obok polityki `instructors_update_own_stable`.
@@ -60,12 +61,12 @@ export const POST: APIRoute = async (context) => {
 
   if (error) {
     logError("api:instructors/toggle-active", error);
-    return backToList(context, "Nie udało się zmienić stanu instruktora. Spróbuj ponownie.");
+    return backToInstructors(context, INSTRUCTOR_TOGGLE_FAILED);
   }
 
   if (data === null) {
-    return backToList(context, "Nie znaleziono instruktora w Twojej stadninie.");
+    return backToInstructors(context, INSTRUCTOR_NOT_FOUND);
   }
 
-  return backToList(context);
+  return backToInstructors(context);
 };

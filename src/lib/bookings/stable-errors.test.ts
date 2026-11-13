@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { horseAssignmentErrorMessage } from "@/lib/bookings/stable-errors";
+import { horseAssignmentErrorMessage, isHorseAssignmentRefusal } from "@/lib/bookings/stable-errors";
 
 describe("horseAssignmentErrorMessage", () => {
   it("koń zajęty o tej godzinie (23505, bookings_horse_hour_key) — komunikat każe wybrać innego konia", () => {
@@ -27,4 +27,15 @@ describe("horseAssignmentErrorMessage", () => {
       expect(horseAssignmentErrorMessage(code)).toBe("Nie udało się przydzielić konia. Spróbuj ponownie.");
     },
   );
+});
+
+describe("isHorseAssignmentRefusal", () => {
+  // Odmowa reguły to skutek decyzji ośrodka, nie awaria — endpoint loguje tylko resztę.
+  it.each([["23505"], ["23503"], ["23514"]])("kod %s to odmowa reguły przydziału", (code) => {
+    expect(isHorseAssignmentRefusal(code)).toBe(true);
+  });
+
+  it.each([[undefined], ["42501"], ["PGRST301"], ["08006"]])("kod %j to błąd spoza decyzji ośrodka", (code) => {
+    expect(isHorseAssignmentRefusal(code)).toBe(false);
+  });
 });

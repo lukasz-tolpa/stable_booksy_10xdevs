@@ -6,8 +6,8 @@ import InstructorForm from "@/components/instructors/InstructorForm";
 import Card from "@/components/ui/Card.astro";
 import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
-import { countDaysWithOpenSeats, openSeatsNote } from "@/lib/instructors/open-seats";
-import { listOpenSeatRows, listStableInstructors, type InstructorListItem } from "@/lib/instructors/queries";
+import { composeInstructorList, type InstructorList } from "@/lib/instructors/list";
+import { listOpenSeatRows, listStableInstructors } from "@/lib/instructors/queries";
 import { todayIso } from "@/lib/schedule/dates";
 import { getOwnedStableId } from "@/lib/stables/queries";
 import { createClient } from "@/lib/supabase";
@@ -20,21 +20,18 @@ const error = Astro.url.searchParams.get("error");
 
 const supabase = createClient(Astro.request.headers, Astro.cookies);
 
-let instructors: InstructorListItem[] = [];
-let openSeatDays = new Map<number, number>();
+let list: InstructorList = { active: [], inactive: [] };
 let loadFailed = false;
 
 if (supabase && profile) {
   try {
     const stableId = await getOwnedStableId(supabase, profile.id);
     if (stableId !== null) {
-      const today = todayIso();
-      const [list, openSeatRows] = await Promise.all([
+      const [instructors, openSeatRows] = await Promise.all([
         listStableInstructors(supabase, stableId),
-        listOpenSeatRows(supabase, stableId, today),
+        listOpenSeatRows(supabase, stableId, todayIso()),
       ]);
-      instructors = list;
-      openSeatDays = countDaysWithOpenSeats(openSeatRows, today);
+      list = composeInstructorList(instructors, openSeatRows);
     }
   } catch (error) {
     loadFailed = true;
@@ -42,10 +39,7 @@ if (supabase && profile) {
   }
 }
 
-const active = instructors.filter((instructor) => instructor.active);
-const inactive = instructors
-  .filter((instructor) => !instructor.active)
-  .map((instructor) => ({ ...instructor, note: openSeatsNote(openSeatDays.get(instructor.id) ?? 0) }));
+const { active, inactive } = list;
 ---
 
 <Layout title="Instruktorzy">
@@ -62,7 +56,7 @@ const inactive = instructors
               <p>Nie udało się wczytać instruktorów.</p>
               <p>Odśwież stronę za chwilę.</p>
             </FailureState>
-          ) : instructors.length === 0 ? (
+          ) : active.length + inactive.length === 0 ? (
             <Card>
               <EmptyState>
                 <p>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { errorCode, errorMessage } from "@/lib/db-errors";
+import { errorCode, errorConstraint, errorDetails, errorMessage } from "@/lib/db-errors";
 
 describe("errorCode", () => {
   it("zwraca kod, gdy rzucona wartość jest obiektem z napisem w polu code", () => {
@@ -39,5 +39,53 @@ describe("errorMessage", () => {
     ["goły napis", "x"],
   ])("%s daje undefined", (_label, value) => {
     expect(errorMessage(value)).toBeUndefined();
+  });
+});
+
+describe("errorConstraint", () => {
+  // Format komunikatu Postgresa przy naruszeniu ograniczenia (nie nasza treść `raise`).
+  it("czyta nazwę ograniczenia z komunikatu naruszenia unikalności, FK i CHECK-a", () => {
+    expect(
+      errorConstraint({
+        code: "23505",
+        message: 'duplicate key value violates unique constraint "bookings_rider_hour_key"',
+      }),
+    ).toBe("bookings_rider_hour_key");
+    expect(
+      errorConstraint({
+        code: "23503",
+        message: 'insert or update on table "bookings" violates foreign key constraint "bookings_instructor_fkey"',
+      }),
+    ).toBe("bookings_instructor_fkey");
+    expect(
+      errorConstraint({
+        code: "23514",
+        message: 'new row for relation "bookings" violates check constraint "bookings_hour_check"',
+      }),
+    ).toBe("bookings_hour_check");
+  });
+
+  it.each([
+    ["odmowa z wyzwalacza bez nazwy ograniczenia", { code: "23514", message: "Godzina 9 jest poza zakresem" }],
+    ["pusty obiekt", {}],
+    ["null", null],
+    ["TypeError", new TypeError("fetch failed")],
+  ])("%s daje undefined", (_label, value) => {
+    expect(errorConstraint(value)).toBeUndefined();
+  });
+});
+
+describe("errorDetails", () => {
+  it("czyta pole DETAIL (PostgREST: details) z obiektu błędu", () => {
+    expect(errorDetails({ code: "SB007", message: "x", details: '{"hour": 13}' })).toBe('{"hour": 13}');
+  });
+
+  it.each([
+    ["pusty obiekt", {}],
+    ["null", null],
+    ["details niebędące napisem", { details: { hour: 13 } }],
+    ["TypeError", new TypeError("fetch failed")],
+  ])("%s daje undefined", (_label, value) => {
+    expect(errorDetails(value)).toBeUndefined();
   });
 });

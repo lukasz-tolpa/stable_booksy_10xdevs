@@ -31,9 +31,14 @@ describe("toggleInstructorSchema", () => {
     });
   });
 
-  it.each(["0", "-3", "1.5", "abc", ""])("odrzuca identyfikator %j", (instructorId) => {
-    expect(toggleInstructorSchema.safeParse({ instructorId, active: "true" }).success).toBe(false);
-  });
+  it.each(["0", "-3", "1.5", "abc", "", "   ", "1e3", "0x10"])(
+    "odrzuca identyfikator %j polskim komunikatem pola",
+    (instructorId) => {
+      const result = toggleInstructorSchema.safeParse({ instructorId, active: "true" });
+      expect(result.success).toBe(false);
+      expect(result.error?.issues[0]?.message).toBe("Nieprawidłowy instruktor");
+    },
+  );
 
   it("odrzuca stan spoza dozwolonego zbioru", () => {
     expect(toggleInstructorSchema.safeParse({ instructorId: "4", active: "maybe" }).success).toBe(false);

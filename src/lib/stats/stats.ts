@@ -3,14 +3,13 @@
  * wyłącznie renderuje zwrócony model widoku (słownictwo: GLOSSARY.md).
  */
 
-import type { CancelledBy } from "@/lib/bookings/queries";
 import { currentWarsawHour } from "@/lib/bookings/slots";
 import { unknownHorseName } from "@/lib/bookings/rows";
 import { buildTopRidersSeries, type TopRiderPoint } from "@/lib/stats/rankings";
 import { computeRiderRows, type StatsRider, type StatsRiderRow } from "@/lib/stats/riders";
 import { todayIso } from "@/lib/schedule/dates";
 import { buildRideHoursSeries, type RideHoursSeries } from "@/lib/stats/time-series";
-import type { BookingStatus } from "@/types";
+import type { BookingStatus, CancelledBy } from "@/types";
 
 /** Okres statystyk: zakres dat `RRRR-MM-DD`, oba krańce włącznie. */
 export interface StatsPeriod {

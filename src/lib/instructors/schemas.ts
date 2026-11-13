@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { formInt } from "@/lib/form-data";
 
 /**
  * Schematy formularzy instruktorów. Komunikaty po polsku; `InstructorForm` powtarza je
@@ -16,7 +17,7 @@ export const newInstructorSchema = z.object({
 
 /** Przełączenie flagi `active` — identyfikator instruktora i docelowy stan. */
 export const toggleInstructorSchema = z.object({
-  instructorId: z.coerce.number().int().positive({ error: "Nieprawidłowy instruktor" }),
+  instructorId: formInt("Nieprawidłowy instruktor").pipe(z.number().positive({ error: "Nieprawidłowy instruktor" })),
   active: z.enum(["true", "false"]).transform((value) => value === "true"),
 });
 

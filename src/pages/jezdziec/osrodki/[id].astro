@@ -9,8 +9,8 @@ import FailureState from "@/components/ui/FailureState.astro";
 import Layout from "@/layouts/Layout.astro";
 import { ROLE_HOME } from "@/lib/auth/roles";
 import { getMyBookings, getSlotOccupancy } from "@/lib/bookings/queries";
-import { computeSlotHours, currentWarsawHour, type SlotHour } from "@/lib/bookings/slots";
-import { formatFreeSeats } from "@/lib/format";
+import { computeSlotHours, currentWarsawHour, slotStatusLabel, type SlotHour } from "@/lib/bookings/slots";
+import { formatClockHour, formatFreeSeats } from "@/lib/format";
 import { listStableInstructors } from "@/lib/instructors/queries";
 import { addDays, defaultScheduleDate, isPastDate, parseScheduleDate, todayIso } from "@/lib/schedule/dates";
 import { getScheduleDay, type ScheduleDayData } from "@/lib/schedule/queries";
@@ -168,34 +168,33 @@ const dayLabel = new Date(`${day}T00:00:00`).toLocaleDateString("pl-PL", {
                   <li>
                     {/* Cały tekst tego elementu to sama godzina - scenariusze e2e
                         zawężają wiersz przez dokładne dopasowanie "11:00". */}
-                    <span class="hours__label">{entry.hour}:00</span>
+                    <span class="hours__label">{formatClockHour(entry.hour)}</span>
                     <ul class="slots">
-                      {entry.slots.map((slot) => (
-                        <li class:list={["slot", `slot--${slot.status}`]}>
-                          <span class="slot__who">{slot.instructorName}</span>
-                          <span class="slot__seats">{formatFreeSeats(slot.freeSeats, slot.seats)}</span>
-                          {slot.status === "mine" ? (
-                            <span class="slot__tag slot__tag--mine">
-                              <Check className="size-[15px]" aria-hidden="true" />
-                              Twój zapis
-                            </span>
-                          ) : slot.status === "free" ? (
-                            <form method="post" action="/api/bookings/create">
-                              <input type="hidden" name="stableId" value={id} />
-                              <input type="hidden" name="day" value={day} />
-                              <input type="hidden" name="instructorId" value={slot.instructorId} />
-                              <input type="hidden" name="hour" value={entry.hour} />
-                              <button type="submit" class="slot__book">
-                                Zapisz się
-                              </button>
-                            </form>
-                          ) : slot.status === "full" ? (
-                            <span class="slot__tag">Brak miejsc</span>
-                          ) : (
-                            <span class="slot__tag">Masz już zapis o tej godzinie</span>
-                          )}
-                        </li>
-                      ))}
+                      {entry.slots.map((slot) => {
+                        const label = slotStatusLabel(slot.status);
+                        return (
+                          <li class:list={["slot", `slot--${slot.status}`]}>
+                            <span class="slot__who">{slot.instructorName}</span>
+                            <span class="slot__seats">{formatFreeSeats(slot.freeSeats, slot.seats)}</span>
+                            {label === null ? (
+                              <form method="post" action="/api/bookings/create">
+                                <input type="hidden" name="stableId" value={id} />
+                                <input type="hidden" name="day" value={day} />
+                                <input type="hidden" name="instructorId" value={slot.instructorId} />
+                                <input type="hidden" name="hour" value={entry.hour} />
+                                <button type="submit" class="slot__book">
+                                  Zapisz się
+                                </button>
+                              </form>
+                            ) : (
+                              <span class:list={["slot__tag", slot.status === "mine" && "slot__tag--mine"]}>
+                                {slot.status === "mine" && <Check className="size-[15px]" aria-hidden="true" />}
+                                {label}
+                              </span>
+                            )}
+                          </li>
+                        );
+                      })}
                     </ul>
                   </li>
                 ))}

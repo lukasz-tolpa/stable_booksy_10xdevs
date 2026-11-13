@@ -1,14 +1,15 @@
 import type { RiderBooking } from "@/lib/bookings/queries";
-import { unknownInstructorName } from "@/lib/bookings/slots";
+import { hasSlotStarted, unknownInstructorName } from "@/lib/bookings/slots";
+import { cancelledByLabel } from "@/lib/bookings/status";
+import type { BookingStatus } from "@/types";
 
 /**
  * Lista zapisów jeźdźca: podział na „nadchodzące" (z akcją odwołania) i „historię"
  * (minione lub odwołane, bez akcji) oraz podpisy wiersza — instruktor, koń albo informacja
  * o oczekiwaniu na przydział, kto odwołał.
  *
- * Próg „slot się zaczął" jest identyczny z regułą zapisu: slot o godzinie <= bieżącej
- * (Europe/Warsaw) w dniu dzisiejszym uznajemy za rozpoczęty. `today`/`currentHour` są
- * wstrzykiwane parametrami, żeby testy nie zależały od zegara.
+ * Próg „slot się zaczął" to `hasSlotStarted` — ten sam co przy zapisie i odwołaniu. `now`
+ * jest wstrzykiwane parametrem, żeby testy nie zależały od zegara.
  */
 
 export interface RiderBookingRow {
@@ -19,7 +20,7 @@ export interface RiderBookingRow {
   instructorName: string;
   /** Koń albo informacja o przydziale; `null` przy zapisie odwołanym (koń jest tylko przy aktywnym). */
   horseLabel: string | null;
-  status: string;
+  status: BookingStatus;
   /** „przez Ciebie" / „przez ośrodek" przy zapisie odwołanym, inaczej `null`. */
   cancelledByLabel: string | null;
 }
@@ -50,21 +51,18 @@ function horseLabel(booking: RiderBooking, upcoming: boolean): string | null {
   return upcoming ? HORSE_PENDING : HORSE_NOT_ASSIGNED;
 }
 
-function cancelledByLabel(booking: RiderBooking): string | null {
+function cancelledByLine(booking: RiderBooking): string | null {
   if (booking.status !== "cancelled") return null;
-  return booking.cancelledBy === "stable" ? "przez ośrodek" : "przez Ciebie";
+  // CHECK spójności: odwołany zapis zawsze ma `cancelled_by`.
+  return cancelledByLabel(booking.cancelledBy ?? "rider", "rider");
 }
 
-export function splitRiderBookings(
-  bookings: RiderBooking[],
-  now: { today: string; currentHour: number },
-): RiderBookingSections {
+export function splitRiderBookings(bookings: RiderBooking[], now: Date = new Date()): RiderBookingSections {
   const upcoming: RiderBookingRow[] = [];
   const history: RiderBookingRow[] = [];
 
   for (const booking of bookings) {
-    const started = booking.day < now.today || (booking.day === now.today && booking.hour <= now.currentHour);
-    const isUpcoming = booking.status === "active" && !started;
+    const isUpcoming = booking.status === "active" && !hasSlotStarted(booking.day, booking.hour, now);
     const row: RiderBookingRow = {
       id: booking.id,
       day: booking.day,
@@ -73,7 +71,7 @@ export function splitRiderBookings(
       instructorName: booking.instructorName ?? unknownInstructorName(booking.instructorId),
       horseLabel: horseLabel(booking, isUpcoming),
       status: booking.status,
-      cancelledByLabel: cancelledByLabel(booking),
+      cancelledByLabel: cancelledByLine(booking),
     };
 
     (isUpcoming ? upcoming : history).push(row);

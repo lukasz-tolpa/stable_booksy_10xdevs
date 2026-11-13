@@ -115,7 +115,8 @@ begin
     raise notice 'PASS 1: dzien z instruktorami zapisany; nowo wskazany instruktor ma zero w kazdej godzinie';
   end if;
 
-  -- 2. Suma limitow o 13 (Ania 1 + Basia 2) przekracza 2 konie -> SB007 z godzina;
+  -- 2. Suma limitow o 13 (Ania 1 + Basia 2) przekracza 2 konie -> SB007; DETAIL niesie godzine,
+  --    sume i liczbe koni jako JSON (kontrakt z `scheduleErrorMessage`, migracja 20261116090000);
   --    to samo wywolanie zmienia godziny na 9-16 - po odmowie nic nie moze byc zmienione.
   v_seats := v_ania_1 || jsonb_build_array(jsonb_build_object('instructor_id', v_basia, 'hour', 13, 'seats', 2));
   begin
@@ -123,11 +124,11 @@ begin
     raise notice 'FAIL 2: suma limitow ponad liczbe koni przeszla';
     v_failures := v_failures + 1;
   exception when sqlstate 'SB007' then
-    get stacked diagnostics v_msg = message_text;
-    if v_msg ~ '\m13\M' then
-      raise notice 'PASS 2: suma limitow ponad liczbe koni odrzucona (SB007), komunikat wskazuje godzine: %', v_msg;
+    get stacked diagnostics v_msg = pg_exception_detail;
+    if v_msg is not null and v_msg ~ '^\s*\{' and v_msg::jsonb = '{"hour": 13, "seats": 3, "horses": 2}'::jsonb then
+      raise notice 'PASS 2: suma limitow ponad liczbe koni odrzucona (SB007), DETAIL: %', v_msg;
     else
-      raise notice 'FAIL 2: komunikat SB007 nie wskazuje godziny 13: %', v_msg;
+      raise notice 'FAIL 2: DETAIL SB007 to % zamiast {"hour": 13, "seats": 3, "horses": 2}', v_msg;
       v_failures := v_failures + 1;
     end if;
   end;
