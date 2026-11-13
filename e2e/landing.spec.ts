@@ -25,6 +25,9 @@ const DAY_TITLES = [
   "Jazda.",
   "Ośrodek patrzy w statystyki.",
 ];
+/** Akapit nad połowami (#67) — co do słowa, ten sam dla gościa i zalogowanego. */
+const DEFINITION =
+  "getona.horse to aplikacja do zapisów na jazdy konne: jeździec zapisuje się na wolne miejsce u instruktora, a ośrodek jeździecki układa grafik dnia i przydziela konie.";
 /** Pięć momentów ma zrzut ekranu; „Jazda.” nie. */
 const DAY_SHOT_COUNT = 5;
 
@@ -77,6 +80,14 @@ test("gość wchodzi ze strony głównej do rejestracji swojej roli albo do logo
     await page.goto("/");
     await expect(page.getByRole("heading", { level: 1, name: "Jeżdżę konno.", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { level: 2, name: "Prowadzę ośrodek.", exact: true })).toBeVisible();
+  });
+
+  await test.step("nad połowami stoi zdanie, czym jest getona.horse, a pod każdym hasłem jego fraza", async () => {
+    await expect(page.getByRole("main").getByText(DEFINITION, { exact: true })).toBeVisible();
+    await expect(riderHalf(page).getByText("Zapisy na jazdy konne online", { exact: true })).toBeVisible();
+    await expect(stableHalf(page).getByText("System zapisów dla ośrodka jeździeckiego", { exact: true })).toBeVisible();
+    // Linie są dopowiedzeniem, nie nagłówkami: struktura h1/h2 połów zostaje ta sama.
+    await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
   });
 
   await test.step("pod połowami stoi „Jeden dzień z getona.horse” z sześcioma momentami po kolei", async () => {
