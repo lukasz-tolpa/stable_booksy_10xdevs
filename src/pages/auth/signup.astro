@@ -4,7 +4,7 @@ import Topbar from "@/components/Topbar.astro";
 import Card from "@/components/ui/Card.astro";
 import Layout from "@/layouts/Layout.astro";
 
-import { SIGNUP_ROLE_PARAM, signupRoleFromParam } from "@/lib/auth/roles";
+import { SIGN_IN_ROUTE, SIGNUP_ROLE_PARAM, signupRoleFromParam } from "@/lib/auth/roles";
 
 const error = Astro.url.searchParams.get("error");
 // Strona główna prowadzi tu z `?rola=jezdziec|osrodek`; formularz dostaje rolę tylko
@@ -24,7 +24,7 @@ const initialRole = signupRoleFromParam(Astro.url.searchParams.get(SIGNUP_ROLE_P
       <p class="lead">Zacznij od rodzaju konta — resztę ustawisz w środku.</p>
       <SignUpForm serverError={error} initialRole={initialRole} client:load />
       <p class="switch">
-        Masz już konto? <a href="/auth/signin">Zaloguj się</a>
+        Masz już konto? <a href={SIGN_IN_ROUTE}>Zaloguj się</a>
       </p>
     </Card>
   </div>

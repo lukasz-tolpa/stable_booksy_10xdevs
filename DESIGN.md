@@ -130,7 +130,9 @@ bez zdjęć.
   „Zapisz się", „Twój zapis") i fragment arkusza limitów (kolumna „Koni
   zajętych" z plakietką „pełna"). Te same tokeny i proporcje co prawdziwe
   ekrany, ale bez `<button>` i tabel: `aria-hidden` plus jedno zdanie opisu
-  dla czytników ekranu.
+  dla czytników ekranu. Obie rysują ten sam dzień z jednego źródła
+  (`src/lib/landing/demo.ts`) regułami prawdziwych widoków, więc limity w
+  arkuszu i na liście slotów zawsze się zgadzają.
 - **Obrys fokusu**: `--primary-strong` na połowie jeźdźca, biały na połowie
   ośrodka (zielony zniknąłby na zielonym tle).
 - **Pod połowami**, na `--bg`: „Masz już konto? Zaloguj się" (link
