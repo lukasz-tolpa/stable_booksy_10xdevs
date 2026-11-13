@@ -1,4 +1,4 @@
--- Miniona historia Stadniny Pod Debem - material dla strony statystyk.
+-- Miniona historia Stadniny Pod Dębem - material dla strony statystyk.
 --
 -- Ladowanie:  npm run db:demo   (po `npx supabase db reset`; robi to tez setup e2e)
 --
@@ -33,7 +33,7 @@ declare
   v_anna constant uuid := '33333333-3333-3333-3333-333333333333';
   v_piotr constant uuid := '44444444-4444-4444-4444-444444444444';
 begin
-  select id into strict v_stable from public.stables where name = 'Stadnina Pod Debem';
+  select id into strict v_stable from public.stables where name = 'Stadnina Pod Dębem';
 
   if exists (select 1 from public.schedule_days where stable_id = v_stable and day < current_date) then
     raise notice 'Historia demo jest juz zaladowana - bez zmian.';
@@ -183,4 +183,4 @@ select count(*) filter (where b.status = 'active') as jazdy,
 from public.bookings b
 join public.schedule_days sd on sd.id = b.schedule_day_id
 join public.stables s on s.id = sd.stable_id
-where s.name = 'Stadnina Pod Debem' and sd.day < current_date;
+where s.name = 'Stadnina Pod Dębem' and sd.day < current_date;

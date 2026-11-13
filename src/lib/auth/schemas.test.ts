@@ -83,16 +83,16 @@ describe("signInSchema", () => {
 
 describe("newStableSchema", () => {
   it("przepuszcza poprawne dane i przycina białe znaki", () => {
-    const result = newStableSchema.safeParse({ name: "  Stadnina Pod Debem  ", city: " Krakow " });
+    const result = newStableSchema.safeParse({ name: "  Stadnina Pod Dębem  ", city: " Kraków " });
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.name).toBe("Stadnina Pod Debem");
-      expect(result.data.city).toBe("Krakow");
+      expect(result.data.name).toBe("Stadnina Pod Dębem");
+      expect(result.data.city).toBe("Kraków");
     }
   });
 
   it("odrzuca nazwę z samych białych znaków", () => {
-    expect(newStableSchema.safeParse({ name: "   ", city: "Krakow" }).success).toBe(false);
+    expect(newStableSchema.safeParse({ name: "   ", city: "Kraków" }).success).toBe(false);
   });
 
   it("odrzuca pustą miejscowość", () => {

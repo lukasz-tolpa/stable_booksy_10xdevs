@@ -15,8 +15,8 @@
 --     cudzego zapisu (RLS -> 0 wierszy).
 -- Prog "godzina juz sie zaczela" dla odwolania zyje w aplikacji (src/pages/api/bookings/stable-cancel.ts).
 --
--- Seed (jutro, Pod Debem 10-16, Bella + Kasztan; Iskra ma wolne): Joanna Wrona 1 miejsce
--- w kazdej godzinie, Karol Jasny nie pracuje; zapis Anny u Joanny o 11. Nad Rzeka: Piotr
+-- Seed (jutro, Pod Dębem 10-16, Bella + Kasztan; Iskra ma wolne): Joanna Wrona 1 miejsce
+-- w kazdej godzinie, Karol Jasny nie pracuje; zapis Anny u Joanny o 11. Nad Rzeką: Piotr
 -- u Tomasza Lisa o 10.
 --
 -- Wymaga swiezego seeda (`npx supabase db reset` tego samego dnia).
@@ -101,7 +101,7 @@ end $$;
 
 set local role authenticated;
 
-\echo '=== Osrodek Pod Debem: przydzial konia (RLS) ==='
+\echo '=== Osrodek Pod Dębem: przydzial konia (RLS) ==='
 
 set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
 
@@ -183,7 +183,7 @@ begin
     raise exception 'FAIL 7: przydzial po terminie dotknal % wierszy', v;
   end if;
 
-  -- 8. Izolacja: zapis w cudzej stadninie (Piotr Nad Rzeka) jest niewidoczny dla UPDATE.
+  -- 8. Izolacja: zapis w cudzej stadninie (Piotr Nad Rzeką) jest niewidoczny dla UPDATE.
   update public.bookings set horse_id = v_bella where id = v_piotr_rzeka;
   get diagnostics v = row_count;
   if v <> 0 then
@@ -233,7 +233,7 @@ begin
   raise notice 'PASS 10: jezdziec nie odwola cudzego zapisu';
 end $$;
 
-\echo '=== Osrodek Pod Debem: odwolanie zapisu (RLS) ==='
+\echo '=== Osrodek Pod Dębem: odwolanie zapisu (RLS) ==='
 
 set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
 
@@ -288,7 +288,7 @@ begin
   raise notice 'PASS 14: jezdziec odwolany przez osrodek zapisuje sie ponownie na ten sam slot';
 end $$;
 
-\echo '=== Osrodek Pod Debem: wypisanie konia z przydzialem (save_schedule_day) ==='
+\echo '=== Osrodek Pod Dębem: wypisanie konia z przydzialem (save_schedule_day) ==='
 
 set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
 

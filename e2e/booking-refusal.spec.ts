@@ -19,7 +19,7 @@ import {
  * przetłumaczone), a w „Moich zapisach" nie ma wiersza — żadna ścieżka nie daje
  * sukcesu bez utrwalonego wiersza.
  *
- * Slot: Joanna Wrona o 14:00 w Stadninie Pod Debem, dzień seeda — 1 miejsce, wolne
+ * Slot: Joanna Wrona o 14:00 w Stadninie Pod Dębem, dzień seeda — 1 miejsce, wolne
  * w seedzie; inny niż Karol@13 z pętli jeźdźca i niż Joanna@12 skryptu współbieżności.
  *
  * Sprzątanie: B odwołuje swój zapis tylko wtedy, gdy na pewno go założył

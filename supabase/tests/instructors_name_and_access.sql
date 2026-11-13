@@ -19,7 +19,7 @@
 
 \set ON_ERROR_STOP on
 
-\echo '=== Instruktorzy: osrodek "Stadnina Pod Debem" ==='
+\echo '=== Instruktorzy: osrodek "Stadnina Pod Dębem" ==='
 
 begin;
 
@@ -149,7 +149,7 @@ end $$;
 
 rollback;
 
-\echo '=== Instruktorzy: osrodek "Stajnia Nad Rzeka" ==='
+\echo '=== Instruktorzy: osrodek "Stajnia Nad Rzeką" ==='
 
 begin;
 

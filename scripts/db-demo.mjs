@@ -6,7 +6,8 @@
  * Cel jest zaszyty na lokalny stack Supabase i nie da sie go zmienic zmienna
  * srodowiskowa - skrypt pisze jako superuser. Bez `psql` na hoscie idzie przez
  * `docker exec` do kontenera stacku, tak jak `supabase/tests/_psql.sh`.
- * Eksportuje `loadDemoHistory`, z ktorej korzysta setup e2e.
+ * Eksportuje `loadDemoHistory`, z ktorej korzysta setup e2e, oraz `runLocalSql`
+ * dla `scripts/shots-day.mjs`.
  */
 
 import { spawnSync } from "node:child_process";
@@ -28,18 +29,30 @@ function dbContainer() {
 }
 
 /**
- * @returns {string} wyjscie psql (podsumowanie zaladowanej historii)
+ * Wykonuje SQL na LOKALNEJ bazie jako superuser; tresc idzie przez stdin w UTF-8.
+ * @param {string} sql
+ * @param {string[]} [extraFlags] dodatkowe flagi psql, np. `-At` dla samych wartosci
+ * @returns {import("node:child_process").SpawnSyncReturns<string>}
  */
-export function loadDemoHistory() {
-  const sql = readFileSync(path.join(ROOT, "supabase", "demo", "history.sql"), "utf8");
+export function runLocalSql(sql, extraFlags = []) {
+  const flags = [...PSQL_FLAGS, ...extraFlags];
   const hasPsql = spawnSync("psql", ["--version"], { encoding: "utf8" }).status === 0;
   const result = hasPsql
-    ? spawnSync("psql", [LOCAL_DB_URL, ...PSQL_FLAGS], { input: sql, encoding: "utf8" })
-    : spawnSync("docker", ["exec", "-i", dbContainer(), "psql", "-U", "postgres", "-d", "postgres", ...PSQL_FLAGS], {
+    ? spawnSync("psql", [LOCAL_DB_URL, ...flags], { input: sql, encoding: "utf8" })
+    : spawnSync("docker", ["exec", "-i", dbContainer(), "psql", "-U", "postgres", "-d", "postgres", ...flags], {
         input: sql,
         encoding: "utf8",
       });
   if (result.error) throw result.error;
+  return result;
+}
+
+/**
+ * @returns {string} wyjscie psql (podsumowanie zaladowanej historii)
+ */
+export function loadDemoHistory() {
+  const sql = readFileSync(path.join(ROOT, "supabase", "demo", "history.sql"), "utf8");
+  const result = runLocalSql(sql);
   if (result.status !== 0) {
     throw new Error(
       `Nie udalo sie zaladowac historii demo. Czy lokalny stack dziala (npx supabase start)?\n${result.stderr}`,

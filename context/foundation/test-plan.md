@@ -198,8 +198,8 @@ local role authenticated; set local request.jwt.claims =
   (drop the index or trigger, `alter table … disable row level security`), watch
   the script go red, then `npx supabase db reset`. A test that cannot fail
   proves nothing.
-- **Seed personas**: `1111…` stable A (Stadnina Pod Debem), `2222…` stable B
-  (Stajnia Nad Rzeka), `3333…` rider Anna, `4444…` rider Piotr; password
+- **Seed personas**: `1111…` stable A (Stadnina Pod Dębem), `2222…` stable B
+  (Stajnia Nad Rzeką), `3333…` rider Anna, `4444…` rider Piotr; password
   `sekret123`. Identity ids of stables, horses, days and bookings are not fixed
   — resolve them by name or owner uuid, never hardcode.
 
@@ -259,8 +259,8 @@ local role authenticated; set local request.jwt.claims =
 - **Seed slots reserved**: Karol Jasny@13 (rider loop — Karol does not work in
   the seed; the scenario adds him with 1 seat at 13:00 and removes him after),
   Joanna Wrona@14 (refusal, 1 seat), Joanna Wrona@12 (`test:db` concurrency
-  script, which raises the limit temporarily) — all at Stadnina Pod Debem,
-  tomorrow. Anna holds Joanna@11, Piotr holds Tomasz Lis@10 at Stajnia Nad Rzeka;
+  script, which raises the limit temporarily) — all at Stadnina Pod Dębem,
+  tomorrow. Anna holds Joanna@11, Piotr holds Tomasz Lis@10 at Stajnia Nad Rzeką;
   seed bookings have no horse. Do not run `npm run test:db` and `npm run test:e2e` against the
   same database at the same time.
 - **Past data**: the seed schedules only tomorrow and the past cannot be
@@ -287,9 +287,20 @@ local role authenticated; set local request.jwt.claims =
   horse or `bez konia`; the statistics summary is the
   region "Podsumowanie okresu" with four `<dd>` tiles in the order rides,
   ride hours, occupancy, cancellations. The landing page (`landing.spec.ts`,
-  guest, no storage state) repeats top-bar link names: its half buttons are
-  found by their full names ("Załóż konto jeźdźca", "Załóż konto ośrodka") and
-  the sign-in link under the halves inside `main`; its interface illustrations
+  guest, no storage state) repeats link names: "Załóż konto jeźdźca" and
+  "Załóż konto ośrodka" (and "Mój panel" when signed in) stand twice, once in
+  a half and once in the closing of the "Jeden dzień" section, and the top bar
+  has its own "Zaloguj się" and "Załóż konto". A bare
+  `getByRole("link", { name: "Załóż konto ośrodka" })` is therefore a
+  strict-mode violation: scope it to the region named by its heading —
+  `getByRole("region", { name: "Jeżdżę konno." })`, `"Prowadzę ośrodek."`,
+  `"Jeden dzień ze Stable Booksy"`, `"Jutro może tak wyglądać Twój dzień."`
+  (each `<section>` is `aria-labelledby` its heading; renaming a heading
+  renames the region) — and the sign-in link under the halves to `main`. The
+  section's screenshots are `loading="lazy"`: scroll each into view before
+  asserting `naturalWidth`; the same step compares the natural size with the
+  `width`/`height` declared on the `<source>` or `<img>` the browser picked
+  (they come from the `npm run shots:day` manifest). The page's interface illustrations
   are `aria-hidden` and hold no `button`, so "Zapisz się" there never matches a
   role locator. Before adding prose to a screen,
   check it does not repeat a validation message verbatim — a lead paragraph

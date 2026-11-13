@@ -52,7 +52,7 @@ assertLocalSupabaseTarget();
  * workera, więc `webServer.env` nic by tu nie dało.
  *
  * Jeden worker i brak równoległości są celowe: dwa scenariusze dzielą jeden
- * seed (Stadnina Pod Debem, jutro), a każdy z nich rezerwuje inny slot.
+ * seed (Stadnina Pod Dębem, jutro), a każdy z nich rezerwuje inny slot.
  *
  * Port 4173 jest dedykowany dla tej suity: `reuseExistingServer` lokalnie
  * podłączyłby się do czegokolwiek na domyślnym 4321 (`astro dev` albo stary

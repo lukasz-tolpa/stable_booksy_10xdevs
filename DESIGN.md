@@ -141,7 +141,49 @@ bez zdjęć.
   rejestracji, druga połowa bez przycisku, linia o logowaniu znika.
 - **Kasztan** jest tu tłem całej połowy, więc limit dwóch użyć z §7 landingu
   nie dotyczy.
-- Bez sekcji „jak to działa", cennika, opinii, stopki z linkami — to MVP.
+- **„Jeden dzień ze Stable Booksy"** stoi pod połowami i linią o logowaniu, na
+  `--bg`, w szerokości `container-page`. To oś czasu — uporządkowana lista
+  sześciu momentów dnia. Moment to godzina (mono, `--muted`), rola, tytuł
+  (`h3`, `clamp(24px, 2.8vw, 36px)`), jedno–dwa zdania (17 px, `--muted`) i
+  zrzut ekranu. Nagłówek sekcji to `h2`, 800, `clamp(32px, 4vw, 52px)`. Treść
+  co do słowa trzyma `src/lib/landing/day.ts`; komponent
+  `src/components/landing/DayTimeline.astro` tylko ją rysuje.
+  - **Rola** jest podpisana słowem („Ośrodek", „Jeździec") w pigułce w
+    kolorach ról z §2 — kolor tylko powtarza napis.
+  - **Od 900 px** pionowa linia 1 px `--border-2` biegnie pośrodku listy.
+    Moment jeźdźca ma tekst po lewej, wyrównany do osi, i zrzut po prawej;
+    moment ośrodka odwrotnie. Poniżej 900 px wszystko stoi jedno pod drugim:
+    godzina, rola, tytuł, tekst, zrzut.
+  - **„Jazda."** nie ma roli, tekstu ani zrzutu: tytuł 800,
+    `clamp(60px, 10vw, 136px)`, `--primary`; od 900 px wyśrodkowany na osi,
+    z własnym tłem, które przerywa linię.
+  - **Ramka zrzutu**: pasek okna z trzema kropkami na `--surface`, obrys
+    `--border-2`, `--r-lg`, `--shadow-md`. Zrzut zawsze wypełnia szerokość
+    ramki; kadr ma wysokość najwyżej 0,75 szerokości (od 900 px) albo 1,3
+    szerokości (poniżej), więc za wysoki zrzut jest ucinany od dołu, a niski
+    stoi w całości. Boków nie przycinamy nigdy (dlatego `max-height` kadru,
+    nie `object-fit: cover`). Poniżej 900 px ramka ma najwyżej 420 px.
+  - **Dwie szerokości**: `<picture>` podaje od 900 px plik `-komputer`,
+    poniżej `-telefon` (zrobiony w oknie 390 px, nie pomniejszony ekran z
+    komputera). Obrazki mają `width`/`height`, `loading="lazy"` i `alt`
+    mówiący, który to ekran i co na nim widać.
+  - **Zrzuty tylko ze skryptu.** Pliki w `public/jeden-dzien/` powstają
+    wyłącznie z `npm run shots:day` (§8), który odgrywa ten sam dzień na
+    czystych danych demo — nigdy ręcznie, żeby obrazek nie przeczył tekstowi
+    obok. Skrypt zapisuje też manifest `src/lib/landing/day-shots.json` (adres
+    i wymiary każdego pliku), z którego strona bierze `src`, `width` i
+    `height` — niczego nie poprawia się ręcznie.
+  - **Zamknięcie**: `h2` „Jutro może tak wyglądać Twój dzień." i pod nim
+    wyśrodkowane przyciski połów pod tymi samymi nazwami i adresami („Załóż
+    konto jeźdźca" na `--accent`, „Załóż konto ośrodka" na `--primary-strong`,
+    oba z białym tekstem). Zalogowany z rolą widzi jeden „Mój panel" w kolorze
+    swojej roli, zalogowany bez rozpoznanej roli sam nagłówek — to ta sama
+    decyzja co w połowach: listę przycisków zamknięcia zwraca `landingEntries`
+    (`closing`). Oba nagłówki `h2` sekcji dzielą utility `landing-heading`.
+  - Połowy, sekcja i zamknięcie są regionami nazwanymi swoimi nagłówkami
+    (`aria-labelledby`), bo przyciski połów i zamknięcia nazywają się tak samo.
+    Jedyne elementy z fokusem w sekcji to przyciski zamknięcia.
+- Bez listy funkcji, FAQ, cennika, opinii, stopki z linkami — to MVP.
 
 ## 7. Zasady
 
@@ -165,4 +207,5 @@ How the system above is wired into the code. Written for agents, hence English.
 - **Astro scoped styles stop at a child component's root.** `.foo h1` works when the markup sits in the page; to style a `<Card>` from outside, pass Tailwind utilities (`class="w-full max-w-[420px]"`) or wrap the slot content in your own element.
 - **Chestnut today** (cap of two per screen, §7): the rider `RoleBadge`, the own-booking slot pill and the "Zapisz grafik" button. The landing page is exempt (§6): its rider half is chestnut throughout.
 - **Prototypes** in `context/changes/ui-redesign/design/*.html` are the geometry contract, not code to copy. They use container queries against a fake `.app` wrapper; the app has no such wrapper, so the same breakpoints are media queries.
-- **Screenshots.** `scripts/shots.mjs` captures every screen at 390 px and 1440 px into `shots/` (gitignored) against a running preview; run `npm run db:demo` first so the statistics page has data. It sits outside `e2e/` so the suite never collects it.
+- **Screenshots.** `scripts/shots.mjs` captures every screen at 390 px and 1440 px into `shots/` (gitignored) against a running preview; run `npm run db:demo` first so the statistics page has data. It sits outside `e2e/` so the suite never collects it. Accounts, the seed day, sign-in and page settling are shared with `shots-day.mjs` through `scripts/shots-lib.mjs`.
+- **Landing screenshots.** `npm run shots:day` (`scripts/shots-day.mjs`) replays one day on the local stack — the stable opens the schedule, Anna sees her seeded 11:00 booking on the slot list, the stable assigns her a horse, Anna opens "Moje zapisy", the stable opens statistics — and after each step saves the relevant region, without the top bar, as WebP in two widths: `public/jeden-dzien/<grafik|sloty|zapisy-dnia|moje-zapisy|statystyki>-<komputer|telefon>.webp`, plus the manifest `src/lib/landing/day-shots.json` (address, width and height of every file; `src/lib/landing/day.ts` imports it, so file names, suffixes and the directory are spelled only in the script). Both are committed; `e2e/landing.spec.ts` checks declared against natural dimensions. It needs `npx supabase db reset && npm run db:demo` and a running preview (`SHOTS_BASE_URL`, default `:4173`). Before changing anything it checks that the preview answers and that the database is a clean seed with Anna's untouched 11:00 booking (active, no horse). Its only database write is the horse assignment, made through the UI as the stable; SQL is used for reading state only, and the seeded booking is neither deleted nor recreated. A second run without a reset sees the booking with a horse and stops with a message, writing nothing. On the phone shot the seat sheet is scrolled inside its container so the "Koni zajętych" column is fully in frame. Also outside `e2e/`.
