@@ -19,7 +19,11 @@ const role = isUserRole(profile?.role) ? profile.role : null;
 const homeRoute = role ? homeRouteForRole(role) : null;
 ---
 
-<header class="nav">
+{
+  /* `nav--guest`: tylko u gościa obok logo stoją dwa linki — do tego wariantu
+     przypięte są ciaśniejsze odstępy i mniejsze logo na wąskim ekranie (style niżej). */
+}
+<header class:list={["nav", !user && "nav--guest"]}>
   <div class:list={[container === "page" ? "container-page" : "container-narrow", "nav-inner"]}>
     <a href="/" class="brand"><Logo layout="compact" /></a>
     {
@@ -253,15 +257,10 @@ const homeRoute = role ? homeRouteForRole(role) : null;
   /* Poniżej progu łamania pasek musi zmieścić markę i linki w jednym rzędzie.
      Zmierzone na produkcji: przy 360 px marka i linki zajmowały 343 px przy 324 px
      dostępnych, więc schodziły do osobnych rzędów. Ciaśniejsze pigułki i mniejsza
-     marka mieszczą je także na 320 px. Logo „getona.horse” jest szersze od dawnego
-     napisu (117 px przy 19 px kroju), więc odstęp maleje do 8 px, a poniżej 360 px
-     logo i pigułki zwężają się jeszcze raz: 92 + 8 + 179 px przy 284 px dostępnych. */
+     marka mieszczą je także na 320 px. */
   @media (width < 768px) {
     .nav-user--guest {
       display: none;
-    }
-    .nav-inner {
-      column-gap: 8px;
     }
     .brand {
       font-size: 19px;
@@ -272,12 +271,22 @@ const homeRoute = role ? homeRouteForRole(role) : null;
       font-size: 14px;
     }
   }
+
+  /* Tylko pasek gościa: logo „getona.horse” jest szersze od dawnego napisu (117 px
+     przy 19 px kroju) i stoi obok dwóch linków, więc odstęp maleje do 8 px,
+     a poniżej 360 px logo i pigułki zwężają się jeszcze raz: 92 + 8 + 179 px przy
+     284 px dostępnych. U zalogowanego obok logo stoi sam przycisk menu — tam poza
+     logo nic się nie zmienia, także linki w rozwinięciu menu. */
+  @media (width < 768px) {
+    .nav--guest .nav-inner {
+      column-gap: 8px;
+    }
+  }
   @media (width < 360px) {
-    .brand {
+    .nav--guest .brand {
       font-size: 15px;
     }
-    .nav-links a,
-    .nav-links button {
+    .nav--guest .nav-links a {
       padding: 8px 6px;
     }
   }
