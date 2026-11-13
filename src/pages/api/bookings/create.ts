@@ -5,7 +5,7 @@ import { bookingErrorMessage } from "@/lib/bookings/errors";
 import { createBooking } from "@/lib/bookings/queries";
 import { bookingSchema } from "@/lib/bookings/schema";
 import { hasSlotStarted } from "@/lib/bookings/slots";
-import { errorCode } from "@/lib/db-errors";
+import { errorCode, errorConstraint } from "@/lib/db-errors";
 import { formValue } from "@/lib/form-data";
 import { isPastDate, parseScheduleDate } from "@/lib/schedule/dates";
 import { getScheduleDay } from "@/lib/schedule/queries";
@@ -93,7 +93,9 @@ export const POST: APIRoute = async (context) => {
     await createBooking(supabase, { scheduleDayId: scheduleDay.id, instructorId, hour, riderId: user.id });
   } catch (error) {
     // Guardraile żyją w bazie; tutaj wyłącznie tłumaczymy ich kody na komunikat.
-    return backToStable(context, stableId, day, { error: bookingErrorMessage(errorCode(error)) });
+    return backToStable(context, stableId, day, {
+      error: bookingErrorMessage(errorCode(error), errorConstraint(error)),
+    });
   }
 
   return backToStable(context, stableId, day, { success: true });
