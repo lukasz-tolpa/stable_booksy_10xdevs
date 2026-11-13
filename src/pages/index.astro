@@ -6,6 +6,7 @@ import Topbar from "@/components/Topbar.astro";
 import DayTimeline from "@/components/landing/DayTimeline.astro";
 import Card from "@/components/ui/Card.astro";
 import Layout from "@/layouts/Layout.astro";
+import { HOME_DESCRIPTION, HOME_TITLE, homeStructuredData } from "@/lib/seo/home";
 import { landingEntries } from "@/lib/auth/landing";
 import { slotStatusLabel } from "@/lib/bookings/slots";
 import { formatClockHour, formatFreeSeats } from "@/lib/format";
@@ -31,9 +32,13 @@ const CTA_CLASS = {
 
 // Obie ilustracje rysują ten sam dzień z jednego źródła, tymi samymi regułami co prawdziwe widoki.
 const demo = landingDemo();
+
+// Wyniki wyszukiwania i podgląd linku (#66); adresy z `site` w astro.config.mjs.
+if (!Astro.site) throw new Error("Brak `site` w astro.config.mjs — dane strukturalne nie zbudują adresów.");
+const structuredData = homeStructuredData(Astro.site);
 ---
 
-<Layout>
+<Layout title={HOME_TITLE} description={HOME_DESCRIPTION} linkPreview structuredData={structuredData}>
   {error && <Banner variant="error">{error}</Banner>}
   <Topbar container="page" />
   <!-- DESIGN.md §6: dwie połowy zamiast hero. Tła sięgają krawędzi okna, treść każdej

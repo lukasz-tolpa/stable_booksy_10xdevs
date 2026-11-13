@@ -3,6 +3,7 @@ import "../styles/global.css";
 import Banner from "@/components/Banner.astro";
 import { PRODUCT_NAME } from "@/lib/brand";
 import { missingConfigs } from "@/lib/config-status";
+import { OG_IMAGE, jsonLd } from "@/lib/seo/home";
 
 /**
  * Cały `<head>` składa się tutaj (#65) — strony podają tylko te właściwości
@@ -14,9 +15,22 @@ interface Props {
   description?: string;
   /** Zakaz indeksowania (`noindex, follow`) — logowanie, rejestracja, potwierdzenie e-maila, 404. */
   noindex?: boolean;
+  /**
+   * Adres kanoniczny i podgląd linku (Open Graph, karta Twittera) — tylko strona główna (#66).
+   * Adresy budowane z `site` w astro.config.mjs, tytuł i opis z `title` i `description`.
+   */
+  linkPreview?: boolean;
+  /** Dane strukturalne schema.org wstawiane jako jeden blok JSON-LD. */
+  structuredData?: object;
 }
 
-const { title = PRODUCT_NAME, description, noindex = false } = Astro.props;
+const { title = PRODUCT_NAME, description, noindex = false, linkPreview = false, structuredData } = Astro.props;
+
+if (linkPreview && !Astro.site) {
+  throw new Error("Brak `site` w astro.config.mjs — podgląd linku nie zbuduje adresów.");
+}
+const pageUrl = linkPreview && Astro.site ? new URL(Astro.url.pathname, Astro.site).href : undefined;
+const imageUrl = linkPreview && Astro.site ? new URL(OG_IMAGE.path, Astro.site).href : undefined;
 ---
 
 <!doctype html>
@@ -26,6 +40,30 @@ const { title = PRODUCT_NAME, description, noindex = false } = Astro.props;
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     {description && <meta name="description" content={description} />}
     {noindex && <meta name="robots" content="noindex, follow" />}
+    {
+      pageUrl && imageUrl && (
+        <>
+          <link rel="canonical" href={pageUrl} />
+          <meta property="og:type" content="website" />
+          <meta property="og:locale" content="pl_PL" />
+          <meta property="og:site_name" content={PRODUCT_NAME} />
+          <meta property="og:url" content={pageUrl} />
+          <meta property="og:title" content={title} />
+          {description && <meta property="og:description" content={description} />}
+          <meta property="og:image" content={imageUrl} />
+          <meta property="og:image:width" content={String(OG_IMAGE.width)} />
+          <meta property="og:image:height" content={String(OG_IMAGE.height)} />
+          <meta property="og:image:alt" content={OG_IMAGE.alt} />
+          <meta name="twitter:card" content="summary_large_image" />
+        </>
+      )
+    }
+    {
+      structuredData && (
+        // eslint-disable-next-line astro/no-set-html-directive -- JSON-LD z naszych stałych; `jsonLd` zabezpiecza `</script>`.
+        <script type="application/ld+json" is:inline set:html={jsonLd(structuredData)} />
+      )
+    }
     <!-- Jasny motyw jako jedyny (DESIGN.md §1) - bez tego przeglądarka mogłaby
          przemalować kontrolki formularzy pod systemowy tryb ciemny. -->
     <meta name="color-scheme" content="light" />
