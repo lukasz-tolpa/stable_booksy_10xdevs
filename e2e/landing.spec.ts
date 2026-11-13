@@ -84,8 +84,17 @@ test("gość wchodzi ze strony głównej do rejestracji swojej roli albo do logo
     await expect(daySection(page).getByRole("listitem").getByRole("heading", { level: 3 })).toHaveText(DAY_TITLES);
   });
 
-  await test.step("na końcu strony stoi stopka z logo „getona.horse”", async () => {
+  await test.step("na końcu strony, pod zamknięciem sekcji, stoi stopka z logo „getona.horse”", async () => {
     await expect(footerLogo(page)).toBeVisible();
+    const closingBox = await closing(page).boundingBox();
+    const footerBox = await page.getByRole("contentinfo").boundingBox();
+    expect(closingBox, "zamknięcie „Jutro może tak wyglądać Twój dzień.” jest na stronie").not.toBeNull();
+    expect(footerBox, "stopka jest na stronie").not.toBeNull();
+    if (closingBox && footerBox) {
+      expect(footerBox.y, "stopka zaczyna się pod zamknięciem sekcji").toBeGreaterThanOrEqual(
+        closingBox.y + closingBox.height,
+      );
+    }
   });
 
   await test.step("zrzuty ekranu sekcji ładują się w szerokości komputera", async () => {
