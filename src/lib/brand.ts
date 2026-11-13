@@ -9,12 +9,8 @@ const SENTENCE = "get on a";
 const TLD = ".horse";
 const STEM = SENTENCE.replaceAll(" ", "");
 
-/**
- * Części, z których logo składa nazwę (`src/components/Logo.astro`): układ zwarty
- * to `stem` + `tld` w jednej linii, układ pełny to `sentence` nad `tld`.
- */
+/** Części, z których logo składa nazwę (`src/components/Logo.astro`): `sentence` nad `tld`. */
 export const LOGO_PARTS = {
-  stem: STEM,
   sentence: SENTENCE,
   tld: TLD,
 } as const;

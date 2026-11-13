@@ -6,11 +6,11 @@ describe("nazwa produktu", () => {
     expect(PRODUCT_NAME).toBe("getona.horse");
   });
 
-  it("logo zwarte pokazuje dokładnie nazwę produktu", () => {
-    expect(`${LOGO_PARTS.stem}${LOGO_PARTS.tld}`).toBe("getona.horse");
+  it("logo czyta się jako zdanie „get on a .horse”", () => {
+    expect(`${LOGO_PARTS.sentence} ${LOGO_PARTS.tld}`).toBe("get on a .horse");
   });
 
-  it("logo pełne czyta się jako zdanie „get on a .horse”", () => {
-    expect(`${LOGO_PARTS.sentence} ${LOGO_PARTS.tld}`).toBe("get on a .horse");
+  it("logo bez spacji to dokładnie nazwa produktu", () => {
+    expect(`${LOGO_PARTS.sentence}${LOGO_PARTS.tld}`.replaceAll(" ", "")).toBe(PRODUCT_NAME);
   });
 });

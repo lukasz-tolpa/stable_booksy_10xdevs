@@ -3,14 +3,13 @@ import { LOGO_PARTS, PRODUCT_NAME } from "@/lib/brand";
 
 interface Props {
   /**
-   * `compact` — jedna linia „getona.horse” na jasnym tle (górny pasek).
-   * `full` — „get on a” nad „.horse” na ciemnej zieleni (stopka strony głównej).
-   * DESIGN.md §4 „Logo”.
+   * Tło, na którym stoi logo: `light` — górny pasek, `dark` — ciemna zieleń stopki
+   * strony głównej. Rozmiar dziedziczy z miejsca użycia. DESIGN.md §4 „Logo”.
    */
-  layout: "compact" | "full";
+  surface: "light" | "dark";
 }
 
-const { layout } = Astro.props;
+const { surface } = Astro.props;
 ---
 
 {
@@ -18,50 +17,46 @@ const { layout } = Astro.props;
      `role="img"` chowa rozbicie na wiersze i kolory, więc nazwa nie jest czytana
      w kawałkach ani dwa razy. W linku (górny pasek) ta nazwa staje się nazwą linku. */
 }
-<span class:list={["logo", `logo--${layout}`]} role="img" aria-label={PRODUCT_NAME}>
-  <span class="logo__lead">{layout === "full" ? LOGO_PARTS.sentence : LOGO_PARTS.stem}</span><span class="logo__tld"
-    >{LOGO_PARTS.tld}</span
-  >
+<span class:list={["logo", `logo--${surface}`]} role="img" aria-label={PRODUCT_NAME}>
+  <span class="logo__lead">{LOGO_PARTS.sentence}</span><span class="logo__tld">{LOGO_PARTS.tld}</span>
 </span>
 
 <style>
+  /* Dwa wiersze: „get on a” (ok. jedna trzecia wysokości) nad „.horse”. */
   .logo {
+    display: inline-grid;
+    justify-items: start;
+    gap: 0.03em;
     font-family: var(--font-display);
     font-weight: 800;
     line-height: 1;
     white-space: nowrap;
   }
-
-  /* Zwarty: rozmiar dziedziczy z miejsca użycia (pasek ustawia go na linku). */
-  .logo--compact {
-    display: inline-block;
-    letter-spacing: -0.045em;
-    color: var(--primary-strong);
-  }
-  .logo--compact .logo__tld {
-    color: var(--accent);
-  }
-
-  /* Pełny: górny wiersz ma ok. jednej trzeciej wysokości dolnego. */
-  .logo--full {
-    display: inline-grid;
-    justify-items: start;
-    gap: 0.03em;
-    font-size: clamp(56px, 9vw, 88px);
-    color: var(--color-primary-foreground);
-  }
-  .logo--full .logo__lead {
+  .logo__lead {
     font-size: 0.344em;
-    /* Odstęp wierszy jak w koncepcji (wariant B): górny wiersz ma naturalną interlinię
-       kroju, nie ciasne `1` z `.logo` — inaczej „.horse” podjeżdża pod „get on a”. */
+    /* Naturalna interlinia kroju, jak w koncepcji (wariant B) — przy `1`
+       „.horse” podjeżdża pod „get on a”. */
     line-height: normal;
     font-weight: 600;
     letter-spacing: 0.01em;
     word-spacing: 0.18em;
   }
-  .logo--full .logo__tld {
+  .logo__tld {
     line-height: 0.95;
     letter-spacing: -0.05em;
+  }
+
+  .logo--light {
+    color: var(--primary-strong);
+  }
+  .logo--light .logo__tld {
+    color: var(--accent);
+  }
+
+  .logo--dark {
+    color: var(--color-primary-foreground);
+  }
+  .logo--dark .logo__tld {
     color: var(--accent-on-dark);
   }
 </style>

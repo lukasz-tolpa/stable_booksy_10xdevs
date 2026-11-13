@@ -186,7 +186,7 @@ const demo = landingDemo();
   <!-- DESIGN.md §6: stopka to drugie ciemne tło strony i niesie wyłącznie logo pełne. -->
   <footer class="foot">
     <div class="container-page">
-      <Logo layout="full" />
+      <Logo surface="dark" />
     </div>
   </footer>
 </Layout>
@@ -488,6 +488,8 @@ const demo = landingDemo();
   .foot {
     padding-block: 56px 64px;
     background: var(--primary-strong);
+    /* Rozmiar logo w stopce; krój, wagę, wiersze i kolory niesie `Logo`. */
+    font-size: clamp(56px, 9vw, 88px);
   }
 
   /* ── Linia o logowaniu pod połowami ───────────────────────────────────── */

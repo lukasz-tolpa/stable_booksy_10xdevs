@@ -304,11 +304,10 @@ local role authenticated; set local request.jwt.claims =
   landing page only). A bare `getByRole("img", { name: "getona.horse" })`
   matches both logos on the landing page — scope to the landmark. The logo is
   live text, and `getByText` reads DOM text regardless of `role="img"`:
-  `getByText("getona.horse")` matches the top-bar logo on every screen
-  (with `exact: true` too) and, as a substring, the heading "Jeden dzień z
-  getona.horse"; it never matches the footer logo, whose text is split into
-  "get on a" and ".horse" (verified by running it against the built page). So
-  `getByText` is the wrong tool for the name — use the role locators above. The
+  both logos split the name into "get on a" and ".horse", so
+  `getByText("getona.horse")` never matches a logo — only, as a substring,
+  the heading "Jeden dzień z getona.horse"; `getByText("get on a")` matches
+  every logo on the page. So `getByText` is the wrong tool for the name — use the role locators above. The
   section's screenshots are `loading="lazy"`: scroll each into view before
   asserting `naturalWidth`; the same step compares the natural size with the
   `width`/`height` declared on the `<source>` or `<img>` the browser picked

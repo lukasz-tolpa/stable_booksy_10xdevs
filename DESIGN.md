@@ -87,25 +87,24 @@ obrysem niczego innego i nie stoi na jasnym tle.
   górny pasek landingu `max-width: 1200px` (połowy landingu sięgają krawędzi
   okna, §6).
 - Topbar sticky 68 px, białe tło z `backdrop-filter: blur(14px)`, hairline
-  na dole. Po lewej logo zwarte (niżej), link do strony głównej. Gość ma po
+  na dole. Po lewej logo (niżej), link do strony głównej. Gość ma po
   prawej cichy link „Zaloguj się" i jedyną wypełnioną pigułkę paska „Załóż
   konto" (`--primary`, biały tekst 600) — bez napisu o stanie sesji.
 - **Logo** to nazwa produktu „getona.horse" z żywego tekstu w kroju display —
-  jeden komponent `src/components/Logo.astro`, dwa układy; pisownię trzyma
-  `src/lib/brand.ts`. Bez pliku graficznego; ikoną zostaje biała głowa konia.
-  - **Zwarty** — jedna linia „getona.horse", 800, `letter-spacing: -0.045em`:
-    „getona" w `--primary-strong`, „.horse" w `--accent` (4,84:1 na bieli).
-    Stoi w górnym pasku na każdym ekranie: 21 px, poniżej 768 px 19 px.
-    Tylko w pasku gościa (`nav--guest`), gdzie obok logo stoją dwa linki,
-    odstęp maleje poniżej 768 px do 8 px, a poniżej 360 px logo ma 15 px
-    i linki węższy padding — tak, żeby całość mieściła się w jednym rzędzie
-    od 320 px. U zalogowanego pasek poza logo jest bez zmian.
-  - **Pełny** — dwa wiersze wyrównane do lewej: „get on a" (600, 0,344 wysokości
-    dolnego wiersza, `word-spacing: 0.18em`) nad „.horse" (800,
-    `letter-spacing: -0.05em`, `clamp(56px, 9vw, 88px)`). Tylko na
-    `--primary-strong`: górny wiersz biały, dolny w `--accent-on-dark`. Stoi
-    w stopce strony głównej (§6) i nigdzie indziej.
-  - Oba układy są dla czytnika ekranu jednym obrazkiem o nazwie „getona.horse"
+  jeden komponent `src/components/Logo.astro`, jeden układ na dwóch tłach;
+  pisownię trzyma `src/lib/brand.ts`. Bez pliku graficznego; ikoną zostaje
+  biała głowa konia.
+  - **Układ** — dwa wiersze wyrównane do lewej: „get on a" (600, 0,344 wysokości
+    dolnego wiersza, naturalna interlinia kroju, `word-spacing: 0.18em`) nad
+    „.horse" (800, `letter-spacing: -0.05em`, `line-height: 0.95`). Rozmiar
+    (wysokość „.horse") ustawia miejsce użycia.
+  - **Górny pasek** (jasne tło, każdy ekran): 34 px, poniżej 768 px 30 px;
+    „get on a" w `--primary-strong`, „.horse" w `--accent` (4,84:1 na bieli).
+    W pasku gościa (`nav--guest`), gdzie obok logo stoją dwa linki, odstęp
+    maleje poniżej 768 px do 8 px; całość mieści się w jednym rzędzie od 320 px.
+  - **Stopka strony głównej** (`--primary-strong`): `clamp(56px, 9vw, 88px)`;
+    górny wiersz biały, dolny w `--accent-on-dark`.
+  - W obu miejscach logo jest dla czytnika ekranu jednym obrazkiem o nazwie „getona.horse"
     (`role="img"` z `aria-label`), więc nazwa nie jest czytana w kawałkach;
     w pasku ta nazwa jest nazwą linku.
   - Logo **nie liczy się** do limitu użyć kasztanu na ekran (§7).
