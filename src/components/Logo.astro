@@ -52,6 +52,9 @@ const { layout } = Astro.props;
   }
   .logo--full .logo__lead {
     font-size: 0.344em;
+    /* Odstęp wierszy jak w koncepcji (wariant B): górny wiersz ma naturalną interlinię
+       kroju, nie ciasne `1` z `.logo` — inaczej „.horse” podjeżdża pod „get on a”. */
+    line-height: normal;
     font-weight: 600;
     letter-spacing: 0.01em;
     word-spacing: 0.18em;
