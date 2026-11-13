@@ -294,9 +294,15 @@ local role authenticated; set local request.jwt.claims =
   `getByRole("link", { name: "Załóż konto ośrodka" })` is therefore a
   strict-mode violation: scope it to the region named by its heading —
   `getByRole("region", { name: "Jeżdżę konno." })`, `"Prowadzę ośrodek."`,
-  `"Jeden dzień ze Stable Booksy"`, `"Jutro może tak wyglądać Twój dzień."`
+  `"Jeden dzień z getona.horse"`, `"Jutro może tak wyglądać Twój dzień."`
   (each `<section>` is `aria-labelledby` its heading; renaming a heading
   renames the region) — and the sign-in link under the halves to `main`. The
+  name "getona.horse" also stands twice on that page: the top-bar logo is a
+  link (`getByRole("banner").getByRole("link", { name: "getona.horse" })`,
+  present on every screen) and the footer logo is an image
+  (`getByRole("contentinfo").getByRole("img", { name: "getona.horse" })`,
+  landing page only); the logo is live text behind `role="img"`, so
+  `getByText("getona.horse")` matches neither — scope to the landmark. The
   section's screenshots are `loading="lazy"`: scroll each into view before
   asserting `naturalWidth`; the same step compares the natural size with the
   `width`/`height` declared on the `<source>` or `<img>` the browser picked
