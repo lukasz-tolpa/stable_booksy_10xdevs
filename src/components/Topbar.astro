@@ -2,6 +2,7 @@
 /* eslint-disable astro/no-unused-css-selector -- reguły na `[open]` są używane;
    atrybut dokłada przeglądarka po kliknięciu, więc nie ma go w statycznym markupie */
 import Logo from "@/components/Logo.astro";
+import PrototypeSwitcher from "@/components/topbar-prototype/PrototypeSwitcher.astro";
 import RoleBadge from "@/components/ui/RoleBadge.astro";
 import { homeRouteForRole, isUserRole } from "@/lib/auth/roles";
 
@@ -17,6 +18,17 @@ const { user, profile } = Astro.locals;
 // pochodzą z tabeli decyzyjnej, więc nie rozjadą się z regułami middleware.
 const role = isUserRole(profile?.role) ? profile.role : null;
 const homeRoute = role ? homeRouteForRole(role) : null;
+
+// PROTOTYP — do wyrzucenia. Pasek gościa w wariantach `?variant=0|A|B|C`, tylko w trybie dev.
+// Pytanie: czy obok logo potrzebny jest napis „Nie jesteś zalogowany” i jak mają wyglądać linki.
+const PROTO_VARIANTS = [
+  { key: "0", name: "Obecny, z napisem" },
+  { key: "A", name: "Bez napisu" },
+  { key: "B", name: "Załóż konto wyróżnione" },
+  { key: "C", name: "Tylko logowanie" },
+];
+const protoParam = import.meta.env.DEV ? Astro.url.searchParams.get("variant") : null;
+const protoVariant = PROTO_VARIANTS.some((v) => v.key === protoParam) ? protoParam : "0";
 ---
 
 {
@@ -65,18 +77,32 @@ const homeRoute = role ? homeRouteForRole(role) : null;
           {/* Gość: na wąskim ekranie ten napis znika, bo stojące obok „Zaloguj się"
               i „Załóż konto" mówią to samo, a pasek łamał się przez niego na trzy
               rzędy. Zalogowany zachowuje swój wiersz — tam adres i rola niosą treść. */}
-          <span class="nav-user nav-user--guest">
-            <span class="nav-mail">Nie jesteś zalogowany</span>
-          </span>
-          <div class="nav-links">
-            <a href="/auth/signin">Zaloguj się</a>
-            <a href="/auth/signup">Załóż konto</a>
-          </div>
+          {protoVariant === "0" && (
+            <span class="nav-user nav-user--guest">
+              <span class="nav-mail">Nie jesteś zalogowany</span>
+            </span>
+          )}
+          {protoVariant === "C" ? (
+            <div class="nav-links">
+              <a href="/auth/signin" class="proto-outline">
+                Zaloguj się
+              </a>
+            </div>
+          ) : (
+            <div class="nav-links">
+              <a href="/auth/signin">Zaloguj się</a>
+              <a href="/auth/signup" class:list={[protoVariant === "B" && "proto-cta"]}>
+                Załóż konto
+              </a>
+            </div>
+          )}
         </>
       )
     }
   </div>
 </header>
+
+{protoParam !== null && !user && <PrototypeSwitcher variants={PROTO_VARIANTS} current={protoVariant} />}
 
 <style>
   /* DESIGN.md §4: sticky 68 px, białe tło z rozmyciem, hairline na dole. */
@@ -165,6 +191,22 @@ const homeRoute = role ? homeRouteForRole(role) : null;
   .nav-links button:focus-visible {
     outline: 2px solid var(--primary);
     outline-offset: 2px;
+  }
+
+  /* PROTOTYP — warianty B i C paska gościa. */
+  .nav-links a.proto-cta {
+    color: var(--on-primary, #fff);
+    background: var(--primary);
+    font-weight: 600;
+  }
+  .nav-links a.proto-cta:hover {
+    color: var(--on-primary, #fff);
+    background: var(--primary-strong);
+  }
+  .nav-links a.proto-outline {
+    color: var(--primary-strong);
+    border: 1px solid var(--border);
+    font-weight: 600;
   }
 
   /* ── Menu konta (tylko zalogowany) ────────────────────────────────────── */
