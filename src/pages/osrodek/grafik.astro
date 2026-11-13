@@ -7,6 +7,7 @@ import DayNav from "@/components/ui/DayNav.astro";
 import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
 import ScheduleDayForm from "@/components/schedule/ScheduleDayForm";
+import GrafikPrototype from "@/components/schedule/prototype/GrafikPrototype";
 import { addDays, defaultScheduleDate, isPastDate, parseScheduleDate } from "@/lib/schedule/dates";
 import { horseDefaults, instructorDefaults, pastDaySummary } from "@/lib/schedule/form";
 import { getLatestScheduleDay, getScheduleDay, type ScheduleDayData } from "@/lib/schedule/queries";
@@ -126,18 +127,38 @@ const dayLabel = new Date(`${day}T00:00:00`).toLocaleDateString("pl-PL", {
         </Card>
       ) : (
         <Card>
-          <ScheduleDayForm
-            day={day}
-            openHour={horseForm.openHour}
-            closeHour={horseForm.closeHour}
-            selectedHorseIds={horseForm.selectedHorseIds}
-            horses={horseForm.selectableHorses}
-            selectedInstructorIds={instructorForm.selectedInstructorIds}
-            instructors={instructorForm.selectableInstructors}
-            seats={instructorForm.seats}
-            serverError={error}
-            client:load
-          />
+          {import.meta.env.DEV ? (
+            /* PROTOTYP — do wyrzucenia: warianty UI grafiku, `?variant=0|A|B|C`. */
+            <GrafikPrototype
+              init={{
+                day,
+                openHour: horseForm.openHour,
+                closeHour: horseForm.closeHour,
+                horseIds: horseForm.selectedHorseIds,
+                instructorIds: instructorForm.selectedInstructorIds,
+                seats: instructorForm.seats,
+                horses: horseForm.selectableHorses,
+                instructors: instructorForm.selectableInstructors,
+                prefillFrom: !scheduleDay && latestDay ? latestDay.day : null,
+              }}
+              initialVariant={Astro.url.searchParams.get("variant")}
+              serverError={error}
+              client:load
+            />
+          ) : (
+            <ScheduleDayForm
+              day={day}
+              openHour={horseForm.openHour}
+              closeHour={horseForm.closeHour}
+              selectedHorseIds={horseForm.selectedHorseIds}
+              horses={horseForm.selectableHorses}
+              selectedInstructorIds={instructorForm.selectedInstructorIds}
+              instructors={instructorForm.selectableInstructors}
+              seats={instructorForm.seats}
+              serverError={error}
+              client:load
+            />
+          )}
         </Card>
       )
     }
