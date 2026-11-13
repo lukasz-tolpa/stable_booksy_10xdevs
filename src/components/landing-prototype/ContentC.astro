@@ -1,0 +1,136 @@
+---
+// PROTOTYP — do wyrzucenia. Wariant C „Podział do końca": dwie połowy z góry strony ciągną się
+// w dół jako dwie równoległe kolumny — ścieżka jeźdźca po lewej, ścieżka ośrodka po prawej.
+import Shot from "./Shot.astro";
+import { riderSteps, stableSteps } from "./content";
+
+interface Props {
+  riderHref: string;
+  stableHref: string;
+}
+const { riderHref, stableHref } = Astro.props;
+const cols = [
+  {
+    id: "rider",
+    lead: "Od wyboru ośrodka do jazdy w trzech krokach.",
+    steps: riderSteps,
+    href: riderHref,
+    cta: "Załóż konto jeźdźca",
+  },
+  {
+    id: "stable",
+    lead: "Od stada do pełnego grafiku w czterech krokach.",
+    steps: stableSteps,
+    href: stableHref,
+    cta: "Załóż konto ośrodka",
+  },
+];
+---
+
+<div class="c">
+  {
+    cols.map((col) => (
+      <section class:list={`c-col c-col--${col.id}`}>
+        <div class="c-inner">
+          <p class="c-lead">{col.lead}</p>
+          <ol>
+            {col.steps.map((step, i) => (
+              <li>
+                <span class="c-num mono-nums">{i + 1}</span>
+                <h3>{step.title}</h3>
+                <p>{step.text}</p>
+                <Shot src={step.img} alt={step.alt} ratio={0.6} />
+              </li>
+            ))}
+          </ol>
+          <a class="c-cta" href={col.href}>
+            {col.cta}
+          </a>
+        </div>
+      </section>
+    ))
+  }
+</div>
+
+<style>
+  .c {
+    display: grid;
+  }
+  @media (width >= 900px) {
+    .c {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+  .c-col {
+    padding: 72px clamp(18px, 5vw, 88px) 120px;
+  }
+  /* Jaśniejsze odcienie połów z góry strony: ten sam podział, spokojniejsze tło do czytania. */
+  .c-col--rider {
+    background: color-mix(in oklab, var(--accent-soft) 45%, var(--bg));
+  }
+  .c-col--stable {
+    background: var(--primary-soft);
+  }
+  .c-inner {
+    width: 100%;
+    max-width: 520px;
+    margin-inline: auto;
+  }
+  .c-lead {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: clamp(24px, 2.6vw, 32px);
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.03em;
+    max-width: 16ch;
+  }
+  .c-col--rider .c-lead,
+  .c-col--rider .c-num {
+    color: var(--accent-ink);
+  }
+  .c-col--stable .c-lead,
+  .c-col--stable .c-num {
+    color: var(--primary-strong);
+  }
+  ol {
+    list-style: none;
+    margin: 44px 0 0;
+    padding: 0;
+    display: grid;
+    gap: 56px;
+  }
+  .c-num {
+    font-size: 15px;
+    font-weight: 600;
+  }
+  h3 {
+    margin-top: 6px;
+    font-size: 24px;
+    letter-spacing: -0.025em;
+  }
+  li p {
+    margin: 10px 0 20px;
+    font-size: 16.5px;
+    line-height: 1.5;
+    color: var(--muted);
+  }
+  .c-cta {
+    display: inline-flex;
+    align-items: center;
+    min-height: 54px;
+    margin-top: 56px;
+    padding: 0 28px;
+    border-radius: 999px;
+    font-family: var(--font-display);
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--color-primary-foreground);
+  }
+  .c-col--rider .c-cta {
+    background: var(--accent);
+  }
+  .c-col--stable .c-cta {
+    background: var(--primary-strong);
+  }
+</style>

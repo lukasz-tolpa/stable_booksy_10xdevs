@@ -8,6 +8,11 @@ import { landingEntries } from "@/lib/auth/landing";
 import { slotStatusLabel } from "@/lib/bookings/slots";
 import { formatClockHour, formatFreeSeats } from "@/lib/format";
 import { landingDemo } from "@/lib/landing/demo";
+import ContentA from "@/components/landing-prototype/ContentA.astro";
+import ContentB from "@/components/landing-prototype/ContentB.astro";
+import ContentC from "@/components/landing-prototype/ContentC.astro";
+import PrototypeSwitcher from "@/components/landing-prototype/PrototypeSwitcher.astro";
+import { signupRouteForRole } from "@/lib/auth/roles";
 
 // Nieudane wylogowanie wraca tutaj z komunikatem w ?error= (ten sam wzorzec co na
 // pozostałych stronach; treść jest polska i pochodzi z @/lib/auth/errors).
@@ -20,6 +25,17 @@ const entries = landingEntries(user ? { profileRole: profile?.role } : null);
 
 // Obie ilustracje rysują ten sam dzień z jednego źródła, tymi samymi regułami co prawdziwe widoki.
 const demo = landingDemo();
+
+// PROTOTYP — do wyrzucenia: warianty treści pod połowami, `?variant=0|A|B|C`, tylko w trybie dev.
+const PROTO_VARIANTS = [
+  { key: "0", name: "bez treści (stan z PR #52)" },
+  { key: "A", name: "Krok po kroku z przełącznikiem ról" },
+  { key: "B", name: "Jeden dzień" },
+  { key: "C", name: "Podział do końca" },
+];
+const requested = Astro.url.searchParams.get("variant");
+const variant = import.meta.env.DEV ? (PROTO_VARIANTS.find((v) => v.key === requested)?.key ?? "A") : "0";
+const proto = { riderHref: signupRouteForRole("rider"), stableHref: signupRouteForRole("stable") };
 ---
 
 <Layout>
@@ -142,6 +158,10 @@ const demo = landingDemo();
       )
     }
   </main>
+  {variant === "A" && <ContentA {...proto} />}
+  {variant === "B" && <ContentB {...proto} />}
+  {variant === "C" && <ContentC {...proto} />}
+  {import.meta.env.DEV && <PrototypeSwitcher variants={PROTO_VARIANTS} current={variant} />}
 </Layout>
 
 <style>

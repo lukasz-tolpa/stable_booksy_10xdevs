@@ -1,0 +1,214 @@
+---
+// PROTOTYP — do wyrzucenia. Wariant B „Jeden dzień": zamiast listy funkcji jeden dzień ośrodka
+// opowiedziany godzinami. Ekrany jeźdźca po lewej stronie osi, ekrany ośrodka po prawej.
+import Shot from "./Shot.astro";
+
+interface Props {
+  riderHref: string;
+  stableHref: string;
+}
+const { riderHref, stableHref } = Astro.props;
+const img = (name: string) => `/landing-prototype/${name}.png`;
+
+const day = [
+  {
+    time: "wczoraj, 19:00",
+    who: "stable",
+    title: "Ośrodek układa grafik na jutro.",
+    text: "Godziny pracy, konie, instruktorzy i limit miejsc w każdej godzinie. Licznik „Koni zajętych” pilnuje, żeby miejsc nie było więcej niż koni.",
+    img: img("stable-schedule"),
+    alt: "Ekran grafiku dnia",
+  },
+  {
+    time: "19:20",
+    who: "rider",
+    title: "Anna zapisuje się na 11:00.",
+    text: "Wybiera ośrodek i dzień, widzi wolne miejsca u instruktorów i klika „Zapisz się”.",
+    img: img("rider-slots"),
+    alt: "Ekran wolnych slotów",
+  },
+  {
+    time: "dziś, 8:00",
+    who: "stable",
+    title: "Ośrodek przydziela konie.",
+    text: "Na liście zapisów dnia każdy jeździec dostaje konia. Ten sam koń nie trafi do dwóch osób w jednej godzinie.",
+    img: img("stable-bookings"),
+    alt: "Ekran zapisów dnia",
+  },
+  {
+    time: "10:15",
+    who: "rider",
+    title: "Anna sprawdza swoje zapisy.",
+    text: "Widzi godzinę, instruktora i konia. Gdyby coś wypadło, odwoła jazdę sama, a miejsce wróci do grafiku.",
+    img: img("rider-bookings"),
+    alt: "Ekran „Moje zapisy”",
+  },
+  { time: "11:00", who: "both", title: "Jazda.", text: "", img: "", alt: "" },
+  {
+    time: "koniec miesiąca",
+    who: "stable",
+    title: "Ośrodek patrzy w statystyki.",
+    text: "Obłożenie grafiku, godziny jazd, najaktywniejsi jeźdźcy i obciążenie każdego konia.",
+    img: img("stable-stats"),
+    alt: "Ekran statystyk",
+  },
+];
+const label: Record<string, string> = { stable: "Ośrodek", rider: "Jeździec" };
+---
+
+<section class="b container-page">
+  <h2>Jeden dzień ze Stable Booksy</h2>
+  <ol>
+    {
+      day.map((e) => (
+        <li class:list={`b-entry b-entry--${e.who}`}>
+          <div class="b-copy">
+            <span class="b-time mono-nums">{e.time}</span>
+            {label[e.who] && <span class="b-who">{label[e.who]}</span>}
+            <h3>{e.title}</h3>
+            {e.text && <p>{e.text}</p>}
+          </div>
+          {e.img && (
+            <div class="b-shot">
+              <Shot src={e.img} alt={e.alt} ratio={0.56} />
+            </div>
+          )}
+        </li>
+      ))
+    }
+  </ol>
+</section>
+
+<section class="b-end">
+  <h2>Jutro może tak wyglądać Twój dzień.</h2>
+  <div>
+    <a class="b-btn b-btn--rider" href={riderHref}>Załóż konto jeźdźca</a>
+    <a class="b-btn b-btn--stable" href={stableHref}>Załóż konto ośrodka</a>
+  </div>
+</section>
+
+<style>
+  .b {
+    padding-block: 88px 40px;
+  }
+  h2 {
+    font-size: clamp(32px, 4vw, 52px);
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    text-wrap: balance;
+  }
+  ol {
+    position: relative;
+    list-style: none;
+    margin: 56px 0 0;
+    padding: 0;
+    display: grid;
+    gap: 56px;
+  }
+  .b-entry {
+    display: grid;
+    gap: 20px;
+  }
+  .b-time {
+    display: block;
+    font-size: 14.5px;
+    color: var(--muted);
+  }
+  .b-who {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 3px 12px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .b-entry--stable .b-who {
+    background: var(--primary-soft);
+    color: var(--primary-strong);
+  }
+  .b-entry--rider .b-who {
+    background: var(--accent-soft);
+    color: var(--accent-ink);
+  }
+  h3 {
+    margin-top: 12px;
+    font-size: clamp(24px, 2.8vw, 36px);
+    letter-spacing: -0.03em;
+  }
+  .b-entry--both h3 {
+    font-size: clamp(60px, 10vw, 136px);
+    font-weight: 800;
+    letter-spacing: -0.05em;
+    color: var(--primary);
+  }
+  .b-copy p {
+    margin: 12px 0 0;
+    font-size: 17px;
+    line-height: 1.5;
+    color: var(--muted);
+    max-width: 40ch;
+  }
+
+  /* Od 900 px oś pośrodku: jeździec po lewej, ośrodek po prawej, zrzut po drugiej stronie. */
+  @media (width >= 900px) {
+    ol::before {
+      content: "";
+      position: absolute;
+      inset-block: 0;
+      left: 50%;
+      width: 1px;
+      background: var(--border-2);
+    }
+    .b-entry {
+      grid-template-columns: 1fr 1fr;
+      gap: 0 96px;
+      align-items: center;
+    }
+    .b-entry--rider .b-copy {
+      text-align: right;
+      justify-self: end;
+    }
+    .b-entry--stable .b-copy {
+      order: 2;
+    }
+    .b-entry--both {
+      grid-template-columns: 1fr;
+      justify-items: center;
+      text-align: center;
+      padding-block: 24px;
+      background: var(--bg);
+      position: relative;
+    }
+  }
+
+  .b-end {
+    padding: 96px 24px 132px;
+    display: grid;
+    gap: 32px;
+    justify-items: center;
+    text-align: center;
+  }
+  .b-end div {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+  }
+  .b-btn {
+    display: inline-flex;
+    align-items: center;
+    min-height: 54px;
+    padding: 0 28px;
+    border-radius: 999px;
+    font-family: var(--font-display);
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--color-primary-foreground);
+  }
+  .b-btn--rider {
+    background: var(--accent);
+  }
+  .b-btn--stable {
+    background: var(--primary-strong);
+  }
+</style>

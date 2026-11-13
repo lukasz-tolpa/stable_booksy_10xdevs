@@ -1,0 +1,205 @@
+---
+// PROTOTYP — do wyrzucenia. Wariant A „Krok po kroku": przełącznik Jeździec / Ośrodek,
+// jedna rola naraz, duże zrzuty obok kroków, potem lista „co jest w środku” i wezwanie.
+import Shot from "./Shot.astro";
+import { features, riderSteps, stableSteps } from "./content";
+
+interface Props {
+  riderHref: string;
+  stableHref: string;
+}
+const { riderHref, stableHref } = Astro.props;
+const tabs = [
+  { id: "rider", label: "Jeżdżę konno", steps: riderSteps, href: riderHref, cta: "Załóż konto jeźdźca" },
+  { id: "stable", label: "Prowadzę ośrodek", steps: stableSteps, href: stableHref, cta: "Załóż konto ośrodka" },
+];
+---
+
+<section class="a container-page">
+  <h2>Jak to działa</h2>
+  <div class="a-tabs">
+    {
+      tabs.map((tab, i) => (
+        <>
+          <input type="radio" name="a-tab" id={`a-${tab.id}`} checked={i === 0} class="sr-only" />
+          <label for={`a-${tab.id}`}>{tab.label}</label>
+        </>
+      ))
+    }
+    {
+      tabs.map((tab) => (
+        <div class:list={`a-panel a-panel--${tab.id}`}>
+          <ol>
+            {tab.steps.map((step, i) => (
+              <li>
+                <div class="a-text">
+                  <span class="a-num mono-nums">{i + 1}</span>
+                  <h3>{step.title}</h3>
+                  <p>{step.text}</p>
+                </div>
+                <Shot src={step.img} alt={step.alt} />
+              </li>
+            ))}
+          </ol>
+          <a class="a-cta" href={tab.href}>
+            {tab.cta}
+          </a>
+        </div>
+      ))
+    }
+  </div>
+</section>
+
+<section class="a-inside">
+  <div class="container-page">
+    <h2>Co jest w środku</h2>
+    <dl>
+      {
+        features.map(([name, text]) => (
+          <div>
+            <dt>{name}</dt>
+            <dd>{text}</dd>
+          </div>
+        ))
+      }
+    </dl>
+  </div>
+</section>
+
+<style>
+  .a {
+    padding-block: 88px 72px;
+  }
+  h2 {
+    font-size: clamp(32px, 4vw, 52px);
+    font-weight: 800;
+    letter-spacing: -0.04em;
+  }
+  .a-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 28px;
+  }
+  .a-tabs label {
+    padding: 12px 22px;
+    border: 1px solid var(--border-2);
+    border-radius: 999px;
+    background: var(--surface);
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .a-tabs input:focus-visible + label {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+  #a-rider:checked + label {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--color-primary-foreground);
+  }
+  #a-stable:checked + label {
+    background: var(--primary-strong);
+    border-color: var(--primary-strong);
+    color: var(--color-primary-foreground);
+  }
+  .a-panel {
+    display: none;
+    flex-basis: 100%;
+  }
+  .a-tabs:has(#a-rider:checked) .a-panel--rider,
+  .a-tabs:has(#a-stable:checked) .a-panel--stable {
+    display: block;
+  }
+  ol {
+    list-style: none;
+    margin: 48px 0 0;
+    padding: 0;
+    display: grid;
+    gap: 72px;
+  }
+  li {
+    display: grid;
+    gap: 24px;
+    align-items: center;
+  }
+  @media (width >= 860px) {
+    li {
+      grid-template-columns: 4fr 7fr;
+      gap: 64px;
+    }
+    li:nth-child(even) .a-text {
+      order: 2;
+    }
+    li:nth-child(even) {
+      grid-template-columns: 7fr 4fr;
+    }
+  }
+  .a-num {
+    display: block;
+    font-size: 15px;
+    color: var(--muted);
+  }
+  h3 {
+    margin-top: 10px;
+    font-size: clamp(24px, 2.6vw, 34px);
+    letter-spacing: -0.03em;
+  }
+  .a-text p {
+    margin: 14px 0 0;
+    font-size: 17.5px;
+    line-height: 1.5;
+    color: var(--muted);
+    max-width: 38ch;
+  }
+  .a-cta {
+    display: inline-flex;
+    align-items: center;
+    min-height: 54px;
+    margin-top: 56px;
+    padding: 0 28px;
+    border-radius: 999px;
+    font-family: var(--font-display);
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--color-primary-foreground);
+  }
+  .a-panel--rider .a-cta {
+    background: var(--accent);
+  }
+  .a-panel--stable .a-cta {
+    background: var(--primary);
+  }
+
+  .a-inside {
+    padding-block: 72px 120px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+  }
+  dl {
+    margin: 36px 0 0;
+    display: grid;
+    gap: 0 56px;
+  }
+  @media (width >= 760px) {
+    dl {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+  dl div {
+    padding-block: 20px;
+    border-top: 1px solid var(--border-2);
+  }
+  dt {
+    font-family: var(--font-display);
+    font-size: 19px;
+    font-weight: 700;
+  }
+  dd {
+    margin: 6px 0 0;
+    color: var(--muted);
+    max-width: 46ch;
+  }
+</style>

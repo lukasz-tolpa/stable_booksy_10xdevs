@@ -1,0 +1,52 @@
+---
+// PROTOTYP — do wyrzucenia. Zrzut ekranu aplikacji w ramce okna, przycięty od góry.
+interface Props {
+  src: string;
+  alt: string;
+  /** Wysokość kadru jako ułamek szerokości. */
+  ratio?: number;
+}
+const { src, alt, ratio = 0.62 } = Astro.props;
+---
+
+<figure class="shot" style={`--ratio:${String(ratio)}`}>
+  <span class="shot__bar" aria-hidden="true"><i></i><i></i><i></i></span>
+  <div class="shot__view"><img src={src} alt={alt} loading="lazy" /></div>
+</figure>
+
+<style>
+  .shot {
+    margin: 0;
+    overflow: hidden;
+    background: var(--bg);
+    border: 1px solid var(--border-2);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-md);
+  }
+  .shot__bar {
+    display: flex;
+    gap: 6px;
+    padding: 10px 12px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .shot__bar i {
+    width: 9px;
+    height: 9px;
+    border-radius: 999px;
+    background: var(--border-2);
+  }
+  /* Kadr przycina tylko wysokie zrzuty; krótkie pokazuje w całości. */
+  .shot {
+    container-type: inline-size;
+  }
+  .shot__view {
+    max-height: calc(100cqw * var(--ratio));
+    overflow: hidden;
+  }
+  .shot img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+</style>
