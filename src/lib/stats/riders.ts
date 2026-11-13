@@ -48,7 +48,7 @@ interface RiderBooking {
 export interface RiderRowsInput {
   /** Jazdy okresu (aktywne zapisy z zakończoną godziną). */
   rides: RiderBooking[];
-  /** Odwołania okresu. */
+  /** Odwołania okresu złożone przez samych jeźdźców — odwołania ośrodka tu nie trafiają. */
   cancellations: RiderBooking[];
   riders: StatsRider[];
   horses: StatsHorse[];
@@ -60,7 +60,7 @@ export interface RiderRowsInput {
 export const ANONYMISED_RIDERS = "Usunięci jeźdźcy";
 
 /**
- * Wiersze tabeli jeźdźców: każdy jeździec, który w okresie miał jazdę albo odwołanie.
+ * Wiersze tabeli jeźdźców: każdy jeździec, który w okresie miał jazdę albo własne odwołanie.
  * Kolejność: od najaktywniejszego (godziny jazd, potem jazdy), przy remisie według
  * nazwy i konta — żeby kolejność była stabilna między odświeżeniami.
  *

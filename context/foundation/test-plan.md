@@ -266,9 +266,12 @@ local role authenticated; set local request.jwt.claims =
 - **Past data**: the seed schedules only tomorrow and the past cannot be
   clicked together in a browser, so the `setup` project loads
   `supabase/demo/history.sql` (idempotent; also `npm run db:demo`).
-  `stable-stats.spec.ts` asserts consistency on it — table sums equal the
-  period summary — never fixed numbers, because the history is relative to
-  the load day. After the history is loaded, `npm run test:db` needs a
+  `stable-stats.spec.ts` asserts consistency on it — the riders table's rides
+  equal the period summary; the horse table sums to fewer rides (the history
+  has rides without a horse) and the riders' cancellations to fewer than the
+  period's (the history has stable cancellations, which count only in the
+  period) — never fixed numbers, because the history is relative to the load
+  day. Removing those rows from the history turns the strict inequalities red. After the history is loaded, `npm run test:db` needs a
   fresh `npx supabase db reset`.
 - **Locator traps**: locators are role, label and exact text, so visual work
   can break tests without touching logic. Keep these exactly as they are:

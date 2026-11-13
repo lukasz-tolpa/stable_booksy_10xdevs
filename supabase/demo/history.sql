@@ -14,10 +14,14 @@
 --     Iskra w weekendy
 --   * instruktorzy z seeda: Joanna Wrona i Karol Jasny po 1 miejscu w kazdej godzinie,
 --     w weekendy Joanna 2 (3 konie); Karol prowadzi jazdy na Kasztanie, Joanna - na Belli i Iskrze
---   * jazdy Anny i Piotra wedlug stalego wzoru z numeru dnia, godziny i konia - KAZDA z
---     przydzielonym koniem, zeby statystyki koni i jezdzcow pozostaly spojne; jeden jezdziec
---     najwyzej raz w godzinie (trzeci kon w godzinie zostaje bez jazdy)
+--   * jazdy Anny i Piotra wedlug stalego wzoru z numeru dnia, godziny i konia, z przydzielonym
+--     koniem; jeden jezdziec najwyzej raz w godzinie (trzeci kon w godzinie zostaje bez jazdy)
+--   * dwie jazdy bez konia (ADR-0002: osrodek nie przydzielil konia) - dwa najwczesniejsze
+--     zapisy ostatniego dnia grafiku; licza sie do jazd jezdzca, nie do obciazenia konia
 --   * odwolania Piotra na czesci wolnych slotow (bez konia - odwolanie czysci przydzial)
+--   * odwolania przez osrodek (Anna, co trzeci dzien z ostatnich 14 o 15:00) - licza sie
+--     w odwolaniach okresu, ale nie przy jezdzcu; plus jedno o 16:00 ostatniego dnia grafiku,
+--     czyli poza godzinami dnia (slot zniknal po skroceniu dnia) - nadal jest odwolaniem
 --   * jazdy bez jezdzca (ADR-0001) o 12:00 w dniach starszych niz 15 dni
 --   * dzien sprzed 30 dni z grafikiem i bez zadnego zapisu
 --
@@ -125,6 +129,39 @@ begin
       where b.schedule_day_id = sdh.schedule_day_id and b.hour = hr and b.rider_id = v_piotr
     );
 
+  -- Jazdy bez konia: dwa najwczesniejsze zapisy ostatniego dnia grafiku (zawsze w okresie
+  -- e2e, nigdy o 12:00 starszym niz 15 dni, wiec zostaja przy jezdzcu).
+  update public.bookings b
+  set horse_id = null
+  where b.id in (
+    select b2.id
+    from public.bookings b2
+    join public.schedule_days sd on sd.id = b2.schedule_day_id
+    where sd.stable_id = v_stable
+      and sd.day = (select max(day) from public.schedule_days where stable_id = v_stable and day < current_date)
+      and b2.status = 'active'
+    order by b2.hour, b2.id
+    limit 2
+  );
+
+  -- Odwolania przez osrodek: Anna u Joanny o 15:00. Odwolany zapis nie zajmuje miejsca
+  -- (wyzwalacz limitu pomija nieaktywne) i nie ma konia (odwolanie czysci przydzial).
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status, cancelled_at, cancelled_by)
+  select sd.id, i.id, 15, v_anna, 'cancelled', sd.day - interval '1 day', 'stable'
+  from public.schedule_days sd
+  join public.instructors i on i.stable_id = v_stable and i.name = 'Joanna Wrona'
+  where sd.stable_id = v_stable
+    and sd.day between current_date - 14 and current_date - 1
+    and extract(doy from sd.day)::int % 3 = 0;
+
+  -- Odwolanie, ktorego slot zniknal: o 16:00, poza godzinami dnia 10-16 - jak po skroceniu dnia.
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status, cancelled_at, cancelled_by)
+  select sd.id, i.id, 16, v_anna, 'cancelled', sd.day - interval '1 day', 'stable'
+  from public.schedule_days sd
+  join public.instructors i on i.stable_id = v_stable and i.name = 'Karol Jasny'
+  where sd.stable_id = v_stable
+    and sd.day = (select max(day) from public.schedule_days where stable_id = v_stable and day < current_date);
+
   update public.bookings b
   set rider_id = null
   from public.schedule_days sd
@@ -140,6 +177,7 @@ $$;
 
 select count(*) filter (where b.status = 'active') as jazdy,
        count(*) filter (where b.status = 'cancelled') as odwolania,
+       count(*) filter (where b.cancelled_by = 'stable') as odwolania_osrodka,
        count(*) filter (where b.rider_id is null) as bez_jezdzca,
        count(*) filter (where b.status = 'active' and b.horse_id is null) as jazdy_bez_konia
 from public.bookings b

@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/db/database.types";
 import type { StatsRider } from "@/lib/stats/riders";
+import type { CancelledBy } from "@/lib/bookings/queries";
 import type { StatsBooking, StatsPeriod, StatsScheduleDay } from "@/lib/stats/stats";
 import type { BookingStatus } from "@/types";
 
@@ -23,16 +24,23 @@ export interface RawStatsBooking {
   status: string;
   /** `null` — zapis bez jeźdźca: konto usunięto, zapis został w historii ośrodka (ADR-0001). */
   rider_id: string | null;
+  /** Kto odwołał: `'rider'` albo `'stable'`; `null` dla zapisu aktywnego. Zawężane w `toCancelledBy`. */
+  cancelled_by: string | null;
   /** `null`, gdy zapis nie ma jeźdźca albo RLS ukryje profil. */
   profiles: { full_name: string | null } | null;
 }
 
-/** Dzień grafiku w kształcie zwracanym przez PostgREST: konie pracujące tego dnia i zapisy dnia. */
+/**
+ * Dzień grafiku w kształcie zwracanym przez PostgREST: konie pracujące tego dnia, instruktorzy
+ * dnia ze slotami (limity miejsc) i zapisy dnia. Sloty idą przez `schedule_day_instructors`,
+ * bo `schedule_slots` ma FK tylko do instruktora w dniu, nie do `schedule_days`.
+ */
 export interface RawStatsDay {
   day: string;
   open_hour: number;
   close_hour: number;
   schedule_day_horses: { horse_id: number }[];
+  schedule_day_instructors: { schedule_slots: { hour: number; seats: number }[] }[];
   bookings: RawStatsBooking[];
 }
 
@@ -47,6 +55,15 @@ export type StatsPageLoader = (from: number, to: number) => PromiseLike<{ data: 
 function toBookingStatus(status: string): BookingStatus {
   if (status === "active" || status === "cancelled") return status;
   throw new Error(`Nieznany status zapisu: ${status}`);
+}
+
+/**
+ * Zawęża stronę odwołania z bazy. Jak przy statusie: wartość spoza unii oznacza zmianę
+ * schematu, o której statystyki nie wiedzą — a od niej zależy, czy odwołanie trafi do jeźdźca.
+ */
+function toCancelledBy(value: string | null): CancelledBy | null {
+  if (value === null || value === "rider" || value === "stable") return value;
+  throw new Error(`Nieznana strona odwołania zapisu: ${value}`);
 }
 
 /** Limit wierszy odpowiedzi PostgREST (`max_rows` w `supabase/config.toml`). */
@@ -81,6 +98,9 @@ export async function collectStatsRows(loadPage: StatsPageLoader, pageSize: numb
         openHour: day.open_hour,
         closeHour: day.close_hour,
         horseIds: day.schedule_day_horses.map((entry) => entry.horse_id),
+        slots: day.schedule_day_instructors.flatMap((instructor) =>
+          instructor.schedule_slots.map((slot) => ({ hour: slot.hour, seats: slot.seats })),
+        ),
       });
       for (const booking of day.bookings) {
         rows.bookings.push({
@@ -89,6 +109,7 @@ export async function collectStatsRows(loadPage: StatsPageLoader, pageSize: numb
           hour: booking.hour,
           status: toBookingStatus(booking.status),
           riderId: booking.rider_id,
+          cancelledBy: toCancelledBy(booking.cancelled_by),
         });
         // Zapis bez jeźdźca nie ma kogo dopisać — trafi do wiersza „Usunięci jeźdźcy".
         if (booking.rider_id !== null && !seenRiders.has(booking.rider_id)) {
@@ -129,7 +150,7 @@ export function getStatsRows(client: Client, stableId: number, period: StatsPeri
     client
       .from("schedule_days")
       .select(
-        "day, open_hour, close_hour, schedule_day_horses(horse_id), bookings(hour, status, horse_id, rider_id, profiles(full_name))",
+        "day, open_hour, close_hour, schedule_day_horses(horse_id), schedule_day_instructors(schedule_slots(hour, seats)), bookings(hour, status, cancelled_by, horse_id, rider_id, profiles(full_name))",
       )
       .eq("stable_id", stableId)
       .gte("day", period.from)
