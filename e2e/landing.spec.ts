@@ -25,6 +25,9 @@ const DAY_TITLES = [
   "Jazda.",
   "Ośrodek patrzy w statystyki.",
 ];
+/** Akapit nad połowami (#67) — co do słowa, ten sam dla gościa i zalogowanego. */
+const DEFINITION =
+  "getona.horse to aplikacja do zapisów na jazdy konne: jeździec zapisuje się na wolne miejsce u instruktora, a ośrodek jeździecki układa grafik dnia i przydziela konie.";
 /** Pięć momentów ma zrzut ekranu; „Jazda.” nie. */
 const DAY_SHOT_COUNT = 5;
 
@@ -77,6 +80,14 @@ test("gość wchodzi ze strony głównej do rejestracji swojej roli albo do logo
     await page.goto("/");
     await expect(page.getByRole("heading", { level: 1, name: "Jeżdżę konno.", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { level: 2, name: "Prowadzę ośrodek.", exact: true })).toBeVisible();
+  });
+
+  await test.step("nad połowami stoi zdanie, czym jest getona.horse, a pod każdym hasłem jego fraza", async () => {
+    await expect(page.getByRole("main").getByText(DEFINITION, { exact: true })).toBeVisible();
+    await expect(riderHalf(page).getByText("Zapisy na jazdy konne online", { exact: true })).toBeVisible();
+    await expect(stableHalf(page).getByText("System zapisów dla ośrodka jeździeckiego", { exact: true })).toBeVisible();
+    // Linie są dopowiedzeniem, nie nagłówkami: struktura h1/h2 połów zostaje ta sama.
+    await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
   });
 
   await test.step("pod połowami stoi „Jeden dzień z getona.horse” z sześcioma momentami po kolei", async () => {
@@ -159,5 +170,58 @@ test("gość wchodzi ze strony głównej do rejestracji swojej roli albo do logo
     await topbarLogo(page).click();
     await page.waitForURL((url) => url.pathname === "/");
     await expect(page.getByRole("heading", { level: 1, name: "Jeżdżę konno.", exact: true })).toBeVisible();
+  });
+});
+
+/**
+ * Roboty widzą tylko publiczną część (#65). Treść `robots.txt` i reguła mapy strony mają
+ * testy jednostkowe w `src/lib/seo/robots.test.ts`; tu sprawdzamy, że trasa ją serwuje,
+ * a układ strony wstawia zakaz indeksowania tam, gdzie trzeba.
+ */
+test("roboty widzą tylko publiczną część strony", async ({ page, request }) => {
+  const robotsMeta = page.locator('head meta[name="robots"]');
+
+  await test.step("robots.txt blokuje przestrzeń ośrodka, jeźdźca i API i wskazuje mapę strony", async () => {
+    const response = await request.get("/robots.txt");
+    expect(response.status()).toBe(200);
+    expect(response.headers()["content-type"]).toContain("text/plain");
+    const lines = (await response.text()).split("\n");
+    expect(lines).toContain("User-agent: *");
+    expect(lines).toContain("Disallow: /osrodek/");
+    expect(lines).toContain("Disallow: /jezdziec/");
+    expect(lines).toContain("Disallow: /api/");
+    expect(lines.filter((line) => line.startsWith("Disallow:") && line.includes("/auth"))).toEqual([]);
+    expect(lines).toContain("Content-Signal: search=yes, ai-input=yes, ai-train=no");
+    // Adres pochodzi z `site` w astro.config.mjs, nie z adresu serwera testowego.
+    expect(lines.some((line) => /^Sitemap: https:\/\/[^/]+\/sitemap-index\.xml$/.test(line))).toBe(true);
+  });
+
+  await test.step("strona główna nie ma zakazu indeksowania", async () => {
+    await page.goto("/");
+    await expect(robotsMeta).toHaveCount(0);
+  });
+
+  await test.step("logowanie ma zakaz indeksowania i tytuł „Logowanie – getona.horse”", async () => {
+    await page.goto("/auth/signin");
+    await expect(robotsMeta).toHaveAttribute("content", "noindex, follow");
+    await expect(page).toHaveTitle(`Logowanie – ${PRODUCT_NAME}`);
+  });
+
+  await test.step("rejestracja ma zakaz indeksowania i tytuł „Rejestracja – getona.horse”", async () => {
+    await page.goto("/auth/signup");
+    await expect(robotsMeta).toHaveAttribute("content", "noindex, follow");
+    await expect(page).toHaveTitle(`Rejestracja – ${PRODUCT_NAME}`);
+  });
+
+  await test.step("potwierdzenie e-maila ma zakaz indeksowania", async () => {
+    await page.goto("/auth/confirm-email");
+    await expect(robotsMeta).toHaveAttribute("content", "noindex, follow");
+  });
+
+  await test.step("nieistniejący adres zwraca 404 z zakazem indeksowania", async () => {
+    const response = await page.goto("/nie-ma-takiej-strony");
+    expect(response?.status()).toBe(404);
+    await expect(robotsMeta).toHaveAttribute("content", "noindex, follow");
+    await expect(page.getByRole("heading", { level: 1, name: "Nie ma takiej strony", exact: true })).toBeVisible();
   });
 });

@@ -151,7 +151,24 @@ bez zdjęć.
 - **Nagłówki** obu połów wyglądają tak samo: 800, `clamp(44px, 5.8vw, 86px)`,
   `letter-spacing: -0.05em` — skala większa niż w §3, tylko tutaj. „Jeżdżę
   konno." to jedyne `h1` strony, „Prowadzę ośrodek." to `h2`.
-- **W każdej połowie**: nagłówek, trzy zdania (18 px), ilustracja interfejsu,
+- **Zdanie definiujące** stoi nad obiema połowami, na `--bg`, w pierwszym
+  wierszu siatki połów (od 900 px na całą szerokość, więc połowy i linia o
+  logowaniu nadal razem wypełniają okno): „getona.horse to aplikacja do zapisów
+  na jazdy konne: jeździec zapisuje się na wolne miejsce u instruktora, a ośrodek
+  jeździecki układa grafik dnia i przydziela konie." Body Inter 17 px,
+  `line-height: 1.5`, `--fg`, wyśrodkowane, `max-width: 760px`. Kontrast
+  `--fg` na `--bg`: `rgb(18 36 26)` na `rgb(245 250 246)` = **15,38:1**.
+- **Fraza pod hasłem** — jedna linia tuż pod nagłówkiem połowy (oba w
+  `<hgroup>`, linia to `<p>`, nie nagłówek): „Zapisy na jazdy konne online" pod
+  „Jeżdżę konno.", „System zapisów dla ośrodka jeździeckiego" pod „Prowadzę
+  ośrodek.". Krój display 600, `clamp(19px, 1.7vw, 23px)`, `letter-spacing:
+-0.01em`, w kolorze tekstu swojej połowy: `--fg` na `--accent-soft`
+  (`rgb(18 36 26)` na `rgb(251 231 216)` = **13,55:1**) i biel na
+  `--primary-strong` (`rgb(255 255 255)` na `rgb(0 82 49)` = **9,33:1**).
+  Kontrast liczony jak w §2, z sRGB po przycięciu do gamutu. Zdanie i frazy są
+  tekstem dla ludzi i wyszukiwarek (GLOSSARY.md, nota o słowach), te same dla
+  gościa i zalogowanego; hasła połów się nie zmieniają.
+- **W każdej połowie**: nagłówek z frazą, trzy zdania (18 px), ilustracja interfejsu,
   przycisk. Przyciski to pigułki 54 px, poniżej 560 px na całą szerokość.
   Przycisk prowadzi do rejestracji z zaznaczonym rodzajem konta.
 - **Ilustracje interfejsu** to statyczne rysunki w białej karcie z
