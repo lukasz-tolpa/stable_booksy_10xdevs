@@ -17,6 +17,18 @@ export const BOOKING_NOT_ACTIVE = "23514";
 
 const FALLBACK = "Nie udało się przydzielić konia. Spróbuj ponownie.";
 
+/** Zapis spoza grafiku ośrodka, nieistniejący albo już nieaktywny (przydział i odwołanie). */
+export const STABLE_BOOKING_NOT_FOUND = "Nie znaleziono aktywnego zapisu w Twoim grafiku.";
+/** Odwołanie zapisu, którego slot już się zaczął (`hasSlotStarted`). */
+export const STABLE_CANCEL_SLOT_STARTED = "Nie można odwołać jazdy, która już się zaczęła.";
+/** Odwołanie przez ośrodek nie powiodło się z przyczyny spoza reguł (awaria). */
+export const STABLE_CANCEL_FAILED = "Nie udało się odwołać zapisu. Spróbuj ponownie.";
+
+/** Czy kod to odmowa reguły przydziału (decyzja ośrodka), a nie awaria warta logu. */
+export function isHorseAssignmentRefusal(code: string | undefined): boolean {
+  return code === HORSE_TAKEN_THIS_HOUR || code === HORSE_NOT_WORKING_THIS_DAY || code === BOOKING_NOT_ACTIVE;
+}
+
 export function horseAssignmentErrorMessage(code: string | undefined): string {
   switch (code) {
     case HORSE_TAKEN_THIS_HOUR:
