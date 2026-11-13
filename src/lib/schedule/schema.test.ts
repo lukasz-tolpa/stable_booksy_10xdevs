@@ -65,6 +65,32 @@ describe("parseScheduleDayForm", () => {
     expect(result.data?.seats).toEqual([]);
   });
 
+  it("pusta godzina otwarcia to komunikat zakresu, a nie otwarcie o 0:00", () => {
+    const result = parseScheduleDayForm(
+      form([
+        ["day", "2030-05-14"],
+        ["openHour", ""],
+        ["closeHour", "12"],
+      ]),
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.message).toBe("Godzina otwarcia musi być z zakresu 0-23");
+  });
+
+  it("pusta godzina zamknięcia to komunikat zakresu zamknięcia", () => {
+    const result = parseScheduleDayForm(
+      form([
+        ["day", "2030-05-14"],
+        ["openHour", "10"],
+        ["closeHour", " "],
+      ]),
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.message).toBe("Godzina zamknięcia musi być z zakresu 1-24");
+  });
+
   it("odrzuca ujemny albo ułamkowy limit z polskim komunikatem", () => {
     for (const value of ["-1", "1.5", "abc"]) {
       const result = parseScheduleDayForm(form([...DAY, ["instructorIds", "7"], [seatFieldName(7, 10), value]]));

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { formValue, formValues } from "@/lib/form-data";
+import { formInt, formValue, formValues } from "@/lib/form-data";
 import { isValidIsoDate } from "@/lib/schedule/dates";
 
 const SEATS_MESSAGE = "Limit miejsc musi być liczbą całkowitą, zero lub więcej";
@@ -12,8 +12,10 @@ const HOURS_ORDER_MESSAGE = "Godzina zamknięcia musi być późniejsza niż god
 
 /** Godziny pracy: wspólne dla zapisu i walidacji po stronie klienta, żeby komunikaty brzmiały tak samo. */
 const hourFields = {
-  openHour: z.coerce.number().int().min(0, { error: OPEN_HOUR_MESSAGE }).max(23, { error: OPEN_HOUR_MESSAGE }),
-  closeHour: z.coerce.number().int().min(1, { error: CLOSE_HOUR_MESSAGE }).max(24, { error: CLOSE_HOUR_MESSAGE }),
+  openHour: formInt(OPEN_HOUR_MESSAGE).pipe(z.number().max(23, { error: OPEN_HOUR_MESSAGE })),
+  closeHour: formInt(CLOSE_HOUR_MESSAGE).pipe(
+    z.number().min(1, { error: CLOSE_HOUR_MESSAGE }).max(24, { error: CLOSE_HOUR_MESSAGE }),
+  ),
 };
 
 const hoursInOrder = (data: { openHour: number; closeHour: number }) => data.closeHour > data.openHour;
@@ -24,17 +26,8 @@ const scheduleHoursSchema = z.object(hourFields).refine(hoursInOrder, hoursOrder
 /**
  * Walidacja godzin pracy po stronie klienta: pierwszy komunikat schematu grafiku albo `null`.
  * Ten sam schemat co na serwerze, więc komunikaty brzmią tak samo (pułapka z `test-plan.md` §6.3).
- * Niewybrana godzina (`""`) to brak godziny — schemat zrzutowałby ją na 0.
  */
 export function hoursError(openHour: string, closeHour: string): string | null {
-  if (openHour === "") {
-    return OPEN_HOUR_MESSAGE;
-  }
-
-  if (closeHour === "") {
-    return CLOSE_HOUR_MESSAGE;
-  }
-
   const result = scheduleHoursSchema.safeParse({ openHour, closeHour });
 
   return result.success ? null : (result.error.issues[0]?.message ?? null);
