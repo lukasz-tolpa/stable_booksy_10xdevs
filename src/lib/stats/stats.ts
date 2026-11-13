@@ -3,6 +3,7 @@
  * wyłącznie renderuje zwrócony model widoku (słownictwo: GLOSSARY.md).
  */
 
+import type { CancelledBy } from "@/lib/bookings/queries";
 import { currentWarsawHour } from "@/lib/bookings/slots";
 import { unknownHorseName } from "@/lib/bookings/rows";
 import { buildTopRidersSeries, type TopRiderPoint } from "@/lib/stats/rankings";
@@ -17,12 +18,22 @@ export interface StatsPeriod {
   to: string;
 }
 
-/** Dzień grafiku z godzinami pracy `[openHour, closeHour)` i końmi przydzielonymi do dnia. */
+/** Slot dnia w zakresie potrzebnym statystykom: godzina i limit miejsc instruktora. */
+export interface StatsSlot {
+  hour: number;
+  seats: number;
+}
+
+/**
+ * Dzień grafiku z godzinami pracy `[openHour, closeHour)`, końmi przydzielonymi do dnia
+ * i slotami wszystkich instruktorów dnia (kilka wpisów na tę samą godzinę — jeden na instruktora).
+ */
 export interface StatsScheduleDay {
   day: string;
   openHour: number;
   closeHour: number;
   horseIds: number[];
+  slots: StatsSlot[];
 }
 
 /** Zapis (aktywny albo odwołany) z terminem: dniem grafiku i godziną. */
@@ -34,6 +45,8 @@ export interface StatsBooking {
   status: BookingStatus;
   /** Konto jeźdźca, który złożył zapis; `null`, gdy konto usunięto (jeździec zanonimizowany). */
   riderId: string | null;
+  /** Kto odwołał zapis; `null` dla zapisu aktywnego. */
+  cancelledBy: CancelledBy | null;
 }
 
 /** Koń stadniny — aktywny albo zdezaktywowany; statystyki potrzebują tylko nazwy. */
@@ -68,13 +81,15 @@ export interface StatsSummary {
   /** Godziny jazd: suma czasu trwania jazd. */
   rideHours: number;
   /**
-   * Obłożenie grafiku w procentach (jazdy ÷ minione wystawione sloty), zaokrąglone
-   * do całości. `null` = brak danych: w okresie nie ma ani jednego minionego slotu.
+   * Obłożenie grafiku w procentach (jazdy ÷ suma limitów miejsc minionych slotów),
+   * zaokrąglone do całości. `null` = brak danych: w minionych slotach okresu ośrodek
+   * nie wystawił ani jednego miejsca.
    */
   occupancyPercent: number | null;
   /**
    * Odwołania przypisane do okresu według terminu zapisu, nie daty odwołania —
-   * liczone dopiero, gdy godzina odwołanego slotu już się skończyła.
+   * liczone dopiero, gdy godzina odwołanego slotu już się skończyła. Obejmują odwołania
+   * jeźdźców i ośrodka, także zapisów, których slot później zniknął z grafiku.
    */
   cancellations: number;
 }
@@ -82,12 +97,16 @@ export interface StatsSummary {
 /** Kompletny model widoku strony statystyk; kolejne sekcje dokładają tu swoje pola. */
 export interface StatsView {
   summary: StatsSummary;
-  /** Tabela jeźdźców, od najaktywniejszego; jej sumy zgadzają się z podsumowaniem. */
+  /**
+   * Tabela jeźdźców, od najaktywniejszego. Jej jazdy sumują się do podsumowania;
+   * odwołania — nie zawsze: przy jeźdźcu liczą się tylko jego własne, bez odwołań ośrodka.
+   */
   riders: StatsRiderRow[];
   /**
-   * Okres, w którym nie ma nic: ani minionego wystawionego slotu, ani jazdy, ani
-   * odwołania — strona pokazuje stan pusty. Okres z grafikiem, ale bez jazd, pusty
-   * nie jest: ma 0% obłożenia i konie stojące bezczynnie.
+   * Okres, w którym nie ma nic: ani wystawionego miejsca w minionym slocie, ani konia
+   * pracującego w minionej godzinie, ani jazdy, ani odwołania — strona pokazuje stan
+   * pusty. Okres z grafikiem, ale bez jazd, pusty nie jest: ma 0% obłożenia (albo brak
+   * danych, gdy miejsc nie wystawiono) i konie stojące bezczynnie.
    */
   isEmpty: boolean;
   /** Tabela koni, od najbardziej obciążonego; z tych samych wierszy strona rysuje wykres obciążenia koni. */
@@ -140,20 +159,21 @@ export function computeStableStats(input: StatsInput, now: Date = new Date()): S
   const rides = rideBookings.length;
   const cancellations = cancelledBookings.length;
 
-  // Wystawiony slot to para (godzina z zakresu pracy dnia, koń przydzielony do dnia);
-  // do mianownika obłożenia wchodzą tylko sloty, których godzina już minęła.
-  let pastSlots = 0;
+  // Mianownik obłożenia: suma limitów miejsc slotów, których godzina już minęła —
+  // ta sama granica „miniony" co dla jazdy. Konie dnia nie wchodzą do mianownika.
+  let pastSeats = 0;
   for (const day of input.days) {
     if (!inPeriod(day.day, input.period)) continue;
-    for (let hour = day.openHour; hour < day.closeHour; hour++) {
-      if (ended(day.day, hour)) pastSlots += day.horseIds.length;
+    for (const slot of day.slots) {
+      if (ended(day.day, slot.hour)) pastSeats += slot.seats;
     }
   }
 
   const horses = computeHorseRows(input, ended, rideBookings);
   const riders = computeRiderRows({
     rides: rideBookings,
-    cancellations: cancelledBookings,
+    // Przy jeźdźcu tylko jego własne odwołania; odwołania ośrodka liczą się w sumie okresu.
+    cancellations: cancelledBookings.filter((booking) => booking.cancelledBy === "rider"),
     riders: input.riders,
     horses: input.horses,
     slotDurationHours: SLOT_DURATION_HOURS,
@@ -163,11 +183,11 @@ export function computeStableStats(input: StatsInput, now: Date = new Date()): S
     summary: {
       rides,
       rideHours: rides * SLOT_DURATION_HOURS,
-      occupancyPercent: pastSlots === 0 ? null : Math.round((rides / pastSlots) * 100),
+      occupancyPercent: pastSeats === 0 ? null : Math.round((rides / pastSeats) * 100),
       cancellations,
     },
     riders,
-    isEmpty: pastSlots === 0 && rides === 0 && cancellations === 0,
+    isEmpty: pastSeats === 0 && horses.length === 0 && rides === 0 && cancellations === 0,
     horses,
     rideHoursOverTime: buildRideHoursSeries(
       input.period,

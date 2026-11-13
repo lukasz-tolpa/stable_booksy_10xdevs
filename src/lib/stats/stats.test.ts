@@ -7,12 +7,28 @@ const KASZTAN = 2;
 /** 10 listopada 2026, 14:30 w Warszawie (CET, UTC+1) — godzina 13 już się skończyła, 14 trwa. */
 const NOW = new Date("2026-11-10T13:30:00Z");
 
+/**
+ * Dzień 10–12 z dwoma końmi i limitami miejsc: jeden instruktor z 2 miejscami w każdej
+ * godzinie — razem 4 wystawione miejsca (reguła sumy: limit godziny ≤ liczba koni).
+ */
 function day(iso: string, overrides: Partial<StatsScheduleDay> = {}): StatsScheduleDay {
-  return { day: iso, openHour: 10, closeHour: 12, horseIds: [BELLA, KASZTAN], ...overrides };
+  return {
+    day: iso,
+    openHour: 10,
+    closeHour: 12,
+    horseIds: [BELLA, KASZTAN],
+    slots: [
+      { hour: 10, seats: 2 },
+      { hour: 11, seats: 2 },
+    ],
+    ...overrides,
+  };
 }
 
 function booking(iso: string, hour: number, overrides: Partial<StatsBooking> = {}): StatsBooking {
-  return { day: iso, horseId: BELLA, hour, status: "active", riderId: "rider-anna", ...overrides };
+  // Odwołanie bez wskazanej strony to odwołanie jeźdźca — jak w bazie, gdzie odwołany zapis zawsze ją ma.
+  const cancelledBy = overrides.status === "cancelled" ? "rider" : null;
+  return { day: iso, horseId: BELLA, hour, status: "active", riderId: "rider-anna", cancelledBy, ...overrides };
 }
 
 function input(overrides: Partial<StatsInput> = {}): StatsInput {
@@ -163,7 +179,7 @@ describe("computeStableStats — podsumowanie okresu", () => {
   it("slot odwołany i zajęty ponownie to jedno odwołanie i jedna jazda", () => {
     const stats = computeStableStats(
       input({
-        days: [day("2026-11-05", { openHour: 10, closeHour: 11, horseIds: [BELLA] })],
+        days: [day("2026-11-05", { openHour: 10, closeHour: 11, horseIds: [BELLA], slots: [{ hour: 10, seats: 1 }] })],
         bookings: [booking("2026-11-05", 10, { status: "cancelled" }), booking("2026-11-05", 10)],
       }),
       NOW,
@@ -173,24 +189,58 @@ describe("computeStableStats — podsumowanie okresu", () => {
   });
 });
 
+/** Limit `seats` w każdej godzinie `[from, to)` — jeden instruktor. */
+function seatsEachHour(from: number, to: number, seats: number) {
+  return Array.from({ length: to - from }, (_, index) => ({ hour: from + index, seats }));
+}
+
 describe("computeStableStats — obłożenie grafiku", () => {
-  it("jazdy dzielone przez wystawione sloty: godzina z zakresu pracy × koń przydzielony do dnia", () => {
-    // 2 godziny × 2 konie = 4 sloty, 1 jazda.
-    const stats = computeStableStats(input({ days: [day("2026-11-05")], bookings: [booking("2026-11-05", 10)] }), NOW);
+  it("jazdy dzielone przez sumę limitów miejsc minionych slotów", () => {
+    // Dwóch instruktorów: o 10 limity 2 + 1, o 11 limit 1 i 0 — razem 4 miejsca, 1 jazda.
+    const stats = computeStableStats(
+      input({
+        days: [
+          day("2026-11-05", {
+            horseIds: [BELLA, KASZTAN, 3],
+            slots: [
+              { hour: 10, seats: 2 },
+              { hour: 10, seats: 1 },
+              { hour: 11, seats: 1 },
+              { hour: 11, seats: 0 },
+            ],
+          }),
+        ],
+        bookings: [booking("2026-11-05", 10)],
+      }),
+      NOW,
+    );
 
     expect(stats.summary.occupancyPercent).toBe(25);
   });
 
+  it("mianownikiem są miejsca, nie konie: koń bez wystawionego miejsca nie zaniża obłożenia", () => {
+    // 2 konie, ale jedno miejsce w każdej z 2 godzin: 2 jazdy na 2 miejsca = 100%.
+    const stats = computeStableStats(
+      input({
+        days: [day("2026-11-05", { slots: seatsEachHour(10, 12, 1) })],
+        bookings: [booking("2026-11-05", 10), booking("2026-11-05", 11, { horseId: KASZTAN })],
+      }),
+      NOW,
+    );
+
+    expect(stats.summary.occupancyPercent).toBe(100);
+  });
+
   it("do mianownika wchodzą tylko sloty, których godzina już minęła", () => {
-    // Wczoraj: 2 godziny × 1 koń = 2 sloty. Dziś o 14:30 z zakresu 12–17 minęły godziny
-    // 12 i 13 (2 sloty). Jutro: nic. Razem 4 minione sloty i 3 jazdy.
+    // Wczoraj: 2 godziny po 1 miejscu. Dziś o 14:30 z zakresu 12–17 minęły godziny
+    // 12 i 13 (2 miejsca), 14 trwa. Jutro: nic. Razem 4 minione miejsca i 3 jazdy.
     const stats = computeStableStats(
       input({
         period: { from: "2026-11-01", to: "2026-11-30" },
         days: [
-          day("2026-11-09", { horseIds: [BELLA] }),
-          day("2026-11-10", { openHour: 12, closeHour: 17, horseIds: [BELLA] }),
-          day("2026-11-11", { horseIds: [BELLA] }),
+          day("2026-11-09", { horseIds: [BELLA], slots: seatsEachHour(10, 12, 1) }),
+          day("2026-11-10", { openHour: 12, closeHour: 17, horseIds: [BELLA], slots: seatsEachHour(12, 17, 1) }),
+          day("2026-11-11", { horseIds: [BELLA], slots: seatsEachHour(10, 12, 1) }),
         ],
         bookings: [
           booking("2026-11-09", 10),
@@ -210,7 +260,11 @@ describe("computeStableStats — obłożenie grafiku", () => {
     const stats = computeStableStats(
       input({
         period: { from: "2026-11-05", to: "2026-11-05" },
-        days: [day("2026-11-04"), day("2026-11-05", { openHour: 10, closeHour: 11 }), day("2026-11-06")],
+        days: [
+          day("2026-11-04"),
+          day("2026-11-05", { openHour: 10, closeHour: 11, slots: [{ hour: 10, seats: 2 }] }),
+          day("2026-11-06"),
+        ],
         bookings: [booking("2026-11-05", 10)],
       }),
       NOW,
@@ -220,10 +274,10 @@ describe("computeStableStats — obłożenie grafiku", () => {
   });
 
   it("procent jest zaokrąglany do liczby całkowitej", () => {
-    // 1 jazda na 3 sloty (3 godziny × 1 koń).
+    // 1 jazda na 3 miejsca (3 godziny po 1 miejscu).
     const stats = computeStableStats(
       input({
-        days: [day("2026-11-05", { openHour: 10, closeHour: 13, horseIds: [BELLA] })],
+        days: [day("2026-11-05", { openHour: 10, closeHour: 13, horseIds: [BELLA], slots: seatsEachHour(10, 13, 1) })],
         bookings: [booking("2026-11-05", 10)],
       }),
       NOW,
@@ -232,7 +286,7 @@ describe("computeStableStats — obłożenie grafiku", () => {
     expect(stats.summary.occupancyPercent).toBe(33);
   });
 
-  it("wystawiony grafik bez jazd to 0%, nie brak danych", () => {
+  it("wystawione miejsca bez jazd to 0%, nie brak danych", () => {
     const stats = computeStableStats(input({ days: [day("2026-11-05")] }), NOW);
 
     expect(stats.summary.occupancyPercent).toBe(0);
@@ -240,9 +294,24 @@ describe("computeStableStats — obłożenie grafiku", () => {
 
   it.each([
     ["brak grafiku w okresie", []],
-    ["dzień bez przydzielonych koni", [day("2026-11-05", { horseIds: [] })]],
-    ["grafik tylko na dni, które nie nadeszły", [day("2026-11-11")]],
-  ])("bez minionych slotów obłożenie to brak danych, nie zero: %s", (_label, days) => {
+    ["dzień bez instruktorów: konie są, miejsc nie ma", [day("2026-11-05", { slots: [] })]],
+    ["wszystkie limity zero", [day("2026-11-05", { slots: seatsEachHour(10, 12, 0) })]],
+    ["miejsca tylko w dniach, które nie nadeszły", [day("2026-11-11")]],
+    [
+      "miejsca dziś tylko w godzinach trwających i przyszłych",
+      [
+        day("2026-11-10", {
+          openHour: 13,
+          closeHour: 16,
+          slots: [
+            { hour: 13, seats: 0 },
+            { hour: 14, seats: 2 },
+            { hour: 15, seats: 2 },
+          ],
+        }),
+      ],
+    ],
+  ])("bez miejsc w minionych slotach obłożenie to brak danych, nie zero: %s", (_label, days) => {
     const stats = computeStableStats(input({ period: { from: "2026-11-01", to: "2026-11-30" }, days }), NOW);
 
     expect(stats.summary.occupancyPercent).toBeNull();
@@ -273,7 +342,10 @@ describe("computeStableStats — okres statystyk", () => {
   it("okres bez minionych slotów, jazd i odwołań jest pusty", () => {
     // Zapis na przyszłą godzinę nie jest ani jazdą, ani odwołaniem, a jej slot jeszcze nie minął.
     const stats = computeStableStats(
-      input({ days: [day("2026-11-10", { openHour: 16, closeHour: 18 })], bookings: [booking("2026-11-10", 16)] }),
+      input({
+        days: [day("2026-11-10", { openHour: 16, closeHour: 18, slots: seatsEachHour(16, 18, 2) })],
+        bookings: [booking("2026-11-10", 16)],
+      }),
       NOW,
     );
 
@@ -301,6 +373,26 @@ describe("computeStableStats — okres statystyk", () => {
     ]);
     expect(stats.riders).toEqual([]);
     expect(stats.topRiders).toEqual([]);
+  });
+
+  it("okres z końmi w grafiku, ale bez wystawionych miejsc, nie jest pusty: brak danych obłożenia i konie z zerami", () => {
+    const stats = computeStableStats(
+      input({
+        days: [day("2026-11-05", { slots: [] })],
+        horses: [
+          { id: BELLA, name: "Bella" },
+          { id: KASZTAN, name: "Kasztan" },
+        ],
+      }),
+      NOW,
+    );
+
+    expect(stats.isEmpty).toBe(false);
+    expect(stats.summary.occupancyPercent).toBeNull();
+    expect(stats.horses.map((row) => [row.name, row.rides])).toEqual([
+      ["Bella", 0],
+      ["Kasztan", 0],
+    ]);
   });
 
   it("okres z samym odwołaniem nie jest pusty", () => {
@@ -482,6 +574,85 @@ describe("computeStableStats — tabela koni (obciążenie konia)", () => {
   });
 });
 
+describe("computeStableStats — odwołania jeźdźca i ośrodka", () => {
+  const RIDERS = [
+    { id: "rider-anna", name: "Anna Kowalska" },
+    { id: "rider-piotr", name: "Piotr Nowak" },
+  ];
+
+  it("przy jeźdźcu liczą się tylko jego własne odwołania, w okresie — odwołania obu stron", () => {
+    const stats = computeStableStats(
+      input({
+        days: [day("2026-11-05"), day("2026-11-06")],
+        riders: RIDERS,
+        bookings: [
+          booking("2026-11-05", 10, { status: "cancelled", cancelledBy: "rider", horseId: null }),
+          booking("2026-11-05", 11, { status: "cancelled", cancelledBy: "stable", horseId: null }),
+          booking("2026-11-06", 10, { status: "cancelled", cancelledBy: "stable", horseId: null }),
+          booking("2026-11-06", 11),
+        ],
+      }),
+      NOW,
+    );
+
+    expect(stats.summary.cancellations).toBe(3);
+    expect(stats.riders.map((row) => [row.name, row.rides, row.cancellations])).toEqual([["Anna Kowalska", 1, 1]]);
+  });
+
+  it("jeździec odwołany wyłącznie przez ośrodek nie trafia do tabeli jeźdźców", () => {
+    const stats = computeStableStats(
+      input({
+        days: [day("2026-11-05")],
+        riders: RIDERS,
+        bookings: [
+          booking("2026-11-05", 10),
+          booking("2026-11-05", 11, {
+            status: "cancelled",
+            cancelledBy: "stable",
+            horseId: null,
+            riderId: "rider-piotr",
+          }),
+        ],
+      }),
+      NOW,
+    );
+
+    expect(stats.summary.cancellations).toBe(1);
+    expect(stats.riders.map((row) => row.name)).toEqual(["Anna Kowalska"]);
+  });
+
+  it("odwołanie własne jeźdźca zanonimizowanego zostaje w wierszu zbiorczym", () => {
+    const stats = computeStableStats(
+      input({
+        days: [day("2026-11-05")],
+        bookings: [
+          booking("2026-11-05", 10, { status: "cancelled", cancelledBy: "rider", horseId: null, riderId: null }),
+          booking("2026-11-05", 11, { status: "cancelled", cancelledBy: "stable", horseId: null, riderId: null }),
+        ],
+      }),
+      NOW,
+    );
+
+    expect(stats.summary.cancellations).toBe(2);
+    expect(stats.riders.map((row) => [row.name, row.cancellations])).toEqual([["Usunięci jeźdźcy", 1]]);
+  });
+
+  it("odwołany zapis, którego slot zniknął po zmianie grafiku, nadal jest odwołaniem", () => {
+    // Dzień skrócony do 10–11 i instruktor wypisany: zapis o 11 nie ma już slotu.
+    const stats = computeStableStats(
+      input({
+        days: [day("2026-11-05", { openHour: 10, closeHour: 11, slots: [{ hour: 10, seats: 2 }] })],
+        riders: RIDERS,
+        bookings: [booking("2026-11-05", 11, { status: "cancelled", cancelledBy: "rider", horseId: null })],
+      }),
+      NOW,
+    );
+
+    expect(stats.summary.cancellations).toBe(1);
+    expect(stats.riders.map((row) => [row.name, row.cancellations])).toEqual([["Anna Kowalska", 1]]);
+  });
+});
+
 // #41: koń przy zapisie jest opcjonalny (ADR-0002) — statystyki muszą działać z jazdą bez konia.
 describe("computeStableStats — zapis bez konia", () => {
   it("jazda bez konia liczy się w podsumowaniu i u jeźdźca, ale nie w tabeli koni", () => {
@@ -499,6 +670,8 @@ describe("computeStableStats — zapis bez konia", () => {
     );
 
     expect(stats.summary.rides).toBe(2);
+    expect(stats.summary.rideHours).toBe(2);
+    expect(stats.rideHoursOverTime.buckets.reduce((sum, bucket) => sum + bucket.rideHours, 0)).toBe(2);
     expect(stats.horses.map((row) => [row.name, row.rides])).toEqual([
       ["Bella", 1],
       ["Kasztan", 0],

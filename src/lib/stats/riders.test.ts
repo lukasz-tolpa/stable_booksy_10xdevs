@@ -15,7 +15,9 @@ function booking(
   riderId: string | null,
   overrides: Partial<StatsBooking> = {},
 ): StatsBooking {
-  return { day: iso, horseId: BELLA, hour, status: "active", riderId, ...overrides };
+  // Odwołanie bez wskazanej strony to odwołanie własne jeźdźca.
+  const cancelledBy = overrides.status === "cancelled" ? "rider" : null;
+  return { day: iso, horseId: BELLA, hour, status: "active", riderId, cancelledBy, ...overrides };
 }
 
 function input(overrides: Partial<StatsInput> = {}): StatsInput {
@@ -268,8 +270,19 @@ describe("computeStableStats — zapisy bez jeźdźca (jeźdźcy zanonimizowani)
   it("jazdy i odwołania bez jeźdźca wchodzą do podsumowania, obłożenia i obciążenia koni", () => {
     const stats = computeStableStats(
       input({
-        // Jeden dzień, godziny 10–12, dwa konie: 4 minione sloty.
-        days: [{ day: "2026-11-03", openHour: 10, closeHour: 12, horseIds: [BELLA, KASZTAN] }],
+        // Jeden dzień, godziny 10–12, dwa konie, 2 miejsca w każdej godzinie: 4 minione miejsca.
+        days: [
+          {
+            day: "2026-11-03",
+            openHour: 10,
+            closeHour: 12,
+            horseIds: [BELLA, KASZTAN],
+            slots: [
+              { hour: 10, seats: 2 },
+              { hour: 11, seats: 2 },
+            ],
+          },
+        ],
         bookings: [
           booking("2026-11-03", 10, null, { horseId: BELLA }),
           booking("2026-11-03", 11, null, { horseId: BELLA }),
