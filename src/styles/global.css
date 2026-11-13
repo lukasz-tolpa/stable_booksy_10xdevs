@@ -174,3 +174,13 @@
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
+
+/* Nagłówek sekcji strony głównej („Jeden dzień…” i jej zamknięcie) — DESIGN.md §6 */
+@utility landing-heading {
+  margin: 0;
+  font-size: clamp(32px, 4vw, 52px);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+}
