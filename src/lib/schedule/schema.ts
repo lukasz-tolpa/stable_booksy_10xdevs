@@ -16,12 +16,10 @@ const hourFields = {
   closeHour: z.coerce.number().int().min(1, { error: CLOSE_HOUR_MESSAGE }).max(24, { error: CLOSE_HOUR_MESSAGE }),
 };
 
-const hoursOrder = [
-  (data: { openHour: number; closeHour: number }) => data.closeHour > data.openHour,
-  { error: HOURS_ORDER_MESSAGE, path: ["closeHour"] },
-] as const;
+const hoursInOrder = (data: { openHour: number; closeHour: number }) => data.closeHour > data.openHour;
+const hoursOrder = { error: HOURS_ORDER_MESSAGE, path: ["closeHour"] };
 
-const scheduleHoursSchema = z.object(hourFields).refine(...hoursOrder);
+const scheduleHoursSchema = z.object(hourFields).refine(hoursInOrder, hoursOrder);
 
 /**
  * Walidacja godzin pracy po stronie klienta: pierwszy komunikat schematu grafiku albo `null`.
@@ -73,7 +71,7 @@ export const scheduleDaySchema = z
       }),
     ),
   })
-  .refine(...hoursOrder);
+  .refine(hoursInOrder, hoursOrder);
 
 export type ScheduleDayInput = z.infer<typeof scheduleDaySchema>;
 
