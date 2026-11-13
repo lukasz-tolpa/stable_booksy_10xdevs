@@ -9,6 +9,7 @@ import FailureState from "@/components/ui/FailureState.astro";
 import { ROLE_HOME } from "@/lib/auth/roles";
 import { getRiderBookings } from "@/lib/bookings/queries";
 import { splitRiderBookings, type RiderBookingSections } from "@/lib/bookings/rider-list";
+import { formatClockHour } from "@/lib/format";
 import { createClient } from "@/lib/supabase";
 import { logError } from "@/lib/log";
 
@@ -91,7 +92,7 @@ function formatDay(day: string): string {
               {sections.upcoming.map((row) => (
                 <li>
                   <span class="row__when">
-                    {formatDay(row.day)}, {row.hour}:00
+                    {formatDay(row.day)}, {formatClockHour(row.hour)}
                   </span>
                   {/* Ośrodek i instruktor siedzą w tym samym wierszu co przycisk -
                       scenariusz odwołania zawęża <li> po nich naraz. */}
@@ -124,7 +125,7 @@ function formatDay(day: string): string {
               {sections.history.map((row) => (
                 <li>
                   <span class="row__when">
-                    {formatDay(row.day)}, {row.hour}:00
+                    {formatDay(row.day)}, {formatClockHour(row.hour)}
                   </span>
                   <span class="row__meta">
                     <span class="row__sub">{row.stableName}</span>

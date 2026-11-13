@@ -6,6 +6,16 @@ export const STABLE_DAY_BOOKINGS_ROUTE = "/osrodek/zapisy";
 /** Wartości `sukces=` rozpoznawane przez stronę listy dnia. */
 export type StableBookingOutcome = "przydzial" | "odwolanie";
 
+const SUCCESS_MESSAGES: Record<StableBookingOutcome, string> = {
+  przydzial: "Przydział konia zapisany.",
+  odwolanie: "Zapis został odwołany. Miejsce w slocie wróciło do puli wolnych.",
+};
+
+/** Potwierdzenie na liście dnia dla parametru `sukces=`; `null` — brak albo nieznana wartość. */
+export function stableBookingSuccessMessage(value: string | null): string | null {
+  return value === "przydzial" || value === "odwolanie" ? SUCCESS_MESSAGES[value] : null;
+}
+
 /**
  * Powrót na listę dnia z wynikiem akcji. `day` może być `null` (np. nieczytelne pole
  * formularza) — wtedy strona pokazuje swój domyślny dzień.

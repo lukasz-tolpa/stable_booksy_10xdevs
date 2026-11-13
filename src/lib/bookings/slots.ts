@@ -30,6 +30,17 @@ export interface MySlot {
  */
 export type SlotStatus = "free" | "mine" | "full" | "unavailable";
 
+const SLOT_STATUS_LABELS: Record<Exclude<SlotStatus, "free">, string> = {
+  mine: "Twój zapis",
+  full: "Brak miejsc",
+  unavailable: "Masz już zapis o tej godzinie",
+};
+
+/** Podpis pigułki slotu, na który nie da się zapisać; `null` — wolny slot ma przycisk zapisu. */
+export function slotStatusLabel(status: SlotStatus): string | null {
+  return status === "free" ? null : SLOT_STATUS_LABELS[status];
+}
+
 export interface RiderSlot {
   instructorId: number;
   instructorName: string;

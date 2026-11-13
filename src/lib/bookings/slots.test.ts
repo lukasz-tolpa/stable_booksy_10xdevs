@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { computeSlotHours, currentWarsawHour, hasSlotStarted, type SlotHoursInput } from "@/lib/bookings/slots";
+import {
+  computeSlotHours,
+  currentWarsawHour,
+  hasSlotStarted,
+  slotStatusLabel,
+  type SlotHoursInput,
+} from "@/lib/bookings/slots";
 
 const JOANNA = { id: 1, name: "Joanna Wrona" };
 const KAROL = { id: 2, name: "Karol Jasny" };
@@ -178,6 +184,20 @@ describe("computeSlotHours", () => {
     );
 
     expect(hours[0].slots[0]).toMatchObject({ freeSeats: 0, status: "full" });
+  });
+});
+
+describe("slotStatusLabel", () => {
+  // Kontrakt lokatorów (test-plan §6.3): pigułki „Twój zapis”, „Brak miejsc”,
+  // „Masz już zapis o tej godzinie”; wolny slot ma przycisk, nie pigułkę.
+  it("daje podpis pigułki dla slotu, na który nie da się zapisać", () => {
+    expect(slotStatusLabel("mine")).toBe("Twój zapis");
+    expect(slotStatusLabel("full")).toBe("Brak miejsc");
+    expect(slotStatusLabel("unavailable")).toBe("Masz już zapis o tej godzinie");
+  });
+
+  it("wolny slot nie ma pigułki", () => {
+    expect(slotStatusLabel("free")).toBeNull();
   });
 });
 

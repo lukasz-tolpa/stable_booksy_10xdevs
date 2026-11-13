@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { instructorDefaults } from "@/lib/schedule/form";
+import { horseDefaults, instructorDefaults, pastDaySummary } from "@/lib/schedule/form";
 import type { ScheduleDayData } from "@/lib/schedule/queries";
 
 const ania = { id: 1, name: "Ania", active: true };
@@ -50,6 +50,64 @@ describe("instructorDefaults", () => {
       selectedInstructorIds: [],
       seats: [],
       selectableInstructors: [ania, celina],
+    });
+  });
+});
+
+const bella = { id: 1, name: "Bella", notes: null, active: true };
+const grom = { id: 2, name: "Grom", notes: null, active: false };
+const iskra = { id: 3, name: "Iskra", notes: null, active: true };
+const horses = [bella, grom, iskra];
+
+function horseDay(horseIds: number[], openHour = 10, closeHour = 16): ScheduleDayData {
+  return { id: 10, day: "2030-05-14", openHour, closeHour, horseIds, instructorIds: [], seats: [] };
+}
+
+describe("horseDefaults", () => {
+  it("ułożony dzień pokazuje swoje godziny i konie, także konia wycofanego po ułożeniu", () => {
+    expect(horseDefaults(horseDay([1, 2], 9, 15), horseDay([3]), horses)).toEqual({
+      openHour: 9,
+      closeHour: 15,
+      selectedHorseIds: [1, 2],
+      selectableHorses: [bella, grom, iskra],
+    });
+  });
+
+  it("nowy dzień podpowiada godziny i konie z ostatniego dnia; wycofany koń zostaje, bo jest zaznaczony", () => {
+    expect(horseDefaults(null, horseDay([2]), horses)).toEqual({
+      openHour: 10,
+      closeHour: 16,
+      selectedHorseIds: [2],
+      selectableHorses: [bella, grom, iskra],
+    });
+  });
+
+  it("bez żadnego ułożonego dnia pola są puste, a do wyboru tylko aktywne konie", () => {
+    expect(horseDefaults(null, null, horses)).toEqual({
+      openHour: "",
+      closeHour: "",
+      selectedHorseIds: [],
+      selectableHorses: [bella, iskra],
+    });
+  });
+});
+
+describe("pastDaySummary", () => {
+  it("wymienia konie i instruktorów dnia w kolejności list stadniny", () => {
+    const past: ScheduleDayData = { ...horseDay([3, 1]), instructorIds: [3, 2] };
+
+    expect(pastDaySummary(past, horses, instructors)).toEqual({
+      hours: "10–16",
+      horseNames: "Bella, Iskra",
+      instructorNames: "Basia, Celina",
+    });
+  });
+
+  it("dzień bez koni i instruktorów mówi „brak”", () => {
+    expect(pastDaySummary(horseDay([]), horses, instructors)).toEqual({
+      hours: "10–16",
+      horseNames: "brak",
+      instructorNames: "brak",
     });
   });
 });
