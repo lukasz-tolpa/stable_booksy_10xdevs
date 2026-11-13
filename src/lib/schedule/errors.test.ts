@@ -11,10 +11,33 @@ import {
   SCHEDULE_HOURS_CONFLICT,
   SEATS_BELOW_BOOKINGS,
   SEATS_EXCEED_HORSES,
+  isScheduleRefusal,
   parseRefusalDetail,
   pluralizeBookings,
   scheduleErrorMessage,
 } from "@/lib/schedule/errors";
+
+describe("isScheduleRefusal", () => {
+  it.each([
+    SCHEDULE_DATE_CONFLICT,
+    SCHEDULE_HOURS_CONFLICT,
+    FOREIGN_KEY_VIOLATION,
+    HORSE_NOT_IN_STABLE,
+    HORSE_HAS_BOOKINGS,
+    INSTRUCTOR_NOT_IN_STABLE,
+    INSTRUCTOR_INACTIVE,
+    SEATS_EXCEED_HORSES,
+    SCHEDULE_DAY_PAST,
+    SEATS_BELOW_BOOKINGS,
+    INSTRUCTOR_HAS_BOOKINGS,
+  ])("kod %s to odmowa reguły grafiku", (code) => {
+    expect(isScheduleRefusal(code)).toBe(true);
+  });
+
+  it.each([[undefined], [""], ["42501"], ["22023"], ["PGRST301"]])("kod %s to awaria warta logu", (code) => {
+    expect(isScheduleRefusal(code)).toBe(false);
+  });
+});
 
 describe("pluralizeBookings", () => {
   it("odmienia poprawnie", () => {

@@ -4,7 +4,8 @@ import { firstErrorMessage } from "@/lib/auth/schemas";
 import { errorCode, errorDetails } from "@/lib/db-errors";
 import { formValue } from "@/lib/form-data";
 import { isPastDate, parseScheduleDate } from "@/lib/schedule/dates";
-import { SCHEDULE_DAY_PAST, scheduleErrorMessage } from "@/lib/schedule/errors";
+import { logError } from "@/lib/log";
+import { SCHEDULE_DAY_PAST, isScheduleRefusal, scheduleErrorMessage } from "@/lib/schedule/errors";
 import { saveScheduleDay } from "@/lib/schedule/queries";
 import { parseScheduleDayForm } from "@/lib/schedule/schema";
 import { getOwnedStableId } from "@/lib/stables/queries";
@@ -63,7 +64,11 @@ export const POST: APIRoute = async (context) => {
     await saveScheduleDay(supabase, parsed.data);
   } catch (error) {
     // Guardraile żyją w bazie; tutaj wyłącznie tłumaczymy ich kody (i liczby z DETAIL) na komunikat.
-    return backToDay(context, parsed.data.day, scheduleErrorMessage(errorCode(error), errorDetails(error)));
+    const code = errorCode(error);
+    if (!isScheduleRefusal(code)) {
+      logError("api:schedule/save", error);
+    }
+    return backToDay(context, parsed.data.day, scheduleErrorMessage(code, errorDetails(error)));
   }
 
   return backToDay(context, parsed.data.day);

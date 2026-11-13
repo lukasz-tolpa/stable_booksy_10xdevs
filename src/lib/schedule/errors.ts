@@ -40,6 +40,25 @@ export const INSTRUCTOR_HAS_BOOKINGS = "SB011";
 
 const FALLBACK = "Nie udało się zapisać grafiku. Spróbuj ponownie.";
 
+const REFUSAL_CODES = new Set<string>([
+  SCHEDULE_DATE_CONFLICT,
+  SCHEDULE_HOURS_CONFLICT,
+  FOREIGN_KEY_VIOLATION,
+  HORSE_NOT_IN_STABLE,
+  HORSE_HAS_BOOKINGS,
+  INSTRUCTOR_NOT_IN_STABLE,
+  INSTRUCTOR_INACTIVE,
+  SEATS_EXCEED_HORSES,
+  SCHEDULE_DAY_PAST,
+  SEATS_BELOW_BOOKINGS,
+  INSTRUCTOR_HAS_BOOKINGS,
+]);
+
+/** Czy kod to odmowa reguły grafiku (decyzja ośrodka), a nie awaria warta logu. */
+export function isScheduleRefusal(code: string | undefined): boolean {
+  return code !== undefined && REFUSAL_CODES.has(code);
+}
+
 /**
  * Liczby odmowy z pola DETAIL błędu bazy (PostgREST: `details`). Kontrakt z migracją
  * `20261116090000_structured_schedule_refusal_details.sql`: obiekt JSON z kluczami
