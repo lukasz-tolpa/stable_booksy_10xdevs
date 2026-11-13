@@ -106,7 +106,7 @@ const homeRoute = role ? homeRouteForRole(role) : null;
     display: inline-flex;
     align-items: center;
     flex: none;
-    font-size: 34px;
+    font-size: 28px;
   }
   .brand:focus-visible {
     outline: 2px solid var(--primary);
@@ -269,7 +269,7 @@ const homeRoute = role ? homeRouteForRole(role) : null;
      marka mieszczą je także na 320 px. */
   @media (width < 768px) {
     .brand {
-      font-size: 30px;
+      font-size: 25px;
     }
     .nav-links a,
     .nav-links button {
@@ -279,7 +279,7 @@ const homeRoute = role ? homeRouteForRole(role) : null;
   }
 
   /* Tylko pasek gościa: obok logo stoją dwa linki, więc odstęp maleje do 8 px.
-     Logo dwuwierszowe ma 86 px szerokości przy 30 px, więc razem z linkami mieści
+     Logo dwuwierszowe ma 71 px szerokości przy 25 px, więc razem z linkami mieści
      się w jednym rzędzie od 320 px. U zalogowanego obok logo stoi sam przycisk menu. */
   @media (width < 768px) {
     .nav--guest .nav-inner {

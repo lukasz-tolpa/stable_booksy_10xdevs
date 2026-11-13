@@ -94,11 +94,11 @@ obrysem niczego innego i nie stoi na jasnym tle.
   jeden komponent `src/components/Logo.astro`, jeden układ na dwóch tłach;
   pisownię trzyma `src/lib/brand.ts`. Bez pliku graficznego; ikoną zostaje
   biała głowa konia.
-  - **Układ** — dwa wiersze wyrównane do lewej: „get on a" (600, 0,344 wysokości
+  - **Układ** — dwa wiersze wyrównane do lewej: „get on a" (600, 0,55 wysokości
     dolnego wiersza, naturalna interlinia kroju, `word-spacing: 0.18em`) nad
     „.horse" (800, `letter-spacing: -0.05em`, `line-height: 0.95`). Rozmiar
     (wysokość „.horse") ustawia miejsce użycia.
-  - **Górny pasek** (jasne tło, każdy ekran): 34 px, poniżej 768 px 30 px;
+  - **Górny pasek** (jasne tło, każdy ekran): 28 px, poniżej 768 px 25 px;
     „get on a" w `--primary-strong`, „.horse" w `--accent` (4,84:1 na bieli).
     W pasku gościa (`nav--guest`), gdzie obok logo stoją dwa linki, odstęp
     maleje poniżej 768 px do 8 px; całość mieści się w jednym rzędzie od 320 px.
