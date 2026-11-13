@@ -92,6 +92,8 @@ async function findStablePath(page) {
 async function shoot(page, viewport, name, url) {
   await page.goto(url);
   await waitForIslands(page);
+  // Pasek narzędzi Astro istnieje tylko na serwerze deweloperskim i zasłania treść.
+  await page.addStyleTag({ content: "astro-dev-toolbar { display: none !important; }" });
   const file = path.join(OUT_DIR, viewport, `${name}.png`);
   await page.screenshot({ path: file, fullPage: true });
   process.stdout.write(`${path.relative(process.cwd(), file)}\n`);
@@ -129,6 +131,7 @@ try {
     await shoot(stablePage, viewport.name, "stable-panel", `${BASE_URL}/osrodek`);
     await shoot(stablePage, viewport.name, "stable-schedule", `${BASE_URL}/osrodek/grafik`);
     await shoot(stablePage, viewport.name, "stable-horses", `${BASE_URL}/osrodek/konie`);
+    await shoot(stablePage, viewport.name, "stable-instructors", `${BASE_URL}/osrodek/instruktorzy`);
     await shoot(stablePage, viewport.name, "stable-bookings", `${BASE_URL}/osrodek/zapisy`);
     await shoot(stablePage, viewport.name, "stable-stats", `${BASE_URL}/osrodek/statystyki`);
     await stable.close();
