@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   fillAll,
   lastRideLabel,
+  parseSeatInput,
   seatKey,
   sheetRows,
   stepSeat,
@@ -49,7 +50,7 @@ describe("fillAll", () => {
     );
   });
 
-  it("nie zmienia szkicu, z którego liczy", () => {
+  it("nie zmienia limitów, z których liczy", () => {
     const seats = seatMap([[KAROL, 10, 1]]);
 
     fillAll(seats, KAROL, [10], 3);
@@ -85,8 +86,8 @@ describe("sheetRows", () => {
     ]);
 
     expect(sheetRows([10, 11], [KAROL, OLA], seats, 3)).toEqual([
-      { hour: 10, total: 2, load: "free" },
-      { hour: 11, total: 2, load: "free" },
+      { hour: 10, total: 2, fill: "free" },
+      { hour: 11, total: 2, fill: "free" },
     ]);
   });
 
@@ -98,25 +99,46 @@ describe("sheetRows", () => {
       [OLA, 11, 2],
     ]);
 
-    expect(sheetRows([10, 11], [KAROL, OLA], seats, 3).map((row) => row.load)).toEqual(["full", "over"]);
+    expect(sheetRows([10, 11], [KAROL, OLA], seats, 3).map((row) => row.fill)).toEqual(["full", "over"]);
   });
 
-  it("odznaczony instruktor nie wlicza się do sumy, choć szkic pamięta jego limity", () => {
+  it("odznaczony instruktor nie wlicza się do sumy, choć formularz pamięta jego limity", () => {
     const seats = seatMap([
       [KAROL, 10, 1],
       [OLA, 10, 3],
     ]);
 
-    expect(sheetRows([10], [KAROL], seats, 2)).toEqual([{ hour: 10, total: 1, load: "free" }]);
+    expect(sheetRows([10], [KAROL], seats, 2)).toEqual([{ hour: 10, total: 1, fill: "free" }]);
+  });
+
+  it("godzina bez wystawionych miejsc przy koniach w dniu jest wolna, a nie pełna", () => {
+    expect(sheetRows([10], [KAROL], {}, 2)).toEqual([{ hour: 10, total: 0, fill: "free" }]);
   });
 
   it("dzień bez koni: godzina bez miejsc jest wolna, a każde wystawione miejsce ją przekracza", () => {
     const seats = seatMap([[KAROL, 11, 1]]);
 
     expect(sheetRows([10, 11], [KAROL], seats, 0)).toEqual([
-      { hour: 10, total: 0, load: "free" },
-      { hour: 11, total: 1, load: "over" },
+      { hour: 10, total: 0, fill: "free" },
+      { hour: 11, total: 1, fill: "over" },
     ]);
+  });
+});
+
+describe("parseSeatInput", () => {
+  it("liczba całkowita z pola to limit miejsc", () => {
+    expect(parseSeatInput("3")).toBe(3);
+    expect(parseSeatInput(" 12 ")).toBe(12);
+  });
+
+  it("puste pole, ujemna liczba albo tekst to limit 0", () => {
+    expect(parseSeatInput("")).toBe(0);
+    expect(parseSeatInput("-2")).toBe(0);
+    expect(parseSeatInput("abc")).toBe(0);
+  });
+
+  it("ułamek obcina do całych miejsc", () => {
+    expect(parseSeatInput("2.7")).toBe(2);
   });
 });
 
@@ -133,33 +155,42 @@ describe("stepSeat", () => {
 
 describe("lastRideLabel", () => {
   it("zakres 10–16 mówi, że ostatnia jazda jest o 15:00", () => {
-    expect(lastRideLabel(10, 16)).toBe("ostatnia jazda o 15:00");
+    expect(lastRideLabel("10", "16")).toBe("ostatnia jazda o 15:00");
   });
 
   it("pusty i odwrócony zakres nie mają ostatniej jazdy", () => {
-    expect(lastRideLabel(12, 12)).toBeNull();
-    expect(lastRideLabel(16, 10)).toBeNull();
+    expect(lastRideLabel("12", "12")).toBeNull();
+    expect(lastRideLabel("16", "10")).toBeNull();
+  });
+
+  it("niewybrana godzina nie ma ostatniej jazdy", () => {
+    expect(lastRideLabel("", "16")).toBeNull();
   });
 });
 
 describe("workingHours", () => {
   it("zakres 10–16 daje godziny jazd od 10 do 15 (zamknięcie wyłącznie)", () => {
-    expect(workingHours(10, 16)).toEqual([10, 11, 12, 13, 14, 15]);
+    expect(workingHours("10", "16")).toEqual([10, 11, 12, 13, 14, 15]);
   });
 
   it("pusty i odwrócony zakres nie dają żadnej godziny", () => {
-    expect(workingHours(12, 12)).toEqual([]);
-    expect(workingHours(16, 10)).toEqual([]);
+    expect(workingHours("12", "12")).toEqual([]);
+    expect(workingHours("16", "10")).toEqual([]);
+  });
+
+  it("niewybrana godzina otwarcia albo zamknięcia nie daje żadnej godziny (a nie zakresu od 0:00)", () => {
+    expect(workingHours("", "3")).toEqual([]);
+    expect(workingHours("10", "")).toEqual([]);
   });
 
   it("zakres poza dobą albo z ułamkiem godziny nie daje żadnej godziny", () => {
-    expect(workingHours(-1, 3)).toEqual([]);
-    expect(workingHours(22, 25)).toEqual([]);
-    expect(workingHours(10.5, 12)).toEqual([]);
-    expect(workingHours(Number.NaN, 12)).toEqual([]);
+    expect(workingHours("-1", "3")).toEqual([]);
+    expect(workingHours("22", "25")).toEqual([]);
+    expect(workingHours("10.5", "12")).toEqual([]);
+    expect(workingHours("abc", "12")).toEqual([]);
   });
 
   it("cała doba to godziny od 0 do 23", () => {
-    expect(workingHours(0, 24)).toHaveLength(24);
+    expect(workingHours("0", "24")).toHaveLength(24);
   });
 });

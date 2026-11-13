@@ -33,10 +33,13 @@ export function horseDefaults(
 }
 
 /**
- * Data dnia, z którego pochodzi szkic formularza (baner na górze), albo `null`. Baner dostaje
+ * Data dnia, z którego pochodzi szkic (baner na górze formularza), albo `null`. Baner dostaje
  * tylko dzień nieułożony z podpowiedzią — przy edycji ułożonego dnia by mylił.
  */
-export function prefillFrom(scheduleDay: ScheduleDayData | null, latestDay: ScheduleDayData | null): string | null {
+export function prefillSourceDay(
+  scheduleDay: ScheduleDayData | null,
+  latestDay: ScheduleDayData | null,
+): string | null {
   return scheduleDay ? null : (latestDay?.day ?? null);
 }
 
