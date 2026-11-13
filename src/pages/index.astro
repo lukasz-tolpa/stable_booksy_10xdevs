@@ -47,12 +47,8 @@ const structuredData = homeStructuredData(requireSite(Astro.site, "dane struktur
        te same nazwy, więc rozróżnia je region (test-plan §6.3). -->
   <main class="landing">
     <div class="halves">
-      <!-- Zdanie definiujące i frazy pod hasłami (#67) są tekstem, nie nagłówkami: struktura
-           h1/h2 połów zostaje bez zmian. Treść ta sama dla gościa i zalogowanego. -->
-      <p class="definition">
-        getona.horse to aplikacja do zapisów na jazdy konne: jeździec zapisuje się na wolne miejsce u instruktora, a
-        ośrodek jeździecki układa grafik dnia i przydziela konie.
-      </p>
+      <!-- Frazy pod hasłami (#67) są tekstem, nie nagłówkami: struktura h1/h2 połów
+           zostaje bez zmian. Treść ta sama dla gościa i zalogowanego. -->
       <section class="half half--rider" aria-labelledby="rider-heading">
         <div class="half__inner">
           <hgroup class="half__head">
@@ -187,6 +183,11 @@ const structuredData = homeStructuredData(requireSite(Astro.site, "dane struktur
 
     <section class="closing container-page" aria-labelledby="closing-heading">
       <h2 id="closing-heading" class="landing-heading">{DAY_CLOSING_HEADING}</h2>
+      <!-- Zdanie definiujące (#67) stoi tu, a nie nad połowami: nad nimi rozbijało pierwszy widok. -->
+      <p class="definition">
+        getona.horse to aplikacja do zapisów na jazdy konne: jeździec zapisuje się na wolne miejsce u instruktora, a
+        ośrodek jeździecki układa grafik dnia i przydziela konie.
+      </p>
       {
         entries.closing.length > 0 && (
           <div class="closing__actions">
@@ -243,7 +244,7 @@ const structuredData = homeStructuredData(requireSite(Astro.site, "dane struktur
   @media (width >= 900px) {
     .halves {
       grid-template-columns: 1fr 1fr;
-      grid-template-rows: auto 1fr auto;
+      grid-template-rows: 1fr auto;
       /* 1 px to hairline pod górnym paskiem - bez niego strona przewijałaby się o piksel. */
       min-height: calc(100dvh - var(--nav-h) - 1px);
     }
@@ -251,9 +252,7 @@ const structuredData = homeStructuredData(requireSite(Astro.site, "dane struktur
        w jednej linii mimo różnej wysokości ilustracji. */
     .half {
       align-items: start;
-      /* Mały górny odstęp, bo nad połowami stoi zdanie definiujące - przyciski obu połów
-         mają się zmieścić w pierwszym widoku 1440×900 (e2e strony głównej). */
-      padding-block: clamp(36px, 6vh, 140px) 56px;
+      padding-block: clamp(56px, 11vh, 140px) 56px;
     }
     .half--rider .half__inner {
       justify-self: end;
@@ -263,13 +262,10 @@ const structuredData = homeStructuredData(requireSite(Astro.site, "dane struktur
     }
   }
 
-  /* Zdanie definiujące nad połowami: na `--bg`, tekst `--fg`, wyśrodkowane (DESIGN.md §6). */
+  /* Zdanie definiujące pod nagłówkiem zamknięcia: na `--bg`, tekst `--fg` (DESIGN.md §6). */
   .definition {
-    grid-column: 1 / -1;
-    justify-self: center;
     max-width: 760px;
     margin: 0;
-    padding: 20px 18px;
     text-align: center;
     font-size: 17px;
     line-height: 1.5;

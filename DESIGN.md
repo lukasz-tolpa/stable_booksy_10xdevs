@@ -151,9 +151,9 @@ bez zdjęć.
 - **Nagłówki** obu połów wyglądają tak samo: 800, `clamp(44px, 5.8vw, 86px)`,
   `letter-spacing: -0.05em` — skala większa niż w §3, tylko tutaj. „Jeżdżę
   konno." to jedyne `h1` strony, „Prowadzę ośrodek." to `h2`.
-- **Zdanie definiujące** stoi nad obiema połowami, na `--bg`, w pierwszym
-  wierszu siatki połów (od 900 px na całą szerokość, więc połowy i linia o
-  logowaniu nadal razem wypełniają okno): „getona.horse to aplikacja do zapisów
+- **Zdanie definiujące** stoi w zamknięciu „Jeden dzień”, pod jego
+  nagłówkiem i nad przyciskami, na `--bg` — nie nad połowami, bo tam rozbijało
+  pierwszy widok: „getona.horse to aplikacja do zapisów
   na jazdy konne: jeździec zapisuje się na wolne miejsce u instruktora, a ośrodek
   jeździecki układa grafik dnia i przydziela konie." Body Inter 17 px,
   `line-height: 1.5`, `--fg`, wyśrodkowane, `max-width: 760px`. Kontrast
