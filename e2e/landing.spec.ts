@@ -29,14 +29,32 @@ const stableHalf = (page: Page) => region(page, "Prowadzę ośrodek.");
 const daySection = (page: Page) => region(page, DAY_HEADING);
 const closing = (page: Page) => region(page, "Jutro może tak wyglądać Twój dzień.");
 
-/** Zrzuty ładują się leniwie: każdy trzeba przewinąć w pole widzenia i poczekać na plik. */
+/**
+ * Zrzuty ładują się leniwie: każdy trzeba przewinąć w pole widzenia i poczekać na plik.
+ * Wymiary zadeklarowane w znaczniku, z którego przeglądarka wzięła plik (`<source>` albo
+ * `<img>`), muszą być wymiarami samego pliku — pochodzą z manifestu skryptu zrzutów,
+ * a przeglądarka rezerwuje z nich miejsce, zanim plik się załaduje.
+ */
 async function expectDayShotsLoaded(page: Page): Promise<void> {
   const shots = daySection(page).getByRole("img");
   await expect(shots).toHaveCount(DAY_SHOT_COUNT);
   for (const shot of await shots.all()) {
     await shot.scrollIntoViewIfNeeded();
-    await expect.poll(() => shot.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
-    await expect.poll(() => shot.evaluate((img: HTMLImageElement) => img.naturalHeight)).toBeGreaterThan(0);
+    await expect.poll(() => shot.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
+    const sizes = await shot.evaluate((img: HTMLImageElement) => {
+      const file = new URL(img.currentSrc).pathname;
+      const declaring = [...(img.parentElement?.querySelectorAll("source") ?? []), img].find(
+        (element) => (element.getAttribute("srcset") ?? element.getAttribute("src")) === file,
+      );
+      return {
+        file,
+        declared: declaring
+          ? [Number(declaring.getAttribute("width")), Number(declaring.getAttribute("height"))]
+          : null,
+        natural: [img.naturalWidth, img.naturalHeight],
+      };
+    });
+    expect(sizes.declared, `wymiary zadeklarowane na stronie dla ${sizes.file}`).toEqual(sizes.natural);
   }
 }
 

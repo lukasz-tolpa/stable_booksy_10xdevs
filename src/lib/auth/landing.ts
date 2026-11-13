@@ -7,13 +7,24 @@ export interface LandingAction {
   href: string;
 }
 
+/** Przycisk zamknięcia sekcji „Jeden dzień”: wejście połowy razem z rolą, do której należy. */
+export interface LandingClosingAction extends LandingAction {
+  role: UserRole;
+}
+
 /**
- * Wejścia strony głównej: przycisk każdej połowy (`null` = połowa bez przycisku)
- * i adres logowania dla linii „Masz już konto?” (`null` = linii nie ma).
+ * Wejścia strony głównej: przycisk każdej połowy (`null` = połowa bez przycisku),
+ * adres logowania dla linii „Masz już konto?” (`null` = linii nie ma) i przyciski
+ * zamknięcia sekcji „Jeden dzień” - te same wejścia co w połowach, w ich kolejności
+ * (pusta lista = zamknięcie bez przycisków).
  */
 export type LandingEntries = Record<UserRole, LandingAction | null> & {
   signInRoute: string | null;
+  closing: LandingClosingAction[];
 };
+
+/** Kolejność połów na stronie - w tej samej stoją przyciski zamknięcia. */
+const HALVES = ["rider", "stable"] as const satisfies readonly UserRole[];
 
 const SIGNUP_LABELS: Record<UserRole, string> = {
   rider: "Załóż konto jeźdźca",
@@ -32,14 +43,23 @@ export type LandingVisitor = { profileRole: string | null | undefined } | null;
  * Co strona główna proponuje odwiedzającemu. Gość dostaje w każdej połowie rejestrację
  * jej roli i linię o logowaniu. Zalogowany dostaje „Mój panel” w połowie swojej roli,
  * pod adresem z tej samej tabeli ról co górny pasek; profil bez rozpoznanej roli nie
- * dostaje żadnego przycisku.
+ * dostaje żadnego przycisku. Zamknięcie sekcji „Jeden dzień” powtarza przyciski połów:
+ * połowa bez przycisku nie ma go też tam.
  */
 export function landingEntries(visitor: LandingVisitor): LandingEntries {
+  const halves = halfActions(visitor);
+  const closing = HALVES.flatMap((role) => {
+    const action = halves[role];
+    return action ? [{ role, ...action }] : [];
+  });
+  return { ...halves, signInRoute: visitor === null ? SIGN_IN_ROUTE : null, closing };
+}
+
+function halfActions(visitor: LandingVisitor): Record<UserRole, LandingAction | null> {
   if (visitor === null) {
     return {
       rider: { label: SIGNUP_LABELS.rider, href: signupRouteForRole("rider") },
       stable: { label: SIGNUP_LABELS.stable, href: signupRouteForRole("stable") },
-      signInRoute: SIGN_IN_ROUTE,
     };
   }
 
@@ -47,5 +67,5 @@ export function landingEntries(visitor: LandingVisitor): LandingEntries {
   const home = (half: UserRole): LandingAction | null =>
     role === half ? { label: HOME_LABEL, href: homeRouteForRole(half) } : null;
 
-  return { rider: home("rider"), stable: home("stable"), signInRoute: null };
+  return { rider: home("rider"), stable: home("stable") };
 }

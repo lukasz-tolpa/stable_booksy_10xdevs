@@ -298,7 +298,9 @@ local role authenticated; set local request.jwt.claims =
   (each `<section>` is `aria-labelledby` its heading; renaming a heading
   renames the region) — and the sign-in link under the halves to `main`. The
   section's screenshots are `loading="lazy"`: scroll each into view before
-  asserting `naturalWidth`. The page's interface illustrations
+  asserting `naturalWidth`; the same step compares the natural size with the
+  `width`/`height` declared on the `<source>` or `<img>` the browser picked
+  (they come from the `npm run shots:day` manifest). The page's interface illustrations
   are `aria-hidden` and hold no `button`, so "Zapisz się" there never matches a
   role locator. Before adding prose to a screen,
   check it does not repeat a validation message verbatim — a lead paragraph

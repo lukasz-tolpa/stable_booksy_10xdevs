@@ -9,7 +9,7 @@ const WIDE = "(width >= 900px)";
 ---
 
 <section class="day container-page" aria-labelledby="day-heading">
-  <h2 id="day-heading" class="day__heading">{DAY_HEADING}</h2>
+  <h2 id="day-heading" class="day__heading landing-heading">{DAY_HEADING}</h2>
   <ol class="day__list">
     {
       DAY_MOMENTS.map((moment) => (
@@ -56,14 +56,6 @@ const WIDE = "(width >= 900px)";
 <style>
   .day {
     padding-block: 72px 24px;
-  }
-  .day__heading {
-    margin: 0;
-    font-size: clamp(32px, 4vw, 52px);
-    font-weight: 800;
-    line-height: 1.05;
-    letter-spacing: -0.04em;
-    text-wrap: balance;
   }
   .day__list {
     position: relative;

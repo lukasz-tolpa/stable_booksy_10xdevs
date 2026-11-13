@@ -170,13 +170,16 @@ bez zdjęć.
   - **Zrzuty tylko ze skryptu.** Pliki w `public/jeden-dzien/` powstają
     wyłącznie z `npm run shots:day` (§8), który odgrywa ten sam dzień na
     czystych danych demo — nigdy ręcznie, żeby obrazek nie przeczył tekstowi
-    obok. Po odświeżeniu popraw wymiary w `src/lib/landing/day.ts`.
+    obok. Skrypt zapisuje też manifest `src/lib/landing/day-shots.json` (adres
+    i wymiary każdego pliku), z którego strona bierze `src`, `width` i
+    `height` — niczego nie poprawia się ręcznie.
   - **Zamknięcie**: `h2` „Jutro może tak wyglądać Twój dzień." i pod nim
     wyśrodkowane przyciski połów pod tymi samymi nazwami i adresami („Załóż
     konto jeźdźca" na `--accent`, „Załóż konto ośrodka" na `--primary-strong`,
     oba z białym tekstem). Zalogowany z rolą widzi jeden „Mój panel" w kolorze
     swojej roli, zalogowany bez rozpoznanej roli sam nagłówek — to ta sama
-    decyzja (`landingEntries`) co w połowach.
+    decyzja co w połowach: listę przycisków zamknięcia zwraca `landingEntries`
+    (`closing`). Oba nagłówki `h2` sekcji dzielą utility `landing-heading`.
   - Połowy, sekcja i zamknięcie są regionami nazwanymi swoimi nagłówkami
     (`aria-labelledby`), bo przyciski połów i zamknięcia nazywają się tak samo.
     Jedyne elementy z fokusem w sekcji to przyciski zamknięcia.
@@ -204,5 +207,5 @@ How the system above is wired into the code. Written for agents, hence English.
 - **Astro scoped styles stop at a child component's root.** `.foo h1` works when the markup sits in the page; to style a `<Card>` from outside, pass Tailwind utilities (`class="w-full max-w-[420px]"`) or wrap the slot content in your own element.
 - **Chestnut today** (cap of two per screen, §7): the rider `RoleBadge`, the own-booking slot pill and the "Zapisz grafik" button. The landing page is exempt (§6): its rider half is chestnut throughout.
 - **Prototypes** in `context/changes/ui-redesign/design/*.html` are the geometry contract, not code to copy. They use container queries against a fake `.app` wrapper; the app has no such wrapper, so the same breakpoints are media queries.
-- **Screenshots.** `scripts/shots.mjs` captures every screen at 390 px and 1440 px into `shots/` (gitignored) against a running preview; run `npm run db:demo` first so the statistics page has data. It sits outside `e2e/` so the suite never collects it.
-- **Landing screenshots.** `npm run shots:day` (`scripts/shots-day.mjs`) replays one day on the local stack — the stable opens the schedule, Anna books 11:00, the stable assigns her a horse, Anna opens "Moje zapisy", the stable opens statistics — and after each step saves the relevant region, without the top bar, as WebP in two widths: `public/jeden-dzien/<grafik|sloty|zapisy-dnia|moje-zapisy|statystyki>-<komputer|telefon>.webp` (committed). It needs `npx supabase db reset && npm run db:demo` and a running preview (`SHOTS_BASE_URL`, default `:4173`), checks the starting state first and refuses a database where the day was already replayed. Also outside `e2e/`.
+- **Screenshots.** `scripts/shots.mjs` captures every screen at 390 px and 1440 px into `shots/` (gitignored) against a running preview; run `npm run db:demo` first so the statistics page has data. It sits outside `e2e/` so the suite never collects it. Accounts, the seed day, sign-in and page settling are shared with `shots-day.mjs` through `scripts/shots-lib.mjs`.
+- **Landing screenshots.** `npm run shots:day` (`scripts/shots-day.mjs`) replays one day on the local stack — the stable opens the schedule, Anna sees her seeded 11:00 booking on the slot list, the stable assigns her a horse, Anna opens "Moje zapisy", the stable opens statistics — and after each step saves the relevant region, without the top bar, as WebP in two widths: `public/jeden-dzien/<grafik|sloty|zapisy-dnia|moje-zapisy|statystyki>-<komputer|telefon>.webp`, plus the manifest `src/lib/landing/day-shots.json` (address, width and height of every file; `src/lib/landing/day.ts` imports it, so file names, suffixes and the directory are spelled only in the script). Both are committed; `e2e/landing.spec.ts` checks declared against natural dimensions. It needs `npx supabase db reset && npm run db:demo` and a running preview (`SHOTS_BASE_URL`, default `:4173`). Before changing anything it checks that the preview answers and that the database is a clean seed with Anna's untouched 11:00 booking (active, no horse). Its only database write is the horse assignment, made through the UI as the stable; SQL is used for reading state only, and the seeded booking is neither deleted nor recreated. A second run without a reset sees the booking with a horse and stops with a message, writing nothing. On the phone shot the seat sheet is scrolled inside its container so the "Koni zajętych" column is fully in frame. Also outside `e2e/`.

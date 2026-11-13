@@ -10,21 +10,23 @@ import { slotStatusLabel } from "@/lib/bookings/slots";
 import { formatClockHour, formatFreeSeats } from "@/lib/format";
 import { DAY_CLOSING_HEADING } from "@/lib/landing/day";
 import { landingDemo } from "@/lib/landing/demo";
+import type { UserRole } from "@/types";
 
 // Nieudane wylogowanie wraca tutaj z komunikatem w ?error= (ten sam wzorzec co na
 // pozostałych stronach; treść jest polska i pochodzi z @/lib/auth/errors).
 const error = Astro.url.searchParams.get("error");
 
-// Co stoi w każdej połowie (rejestracja roli, „Mój panel” albo nic) i czy jest linia
-// o logowaniu, rozstrzyga `landingEntries` - strona tylko to rysuje.
+// Co stoi w każdej połowie (rejestracja roli, „Mój panel” albo nic), czy jest linia
+// o logowaniu i które przyciski powtarza zamknięcie sekcji „Jeden dzień”, rozstrzyga
+// `landingEntries` - strona tylko to rysuje.
 const { user, profile } = Astro.locals;
 const entries = landingEntries(user ? { profileRole: profile?.role } : null);
-// Zamknięcie sekcji „Jeden dzień” powtarza przyciski połów w ich kolejności - te same
-// wejścia, ta sama decyzja; połowa bez przycisku nie ma go też tutaj.
-const closingActions = (["rider", "stable"] as const).flatMap((role) => {
-  const action = entries[role];
-  return action ? [{ role, action }] : [];
-});
+
+// Wygląd przycisku roli: w połowie (na jej kolorowym tle) i w zamknięciu (na jasnym tle).
+const CTA_CLASS = {
+  half: { rider: "cta--rider", stable: "cta--stable" },
+  closing: { rider: "cta--rider", stable: "cta--stable-solid" },
+} as const satisfies Record<string, Record<UserRole, string>>;
 
 // Obie ilustracje rysują ten sam dzień z jednego źródła, tymi samymi regułami co prawdziwe widoki.
 const demo = landingDemo();
@@ -81,7 +83,7 @@ const demo = landingDemo();
 
           {
             entries.rider && (
-              <a class="cta cta--rider" href={entries.rider.href}>
+              <a class:list={["cta", CTA_CLASS.half.rider]} href={entries.rider.href}>
                 {entries.rider.label}
               </a>
             )
@@ -137,7 +139,7 @@ const demo = landingDemo();
 
           {
             entries.stable && (
-              <a class="cta cta--stable" href={entries.stable.href}>
+              <a class:list={["cta", CTA_CLASS.half.stable]} href={entries.stable.href}>
                 {entries.stable.label}
               </a>
             )
@@ -157,13 +159,13 @@ const demo = landingDemo();
     <DayTimeline />
 
     <section class="closing container-page" aria-labelledby="closing-heading">
-      <h2 id="closing-heading" class="closing__title">{DAY_CLOSING_HEADING}</h2>
+      <h2 id="closing-heading" class="landing-heading">{DAY_CLOSING_HEADING}</h2>
       {
-        closingActions.length > 0 && (
+        entries.closing.length > 0 && (
           <div class="closing__actions">
-            {closingActions.map(({ role, action }) => (
-              <a class:list={["cta", role === "rider" ? "cta--rider" : "cta--stable-solid"]} href={action.href}>
-                {action.label}
+            {entries.closing.map(({ role, label, href }) => (
+              <a class:list={["cta", CTA_CLASS.closing[role]]} href={href}>
+                {label}
               </a>
             ))}
           </div>
@@ -448,14 +450,6 @@ const demo = landingDemo();
     justify-items: center;
     padding-block: 72px 96px;
     text-align: center;
-  }
-  .closing__title {
-    margin: 0;
-    font-size: clamp(32px, 4vw, 52px);
-    font-weight: 800;
-    line-height: 1.05;
-    letter-spacing: -0.04em;
-    text-wrap: balance;
   }
   .closing__actions {
     display: flex;
