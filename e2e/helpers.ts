@@ -69,6 +69,18 @@ export function bookButton(page: Page, hour: number, instructor: string): Locato
   return slotItem(page, hour, instructor).getByRole("button", { name: "Zapisz się", exact: true });
 }
 
+/**
+ * Wiersz zapisu na liście „Zapisy dnia" ośrodka w sekcji „Aktywne" albo „Odwołane"
+ * (`<section>` z nagłówkiem = region). Sekcja jest konieczna: ten sam slot bywa w obu.
+ */
+export function dayBookingRow(page: Page, section: "Aktywne" | "Odwołane", hour: number, instructor: string): Locator {
+  return page
+    .getByRole("region", { name: section, exact: true })
+    .getByRole("listitem")
+    .filter({ has: page.getByText(`${String(hour)}:00`, { exact: true }) })
+    .filter({ hasText: instructor });
+}
+
 /** Nadchodzący zapis w „Moje zapisy" — wiersz z przyciskiem „Odwołaj". */
 export function upcomingRow(page: Page, stable: string, instructor: string): Locator {
   return page

@@ -11,7 +11,8 @@
 --   * "kto odwolal" istnieje wtedy i tylko wtedy, gdy zapis jest odwolany (CHECK), a jezdziec
 --     moze wpisac tam wylacznie siebie                                -> 42501 z wyzwalacza
 --   * odwolanie czysci przydzial konia; odwolanego zapisu nie da sie przywrocic
---   * jezdziec nie zmieni slotu ani konia istniejacego zapisu (uprawnienia kolumnowe, 42501)
+--   * jezdziec nie zmieni slotu (uprawnienia kolumnowe) ani konia (wyzwalacz bookings_horse_assignment,
+--     #42) istniejacego zapisu - 42501
 --   * kon przy zapisie (opcjonalny) musi pracowac tego dnia i ma jeden aktywny zapis w godzinie.
 -- Rownoleglosc zapisow na ostatnie miejsce: supabase/tests/concurrent_seat_booking.sh.
 --
@@ -163,7 +164,8 @@ begin
     raise notice 'PASS 8: odwolanego zapisu nie da sie przywrocic (42501)';
   end;
 
-  -- 9. Jezdziec nie przeniesie zapisu na inny slot ani nie wskaze konia (uprawnienia kolumnowe).
+  -- 9. Jezdziec nie przeniesie zapisu na inny slot (uprawnienia kolumnowe) ani nie wskaze konia
+  --    (od #42 kolumna horse_id jest nadana, odmawia wyzwalacz bookings_horse_assignment).
   begin
     update public.bookings set hour = 14 where id = current_setting('app.anna_13')::bigint;
     raise exception 'FAIL 9: jezdziec przeniosl zapis na inna godzine';

@@ -164,7 +164,12 @@ the relevant rollout phase ships; before that, the sub-section reads
   get `SB009` from `bookings_seat_limit`, release path after cancellation,
   occupancy via `get_slot_occupancy`; it deletes its riders and restores the
   seat limit. `booking_seats.sql` — seat limit, one booking per rider per hour,
-  cancellation rules, horse only on an active booking.
+  cancellation rules, horse only on an active booking. `stable_booking_actions.sql`
+  — the stable assigns, changes and clears a horse through RLS (horse off the
+  day `23503`, horse taken in the hour `23505`, no time threshold), a rider
+  cannot touch the assignment (`42501`), the stable cancels with
+  `cancelled_by = 'stable'` (horse and seat freed, the rider rebooks the slot),
+  foreign stable and foreign rider touch 0 rows, `SB004` on unassigning.
 - **Run locally**: `npm run test:db` with a running stack (`npx supabase
 start`) and a seed loaded **today** (`npx supabase db reset`) — the runner
   refuses when the seeded days are no longer "tomorrow", because `seed.sql`
@@ -208,8 +213,13 @@ local role authenticated; set local request.jwt.claims =
 - **Reference tests**: `rider-loop.spec.ts` — the full loop (stable adds an
   instructor seat in the schedule form → catalogue → slot list vs. schedule →
   book without a horse → "Twój zapis" → stable's day list with "bez konia" →
-  "Moje zapisy" with "Koń zostanie przydzielony" → cancel → seat freed →
-  instructor removed again); `booking-refusal.spec.ts` — two browser contexts
+  "Moje zapisy" with "Koń zostanie przydzielony" → stable assigns Bella
+  (select "Koń", "Zapisz konia"), rider sees it → stable cancels ("Odwołaj
+  zapis" → "Potwierdź odwołanie"), row moves to the "Odwołane" region, rider
+  sees "przez ośrodek" → rider rebooks the freed seat and cancels it → seat
+  freed → instructor removed again). The stable's day list has two regions,
+  "Aktywne" and "Odwołane" (`dayBookingRow(page, section, hour, instructor)`),
+  because the same slot can sit in both; `booking-refusal.spec.ts` — two browser contexts
   racing on a one-seat slot, `SB009` text, no row, flag-guarded cleanup.
 - **Run locally**: `npx supabase start` → `npx supabase db reset` (seed days
   are `current_date + 1`; a stale seed fails fast with the hint "Seed

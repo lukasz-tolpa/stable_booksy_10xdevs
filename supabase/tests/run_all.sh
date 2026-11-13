@@ -77,6 +77,7 @@ run_one "rider_deletion_anonymisation.sql" run_sql rider_deletion_anonymisation.
 run_one "instructors_name_and_access.sql" run_sql instructors_name_and_access.sql
 run_one "schedule_day_save.sql" run_sql schedule_day_save.sql
 run_one "booking_seats.sql" run_sql booking_seats.sql
+run_one "stable_booking_actions.sql" run_sql stable_booking_actions.sql
 run_one "concurrent_seat_booking.sh" bash "$SCRIPT_DIR/concurrent_seat_booking.sh"
 
 echo

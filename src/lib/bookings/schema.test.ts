@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bookingSchema, cancelSchema } from "@/lib/bookings/schema";
+import { assignHorseSchema, bookingSchema, cancelSchema } from "@/lib/bookings/schema";
 
 const VALID = { stableId: "1", day: "2026-08-20", instructorId: "2", hour: "12" };
 
@@ -95,5 +95,22 @@ describe("cancelSchema", () => {
       expect(result.error.issues[0].path).toEqual(["bookingId"]);
       expect(result.error.issues[0].message).toBe("Nieprawidłowy zapis");
     }
+  });
+});
+
+describe("assignHorseSchema", () => {
+  it("wybrany koń daje jego identyfikator, a pusty wybór — cofnięcie przydziału (null)", () => {
+    expect(assignHorseSchema.parse({ bookingId: "7", horseId: "3" })).toEqual({ bookingId: 7, horseId: 3 });
+    expect(assignHorseSchema.parse({ bookingId: "7", horseId: "" })).toEqual({ bookingId: 7, horseId: null });
+  });
+
+  it("odrzuca nieliczbowy koń i brak zapisu z polskim komunikatem", () => {
+    const badHorse = assignHorseSchema.safeParse({ bookingId: "7", horseId: "Bella" });
+    expect(badHorse.success).toBe(false);
+    if (!badHorse.success) {
+      expect(badHorse.error.issues[0].message).toBe("Nieprawidłowy koń");
+    }
+
+    expect(assignHorseSchema.safeParse({ bookingId: "", horseId: "3" }).success).toBe(false);
   });
 });

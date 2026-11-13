@@ -33,3 +33,18 @@ export const cancelSchema = z.object({
 });
 
 export type CancelInput = z.infer<typeof cancelSchema>;
+
+/**
+ * Formularz przydziału konia przez ośrodek (#42). Pusty wybór („bez konia") cofa przydział.
+ * Czy koń pracuje tego dnia i czy jest wolny w tej godzinie, rozstrzyga baza (23503/23505).
+ */
+export const assignHorseSchema = z.object({
+  bookingId: formInt("Nieprawidłowy zapis").pipe(z.number().positive({ error: "Nieprawidłowy zapis" })),
+  horseId: z
+    .string()
+    .trim()
+    .refine((value) => value === "" || /^[1-9]\d*$/.test(value), { error: "Nieprawidłowy koń" })
+    .transform((value) => (value === "" ? null : Number(value))),
+});
+
+export type AssignHorseInput = z.infer<typeof assignHorseSchema>;
