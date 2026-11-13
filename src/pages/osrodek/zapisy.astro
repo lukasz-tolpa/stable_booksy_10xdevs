@@ -1,23 +1,27 @@
 ---
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarX2, ChevronLeft, ChevronRight } from "lucide-react";
 import Layout from "@/layouts/Layout.astro";
+import Banner from "@/components/Banner.astro";
 import Topbar from "@/components/Topbar.astro";
 import Card from "@/components/ui/Card.astro";
 import DayNav from "@/components/ui/DayNav.astro";
 import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
 import { getDayBookings } from "@/lib/bookings/queries";
-import { composeBookingRows, type BookingRow } from "@/lib/bookings/rows";
+import { composeDayBookingSections, NO_HORSE, type DayBookingSections } from "@/lib/bookings/rows";
+import { currentWarsawHour } from "@/lib/bookings/slots";
 import { addDays, parseScheduleDate, todayIso } from "@/lib/schedule/dates";
 import { getScheduleDay, type ScheduleDayData } from "@/lib/schedule/queries";
 import { getOwnedStableId, listStableHorses } from "@/lib/stables/queries";
 import { createClient } from "@/lib/supabase";
 import { logError } from "@/lib/log";
 
-// Dostęp pilnuje middleware (mapa tras w @/lib/auth/roles). Strona jest czysto
-// odczytowa - dni przeszłe są dozwolone bez żadnego guardu, bo nie ma tu akcji,
-// które ograniczenie grafiku ("dziś i w przód") chroniło.
+// Dostęp pilnuje middleware (mapa tras w @/lib/auth/roles). Przydział konia działa także
+// w dniach minionych (uzupełnienie statystyk); odwołanie — tylko przed terminem jazdy:
+// próg pilnuje endpoint, a strona chowa akcję przy zapisach, które się zaczęły.
 const { profile } = Astro.locals;
+const error = Astro.url.searchParams.get("error");
+const success = Astro.url.searchParams.get("sukces");
 
 // Domyślnie dziś, nie jutro jak grafik: operacyjne pytanie ośrodka przy odczycie
 // to "kto dziś jeździ", a przy układaniu - "co ustawić na jutro".
@@ -26,7 +30,7 @@ const day = parseScheduleDate(Astro.url.searchParams.get("dzien")) ?? todayIso()
 const supabase = createClient(Astro.request.headers, Astro.cookies);
 
 let scheduleDay: ScheduleDayData | null = null;
-let rows: BookingRow[] = [];
+let sections: DayBookingSections = { active: [], cancelled: [] };
 let loadFailed = false;
 
 if (supabase && profile) {
@@ -39,7 +43,13 @@ if (supabase && profile) {
           getDayBookings(supabase, scheduleDay.id),
           listStableHorses(supabase, stableId),
         ]);
-        rows = composeBookingRows(bookings, horses);
+        sections = composeDayBookingSections({
+          bookings,
+          horses,
+          dayHorseIds: scheduleDay.horseIds,
+          day,
+          now: { today: todayIso(), currentHour: currentWarsawHour() },
+        });
       }
     }
   } catch (error) {
@@ -57,13 +67,20 @@ const dayLabel = new Date(`${day}T00:00:00`).toLocaleDateString("pl-PL", {
   month: "long",
   year: "numeric",
 });
+
+const successMessage =
+  success === "przydzial"
+    ? "Przydział konia zapisany."
+    : success === "odwolanie"
+      ? "Zapis został odwołany. Miejsce w slocie wróciło do puli wolnych."
+      : null;
 ---
 
 <Layout title={`Zapisy ${day}`}>
   <Topbar />
   <main class="container-narrow page">
     <h1>Zapisy dnia</h1>
-    <p class="page-lead">Kto i na którym koniu jeździ wybranego dnia.</p>
+    <p class="page-lead">Kto u którego instruktora jeździ wybranego dnia. Tu przydzielasz konie i odwołujesz zapisy.</p>
 
     <DayNav>
       <a slot="prev" href={`/osrodek/zapisy?dzien=${addDays(day, -1)}`}>
@@ -78,6 +95,21 @@ const dayLabel = new Date(`${day}T00:00:00`).toLocaleDateString("pl-PL", {
     </DayNav>
 
     {
+      successMessage && (
+        <div class="notice">
+          <Banner variant="success">{successMessage}</Banner>
+        </div>
+      )
+    }
+    {
+      error && (
+        <div class="notice">
+          <Banner variant="error">{error}</Banner>
+        </div>
+      )
+    }
+
+    {
       loadFailed ? (
         <FailureState>
           <p>Nie udało się wczytać zapisów.</p>
@@ -90,31 +122,103 @@ const dayLabel = new Date(`${day}T00:00:00`).toLocaleDateString("pl-PL", {
             <a href={`/osrodek/grafik?dzien=${day}`}>Przejdź do grafiku dnia</a>
           </EmptyState>
         </Card>
-      ) : rows.length === 0 ? (
-        <Card>
-          <EmptyState>
-            <p>Brak zapisów tego dnia.</p>
-            <p>
-              Grafik jest ułożony ({scheduleDay.openHour}–{scheduleDay.closeHour}), ale nikt się jeszcze nie zapisał.
-            </p>
-          </EmptyState>
-        </Card>
       ) : (
-        <Card>
-          <ul class="rows">
-            {rows.map((row) => (
-              <li>
-                {/* Cały tekst tego elementu to sama godzina. */}
-                <span class="row__when">{row.hour}:00</span>
-                <span class="row__meta">
-                  <span class="row__horse">{row.instructorName}</span>
-                  <span class="row__sub">{row.riderName}</span>
-                  <span class="row__sub">{row.horseName}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Card>
+        <>
+          <section class="section" aria-labelledby="active-heading">
+            <Card>
+              <h2 id="active-heading">Aktywne</h2>
+              {sections.active.length === 0 ? (
+                <EmptyState>
+                  <p>Brak zapisów tego dnia.</p>
+                  <p>
+                    Grafik jest ułożony ({scheduleDay.openHour}–{scheduleDay.closeHour}), ale nikt nie jest zapisany.
+                  </p>
+                </EmptyState>
+              ) : (
+                <ul class="rows">
+                  {sections.active.map((row) => (
+                    <li>
+                      {/* Cały tekst tego elementu to sama godzina. */}
+                      <span class="row__when">{row.hour}:00</span>
+                      <span class="row__meta">
+                        <span class="row__strong">{row.instructorName}</span>
+                        <span class="row__sub">{row.riderName}</span>
+                        {/* Zapis bez konia jest wyróżniony pigułką (US 48). */}
+                        <span class:list={row.horseId === null ? ["tag", "tag--warn"] : "row__sub"}>
+                          {row.horseName}
+                        </span>
+                      </span>
+                      <div class="row__actions">
+                        <form method="post" action="/api/bookings/assign-horse" class="assign">
+                          <input type="hidden" name="bookingId" value={row.id} />
+                          <input type="hidden" name="day" value={day} />
+                          <label for={`horse-${String(row.id)}`}>Koń</label>
+                          <select id={`horse-${String(row.id)}`} name="horseId">
+                            <option value="" selected={row.horseId === null}>
+                              {NO_HORSE}
+                            </option>
+                            {row.horseOptions.map((horse) => (
+                              <option value={horse.id} selected={horse.id === row.horseId}>
+                                {horse.name}
+                              </option>
+                            ))}
+                          </select>
+                          <button type="submit" class="btn-ghost">
+                            Zapisz konia
+                          </button>
+                        </form>
+                        {row.cancellable && (
+                          /* Jeden krok potwierdzenia bez JavaScriptu (US 83): odwołania nie da się cofnąć. */
+                          <details class="cancel">
+                            <summary>
+                              <CalendarX2 className="size-4" />
+                              Odwołaj zapis
+                            </summary>
+                            <form method="post" action="/api/bookings/stable-cancel" class="cancel__confirm">
+                              <input type="hidden" name="bookingId" value={row.id} />
+                              <input type="hidden" name="day" value={day} />
+                              <p>
+                                Odwołać zapis: {row.riderName}, {row.hour}:00 u {row.instructorName}? Tego nie da się
+                                cofnąć.
+                              </p>
+                              <button type="submit" class="btn-danger">
+                                Potwierdź odwołanie
+                              </button>
+                            </form>
+                          </details>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+          </section>
+
+          {sections.cancelled.length > 0 && (
+            <section class="section" aria-labelledby="cancelled-heading">
+              <Card>
+                <h2 id="cancelled-heading" class="muted-heading">
+                  Odwołane
+                </h2>
+                <ul class="rows rows--cancelled">
+                  {sections.cancelled.map((row) => (
+                    <li>
+                      <span class="row__when">{row.hour}:00</span>
+                      <span class="row__meta">
+                        <span class="row__strong">{row.instructorName}</span>
+                        <span class="row__sub">{row.riderName}</span>
+                        {/* Cały tekst tego elementu to samo słowo — jak w „Moje zapisy". */}
+                        <span class="tag">odwołany</span>
+                        <span class="row__sub">{row.cancelledByLabel}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            </section>
+          )}
+        </>
       )
     }
   </main>
@@ -133,8 +237,22 @@ const dayLabel = new Date(`${day}T00:00:00`).toLocaleDateString("pl-PL", {
     color: var(--muted);
     max-width: 62ch;
   }
+  .notice {
+    margin-top: 16px;
+  }
+  .section {
+    display: block;
+    margin-top: 18px;
+  }
+  h2 {
+    font-size: 22px;
+    margin: 0 0 14px;
+  }
+  .muted-heading {
+    color: var(--muted);
+  }
 
-  /* Ten sam wzorzec wiersza co „Moje zapisy" - bez kolumny akcji. */
+  /* Ten sam wzorzec wiersza co „Moje zapisy". */
   .rows {
     list-style: none;
     margin: 0;
@@ -169,7 +287,7 @@ const dayLabel = new Date(`${day}T00:00:00`).toLocaleDateString("pl-PL", {
     gap: 2px 12px;
     min-width: 0;
   }
-  .row__horse {
+  .row__strong {
     font-weight: 600;
   }
   /* Adres e-mail jeźdźca musi się łamać, a nie rozpychać wiersza w bok. */
@@ -177,5 +295,133 @@ const dayLabel = new Date(`${day}T00:00:00`).toLocaleDateString("pl-PL", {
     color: var(--muted);
     font-size: 14.5px;
     overflow-wrap: anywhere;
+  }
+  .rows--cancelled .row__when,
+  .rows--cancelled .row__strong {
+    font-weight: 500;
+    color: var(--muted);
+  }
+
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    background: var(--surface-3);
+    color: var(--muted);
+  }
+  .tag--warn {
+    background: var(--warn-soft);
+    color: var(--warn-ink);
+  }
+
+  /* Akcje schodzą pod opis na całą szerokość — na telefonie nie mieszczą się obok. */
+  .row__actions {
+    flex-basis: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 10px 16px;
+  }
+  .assign {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+  .assign label {
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .assign select {
+    min-height: 44px;
+    padding: 8px 12px;
+    border: 1px solid var(--border-2);
+    border-radius: 12px;
+    background: var(--surface);
+    color: var(--fg);
+    font: inherit;
+    font-size: 14.5px;
+  }
+  .assign select:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+
+  .btn-ghost,
+  .btn-danger,
+  .cancel summary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 10px 15px;
+    border-radius: 999px;
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+      background 0.15s,
+      border-color 0.15s;
+  }
+  .btn-ghost {
+    border: 1px solid var(--border-2);
+    background: var(--surface);
+    color: var(--fg);
+  }
+  .btn-ghost:hover {
+    background: var(--primary-soft);
+  }
+  .btn-ghost:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+
+  .cancel summary {
+    list-style: none;
+    border: 1px solid var(--danger);
+    background: var(--surface);
+    color: var(--danger-ink);
+  }
+  .cancel summary::-webkit-details-marker {
+    display: none;
+  }
+  .cancel summary:hover {
+    background: var(--danger-soft);
+  }
+  /* `[open]` ustawia przeglądarka — analiza selektorów Astro go nie widzi. */
+  .cancel:global([open]) summary {
+    background: var(--danger-soft);
+  }
+  .cancel summary:focus-visible,
+  .btn-danger:focus-visible {
+    outline: 2px solid var(--danger);
+    outline-offset: 2px;
+  }
+  .cancel__confirm {
+    margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+  }
+  .cancel__confirm p {
+    margin: 0;
+    font-size: 14.5px;
+    max-width: 52ch;
+  }
+  .btn-danger {
+    border: 1px solid var(--danger);
+    background: var(--danger);
+    color: var(--surface);
+  }
+  .btn-danger:hover {
+    background: var(--danger-ink);
   }
 </style>

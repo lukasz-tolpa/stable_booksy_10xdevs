@@ -48,27 +48,31 @@ export async function getMyBookings(client: Client, scheduleDayId: number, rider
   return data.map((row) => ({ instructorId: row.instructor_id, hour: row.hour }));
 }
 
-/** Zapis dnia z perspektywy ośrodka: slot, jeździec i przydzielony koń (FR-005). */
+/** Zapis dnia z perspektywy ośrodka: slot, jeździec, przydzielony koń i stan (FR-005). */
 export interface DayBooking {
+  id: number;
   hour: number;
   instructorId: number;
-  /** `null`, gdy RLS nie odda wiersza instruktora — nazwa zastępcza należy do `composeBookingRows`. */
+  /** `null`, gdy RLS nie odda wiersza instruktora — nazwa zastępcza należy do `composeDayBookingSections`. */
   instructorName: string | null;
-  /** Przydzielony koń; `null` — zapis jeszcze bez konia. */
+  /** Przydzielony koń; `null` — zapis jeszcze bez konia (odwołany nigdy go nie ma). */
   horseId: number | null;
   riderName: string | null;
   /** Zapis bez jeźdźca: konto usunięto, miniony zapis został w historii ośrodka (ADR-0001). */
   anonymised: boolean;
+  status: "active" | "cancelled";
+  cancelledBy: CancelledBy | null;
 }
 
 /**
- * Aktywne zapisy dnia grafiku wraz z instruktorem i nazwiskiem jeźdźca — widok ośrodka.
+ * Wszystkie zapisy dnia grafiku (aktywne i odwołane) wraz z instruktorem i nazwiskiem
+ * jeźdźca — widok ośrodka.
  *
  * Nazwisko dociąga embedded select przez FK `rider_id → profiles`; polityka RLS na
  * `profiles` (`is_rider_of_my_stable`) wpuszcza ośrodek do profili jeźdźców mających zapis
  * w jego stadninie. Instruktora — FK `instructor_id → instructors`. Nazwy koni dokłada
  * warstwa czysta z listy stada. `null` zostaje `null` — fallback tekstowy należy do
- * `composeBookingRows`, nie do zapytania.
+ * `composeDayBookingSections`, nie do zapytania.
  *
  * Wołać wyłącznie z sesji ośrodka dla jego własnego dnia — sesja jeźdźca
  * zobaczyłaby przez RLS tylko własne zapisy i po cichu zaniżyła listę.
@@ -76,15 +80,15 @@ export interface DayBooking {
 export async function getDayBookings(client: Client, scheduleDayId: number): Promise<DayBooking[]> {
   const { data, error } = await client
     .from("bookings")
-    .select("hour, instructor_id, horse_id, rider_id, instructors(name), profiles(full_name)")
-    .eq("schedule_day_id", scheduleDayId)
-    .eq("status", "active");
+    .select("id, hour, instructor_id, horse_id, rider_id, status, cancelled_by, instructors(name), profiles(full_name)")
+    .eq("schedule_day_id", scheduleDayId);
 
   if (error) {
     throw error;
   }
 
   return data.map((row) => ({
+    id: row.id,
     hour: row.hour,
     instructorId: row.instructor_id,
     // Wygenerowane typy obiecują niepusty obiekt (FK not-null), ale RLS mógłby ukryć wiersz.
@@ -94,6 +98,9 @@ export async function getDayBookings(client: Client, scheduleDayId: number): Pro
     // `profiles` jest `null` dla zapisu bez jeźdźca, a także gdy RLS ukryje profil.
     riderName: row.profiles?.full_name ?? null,
     anonymised: row.rider_id === null,
+    // CHECK `bookings_status_check` dopuszcza wyłącznie te dwie wartości.
+    status: row.status === "cancelled" ? "cancelled" : "active",
+    cancelledBy: toCancelledBy(row.cancelled_by),
   }));
 }
 
@@ -206,6 +213,79 @@ export async function cancelBooking(client: Client, bookingId: number, riderId: 
     .update({ status: "cancelled", cancelled_at: new Date().toISOString(), cancelled_by: "rider" })
     .eq("id", bookingId)
     .eq("rider_id", riderId)
+    .eq("status", "active")
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data !== null;
+}
+
+/**
+ * Pojedynczy zapis w grafiku stadniny ośrodka pod decyzję o przydziale konia albo odwołaniu:
+ * dzień, godzina i status. Filtr po stadninie idzie jawnie przez `schedule_days!inner` —
+ * polityka SELECT jest own-OR-my-stable, a ta funkcja ma znaleźć wyłącznie zapis ośrodka.
+ * `null` = cudzy albo nieistniejący zapis (bez wyroczni istnienia).
+ */
+export async function getStableBooking(
+  client: Client,
+  bookingId: number,
+  stableId: number,
+): Promise<CancellableBooking | null> {
+  const { data, error } = await client
+    .from("bookings")
+    .select("hour, status, schedule_days!inner(day, stable_id)")
+    .eq("id", bookingId)
+    .eq("schedule_days.stable_id", stableId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data ? { hour: data.hour, status: data.status, day: data.schedule_days.day } : null;
+}
+
+/**
+ * Przydział, zmiana albo cofnięcie (`horseId = null`) konia przez ośrodek — jeden UPDATE
+ * `horse_id` pod RLS (zapisy własnej stadniny). Odmowy podnosi baza: 23503 koń nie pracuje
+ * tego dnia, 23505 koń zajęty w tej godzinie (`horseAssignmentErrorMessage`); jeźdźcowi
+ * odmawia wyzwalacz `bookings_horse_assignment` (42501). Bez progu czasu — także po terminie.
+ * Filtr `status = 'active'`: odwołany w międzyczasie zapis daje `false`, nie błąd.
+ */
+export async function assignHorse(client: Client, bookingId: number, horseId: number | null): Promise<boolean> {
+  const { data, error } = await client
+    .from("bookings")
+    .update({ horse_id: horseId })
+    .eq("id", bookingId)
+    .eq("status", "active")
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data !== null;
+}
+
+/**
+ * Odwołanie zapisu przez ośrodek: status, czas i `cancelled_by = 'stable'` naraz (CHECK-i
+ * spójności); wyzwalacz `bookings_cancellation` przepuszcza wyłącznie rolę ośrodka jako
+ * odwołującego i czyści przydział konia. Filtr `status = 'active'` rozstrzyga wyścig z
+ * odwołaniem przez jeźdźca — drugi UPDATE trafia w 0 wierszy i zwraca `false`.
+ *
+ * Wołać po `getStableBooking` dla tej samej stadniny — ona robi jawny filtr po stadninie,
+ * którego UPDATE przez PostgREST wyrazić nie umie (RLS i tak ogranicza do własnej stadniny).
+ */
+export async function cancelBookingAsStable(client: Client, bookingId: number): Promise<boolean> {
+  const { data, error } = await client
+    .from("bookings")
+    .update({ status: "cancelled", cancelled_at: new Date().toISOString(), cancelled_by: "stable" })
+    .eq("id", bookingId)
     .eq("status", "active")
     .select("id")
     .maybeSingle();

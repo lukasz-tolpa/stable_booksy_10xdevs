@@ -2,19 +2,13 @@ import type { DayBooking } from "@/lib/bookings/queries";
 import { unknownInstructorName } from "@/lib/bookings/slots";
 
 /**
- * Składanie wierszy listy zapisów dnia ośrodka (FR-005): godzina, instruktor, jeździec, koń.
+ * Składanie listy zapisów dnia ośrodka (FR-005): aktywne (godzina, instruktor, jeździec, koń,
+ * wybór konia, odwołanie) i pod nimi odwołane, z oznaczeniem, kto odwołał.
  *
  * Koń przy zapisie jest opcjonalny (ADR-0002) — przydziela go ośrodek. Nazwy koni dokłada się
- * z listy stada, bo `bookings` wskazuje konia przez przydział do dnia, nie wprost.
+ * z listy stada, bo `bookings` wskazuje konia przez przydział do dnia, nie wprost. `now` jest
+ * wstrzykiwane parametrem, żeby testy nie zależały od zegara.
  */
-
-export interface BookingRow {
-  hour: number;
-  instructorName: string;
-  riderName: string;
-  /** Nazwa przydzielonego konia albo `NO_HORSE`. */
-  horseName: string;
-}
 
 /**
  * Fallback dla profilu bez imienia i nazwiska — rejestracja go nie wymusza. Jedyna
@@ -37,21 +31,112 @@ export function unknownHorseName(horseId: number): string {
 /** Miniony zapis, którego jeździec usunął konto (jeździec zanonimizowany, ADR-0001). */
 const ANONYMISED_RIDER = "Usunięty jeździec";
 
-export function composeBookingRows(bookings: DayBooking[], horses: { id: number; name: string }[]): BookingRow[] {
-  const horseNames = new Map(horses.map((horse) => [horse.id, horse.name]));
+export interface HorseOption {
+  id: number;
+  name: string;
+}
 
-  return bookings
-    .map((booking) => ({
-      hour: booking.hour,
-      instructorName: booking.instructorName ?? unknownInstructorName(booking.instructorId),
-      riderName: booking.anonymised ? ANONYMISED_RIDER : (booking.riderName ?? UNNAMED_RIDER),
-      horseName:
-        booking.horseId === null ? NO_HORSE : (horseNames.get(booking.horseId) ?? unknownHorseName(booking.horseId)),
-    }))
-    .sort(
-      (a, b) =>
-        a.hour - b.hour ||
-        a.instructorName.localeCompare(b.instructorName, "pl") ||
-        a.riderName.localeCompare(b.riderName, "pl"),
-    );
+/** Aktywny zapis na liście dnia: z wyborem konia i informacją, czy da się go jeszcze odwołać. */
+export interface ActiveBookingRow {
+  id: number;
+  hour: number;
+  instructorName: string;
+  riderName: string;
+  /** Przydzielony koń; `null` — zapis bez konia (wiersz jest wyróżniony `NO_HORSE`). */
+  horseId: number | null;
+  /** Nazwa przydzielonego konia albo `NO_HORSE`. */
+  horseName: string;
+  /**
+   * Konie do wyboru: pracujące tego dnia, bez koni przydzielonych do innego aktywnego zapisu
+   * o tej samej godzinie (baza i tak odmówi — indeks `bookings_horse_hour_key`).
+   */
+  horseOptions: HorseOption[];
+  /** Godzina się nie zaczęła (Europe/Warsaw) — ten sam próg co przy odwołaniu przez jeźdźca. */
+  cancellable: boolean;
+}
+
+/** Zapis odwołany na liście dnia — bez konia (przydział znika przy odwołaniu). */
+export interface CancelledBookingRow {
+  id: number;
+  hour: number;
+  instructorName: string;
+  riderName: string;
+  /** „przez jeźdźca" albo „przez ośrodek". */
+  cancelledByLabel: string;
+}
+
+export interface DayBookingSections {
+  active: ActiveBookingRow[];
+  /** Pod aktywnymi, osobno (US 85). */
+  cancelled: CancelledBookingRow[];
+}
+
+export interface DayBookingSectionsInput {
+  bookings: DayBooking[];
+  /** Całe stado stadniny — źródło nazw, także koni nieaktywnych. */
+  horses: HorseOption[];
+  /** Konie pracujące tego dnia (`schedule_day_horses`). */
+  dayHorseIds: number[];
+  /** Dzień listy, ISO. */
+  day: string;
+  now: { today: string; currentHour: number };
+}
+
+const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, "pl");
+
+function byHourInstructorRider<T extends { hour: number; instructorName: string; riderName: string }>(a: T, b: T) {
+  return (
+    a.hour - b.hour ||
+    a.instructorName.localeCompare(b.instructorName, "pl") ||
+    a.riderName.localeCompare(b.riderName, "pl")
+  );
+}
+
+function riderLabel(booking: DayBooking): string {
+  return booking.anonymised ? ANONYMISED_RIDER : (booking.riderName ?? UNNAMED_RIDER);
+}
+
+export function composeDayBookingSections(input: DayBookingSectionsInput): DayBookingSections {
+  const { bookings, horses, dayHorseIds, day, now } = input;
+  const horseNames = new Map(horses.map((horse) => [horse.id, horse.name]));
+  const dayHorses = dayHorseIds.map((id) => ({ id, name: horseNames.get(id) ?? unknownHorseName(id) })).sort(byName);
+  const activeBookings = bookings.filter((booking) => booking.status === "active");
+  // Próg identyczny z odwołaniem przez jeźdźca: godzina <= bieżąca w dniu dzisiejszym już się zaczęła.
+  const started = (hour: number) => day < now.today || (day === now.today && hour <= now.currentHour);
+
+  const active = activeBookings
+    .map((booking): ActiveBookingRow => {
+      const takenByOthers = new Set(
+        activeBookings
+          .filter((other) => other.id !== booking.id && other.hour === booking.hour && other.horseId !== null)
+          .map((other) => other.horseId),
+      );
+      return {
+        id: booking.id,
+        hour: booking.hour,
+        instructorName: booking.instructorName ?? unknownInstructorName(booking.instructorId),
+        riderName: riderLabel(booking),
+        horseId: booking.horseId,
+        horseName:
+          booking.horseId === null ? NO_HORSE : (horseNames.get(booking.horseId) ?? unknownHorseName(booking.horseId)),
+        horseOptions: dayHorses.filter((horse) => !takenByOthers.has(horse.id)),
+        cancellable: !started(booking.hour),
+      };
+    })
+    .sort(byHourInstructorRider);
+
+  const cancelled = bookings
+    .filter((booking) => booking.status === "cancelled")
+    .map(
+      (booking): CancelledBookingRow => ({
+        id: booking.id,
+        hour: booking.hour,
+        instructorName: booking.instructorName ?? unknownInstructorName(booking.instructorId),
+        riderName: riderLabel(booking),
+        cancelledByLabel: booking.cancelledBy === "stable" ? "przez ośrodek" : "przez jeźdźca",
+      }),
+    )
+    .sort(byHourInstructorRider);
+
+  return { active, cancelled };
 }

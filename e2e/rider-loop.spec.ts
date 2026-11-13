@@ -8,6 +8,7 @@ import {
   assertSlotsRendered,
   bookButton,
   cancelledRow,
+  dayBookingRow,
   hourSection,
   openStable,
   seedDay,
@@ -20,9 +21,11 @@ import {
  * Ryzyko #6 (pętla jeźdźca przestaje działać w przeglądarce) i połowa #3 (sukces
  * bez zapisu w bazie), w modelu „zapis na miejsce u instruktora" (ADR-0002, #41).
  * Wyrocznia: ośrodek wystawia miejsce w grafiku, jeździec zapisuje się na nie bez
- * wyboru konia, zapis pojawia się na liście dnia ośrodka jako „bez konia", a odwołanie
- * zwalnia miejsce. Dowodem trwałości jest plakietka „Twój zapis", wiersz w „Moje
- * zapisy" i lista dnia ośrodka — nigdy baner sukcesu ani samo przekierowanie.
+ * wyboru konia, zapis pojawia się na liście dnia ośrodka jako „bez konia", ośrodek
+ * przydziela konia (jeździec go widzi) i odwołuje zapis (#42), jeździec zapisuje się
+ * ponownie na zwolnione miejsce i sam odwołuje. Dowodem trwałości jest plakietka
+ * „Twój zapis", wiersz w „Moje zapisy" i lista dnia ośrodka — nigdy baner sukcesu ani
+ * samo przekierowanie.
  *
  * Slot: Karol Jasny o 13:00 w Stadninie Pod Debem, dzień seeda. Karol nie pracuje
  * w seedzie — dodaje go ośrodek przez formularz grafiku z 1 miejscem o 13:00 (suma
@@ -39,6 +42,8 @@ test.use({ storageState: RIDER_A_STATE });
 const INSTRUCTOR = "Karol Jasny";
 const OTHER_INSTRUCTOR = "Joanna Wrona";
 const HOUR = 13;
+/** Koń pracujący w dniu seeda; o 13 nikt inny nie ma przydziału. */
+const HORSE = "Bella";
 
 /** Ośrodek ustawia, czy Karol pracuje w dniu seeda (z 1 miejscem o 13:00), i zapisuje grafik. */
 async function setInstructorWorking(stablePage: Page, working: boolean): Promise<void> {
@@ -118,12 +123,70 @@ test("jeździec przechodzi pełną pętlę: grafik ośrodka → slot instruktora
     await test.step("zapis pojawia się na liście dnia ośrodka, jeszcze bez konia", async () => {
       await stablePage.goto(`/osrodek/zapisy?dzien=${stable.day}`);
       await expect(stablePage.getByRole("heading", { level: 1, name: "Zapisy dnia" })).toBeVisible();
-      const row = hourSection(stablePage, HOUR).filter({ hasText: INSTRUCTOR });
+      const row = dayBookingRow(stablePage, "Aktywne", HOUR, INSTRUCTOR);
       await expect(row).toBeVisible();
       // FR-005: rejestracja wymaga imienia, więc ośrodek widzi jeźdźca, a nie zapas
       // dla profilu bez imienia. To imię podał setup przy zakładaniu konta A.
       await expect(row).toContainText(RIDER_A_NAME);
-      await expect(row).toContainText("bez konia");
+      await expect(row.getByText("bez konia", { exact: true }).first()).toBeVisible();
+    });
+
+    await test.step("jeździec przed przydziałem widzi, że koń zostanie przydzielony", async () => {
+      await page.goto("/jezdziec/zapisy");
+      await expect(page.getByRole("heading", { level: 2, name: "Nadchodzące" })).toBeVisible();
+      const row = upcomingRow(page, STABLE_NAME, INSTRUCTOR);
+      await expect(row).toContainText(`${String(HOUR)}:00`);
+      await expect(row).toContainText("Koń zostanie przydzielony");
+    });
+
+    await test.step("ośrodek przydziela konia, a jeździec widzi go przy swoim zapisie", async () => {
+      const row = dayBookingRow(stablePage, "Aktywne", HOUR, INSTRUCTOR);
+      const select = row.getByLabel("Koń", { exact: true });
+      const horseValue = await select.getByRole("option", { name: HORSE, exact: true }).getAttribute("value");
+      await select.selectOption({ label: HORSE });
+      await row.getByRole("button", { name: "Zapisz konia" }).click();
+      await stablePage.waitForURL(/sukces=przydzial/);
+      // Dowód z bazy: po przeładowaniu wybór idzie z przydziału, nie ze stanu formularza.
+      await stablePage.reload();
+      await expect(
+        dayBookingRow(stablePage, "Aktywne", HOUR, INSTRUCTOR).getByLabel("Koń", { exact: true }),
+      ).toHaveValue(horseValue ?? "");
+
+      await page.reload();
+      await expect(upcomingRow(page, STABLE_NAME, INSTRUCTOR)).toContainText(HORSE);
+      await expect(upcomingRow(page, STABLE_NAME, INSTRUCTOR)).not.toContainText("Koń zostanie przydzielony");
+    });
+
+    await test.step("ośrodek odwołuje zapis po potwierdzeniu — zapis trafia do odwołanych", async () => {
+      const row = dayBookingRow(stablePage, "Aktywne", HOUR, INSTRUCTOR);
+      await row.getByText("Odwołaj zapis", { exact: true }).click();
+      await row.getByRole("button", { name: "Potwierdź odwołanie" }).click();
+      await stablePage.waitForURL(/sukces=odwolanie/);
+      state.booked = false;
+      await expect(dayBookingRow(stablePage, "Aktywne", HOUR, INSTRUCTOR)).toHaveCount(0);
+      // `filter` + `first()`: odwołania tego slotu przez obie strony mają ten sam dzień i godzinę,
+      // a powtórka bez `db reset` zostawia wcześniejsze.
+      await expect(
+        dayBookingRow(stablePage, "Odwołane", HOUR, INSTRUCTOR).filter({ hasText: "przez ośrodek" }).first(),
+      ).toBeVisible();
+    });
+
+    await test.step("jeździec widzi odwołanie przez ośrodek i zapisuje się ponownie na zwolnione miejsce", async () => {
+      await page.goto("/jezdziec/zapisy");
+      await expect(page.getByText("Nie masz nadchodzących zapisów.")).toBeVisible();
+      await expect(
+        cancelledRow(page, STABLE_NAME, INSTRUCTOR).filter({ hasText: "przez ośrodek" }).first(),
+      ).toBeVisible();
+      // Odwołany zapis nie pokazuje konia — przydział zniknął razem z odwołaniem.
+      await expect(cancelledRow(page, STABLE_NAME, INSTRUCTOR).first()).not.toContainText(HORSE);
+
+      await page.goto(`${stable.path}?dzien=${stable.day}`);
+      await assertSlotsRendered(page);
+      await expect(slotItem(page, HOUR, INSTRUCTOR)).toContainText("1 z 1 wolne");
+      await bookButton(page, HOUR, INSTRUCTOR).click();
+      await page.waitForURL(/sukces=1/);
+      await expect(slotItem(page, HOUR, INSTRUCTOR)).toContainText("Twój zapis");
+      state.booked = true;
     });
 
     await test.step("zapis jest w Moich zapisach i daje się odwołać", async () => {
@@ -138,13 +201,19 @@ test("jeździec przechodzi pełną pętlę: grafik ośrodka → slot instruktora
       state.booked = false;
       await expect(page.getByText("Nie masz nadchodzących zapisów.")).toBeVisible();
       await expect(page.getByRole("heading", { level: 2, name: "Minione i odwołane" })).toBeVisible();
-      // `first()`: powtórka bez `db reset` zostawia w historii wcześniejsze odwołania.
-      await expect(cancelledRow(page, STABLE_NAME, INSTRUCTOR).first()).toContainText("przez Ciebie");
+      // W historii jest też odwołanie przez ośrodek z tego samego slotu; powtórka bez
+      // `db reset` zostawia wcześniejsze — stąd `filter` + `first()`.
+      await expect(
+        cancelledRow(page, STABLE_NAME, INSTRUCTOR).filter({ hasText: "przez Ciebie" }).first(),
+      ).toBeVisible();
     });
 
     await test.step("odwołanie znika z listy ośrodka i zwalnia miejsce", async () => {
       await stablePage.reload();
-      await expect(hourSection(stablePage, HOUR).filter({ hasText: INSTRUCTOR })).toHaveCount(0);
+      await expect(dayBookingRow(stablePage, "Aktywne", HOUR, INSTRUCTOR)).toHaveCount(0);
+      await expect(
+        dayBookingRow(stablePage, "Odwołane", HOUR, INSTRUCTOR).filter({ hasText: "przez jeźdźca" }).first(),
+      ).toBeVisible();
 
       await page.goto(`${stable.path}?dzien=${stable.day}`);
       await assertSlotsRendered(page);
