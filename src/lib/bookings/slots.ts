@@ -64,20 +64,21 @@ export function unknownInstructorName(instructorId: number): string {
   return `(instruktor #${String(instructorId)})`;
 }
 
-function key(instructorId: number, hour: number): string {
+/** Klucz slotu dnia (instruktor × godzina) w mapach zajętości i własnych zapisów. */
+function slotKey(instructorId: number, hour: number): string {
   return `${String(instructorId)}:${String(hour)}`;
 }
 
 function statusOf(slot: SlotSeats, freeSeats: number, mine: Set<string>, myHours: Set<number>): SlotStatus {
-  if (mine.has(key(slot.instructorId, slot.hour))) return "mine";
+  if (mine.has(slotKey(slot.instructorId, slot.hour))) return "mine";
   if (myHours.has(slot.hour)) return "unavailable";
   return freeSeats > 0 ? "free" : "full";
 }
 
 export function computeSlotHours(input: SlotHoursInput): SlotHour[] {
   const names = new Map(input.instructors.map((instructor) => [instructor.id, instructor.name]));
-  const taken = new Map(input.occupancy.map((entry) => [key(entry.instructorId, entry.hour), entry.taken]));
-  const mine = new Set(input.myBookings.map((booking) => key(booking.instructorId, booking.hour)));
+  const taken = new Map(input.occupancy.map((entry) => [slotKey(entry.instructorId, entry.hour), entry.taken]));
+  const mine = new Set(input.myBookings.map((booking) => slotKey(booking.instructorId, booking.hour)));
   const myHours = new Set(input.myBookings.map((booking) => booking.hour));
   const byHour = new Map<number, RiderSlot[]>();
 
@@ -86,7 +87,7 @@ export function computeSlotHours(input: SlotHoursInput): SlotHour[] {
     if (slot.hour < input.openHour || slot.hour >= input.closeHour) continue;
     if (input.currentHour !== null && slot.hour <= input.currentHour) continue;
 
-    const freeSeats = Math.max(0, slot.seats - (taken.get(key(slot.instructorId, slot.hour)) ?? 0));
+    const freeSeats = Math.max(0, slot.seats - (taken.get(slotKey(slot.instructorId, slot.hour)) ?? 0));
     const slots = byHour.get(slot.hour) ?? [];
     slots.push({
       instructorId: slot.instructorId,

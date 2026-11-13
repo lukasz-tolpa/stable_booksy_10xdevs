@@ -13,6 +13,9 @@ export type UserRole = "stable" | "rider";
 /** Cykl zycia zapisu. Odwolanie nie kasuje wiersza, tylko przestawia status. */
 export type BookingStatus = "active" | "cancelled";
 
+/** Kto odwolal zapis - wartosci kolumny `bookings.cancelled_by` (CHECK w migracji #41). */
+export type CancelledBy = "rider" | "stable";
+
 export type Profile = Tables["profiles"]["Row"];
 export type Stable = Tables["stables"]["Row"];
 export type Horse = Tables["horses"]["Row"];

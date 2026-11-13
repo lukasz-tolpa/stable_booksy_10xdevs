@@ -1,5 +1,7 @@
 import type { RiderBooking } from "@/lib/bookings/queries";
 import { hasSlotStarted, unknownInstructorName } from "@/lib/bookings/slots";
+import { cancelledByLabel } from "@/lib/bookings/status";
+import type { BookingStatus } from "@/types";
 
 /**
  * Lista zapisów jeźdźca: podział na „nadchodzące" (z akcją odwołania) i „historię"
@@ -18,7 +20,7 @@ export interface RiderBookingRow {
   instructorName: string;
   /** Koń albo informacja o przydziale; `null` przy zapisie odwołanym (koń jest tylko przy aktywnym). */
   horseLabel: string | null;
-  status: string;
+  status: BookingStatus;
   /** „przez Ciebie" / „przez ośrodek" przy zapisie odwołanym, inaczej `null`. */
   cancelledByLabel: string | null;
 }
@@ -49,9 +51,10 @@ function horseLabel(booking: RiderBooking, upcoming: boolean): string | null {
   return upcoming ? HORSE_PENDING : HORSE_NOT_ASSIGNED;
 }
 
-function cancelledByLabel(booking: RiderBooking): string | null {
+function cancelledByLine(booking: RiderBooking): string | null {
   if (booking.status !== "cancelled") return null;
-  return booking.cancelledBy === "stable" ? "przez ośrodek" : "przez Ciebie";
+  // CHECK spójności: odwołany zapis zawsze ma `cancelled_by`.
+  return cancelledByLabel(booking.cancelledBy ?? "rider", "rider");
 }
 
 export function splitRiderBookings(bookings: RiderBooking[], now: Date = new Date()): RiderBookingSections {
@@ -68,7 +71,7 @@ export function splitRiderBookings(bookings: RiderBooking[], now: Date = new Dat
       instructorName: booking.instructorName ?? unknownInstructorName(booking.instructorId),
       horseLabel: horseLabel(booking, isUpcoming),
       status: booking.status,
-      cancelledByLabel: cancelledByLabel(booking),
+      cancelledByLabel: cancelledByLine(booking),
     };
 
     (isUpcoming ? upcoming : history).push(row);

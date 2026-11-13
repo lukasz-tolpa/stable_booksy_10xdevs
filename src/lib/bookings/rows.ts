@@ -1,5 +1,6 @@
 import type { DayBooking } from "@/lib/bookings/queries";
 import { hasSlotStarted, unknownInstructorName } from "@/lib/bookings/slots";
+import { cancelledByLabel } from "@/lib/bookings/status";
 
 /**
  * Składanie listy zapisów dnia ośrodka (FR-005): aktywne (godzina, instruktor, jeździec, koń,
@@ -132,7 +133,8 @@ export function composeDayBookingSections(input: DayBookingSectionsInput): DayBo
         hour: booking.hour,
         instructorName: booking.instructorName ?? unknownInstructorName(booking.instructorId),
         riderName: riderLabel(booking),
-        cancelledByLabel: booking.cancelledBy === "stable" ? "przez ośrodek" : "przez jeźdźca",
+        // CHECK spójności: odwołany zapis zawsze ma `cancelled_by`.
+        cancelledByLabel: cancelledByLabel(booking.cancelledBy ?? "rider", "stable"),
       }),
     )
     .sort(byHourInstructorRider);

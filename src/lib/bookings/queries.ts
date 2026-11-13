@@ -1,15 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/db/database.types";
 import type { MySlot, SlotOccupancy } from "@/lib/bookings/slots";
+import { toBookingStatus, toCancelledBy } from "@/lib/bookings/status";
+import type { BookingStatus, CancelledBy } from "@/types";
 
 type Client = SupabaseClient<Database>;
-
-/** Kto odwołał zapis — wartości kolumny `bookings.cancelled_by` (CHECK w migracji #41). */
-export type CancelledBy = "rider" | "stable";
-
-function toCancelledBy(value: string | null): CancelledBy | null {
-  return value === "rider" || value === "stable" ? value : null;
-}
 
 /**
  * Zajętość slotów (instruktor × godzina) ośrodka na dany dzień — przez RPC
@@ -60,7 +55,7 @@ export interface DayBooking {
   riderName: string | null;
   /** Zapis bez jeźdźca: konto usunięto, miniony zapis został w historii ośrodka (ADR-0001). */
   anonymised: boolean;
-  status: "active" | "cancelled";
+  status: BookingStatus;
   cancelledBy: CancelledBy | null;
 }
 
@@ -98,8 +93,8 @@ export async function getDayBookings(client: Client, scheduleDayId: number): Pro
     // `profiles` jest `null` dla zapisu bez jeźdźca, a także gdy RLS ukryje profil.
     riderName: row.profiles?.full_name ?? null,
     anonymised: row.rider_id === null,
-    // CHECK `bookings_status_check` dopuszcza wyłącznie te dwie wartości.
-    status: row.status === "cancelled" ? "cancelled" : "active",
+    // Nieznana wartość rzuca — strona loguje ją i pokazuje stan awarii.
+    status: toBookingStatus(row.status),
     cancelledBy: toCancelledBy(row.cancelled_by),
   }));
 }
@@ -114,7 +109,7 @@ export interface RiderBooking {
   instructorName: string | null;
   /** Przydzielony koń; `null` — jeszcze bez konia (zapis odwołany nigdy go nie ma). */
   horseName: string | null;
-  status: string;
+  status: BookingStatus;
   cancelledBy: CancelledBy | null;
 }
 
@@ -141,7 +136,7 @@ export async function getRiderBookings(client: Client, riderId: string): Promise
   return data.map((row) => ({
     id: row.id,
     hour: row.hour,
-    status: row.status,
+    status: toBookingStatus(row.status),
     cancelledBy: toCancelledBy(row.cancelled_by),
     instructorId: row.instructor_id,
     // Wygenerowane typy obiecują niepuste obiekty (FK not-null), ale w runtime RLS mógłby
