@@ -1,5 +1,44 @@
 import { describe, expect, it } from "vitest";
-import { homeRouteForRole, isLegacyHomeRoute, isStableSetupPath, isUserRole, routeGuardFor } from "@/lib/auth/roles";
+import {
+  homeRouteForRole,
+  isLegacyHomeRoute,
+  isStableSetupPath,
+  isUserRole,
+  routeGuardFor,
+  signupRoleFromParam,
+} from "@/lib/auth/roles";
+
+describe("signupRoleFromParam", () => {
+  it("zamienia „jezdziec” na rolę jeźdźca", () => {
+    expect(signupRoleFromParam("jezdziec")).toBe("rider");
+  });
+
+  it("zamienia „osrodek” na rolę ośrodka", () => {
+    expect(signupRoleFromParam("osrodek")).toBe("stable");
+  });
+
+  it("nie zaznacza niczego bez parametru", () => {
+    expect(signupRoleFromParam(null)).toBeNull();
+    expect(signupRoleFromParam(undefined)).toBeNull();
+  });
+
+  it("nie zaznacza niczego przy pustej wartości", () => {
+    expect(signupRoleFromParam("")).toBeNull();
+  });
+
+  it("nie zaznacza niczego przy nieznanej wartości", () => {
+    expect(signupRoleFromParam("admin")).toBeNull();
+    expect(signupRoleFromParam("rider")).toBeNull();
+    expect(signupRoleFromParam("stable")).toBeNull();
+    expect(signupRoleFromParam(" osrodek ")).toBeNull();
+    expect(signupRoleFromParam("constructor")).toBeNull();
+  });
+
+  it("nie zaznacza niczego przy innej wielkości liter", () => {
+    expect(signupRoleFromParam("Osrodek")).toBeNull();
+    expect(signupRoleFromParam("JEZDZIEC")).toBeNull();
+  });
+});
 
 describe("homeRouteForRole", () => {
   it("kieruje ośrodek do jego przestrzeni", () => {

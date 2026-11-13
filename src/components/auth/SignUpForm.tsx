@@ -10,14 +10,16 @@ import type { UserRole } from "@/types";
 
 interface Props {
   serverError?: string | null;
+  /** Rodzaj konta zaznaczony na starcie (z adresu rejestracji); `null` = bez zaznaczenia. */
+  initialRole?: UserRole | null;
 }
 
-export default function SignUpForm({ serverError }: Props) {
+export default function SignUpForm({ serverError, initialRole }: Props) {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [role, setRole] = useState<UserRole | "">("");
+  const [role, setRole] = useState<UserRole | "">(initialRole ?? "");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState<{
