@@ -14,7 +14,7 @@
 --
 -- Jako kto: konto kasuje postgres przez auth.users (tak robi to administracyjne API Auth;
 -- kaskada schodzi do public.profiles, gdzie siedzi regula). Odczyty kontrolne ida przez RLS
--- jako wlasciciel Pod Debem (1111...), wlasciciel Nad Rzeka (2222...) i jezdziec Piotr (4444...).
+-- jako wlasciciel Pod Dębem (1111...), wlasciciel Nad Rzeką (2222...) i jezdziec Piotr (4444...).
 --
 -- Wymaga swiezego seeda (`npx supabase db reset` tego samego dnia).
 -- Uzycie:  npm run test:db

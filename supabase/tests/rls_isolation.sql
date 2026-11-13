@@ -13,7 +13,7 @@
 
 \set ON_ERROR_STOP on
 
-\echo '=== Izolacja RLS: osrodek "Stadnina Pod Debem" ==='
+\echo '=== Izolacja RLS: osrodek "Stadnina Pod Dębem" ==='
 
 begin;
 
@@ -67,7 +67,7 @@ begin
   -- jej izolacje dowodzi supabase/tests/schedule_day_save.sql.
   begin
     insert into public.schedule_days (stable_id, day, open_hour, close_hour)
-    select id, current_date + 5, 8, 12 from public.stables where name = 'Stajnia Nad Rzeka';
+    select id, current_date + 5, 8, 12 from public.stables where name = 'Stajnia Nad Rzeką';
     raise exception 'FAIL: osrodek A wstawil grafik do cudzej stadniny';
   exception when insufficient_privilege then
     raise notice 'PASS: insert grafiku do cudzej stadniny odrzucony (42501)';
@@ -208,7 +208,7 @@ begin
     insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id)
     select sd.id, i.id, 13, '44444444-4444-4444-4444-444444444444'
     from public.schedule_days sd
-    join public.stables s on s.id = sd.stable_id and s.name = 'Stadnina Pod Debem'
+    join public.stables s on s.id = sd.stable_id and s.name = 'Stadnina Pod Dębem'
     join public.instructors i on i.stable_id = s.id and i.name = 'Joanna Wrona'
     -- Filtr po dacie jest konieczny: od S-02 stadnina moze miec wiele ulozonych dni,
     -- a bez niego zapytanie wstawia po jednym zapisie na kazdy z nich.
@@ -221,7 +221,7 @@ begin
   insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id)
   select sd.id, i.id, 13, '33333333-3333-3333-3333-333333333333'
   from public.schedule_days sd
-  join public.stables s on s.id = sd.stable_id and s.name = 'Stadnina Pod Debem'
+  join public.stables s on s.id = sd.stable_id and s.name = 'Stadnina Pod Dębem'
   join public.instructors i on i.stable_id = s.id and i.name = 'Joanna Wrona'
   where sd.day = current_date + 1;
   get diagnostics v = row_count;
@@ -233,7 +233,7 @@ end $$;
 
 rollback;
 
-\echo '=== Izolacja RLS: osrodek "Stajnia Nad Rzeka" ==='
+\echo '=== Izolacja RLS: osrodek "Stajnia Nad Rzeką" ==='
 
 begin;
 set local role authenticated;
@@ -282,14 +282,14 @@ declare
   r record;
 begin
   -- Funkcja security definer pokazuje zajetosc slotow cudzej stadniny (zapis Piotra:
-  -- Tomasz Lis o 10 w Stajni Nad Rzeka) jako liczbe - bez tozsamosci jezdzca.
+  -- Tomasz Lis o 10 w Stajni Nad Rzeką) jako liczbe - bez tozsamosci jezdzca.
   select count(*) as n, sum(o.taken) as taken, min(o.hour) as hour into r
   from public.get_slot_occupancy(
-    (select id from public.stables where name = 'Stajnia Nad Rzeka'),
+    (select id from public.stables where name = 'Stajnia Nad Rzeką'),
     current_date + 1
   ) o;
   if r.n <> 1 or r.taken <> 1 or r.hour <> 10 then
-    raise exception 'FAIL: zajetosc Stajni Nad Rzeka: slotow=% zajetych=% godzina=%', r.n, r.taken, r.hour;
+    raise exception 'FAIL: zajetosc Stajni Nad Rzeką: slotow=% zajetych=% godzina=%', r.n, r.taken, r.hour;
   end if;
   raise notice 'PASS: funkcja pokazuje zajetosc cudzej stadniny (1 miejsce o 10)';
 
@@ -298,7 +298,7 @@ begin
   from public.bookings b
   join public.schedule_days sd on sd.id = b.schedule_day_id
   join public.stables s on s.id = sd.stable_id
-  where s.name = 'Stajnia Nad Rzeka';
+  where s.name = 'Stajnia Nad Rzeką';
   if v <> 0 then
     raise exception 'FAIL: jezdziec widzi % cudzych wierszy bookings bezposrednio', v;
   end if;
@@ -306,9 +306,9 @@ begin
 
   -- Odwolany zapis znika z zajetosci: funkcja liczy wylacznie aktywne.
   select coalesce(sum(taken), 0) into v
-  from public.get_slot_occupancy((select id from public.stables where name = 'Stadnina Pod Debem'), current_date + 1);
+  from public.get_slot_occupancy((select id from public.stables where name = 'Stadnina Pod Dębem'), current_date + 1);
   if v <> 1 then
-    raise exception 'FAIL: przed odwolaniem funkcja widzi % zajetych miejsc Pod Debem zamiast 1', v;
+    raise exception 'FAIL: przed odwolaniem funkcja widzi % zajetych miejsc Pod Dębem zamiast 1', v;
   end if;
 
   update public.bookings
@@ -320,7 +320,7 @@ begin
   end if;
 
   select count(*) into v
-  from public.get_slot_occupancy((select id from public.stables where name = 'Stadnina Pod Debem'), current_date + 1);
+  from public.get_slot_occupancy((select id from public.stables where name = 'Stadnina Pod Dębem'), current_date + 1);
   if v <> 0 then
     raise exception 'FAIL: odwolany zapis nadal widoczny w zajetosci (% wierszy)', v;
   end if;

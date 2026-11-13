@@ -14,11 +14,11 @@ describe("prepareSearchTerm", () => {
   });
 
   it("przycina białe znaki z brzegów", () => {
-    expect(prepareSearchTerm("  Krakow  ")).toBe("Krakow");
+    expect(prepareSearchTerm("  Kraków  ")).toBe("Kraków");
   });
 
   it("przepuszcza zwykłą frazę bez zmian", () => {
-    expect(prepareSearchTerm("Stadnina Pod Debem")).toBe("Stadnina Pod Debem");
+    expect(prepareSearchTerm("Stadnina Pod Dębem")).toBe("Stadnina Pod Dębem");
   });
 
   it("ekranuje metaznaki wzorca LIKE", () => {
@@ -34,9 +34,9 @@ describe("prepareSearchTerm", () => {
   });
 
   it("usuwa znaki strukturalne filtra PostgREST", () => {
-    expect(prepareSearchTerm("Krakow, Wieliczka")).toBe("Krakow Wieliczka");
-    expect(prepareSearchTerm('Stadnina "Pod Debem"')).toBe("Stadnina Pod Debem");
-    expect(prepareSearchTerm("(Krakow)")).toBe("Krakow");
+    expect(prepareSearchTerm("Kraków, Wieliczka")).toBe("Kraków Wieliczka");
+    expect(prepareSearchTerm('Stadnina "Pod Dębem"')).toBe("Stadnina Pod Dębem");
+    expect(prepareSearchTerm("(Kraków)")).toBe("Kraków");
   });
 
   it("traktuje frazę złożoną wyłącznie ze znaków strukturalnych jako brak filtra", () => {

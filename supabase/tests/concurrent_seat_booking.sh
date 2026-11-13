@@ -46,7 +46,7 @@ for value in "$BARRIER_SECONDS" "$HOLD_SECONDS"; do
   esac
 done
 if [ "$SEATS" -ge "$ATTEMPTS" ] || [ "$SEATS" -lt 1 ] || [ "$SEATS" -gt 2 ]; then
-  echo "BLAD: wymagane 1 <= SEATS <= 2 (Pod Debem ma 2 konie - regula sumy) i SEATS < ATTEMPTS" >&2
+  echo "BLAD: wymagane 1 <= SEATS <= 2 (Pod Dębem ma 2 konie - regula sumy) i SEATS < ATTEMPTS" >&2
   exit 1
 fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -55,7 +55,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=_psql.sh
 source "$SCRIPT_DIR/_psql.sh" || exit 1
 
-STABLE_ID="$(q "select id from public.stables where name = 'Stadnina Pod Debem'")"
+STABLE_ID="$(q "select id from public.stables where name = 'Stadnina Pod Dębem'")"
 DAY_ID="$(q "select id from public.schedule_days where stable_id = ${STABLE_ID:-0} and day = current_date + 1")"
 DAY_DATE="$(q "select day from public.schedule_days where id = ${DAY_ID:-0}")"
 INSTRUCTOR_ID="$(q "select id from public.instructors where stable_id = ${STABLE_ID:-0} and name = 'Joanna Wrona'")"

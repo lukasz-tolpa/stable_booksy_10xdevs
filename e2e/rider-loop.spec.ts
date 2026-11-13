@@ -27,7 +27,7 @@ import {
  * „Twój zapis", wiersz w „Moje zapisy" i lista dnia ośrodka — nigdy baner sukcesu ani
  * samo przekierowanie.
  *
- * Slot: Karol Jasny o 13:00 w Stadninie Pod Debem, dzień seeda. Karol nie pracuje
+ * Slot: Karol Jasny o 13:00 w Stadninie Pod Dębem, dzień seeda. Karol nie pracuje
  * w seedzie — dodaje go ośrodek przez formularz grafiku z 1 miejscem o 13:00 (suma
  * limitów o 13: Joanna 1 + Karol 1 = 2 konie dnia). Inny niż Joanna@11 Anny, Joanna@14
  * scenariusza odmowy i Joanna@12 skryptu współbieżności.

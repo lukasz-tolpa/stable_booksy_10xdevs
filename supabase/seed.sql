@@ -26,7 +26,7 @@ values
     'authenticated', 'authenticated', 'osrodek.debem@example.com',
     extensions.crypt('sekret123', extensions.gen_salt('bf')), now(),
     '{"provider":"email","providers":["email"]}',
-    '{"role":"stable","full_name":"Marek Debowski"}',
+    '{"role":"stable","full_name":"Marek Dębowski"}',
     now(), now()
   ),
   (
@@ -91,13 +91,13 @@ insert into public.stables (owner_id, name, city, description)
 values
   (
     '11111111-1111-1111-1111-111111111111',
-    'Stadnina Pod Debem', 'Krakow',
-    'Kameralna stajnia na obrzezach miasta, jazdy rekreacyjne i nauka od podstaw.'
+    'Stadnina Pod Dębem', 'Kraków',
+    'Kameralna stajnia na obrzeżach miasta, jazdy rekreacyjne i nauka od podstaw.'
   ),
   (
     '22222222-2222-2222-2222-222222222222',
-    'Stajnia Nad Rzeka', 'Wieliczka',
-    'Stajnia z krytą ujezdzalnia, zajecia takze przy zlej pogodzie.'
+    'Stajnia Nad Rzeką', 'Wieliczka',
+    'Stajnia z krytą ujeżdżalnią, zajęcia także przy złej pogodzie.'
   );
 
 insert into public.horses (stable_id, name, notes)
@@ -105,11 +105,11 @@ select s.id, h.name, h.notes
 from public.stables s
 join (
   values
-    ('Stadnina Pod Debem', 'Bella',   'Spokojna, dobra dla poczatkujacych.'),
-    ('Stadnina Pod Debem', 'Kasztan', 'Zywy temperament, dla srednio zaawansowanych.'),
-    ('Stadnina Pod Debem', 'Iskra',   'Klacz, pracuje wylacznie w weekendy.'),
-    ('Stajnia Nad Rzeka',  'Grom',    'Wysoki wallach, wymaga pewnej reki.'),
-    ('Stajnia Nad Rzeka',  'Luna',    'Bardzo lagodna, czesto pod dzieci.')
+    ('Stadnina Pod Dębem', 'Bella',   'Spokojna, dobra dla początkujących.'),
+    ('Stadnina Pod Dębem', 'Kasztan', 'Żywy temperament, dla średnio zaawansowanych.'),
+    ('Stadnina Pod Dębem', 'Iskra',   'Klacz, pracuje wyłącznie w weekendy.'),
+    ('Stajnia Nad Rzeką',  'Grom',    'Wysoki wałach, wymaga pewnej ręki.'),
+    ('Stajnia Nad Rzeką',  'Luna',    'Bardzo łagodna, często pod dzieci.')
 ) as h(stable_name, name, notes) on h.stable_name = s.name;
 
 -- ---------------------------------------------------------------------------
@@ -122,12 +122,12 @@ select s.id, current_date + 1, d.open_hour, d.close_hour
 from public.stables s
 join (
   values
-    ('Stadnina Pod Debem', 10::smallint, 16::smallint),
-    ('Stajnia Nad Rzeka',   9::smallint, 14::smallint)
+    ('Stadnina Pod Dębem', 10::smallint, 16::smallint),
+    ('Stajnia Nad Rzeką',   9::smallint, 14::smallint)
 ) as d(stable_name, open_hour, close_hour) on d.stable_name = s.name;
 
--- Pod Debem pracuja Bella i Kasztan (Iskra ma wolne - weekendowa).
--- Nad Rzeka pracuje wylacznie Grom.
+-- Pod Dębem pracuja Bella i Kasztan (Iskra ma wolne - weekendowa).
+-- Nad Rzeką pracuje wylacznie Grom.
 insert into public.schedule_day_horses (schedule_day_id, horse_id, stable_id)
 select sd.id, h.id, h.stable_id
 from public.schedule_days sd
@@ -139,19 +139,19 @@ where h.name in ('Bella', 'Kasztan', 'Grom');
 -- ---------------------------------------------------------------------------
 
 -- Seed pisze jako postgres, wiec omija save_schedule_day - limity musza wiec same spelniac
--- regule sumy (suma limitow w godzinie <= liczba koni dnia): Pod Debem 2 konie, Nad Rzeka 1.
+-- regule sumy (suma limitow w godzinie <= liczba koni dnia): Pod Dębem 2 konie, Nad Rzeką 1.
 insert into public.instructors (stable_id, name)
 select s.id, i.name
 from public.stables s
 join (
   values
-    ('Stadnina Pod Debem', 'Joanna Wrona'),
-    ('Stadnina Pod Debem', 'Karol Jasny'),
-    ('Stajnia Nad Rzeka',  'Tomasz Lis')
+    ('Stadnina Pod Dębem', 'Joanna Wrona'),
+    ('Stadnina Pod Dębem', 'Karol Jasny'),
+    ('Stajnia Nad Rzeką',  'Tomasz Lis')
 ) as i(stable_name, name) on i.stable_name = s.name;
 
 -- Karol nie pracuje jutro - scenariusz e2e dodaje go w formularzu grafiku (miejsce o 13),
--- a testy bazy dokladaja go jako postgres. Drugi kon Pod Debem zostawia na to miejsce w sumie.
+-- a testy bazy dokladaja go jako postgres. Drugi kon Pod Dębem zostawia na to miejsce w sumie.
 insert into public.schedule_day_instructors (schedule_day_id, instructor_id, stable_id)
 select sd.id, i.id, i.stable_id
 from public.schedule_days sd
@@ -169,7 +169,7 @@ cross join lateral generate_series(sd.open_hour, sd.close_hour - 1) h;
 -- Zapisy
 -- ---------------------------------------------------------------------------
 
--- Anna jezdzi Pod Debem u Joanny o 11, Piotr Nad Rzeka u Tomasza o 10 - oba bez konia
+-- Anna jezdzi Pod Dębem u Joanny o 11, Piotr Nad Rzeką u Tomasza o 10 - oba bez konia
 -- (przydzial konia nalezy do osrodka). Kazdy zapis w innej stadninie - material dla testu
 -- izolacji RLS. Zarezerwowane sloty testow: Karol@13 (petla jezdzca e2e), Joanna@14
 -- (odmowa e2e), Joanna@12 (skrypt wspolbieznosci test:db).
@@ -177,8 +177,8 @@ insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id)
 select sd.id, i.id, b.hour, b.rider_id
 from (
   values
-    ('Stadnina Pod Debem', 'Joanna Wrona', 11::smallint, '33333333-3333-3333-3333-333333333333'::uuid),
-    ('Stajnia Nad Rzeka',  'Tomasz Lis',   10::smallint, '44444444-4444-4444-4444-444444444444'::uuid)
+    ('Stadnina Pod Dębem', 'Joanna Wrona', 11::smallint, '33333333-3333-3333-3333-333333333333'::uuid),
+    ('Stajnia Nad Rzeką',  'Tomasz Lis',   10::smallint, '44444444-4444-4444-4444-444444444444'::uuid)
 ) as b(stable_name, instructor_name, hour, rider_id)
 join public.stables s on s.name = b.stable_name
 join public.schedule_days sd on sd.stable_id = s.id

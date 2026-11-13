@@ -16,7 +16,7 @@
 --   * kon przy zapisie (opcjonalny) musi pracowac tego dnia i ma jeden aktywny zapis w godzinie.
 -- Rownoleglosc zapisow na ostatnie miejsce: supabase/tests/concurrent_seat_booking.sh.
 --
--- Seed (jutro, Pod Debem 10-16, Bella + Kasztan): Joanna Wrona 1 miejsce w kazdej godzinie,
+-- Seed (jutro, Pod Dębem 10-16, Bella + Kasztan): Joanna Wrona 1 miejsce w kazdej godzinie,
 -- Karol Jasny nie pracuje; zapis Anny u Joanny o 11.
 --
 -- Wymaga swiezego seeda (`npx supabase db reset` tego samego dnia).
@@ -220,7 +220,7 @@ begin
     raise notice 'PASS 12: zapis na slot z limitem zero odrzucony (SB009)';
   end;
 
-  -- 13. Instruktor niepracujacy tego dnia: Tomasz Lis (Nad Rzeka) nie ma slotu w dniu Pod Debem.
+  -- 13. Instruktor niepracujacy tego dnia: Tomasz Lis (Nad Rzeką) nie ma slotu w dniu Pod Dębem.
   begin
     insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id)
     select v_day, i.id, 13, c_piotr from public.instructors i where i.name = 'Tomasz Lis';

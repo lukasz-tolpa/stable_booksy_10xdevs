@@ -198,8 +198,8 @@ local role authenticated; set local request.jwt.claims =
   (drop the index or trigger, `alter table … disable row level security`), watch
   the script go red, then `npx supabase db reset`. A test that cannot fail
   proves nothing.
-- **Seed personas**: `1111…` stable A (Stadnina Pod Debem), `2222…` stable B
-  (Stajnia Nad Rzeka), `3333…` rider Anna, `4444…` rider Piotr; password
+- **Seed personas**: `1111…` stable A (Stadnina Pod Dębem), `2222…` stable B
+  (Stajnia Nad Rzeką), `3333…` rider Anna, `4444…` rider Piotr; password
   `sekret123`. Identity ids of stables, horses, days and bookings are not fixed
   — resolve them by name or owner uuid, never hardcode.
 
@@ -259,8 +259,8 @@ local role authenticated; set local request.jwt.claims =
 - **Seed slots reserved**: Karol Jasny@13 (rider loop — Karol does not work in
   the seed; the scenario adds him with 1 seat at 13:00 and removes him after),
   Joanna Wrona@14 (refusal, 1 seat), Joanna Wrona@12 (`test:db` concurrency
-  script, which raises the limit temporarily) — all at Stadnina Pod Debem,
-  tomorrow. Anna holds Joanna@11, Piotr holds Tomasz Lis@10 at Stajnia Nad Rzeka;
+  script, which raises the limit temporarily) — all at Stadnina Pod Dębem,
+  tomorrow. Anna holds Joanna@11, Piotr holds Tomasz Lis@10 at Stajnia Nad Rzeką;
   seed bookings have no horse. Do not run `npm run test:db` and `npm run test:e2e` against the
   same database at the same time.
 - **Past data**: the seed schedules only tomorrow and the past cannot be
