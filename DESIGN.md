@@ -65,8 +65,10 @@ obrysem niczego innego i nie stoi na jasnym tle.
 
 ## 3. Typografia
 
-- Display (h1, h2, przyciski, logo): **Plus Jakarta Sans** 700/800,
+- Display (h1, h2, przyciski): **Plus Jakarta Sans** 700/800,
   `letter-spacing: -0.02em`, `line-height: 1.1`.
+- Logo stoi w tym samym kroju, ale ma własne wagi i odstępy (§4 „Logo"):
+  800, a górny wiersz układu pełnego 600.
 - Body: **Inter** 400/500/600, 16 px, `line-height: 1.55`.
 - Dane (godziny, daty, zakres „10–14"): `ui-monospace`, `tabular-nums`.
 - Eyebrow (mały nagłówek sekcji): mono 12 px, uppercase, `letter-spacing:
@@ -91,9 +93,11 @@ obrysem niczego innego i nie stoi na jasnym tle.
   `src/lib/brand.ts`. Bez pliku graficznego; ikoną zostaje biała głowa konia.
   - **Zwarty** — jedna linia „getona.horse", 800, `letter-spacing: -0.045em`:
     „getona" w `--primary-strong`, „.horse" w `--accent` (4,84:1 na bieli).
-    Stoi w górnym pasku na każdym ekranie: 21 px, poniżej 768 px 19 px,
-    poniżej 360 px 15 px — tak, żeby mieścił się w jednym rzędzie z linkami
-    gościa od 320 px.
+    Stoi w górnym pasku na każdym ekranie: 21 px, poniżej 768 px 19 px.
+    Tylko w pasku gościa (`nav--guest`), gdzie obok logo stoją dwa linki,
+    odstęp maleje poniżej 768 px do 8 px, a poniżej 360 px logo ma 15 px
+    i linki węższy padding — tak, żeby całość mieściła się w jednym rzędzie
+    od 320 px. U zalogowanego pasek poza logo jest bez zmian.
   - **Pełny** — dwa wiersze wyrównane do lewej: „get on a" (600, 0,344 wysokości
     dolnego wiersza, `word-spacing: 0.18em`) nad „.horse" (800,
     `letter-spacing: -0.05em`, `clamp(56px, 9vw, 88px)`). Tylko na
@@ -236,7 +240,7 @@ How the system above is wired into the code. Written for agents, hence English.
 - **Charts** are `BarChart.astro`: server-rendered HTML + CSS bars, no charting library and no client JavaScript, so it runs unchanged on workerd SSR. `orientation` is `vertical` for time series and `horizontal` for rankings. The series comes ready from the view model; the component computes only its axis scale. The drawing is `aria-hidden` and the same data sits in a `<details>` table ("Pokaż dane wykresu w tabeli"). Single series: `--primary` bars, a 2 px `--border-2` stub for zero, mono `--muted` labels, no chestnut.
 - **Astro scoped styles stop at a child component's root.** `.foo h1` works when the markup sits in the page; to style a `<Card>` from outside, pass Tailwind utilities (`class="w-full max-w-[420px]"`) or wrap the slot content in your own element.
 - **Chestnut today** (cap of two per screen, §7): the rider `RoleBadge`, the own-booking slot pill and the "Zapisz grafik" button. The landing page is exempt (§6): its rider half is chestnut throughout. The logo's ".horse" (`Logo.astro`, top bar and landing footer) does not count towards the cap; `--accent-on-dark` is used by the full logo only.
-- **Product name** is spelled once, in `src/lib/brand.ts` (`PRODUCT_NAME`, `LOGO_PARTS`); the logo, the default `<title>` in `Layout.astro` and `DAY_HEADING` read it from there.
+- **Product name** is spelled once, in `src/lib/brand.ts`: the sentence "get on a" and the ending ".horse", from which both `LOGO_PARTS` and `PRODUCT_NAME` are derived; the logo, the default `<title>` in `Layout.astro` and `DAY_HEADING` read it from there.
 - **Prototypes** in `context/changes/ui-redesign/design/*.html` are the geometry contract, not code to copy. They use container queries against a fake `.app` wrapper; the app has no such wrapper, so the same breakpoints are media queries.
 - **Screenshots.** `scripts/shots.mjs` captures every screen at 390 px and 1440 px into `shots/` (gitignored) against a running preview; run `npm run db:demo` first so the statistics page has data. It sits outside `e2e/` so the suite never collects it. Accounts, the seed day, sign-in and page settling are shared with `shots-day.mjs` through `scripts/shots-lib.mjs`.
 - **Landing screenshots.** `npm run shots:day` (`scripts/shots-day.mjs`) replays one day on the local stack — the stable opens the schedule, Anna sees her seeded 11:00 booking on the slot list, the stable assigns her a horse, Anna opens "Moje zapisy", the stable opens statistics — and after each step saves the relevant region, without the top bar, as WebP in two widths: `public/jeden-dzien/<grafik|sloty|zapisy-dnia|moje-zapisy|statystyki>-<komputer|telefon>.webp`, plus the manifest `src/lib/landing/day-shots.json` (address, width and height of every file; `src/lib/landing/day.ts` imports it, so file names, suffixes and the directory are spelled only in the script). Both are committed; `e2e/landing.spec.ts` checks declared against natural dimensions. It needs `npx supabase db reset && npm run db:demo` and a running preview (`SHOTS_BASE_URL`, default `:4173`). Before changing anything it checks that the preview answers and that the database is a clean seed with Anna's untouched 11:00 booking (active, no horse). Its only database write is the horse assignment, made through the UI as the stable; SQL is used for reading state only, and the seeded booking is neither deleted nor recreated. A second run without a reset sees the booking with a horse and stops with a message, writing nothing. On the phone shot the seat sheet is scrolled inside its container so the "Koni zajętych" column is fully in frame. Also outside `e2e/`.
