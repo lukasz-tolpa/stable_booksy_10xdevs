@@ -1,4 +1,4 @@
-# DESIGN.md — Stable Booksy
+# DESIGN.md — getona.horse
 
 System wizualny przeniesiony z marki „Horse to go" (eksport OpenDesign,
 `horseToGo-FrontEnd-Tailwind/prototype/brand-spec.md` + `css/app.css`).
@@ -11,9 +11,9 @@ Equestrian, spokojny, prowadzony marką. Natura, zaufanie, powietrze. Jasny
 motyw jako jedyny (bez dark mode). Leśna zieleń jako kolor marki, kasztan
 (maść konia) jako jeden akcent na ekran, dużo bieli.
 
-Jedyny wyjątek od jasnego motywu: połowa ośrodka na stronie głównej (§6) ma
-ciemne tło sekcji `--primary-strong` z białym tekstem. Żaden inny ekran nie ma
-ciemnego tła sekcji i nie jest to tryb ciemny.
+Wyjątki od jasnego motywu są dwa, oba na stronie głównej (§6) i oba na
+`--primary-strong`: połowa ośrodka z białym tekstem oraz stopka z logo pełnym.
+Żaden inny ekran nie ma ciemnego tła sekcji i nie jest to tryb ciemny.
 
 ## 2. Kolory (OKLch)
 
@@ -36,6 +36,7 @@ ciemnego tła sekcji i nie jest to tryb ciemny.
 --accent: oklch(56% 0.11 52); /* kasztan: max 1–2 użycia na ekran, WYPEŁNIENIA */
 --accent-soft: oklch(94% 0.03 60); /* tło badge „Jeździec", „Twój zapis" */
 --accent-ink: oklch(48% 0.12 52); /* TEKST kasztanowy: --accent na --accent-soft to 4,0:1 */
+--accent-on-dark: oklch(80% 0.1 60); /* jasny kasztan: TYLKO „.horse" w logo na --primary-strong, 4,88:1 */
 
 --success: oklch(58% 0.13 150);
 --success-soft: oklch(94% 0.04 150); /* banner „Zapisano na jazdę." */
@@ -55,6 +56,12 @@ Warianty `-ink` to jedyne dopuszczone kolory **tekstu** na miękkich tłach — 
 `--accent` / `--danger` / `--warn` zostają dla wypełnień, obrysów i pasków bannera.
 `--faint` służy wyłącznie do placeholderów i wyłączonych kontrolek (3,2:1 na `--bg`);
 tekst pomocniczy idzie na `--muted`.
+
+`--accent-on-dark` istnieje wyłącznie dla końcówki „.horse" w logo pełnym na
+`--primary-strong` (§4 „Logo"). Kontrast policzony z wartości sRGB po przycięciu
+do gamutu: `rgb(238 174 123)` na `rgb(0 82 49)` daje **4,88:1** (próg 4,5:1);
+biały wiersz „get on a" ma na tym tle 9,33:1. Token nie jest tekstem, tłem ani
+obrysem niczego innego i nie stoi na jasnym tle.
 
 ## 3. Typografia
 
@@ -78,7 +85,24 @@ tekst pomocniczy idzie na `--muted`.
   górny pasek landingu `max-width: 1200px` (połowy landingu sięgają krawędzi
   okna, §6).
 - Topbar sticky 68 px, białe tło z `backdrop-filter: blur(14px)`, hairline
-  na dole. Logo „Stable Booksy" w `--primary-strong`, 800.
+  na dole. Po lewej logo zwarte (niżej), link do strony głównej.
+- **Logo** to nazwa produktu „getona.horse" z żywego tekstu w kroju display —
+  jeden komponent `src/components/Logo.astro`, dwa układy; pisownię trzyma
+  `src/lib/brand.ts`. Bez pliku graficznego; ikoną zostaje biała głowa konia.
+  - **Zwarty** — jedna linia „getona.horse", 800, `letter-spacing: -0.045em`:
+    „getona" w `--primary-strong`, „.horse" w `--accent` (4,84:1 na bieli).
+    Stoi w górnym pasku na każdym ekranie: 21 px, poniżej 768 px 19 px,
+    poniżej 360 px 15 px — tak, żeby mieścił się w jednym rzędzie z linkami
+    gościa od 320 px.
+  - **Pełny** — dwa wiersze wyrównane do lewej: „get on a" (600, 0,344 wysokości
+    dolnego wiersza, `word-spacing: 0.18em`) nad „.horse" (800,
+    `letter-spacing: -0.05em`, `clamp(56px, 9vw, 88px)`). Tylko na
+    `--primary-strong`: górny wiersz biały, dolny w `--accent-on-dark`. Stoi
+    w stopce strony głównej (§6) i nigdzie indziej.
+  - Oba układy są dla czytnika ekranu jednym obrazkiem o nazwie „getona.horse"
+    (`role="img"` z `aria-label`), więc nazwa nie jest czytana w kawałkach;
+    w pasku ta nazwa jest nazwą linku.
+  - Logo **nie liczy się** do limitu użyć kasztanu na ekran (§7).
 - Mobile-first 390 px: jedna kolumna, przyciski `btn-block`, siatka slotów
   zawija się.
 
@@ -141,7 +165,7 @@ bez zdjęć.
   rejestracji, druga połowa bez przycisku, linia o logowaniu znika.
 - **Kasztan** jest tu tłem całej połowy, więc limit dwóch użyć z §7 landingu
   nie dotyczy.
-- **„Jeden dzień ze Stable Booksy"** stoi pod połowami i linią o logowaniu, na
+- **„Jeden dzień z getona.horse"** stoi pod połowami i linią o logowaniu, na
   `--bg`, w szerokości `container-page`. To oś czasu — uporządkowana lista
   sześciu momentów dnia. Moment to godzina (mono, `--muted`), rola, tytuł
   (`h3`, `clamp(24px, 2.8vw, 36px)`), jedno–dwa zdania (17 px, `--muted`) i
@@ -183,12 +207,18 @@ bez zdjęć.
   - Połowy, sekcja i zamknięcie są regionami nazwanymi swoimi nagłówkami
     (`aria-labelledby`), bo przyciski połów i zamknięcia nazywają się tak samo.
     Jedyne elementy z fokusem w sekcji to przyciski zamknięcia.
+- **Stopka** stoi pod zamknięciem, poza `<main>`, jako `<footer>`: tło
+  `--primary-strong` (ten sam token co połowa ośrodka) na całą szerokość okna,
+  w `container-page` wyłącznie logo pełne (§4). Bez linków i noty o prawach.
+  Widzi ją gość i zalogowany. To drugie i ostatnie ciemne tło w aplikacji (§1);
+  inne ekrany stopki nie mają.
 - Bez listy funkcji, FAQ, cennika, opinii, stopki z linkami — to MVP.
 
 ## 7. Zasady
 
 - Język polski wszędzie. Ikony tylko lucide-react, tylko przy etykiecie.
-- Akcent kasztanowy maks. 2 razy na ekran (poza landingiem, §6).
+- Akcent kasztanowy maks. 2 razy na ekran (poza landingiem, §6). Logo w górnym
+  pasku i w stopce do tego limitu się nie wlicza (§4).
 - Bez animacji poza hover/focus (150 ms).
 - Semantyka HTML zachowana: h1/h2, `<button>`, `<a>`, `<label for>`, `<ul><li>`.
   Testy E2E lokalizują elementy przez `getByRole` / `getByLabel`.
@@ -199,13 +229,14 @@ bez zdjęć.
 
 How the system above is wired into the code. Written for agents, hence English.
 
-- **No dark mode.** The stable half of the landing page is a dark _section_ (§1, §6), not a theme. `global.css` carries no `.dark` block and no `@custom-variant dark`, and `Layout.astro` pins `<meta name="color-scheme" content="light">`.
+- **No dark mode.** The stable half and the footer of the landing page are dark _sections_ (§1, §6), not a theme. `global.css` carries no `.dark` block and no `@custom-variant dark`, and `Layout.astro` pins `<meta name="color-scheme" content="light">`.
 - **Tokens live once**, in `src/styles/global.css`. `:root` holds the §2 names verbatim (`--surface`, `--muted`, `--primary`, `--accent`, …), so prototypes read 1:1 and `<style>` blocks use `var(--…)`. `@theme` carries typography and radii as literal values; `@theme inline` re-exports the palette as Tailwind utilities. `scripts/check-tokens.mjs` (part of `npm run lint`) rejects colour and font literals anywhere else; a new colour gets a token here.
 - **Two name collisions with shadcn.** shadcn's `--muted` and `--accent` are _background_ colours; this document's are _text_ and _chestnut_. So `bg-muted` / `bg-accent` keep the shadcn meaning, helper text is `text-muted-foreground`, and chestnut is `bg-chestnut` / `bg-chestnut-soft` / `text-chestnut-ink`. A name from §2 is never mapped onto a shadcn utility.
 - **Shared blocks** live in `src/components/ui/`: `Card`, `EmptyState`, `FailureState`, `RoleBadge`, `DayNav`, `BarChart`, next to the shadcn components ("new-york" style, added with `npx shadcn@latest add [name]`).
 - **Charts** are `BarChart.astro`: server-rendered HTML + CSS bars, no charting library and no client JavaScript, so it runs unchanged on workerd SSR. `orientation` is `vertical` for time series and `horizontal` for rankings. The series comes ready from the view model; the component computes only its axis scale. The drawing is `aria-hidden` and the same data sits in a `<details>` table ("Pokaż dane wykresu w tabeli"). Single series: `--primary` bars, a 2 px `--border-2` stub for zero, mono `--muted` labels, no chestnut.
 - **Astro scoped styles stop at a child component's root.** `.foo h1` works when the markup sits in the page; to style a `<Card>` from outside, pass Tailwind utilities (`class="w-full max-w-[420px]"`) or wrap the slot content in your own element.
-- **Chestnut today** (cap of two per screen, §7): the rider `RoleBadge`, the own-booking slot pill and the "Zapisz grafik" button. The landing page is exempt (§6): its rider half is chestnut throughout.
+- **Chestnut today** (cap of two per screen, §7): the rider `RoleBadge`, the own-booking slot pill and the "Zapisz grafik" button. The landing page is exempt (§6): its rider half is chestnut throughout. The logo's ".horse" (`Logo.astro`, top bar and landing footer) does not count towards the cap; `--accent-on-dark` is used by the full logo only.
+- **Product name** is spelled once, in `src/lib/brand.ts` (`PRODUCT_NAME`, `LOGO_PARTS`); the logo, the default `<title>` in `Layout.astro` and `DAY_HEADING` read it from there.
 - **Prototypes** in `context/changes/ui-redesign/design/*.html` are the geometry contract, not code to copy. They use container queries against a fake `.app` wrapper; the app has no such wrapper, so the same breakpoints are media queries.
 - **Screenshots.** `scripts/shots.mjs` captures every screen at 390 px and 1440 px into `shots/` (gitignored) against a running preview; run `npm run db:demo` first so the statistics page has data. It sits outside `e2e/` so the suite never collects it. Accounts, the seed day, sign-in and page settling are shared with `shots-day.mjs` through `scripts/shots-lib.mjs`.
 - **Landing screenshots.** `npm run shots:day` (`scripts/shots-day.mjs`) replays one day on the local stack — the stable opens the schedule, Anna sees her seeded 11:00 booking on the slot list, the stable assigns her a horse, Anna opens "Moje zapisy", the stable opens statistics — and after each step saves the relevant region, without the top bar, as WebP in two widths: `public/jeden-dzien/<grafik|sloty|zapisy-dnia|moje-zapisy|statystyki>-<komputer|telefon>.webp`, plus the manifest `src/lib/landing/day-shots.json` (address, width and height of every file; `src/lib/landing/day.ts` imports it, so file names, suffixes and the directory are spelled only in the script). Both are committed; `e2e/landing.spec.ts` checks declared against natural dimensions. It needs `npx supabase db reset && npm run db:demo` and a running preview (`SHOTS_BASE_URL`, default `:4173`). Before changing anything it checks that the preview answers and that the database is a clean seed with Anna's untouched 11:00 booking (active, no horse). Its only database write is the horse assignment, made through the UI as the stable; SQL is used for reading state only, and the seeded booking is neither deleted nor recreated. A second run without a reset sees the booking with a horse and stops with a message, writing nothing. On the phone shot the seat sheet is scrolled inside its container so the "Koni zajętych" column is fully in frame. Also outside `e2e/`.

@@ -2,7 +2,8 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { waitForIslands } from "./helpers";
 
 /**
- * Strona główna: dwa wejścia (#49, #51) i sekcja „Jeden dzień ze Stable Booksy” (#53, #56).
+ * Strona główna: dwa wejścia (#49, #51), sekcja „Jeden dzień z getona.horse” (#53, #56)
+ * oraz logo w górnym pasku i w stopce (#59).
  * Gość wybiera połowę albo czyta dzień do końca, a rejestracja otwiera się z zaznaczonym
  * rodzajem konta. Bez stanu sesji — to scenariusz gościa.
  *
@@ -10,8 +11,12 @@ import { waitForIslands } from "./helpers";
  * i zamknięcie sekcji), a górny pasek ma własne „Zaloguj się” i „Załóż konto”. Dlatego
  * każdy przycisk szukany jest wewnątrz regionu nazwanego swoim nagłówkiem, a link
  * logowania pod połowami wewnątrz `<main>`.
+ *
+ * Nazwę „getona.horse” też niosą dwa elementy: logo w górnym pasku (link w `banner`)
+ * i logo w stopce (`contentinfo`), więc każde szukane jest w swoim punkcie orientacyjnym.
  */
-const DAY_HEADING = "Jeden dzień ze Stable Booksy";
+const PRODUCT_NAME = "getona.horse";
+const DAY_HEADING = "Jeden dzień z getona.horse";
 const DAY_TITLES = [
   "Ośrodek układa grafik na jutro.",
   "Anna zapisuje się na 11:00.",
@@ -28,6 +33,8 @@ const riderHalf = (page: Page) => region(page, "Jeżdżę konno.");
 const stableHalf = (page: Page) => region(page, "Prowadzę ośrodek.");
 const daySection = (page: Page) => region(page, DAY_HEADING);
 const closing = (page: Page) => region(page, "Jutro może tak wyglądać Twój dzień.");
+const topbarLogo = (page: Page) => page.getByRole("banner").getByRole("link", { name: PRODUCT_NAME, exact: true });
+const footerLogo = (page: Page) => page.getByRole("contentinfo").getByRole("img", { name: PRODUCT_NAME, exact: true });
 
 /**
  * Zrzuty ładują się leniwie: każdy trzeba przewinąć w pole widzenia i poczekać na plik.
@@ -72,9 +79,13 @@ test("gość wchodzi ze strony głównej do rejestracji swojej roli albo do logo
     await expect(page.getByRole("heading", { level: 2, name: "Prowadzę ośrodek.", exact: true })).toBeVisible();
   });
 
-  await test.step("pod połowami stoi „Jeden dzień ze Stable Booksy” z sześcioma momentami po kolei", async () => {
+  await test.step("pod połowami stoi „Jeden dzień z getona.horse” z sześcioma momentami po kolei", async () => {
     await expect(page.getByRole("heading", { level: 2, name: DAY_HEADING, exact: true })).toBeVisible();
     await expect(daySection(page).getByRole("listitem").getByRole("heading", { level: 3 })).toHaveText(DAY_TITLES);
+  });
+
+  await test.step("na końcu strony stoi stopka z logo „getona.horse”", async () => {
+    await expect(footerLogo(page)).toBeVisible();
   });
 
   await test.step("zrzuty ekranu sekcji ładują się w szerokości komputera", async () => {
@@ -124,5 +135,11 @@ test("gość wchodzi ze strony głównej do rejestracji swojej roli albo do logo
     await page.getByRole("main").getByRole("link", { name: "Zaloguj się", exact: true }).click();
     await page.waitForURL("**/auth/signin");
     await expect(page.getByRole("heading", { level: 1, name: "Zaloguj się", exact: true })).toBeVisible();
+  });
+
+  await test.step("logo „getona.horse” w górnym pasku wraca na stronę główną", async () => {
+    await topbarLogo(page).click();
+    await page.waitForURL((url) => url.pathname === "/");
+    await expect(page.getByRole("heading", { level: 1, name: "Jeżdżę konno.", exact: true })).toBeVisible();
   });
 });
