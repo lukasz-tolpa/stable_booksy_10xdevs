@@ -141,7 +141,46 @@ bez zdjęć.
   rejestracji, druga połowa bez przycisku, linia o logowaniu znika.
 - **Kasztan** jest tu tłem całej połowy, więc limit dwóch użyć z §7 landingu
   nie dotyczy.
-- Bez sekcji „jak to działa", cennika, opinii, stopki z linkami — to MVP.
+- **„Jeden dzień ze Stable Booksy"** stoi pod połowami i linią o logowaniu, na
+  `--bg`, w szerokości `container-page`. To oś czasu — uporządkowana lista
+  sześciu momentów dnia. Moment to godzina (mono, `--muted`), rola, tytuł
+  (`h3`, `clamp(24px, 2.8vw, 36px)`), jedno–dwa zdania (17 px, `--muted`) i
+  zrzut ekranu. Nagłówek sekcji to `h2`, 800, `clamp(32px, 4vw, 52px)`. Treść
+  co do słowa trzyma `src/lib/landing/day.ts`; komponent
+  `src/components/landing/DayTimeline.astro` tylko ją rysuje.
+  - **Rola** jest podpisana słowem („Ośrodek", „Jeździec") w pigułce w
+    kolorach ról z §2 — kolor tylko powtarza napis.
+  - **Od 900 px** pionowa linia 1 px `--border-2` biegnie pośrodku listy.
+    Moment jeźdźca ma tekst po lewej, wyrównany do osi, i zrzut po prawej;
+    moment ośrodka odwrotnie. Poniżej 900 px wszystko stoi jedno pod drugim:
+    godzina, rola, tytuł, tekst, zrzut.
+  - **„Jazda."** nie ma roli, tekstu ani zrzutu: tytuł 800,
+    `clamp(60px, 10vw, 136px)`, `--primary`; od 900 px wyśrodkowany na osi,
+    z własnym tłem, które przerywa linię.
+  - **Ramka zrzutu**: pasek okna z trzema kropkami na `--surface`, obrys
+    `--border-2`, `--r-lg`, `--shadow-md`. Zrzut zawsze wypełnia szerokość
+    ramki; kadr ma wysokość najwyżej 0,75 szerokości (od 900 px) albo 1,3
+    szerokości (poniżej), więc za wysoki zrzut jest ucinany od dołu, a niski
+    stoi w całości. Boków nie przycinamy nigdy (dlatego `max-height` kadru,
+    nie `object-fit: cover`). Poniżej 900 px ramka ma najwyżej 420 px.
+  - **Dwie szerokości**: `<picture>` podaje od 900 px plik `-komputer`,
+    poniżej `-telefon` (zrobiony w oknie 390 px, nie pomniejszony ekran z
+    komputera). Obrazki mają `width`/`height`, `loading="lazy"` i `alt`
+    mówiący, który to ekran i co na nim widać.
+  - **Zrzuty tylko ze skryptu.** Pliki w `public/jeden-dzien/` powstają
+    wyłącznie z `npm run shots:day` (§8), który odgrywa ten sam dzień na
+    czystych danych demo — nigdy ręcznie, żeby obrazek nie przeczył tekstowi
+    obok. Po odświeżeniu popraw wymiary w `src/lib/landing/day.ts`.
+  - **Zamknięcie**: `h2` „Jutro może tak wyglądać Twój dzień." i pod nim
+    wyśrodkowane przyciski połów pod tymi samymi nazwami i adresami („Załóż
+    konto jeźdźca" na `--accent`, „Załóż konto ośrodka" na `--primary-strong`,
+    oba z białym tekstem). Zalogowany z rolą widzi jeden „Mój panel" w kolorze
+    swojej roli, zalogowany bez rozpoznanej roli sam nagłówek — to ta sama
+    decyzja (`landingEntries`) co w połowach.
+  - Połowy, sekcja i zamknięcie są regionami nazwanymi swoimi nagłówkami
+    (`aria-labelledby`), bo przyciski połów i zamknięcia nazywają się tak samo.
+    Jedyne elementy z fokusem w sekcji to przyciski zamknięcia.
+- Bez listy funkcji, FAQ, cennika, opinii, stopki z linkami — to MVP.
 
 ## 7. Zasady
 
