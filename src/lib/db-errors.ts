@@ -17,6 +17,16 @@ export function errorCode(error: unknown): string | undefined {
     : undefined;
 }
 
+/**
+ * Pole DETAIL błędu Postgresa (`details` w odpowiedzi PostgREST). Tu odmowy bazy niosą dane
+ * w stabilnym formacie (JSON) — w przeciwieństwie do treści komunikatu, którą wolno zmieniać.
+ */
+export function errorDetails(error: unknown): string | undefined {
+  return typeof error === "object" && error !== null && "details" in error && typeof error.details === "string"
+    ? error.details
+    : undefined;
+}
+
 /** Treść błędu dostawcy — tylko do dalszej interpretacji, nigdy do pokazania wprost. */
 export function errorMessage(error: unknown): string | undefined {
   return typeof error === "object" && error !== null && "message" in error && typeof error.message === "string"

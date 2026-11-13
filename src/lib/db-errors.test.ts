@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { errorCode, errorMessage } from "@/lib/db-errors";
+import { errorCode, errorDetails, errorMessage } from "@/lib/db-errors";
 
 describe("errorCode", () => {
   it("zwraca kod, gdy rzucona wartość jest obiektem z napisem w polu code", () => {
@@ -39,5 +39,20 @@ describe("errorMessage", () => {
     ["goły napis", "x"],
   ])("%s daje undefined", (_label, value) => {
     expect(errorMessage(value)).toBeUndefined();
+  });
+});
+
+describe("errorDetails", () => {
+  it("czyta pole DETAIL (PostgREST: details) z obiektu błędu", () => {
+    expect(errorDetails({ code: "SB007", message: "x", details: '{"hour": 13}' })).toBe('{"hour": 13}');
+  });
+
+  it.each([
+    ["pusty obiekt", {}],
+    ["null", null],
+    ["details niebędące napisem", { details: { hour: 13 } }],
+    ["TypeError", new TypeError("fetch failed")],
+  ])("%s daje undefined", (_label, value) => {
+    expect(errorDetails(value)).toBeUndefined();
   });
 });

@@ -29,25 +29,52 @@ export const HORSE_HAS_BOOKINGS = "SB004";
 export const INSTRUCTOR_NOT_IN_STABLE = "SB005";
 /** Nieaktywny instruktor dodawany do dnia, w którym go wcześniej nie było. */
 export const INSTRUCTOR_INACTIVE = "SB006";
-/** Suma limitów miejsc w jednej godzinie przekracza liczbę koni dnia; komunikat bazy niesie godzinę. */
+/** Suma limitów miejsc w jednej godzinie przekracza liczbę koni dnia; DETAIL niesie godzinę. */
 export const SEATS_EXCEED_HORSES = "SB007";
 /** Grafik na dzień miniony (czas Europe/Warsaw). */
 export const SCHEDULE_DAY_PAST = "SB008";
-/** Limit miejsc poniżej liczby aktywnych zapisów w slocie; komunikat bazy niesie godzinę. */
+/** Limit miejsc poniżej liczby aktywnych zapisów w slocie; DETAIL niesie godzinę. */
 export const SEATS_BELOW_BOOKINGS = "SB010";
-/** Wypisanie z dnia instruktora, który ma w nim aktywne zapisy; komunikat bazy niesie ich liczbę. */
+/** Wypisanie z dnia instruktora, który ma w nim aktywne zapisy; DETAIL niesie ich liczbę. */
 export const INSTRUCTOR_HAS_BOOKINGS = "SB011";
 
 const FALLBACK = "Nie udało się zapisać grafiku. Spróbuj ponownie.";
 
 /**
- * Trzy liczby z komunikatów SB007 i SB010 („... o godzinie 13 (3) ... (2)"): godzina, limit
- * (albo suma limitów) i liczba, z którą go porównano (koni albo aktywnych zapisów); `null`,
- * gdy komunikat ma inny kształt.
+ * Liczby odmowy z pola DETAIL błędu bazy (PostgREST: `details`). Kontrakt z migracją
+ * `20261116090000_structured_schedule_refusal_details.sql`: obiekt JSON z kluczami
+ * `bookings` (SB001, SB002, SB011), `hour`/`seats`/`bookings` (SB010), `hour`/`seats`/`horses`
+ * (SB007). Treść komunikatu (`message`) może się zmieniać dowolnie — nie jest czytana.
  */
-function parseHourComparison(message: string | undefined): { hour: number; seats: number; other: number } | null {
-  const match = message ? /godzinie (\d+) \((\d+)\).*\((\d+)\)/.exec(message) : null;
-  return match ? { hour: Number(match[1]), seats: Number(match[2]), other: Number(match[3]) } : null;
+export interface RefusalDetail {
+  hour?: number;
+  seats?: number;
+  bookings?: number;
+  horses?: number;
+}
+
+const DETAIL_KEYS = ["hour", "seats", "bookings", "horses"] as const;
+
+/** Odczyt DETAIL; pole spoza kontraktu (nie-JSON, nie-obiekt, nie-liczba) jest pomijane. */
+export function parseRefusalDetail(detail: string | undefined): RefusalDetail {
+  let parsed: unknown;
+  try {
+    parsed = detail ? JSON.parse(detail) : null;
+  } catch {
+    return {};
+  }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    return {};
+  }
+
+  const result: RefusalDetail = {};
+  for (const key of DETAIL_KEYS) {
+    const value: unknown = (parsed as Record<string, unknown>)[key];
+    if (typeof value === "number" && Number.isInteger(value) && value >= 0) {
+      result[key] = value;
+    }
+  }
+  return result;
 }
 
 /**
@@ -81,24 +108,15 @@ function activeBookings(count: number): string {
   return `${String(count)} ${adjective} ${noun}`;
 }
 
-/** Liczba kolidujących zapisów z komunikatu bazy; `null`, gdy nie da się jej odczytać. */
-export function extractConflictCount(message: string | undefined): number | null {
-  if (!message) {
-    return null;
-  }
-
-  const match = /\d+/.exec(message);
-  return match ? Number(match[0]) : null;
-}
-
 /**
  * Komunikat dla ośrodka. Treść mówi, CO blokuje zmianę i ILU zapisów dotyczy — decyzja
  * produktowa wymaga od ośrodka doprowadzenia do ich odwołania, więc samo „nie można"
- * zostawiłoby go w ślepym zaułku.
+ * zostawiłoby go w ślepym zaułku. `dbDetail` to pole DETAIL błędu bazy (`errorDetails`).
  */
-export function scheduleErrorMessage(code: string | undefined, dbMessage?: string): string {
-  const count = extractConflictCount(dbMessage);
-  const howMany = count === null ? "" : ` ${String(count)} ${pluralizeBookings(count)}`;
+export function scheduleErrorMessage(code: string | undefined, dbDetail?: string): string {
+  const detail = parseRefusalDetail(dbDetail);
+  const count = detail.bookings ?? null;
+  const howMany = count === null ? " aktywne zapisy" : ` ${String(count)} ${pluralizeBookings(count)}`;
   // Przy jednym zapisie „ich odwołania" brzmi jak błąd - zaimek musi iść za liczbą.
   const theirCancellation = count === 1 ? "jego odwołania" : "ich odwołania";
 
@@ -106,7 +124,7 @@ export function scheduleErrorMessage(code: string | undefined, dbMessage?: strin
     case SCHEDULE_HOURS_CONFLICT:
       return `Nie można zawęzić godzin pracy — poza nowym zakresem znalazłoby się${howMany}. Najpierw doprowadź do ${theirCancellation}.`;
     case SCHEDULE_DATE_CONFLICT:
-      return `Nie można zmienić daty dnia, który ma${howMany || " aktywne zapisy"}.`;
+      return `Nie można zmienić daty dnia, który ma${howMany}.`;
     case HORSE_NOT_IN_STABLE:
       return "Wybrany koń nie należy do Twojej stadniny.";
     case HORSE_HAS_BOOKINGS:
@@ -117,16 +135,16 @@ export function scheduleErrorMessage(code: string | undefined, dbMessage?: strin
     case INSTRUCTOR_INACTIVE:
       return "Nieaktywnego instruktora nie można dodać do dnia, w którym wcześniej nie pracował. Najpierw go aktywuj.";
     case SEATS_EXCEED_HORSES: {
-      const excess = parseHourComparison(dbMessage);
-      return excess
-        ? `O ${formatClockHour(excess.hour)} suma limitów miejsc (${String(excess.seats)}) przekracza liczbę koni pracujących tego dnia (${String(excess.other)}). Obniż limity w tej godzinie albo dodaj konia.`
+      const { hour, seats, horses } = detail;
+      return hour !== undefined && seats !== undefined && horses !== undefined
+        ? `O ${formatClockHour(hour)} suma limitów miejsc (${String(seats)}) przekracza liczbę koni pracujących tego dnia (${String(horses)}). Obniż limity w tej godzinie albo dodaj konia.`
         : "W jednej z godzin suma limitów miejsc przekracza liczbę koni pracujących tego dnia. Obniż limity albo dodaj konia.";
     }
     case SEATS_BELOW_BOOKINGS: {
-      const below = parseHourComparison(dbMessage);
+      const { hour, seats } = detail;
       const advice = "Podnieś limit albo najpierw doprowadź do odwołania zapisów.";
-      return below
-        ? `O ${formatClockHour(below.hour)} limit miejsc (${String(below.seats)}) jest niższy niż liczba aktywnych zapisów w slocie (${String(below.other)}). ${advice}`
+      return hour !== undefined && seats !== undefined && count !== null
+        ? `O ${formatClockHour(hour)} limit miejsc (${String(seats)}) jest niższy niż liczba aktywnych zapisów w slocie (${String(count)}). ${advice}`
         : `W jednym ze slotów limit miejsc jest niższy niż liczba aktywnych zapisów. ${advice}`;
     }
     case INSTRUCTOR_HAS_BOOKINGS:
