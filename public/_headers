@@ -31,3 +31,6 @@
 
 /icon-512.png
   Cache-Control: public, max-age=2592000
+
+/og-image.png
+  Cache-Control: public, max-age=2592000

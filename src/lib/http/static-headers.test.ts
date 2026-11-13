@@ -55,6 +55,7 @@ describe("nagłówki plików statycznych (public/_headers)", () => {
       "/favicon.png",
       "/apple-touch-icon.png",
       "/icon-512.png",
+      "/og-image.png",
     ]) {
       const cache = rule(pattern).get("cache-control") ?? "";
       expect(cache, pattern).toBe("public, max-age=2592000");
