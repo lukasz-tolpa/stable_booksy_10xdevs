@@ -1,0 +1,19 @@
+---
+import Topbar from "@/components/Topbar.astro";
+import NoticeCard from "@/components/ui/NoticeCard.astro";
+import Layout from "@/layouts/Layout.astro";
+
+// Strona błędu 404 (#65): zakaz indeksowania, żeby nieistniejące adresy nie trafiały
+// do wyników wyszukiwania. Układ jak potwierdzenie e-maila — karta na środku.
+Astro.response.status = 404;
+---
+
+<Layout title="Nie ma takiej strony" noindex>
+  <Topbar />
+  <NoticeCard
+    heading="Nie ma takiej strony"
+    lead="Adres jest błędny albo strona została usunięta."
+    href="/"
+    linkText="Wróć na stronę główną"
+  />
+</Layout>

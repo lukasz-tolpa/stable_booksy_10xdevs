@@ -4,6 +4,8 @@ Rezerwacja jazd konnych: ośrodek układa grafik dnia i limity miejsc u instrukt
 
 ## Language
 
+Słowa z _Avoid_ nie występują w interfejsie ani w dokumentach. Wyjątek: teksty dla wyszukiwarek (tytuł strony, opis, fraza pod hasłem) mogą użyć słów, które ludzie wpisują w wyszukiwarkę, np. „stajnia” czy „rezerwacja jazd”.
+
 **getona.horse**:
 Nazwa produktu, w tekście zawsze małymi literami i z kropką, taka sama jak adres. Czyta się ją jako zdanie „get on a horse”.
 _Avoid_: Stable Booksy, Get On A Horse, GetOna, Getona

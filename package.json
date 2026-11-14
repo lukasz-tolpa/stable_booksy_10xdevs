@@ -11,6 +11,7 @@
     "db:types": "supabase gen types typescript --local > src/db/database.types.ts && node -e \"const fs=require('fs'),f='src/db/database.types.ts';fs.writeFileSync(f,'// GENEROWANY PLIK - nie edytowac recznie.\\n// Regeneracja po kazdej zmianie schematu: npm run db:types\\n// (wymaga uruchomionego lokalnego stacku: npx supabase start)\\n\\n'+fs.readFileSync(f,'utf8'))\"",
     "db:demo": "node scripts/db-demo.mjs",
     "shots:day": "node scripts/shots-day.mjs",
+    "og-image": "node scripts/og-image.mjs",
     "test": "vitest run",
     "test:db": "node supabase/tests/run_all.mjs",
     "test:e2e": "playwright test",

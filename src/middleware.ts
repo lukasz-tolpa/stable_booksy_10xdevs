@@ -1,3 +1,4 @@
+import type { APIContext, MiddlewareNext } from "astro";
 import { defineMiddleware } from "astro:middleware";
 import { BROKEN_SESSION_MESSAGE, OUTAGE_MESSAGE, SESSION_EXPIRED_MESSAGE } from "@/lib/auth/errors";
 import {
@@ -9,6 +10,7 @@ import {
   routeGuardFor,
 } from "@/lib/auth/roles";
 import { currentUser, resolveRole, signOutUser } from "@/lib/auth/session";
+import { withSecurityHeaders } from "@/lib/http/security-headers";
 import { logError } from "@/lib/log";
 import { createClient } from "@/lib/supabase";
 import type { UserRole } from "@/types";
@@ -17,7 +19,8 @@ function signInWithMessage(message: string): string {
   return `${SIGN_IN_ROUTE}?error=${encodeURIComponent(message)}`;
 }
 
-export const onRequest = defineMiddleware(async (context, next) => {
+/** Strażnik sesji i tras: ustala użytkownika i rolę, przekierowuje z cudzej przestrzeni. */
+async function guardSessionAndRoute(context: APIContext, next: MiddlewareNext): Promise<Response> {
   const supabase = createClient(context.request.headers, context.cookies);
   context.locals.user = null;
   context.locals.profile = null;
@@ -115,4 +118,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
   }
 
   return next();
-});
+}
+
+// Każda odpowiedź strony (także przekierowania) wychodzi z nagłówkami bezpieczeństwa.
+// Pliki statyczne nie przechodzą przez worker — dla nich te same nagłówki są w public/_headers.
+export const onRequest = defineMiddleware(async (context, next) =>
+  withSecurityHeaders(await guardSessionAndRoute(context, next)),
+);

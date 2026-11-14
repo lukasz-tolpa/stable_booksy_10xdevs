@@ -6,6 +6,8 @@ import Topbar from "@/components/Topbar.astro";
 import DayTimeline from "@/components/landing/DayTimeline.astro";
 import Card from "@/components/ui/Card.astro";
 import Layout from "@/layouts/Layout.astro";
+import { HOME_DESCRIPTION, HOME_TITLE, homeStructuredData } from "@/lib/seo/home";
+import { requireSite } from "@/lib/seo/site";
 import { landingEntries } from "@/lib/auth/landing";
 import { slotStatusLabel } from "@/lib/bookings/slots";
 import { formatClockHour, formatFreeSeats } from "@/lib/format";
@@ -31,9 +33,12 @@ const CTA_CLASS = {
 
 // Obie ilustracje rysują ten sam dzień z jednego źródła, tymi samymi regułami co prawdziwe widoki.
 const demo = landingDemo();
+
+// Wyniki wyszukiwania i podgląd linku (#66); adresy z `site` w astro.config.mjs.
+const structuredData = homeStructuredData(requireSite(Astro.site, "dane strukturalne nie zbudują adresów"));
 ---
 
-<Layout>
+<Layout fullTitle={HOME_TITLE} description={HOME_DESCRIPTION} linkPreview structuredData={structuredData}>
   {error && <Banner variant="error">{error}</Banner>}
   <Topbar container="page" />
   <!-- DESIGN.md §6: dwie połowy zamiast hero. Tła sięgają krawędzi okna, treść każdej
@@ -42,9 +47,14 @@ const demo = landingDemo();
        te same nazwy, więc rozróżnia je region (test-plan §6.3). -->
   <main class="landing">
     <div class="halves">
+      <!-- Frazy pod hasłami (#67) są tekstem, nie nagłówkami: struktura h1/h2 połów
+           zostaje bez zmian. Treść ta sama dla gościa i zalogowanego. -->
       <section class="half half--rider" aria-labelledby="rider-heading">
         <div class="half__inner">
-          <h1 id="rider-heading" class="half__title">Jeżdżę konno.</h1>
+          <hgroup class="half__head">
+            <h1 id="rider-heading" class="half__title">Jeżdżę konno.</h1>
+            <p class="half__phrase">Zapisy na jazdy konne online</p>
+          </hgroup>
           <ul class="points">
             <li>Widzisz wolne miejsca u każdego instruktora.</li>
             <li>Zapisujesz się jednym kliknięciem.</li>
@@ -103,7 +113,10 @@ const demo = landingDemo();
 
       <section class="half half--stable text-primary-foreground" aria-labelledby="stable-heading">
         <div class="half__inner">
-          <h2 id="stable-heading" class="half__title">Prowadzę ośrodek.</h2>
+          <hgroup class="half__head">
+            <h2 id="stable-heading" class="half__title">Prowadzę ośrodek.</h2>
+            <p class="half__phrase">System zapisów dla ośrodka jeździeckiego</p>
+          </hgroup>
           <ul class="points text-primary-foreground/85">
             <li>Układasz grafik dnia: godziny, konie, instruktorzy.</li>
             <li>Ustalasz limit miejsc; aplikacja pilnuje liczby koni.</li>
@@ -170,6 +183,11 @@ const demo = landingDemo();
 
     <section class="closing container-page" aria-labelledby="closing-heading">
       <h2 id="closing-heading" class="landing-heading">{DAY_CLOSING_HEADING}</h2>
+      <!-- Zdanie definiujące (#67) stoi tu, a nie nad połowami: nad nimi rozbijało pierwszy widok. -->
+      <p class="definition">
+        getona.horse to aplikacja do zapisów na jazdy konne: jeździec zapisuje się na wolne miejsce u instruktora, a
+        ośrodek jeździecki układa grafik dnia i przydziela konie.
+      </p>
       {
         entries.closing.length > 0 && (
           <div class="closing__actions">
@@ -242,6 +260,30 @@ const demo = landingDemo();
     .half--stable .half__inner {
       justify-self: start;
     }
+  }
+
+  /* Zdanie definiujące pod nagłówkiem zamknięcia: na `--bg`, tekst `--fg` (DESIGN.md §6). */
+  .definition {
+    max-width: 760px;
+    margin: 0;
+    text-align: center;
+    font-size: 17px;
+    line-height: 1.5;
+    color: var(--fg);
+  }
+
+  .half__head {
+    display: grid;
+    gap: 14px;
+  }
+  /* Fraza pod hasłem: krój display 600, w kolorze tekstu swojej połowy (`--fg` / biel). */
+  .half__phrase {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: clamp(19px, 1.7vw, 23px);
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
   }
 
   /* h1 i h2 wyglądają tak samo; większa skala niż §3 to wyjątek landingu (§6). */
