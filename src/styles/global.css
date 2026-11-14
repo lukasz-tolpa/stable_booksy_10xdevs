@@ -40,6 +40,8 @@
   --accent: oklch(56% 0.11 52);
   --accent-soft: oklch(94% 0.03 60);
   --accent-ink: oklch(48% 0.12 52);
+  /* Jasny kasztan: wyłącznie „.horse” w logo na --primary-strong (4,88:1) */
+  --accent-on-dark: oklch(80% 0.1 60);
 
   --success: oklch(58% 0.13 150);
   --success-soft: oklch(94% 0.04 150);

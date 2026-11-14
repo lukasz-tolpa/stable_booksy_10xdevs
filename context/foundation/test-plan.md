@@ -294,9 +294,20 @@ local role authenticated; set local request.jwt.claims =
   `getByRole("link", { name: "Załóż konto ośrodka" })` is therefore a
   strict-mode violation: scope it to the region named by its heading —
   `getByRole("region", { name: "Jeżdżę konno." })`, `"Prowadzę ośrodek."`,
-  `"Jeden dzień ze Stable Booksy"`, `"Jutro może tak wyglądać Twój dzień."`
+  `"Jeden dzień z getona.horse"`, `"Jutro może tak wyglądać Twój dzień."`
   (each `<section>` is `aria-labelledby` its heading; renaming a heading
   renames the region) — and the sign-in link under the halves to `main`. The
+  name "getona.horse" also stands twice on that page: the top-bar logo is a
+  link (`getByRole("banner").getByRole("link", { name: "getona.horse" })`,
+  present on every screen) and the footer logo is an image
+  (`getByRole("contentinfo").getByRole("img", { name: "getona.horse" })`,
+  landing page only). A bare `getByRole("img", { name: "getona.horse" })`
+  matches both logos on the landing page — scope to the landmark. The logo is
+  live text, and `getByText` reads DOM text regardless of `role="img"`:
+  both logos split the name into "get on a" and ".horse", so
+  `getByText("getona.horse")` never matches a logo — only, as a substring,
+  the heading "Jeden dzień z getona.horse"; `getByText("get on a")` matches
+  every logo on the page. So `getByText` is the wrong tool for the name — use the role locators above. The
   section's screenshots are `loading="lazy"`: scroll each into view before
   asserting `naturalWidth`; the same step compares the natural size with the
   `width`/`height` declared on the `<source>` or `<img>` the browser picked

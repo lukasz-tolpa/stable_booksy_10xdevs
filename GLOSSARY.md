@@ -1,8 +1,12 @@
-# Stable Booksy
+# getona.horse
 
 Rezerwacja jazd konnych: ośrodek układa grafik dnia i limity miejsc u instruktorów, jeździec zapisuje się na wolne miejsce, a konia przydziela mu ośrodek.
 
 ## Language
+
+**getona.horse**:
+Nazwa produktu, w tekście zawsze małymi literami i z kropką, taka sama jak adres. Czyta się ją jako zdanie „get on a horse”.
+_Avoid_: Stable Booksy, Get On A Horse, GetOna, Getona
 
 **Ośrodek**:
 Stadnina prowadzona przez jedno konto, które układa jej grafik i widzi jej zapisy.

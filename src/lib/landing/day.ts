@@ -1,8 +1,9 @@
+import { PRODUCT_NAME } from "@/lib/brand";
 import type { UserRole } from "@/types";
 import dayShots from "./day-shots.json";
 
 /**
- * Treść sekcji „Jeden dzień ze Stable Booksy” na stronie głównej (#53): nagłówek, sześć
+ * Treść sekcji „Jeden dzień z getona.horse” na stronie głównej (#53): nagłówek, sześć
  * momentów dnia i zamknięcie. Jedyne źródło tych słów — strona tylko je rysuje.
  *
  * Zrzuty to pliki z `npm run shots:day` (`scripts/shots-day.mjs`), nigdy robione ręcznie.
@@ -43,7 +44,7 @@ function shot(name: keyof typeof dayShots, alt: string): DayShot {
   return { alt, ...dayShots[name] };
 }
 
-export const DAY_HEADING = "Jeden dzień ze Stable Booksy";
+export const DAY_HEADING = `Jeden dzień z ${PRODUCT_NAME}`;
 export const DAY_CLOSING_HEADING = "Jutro może tak wyglądać Twój dzień.";
 
 export const DAY_MOMENTS: readonly DayMoment[] = [

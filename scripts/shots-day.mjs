@@ -1,5 +1,5 @@
 /**
- * Zrzuty do sekcji „Jeden dzień ze Stable Booksy” na stronie głównej (#53).
+ * Zrzuty do sekcji „Jeden dzień z getona.horse” na stronie głównej (#53).
  *
  * Skrypt ODGRYWA dzień na lokalnej bazie i po każdym kroku robi zrzut właściwego
  * regionu ekranu w dwóch szerokościach (komputer i telefon):

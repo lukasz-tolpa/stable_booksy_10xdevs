@@ -1,6 +1,6 @@
 # Repository Guidelines
 
-Stable Booksy is a booking system for horse-riding stables (roles: Ośrodek/stable, Jeździec/rider) built on Astro 6 SSR + React 19 islands + Supabase (auth/Postgres) + shadcn/ui, deployed to Cloudflare Workers. UI copy is Polish.
+getona.horse is a booking system for horse-riding stables (roles: Ośrodek/stable, Jeździec/rider) built on Astro 6 SSR + React 19 islands + Supabase (auth/Postgres) + shadcn/ui, deployed to Cloudflare Workers. UI copy is Polish.
 
 ## Where things are written down
 

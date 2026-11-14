@@ -1,4 +1,4 @@
-# Stable Booksy
+# getona.horse
 
 Zapisy na jazdy konne dla małych stadnin. Ośrodek układa grafik dnia — godziny pracy
 i konie, które tego dnia pracują — a jeździec sam wybiera wolny slot i się zapisuje.

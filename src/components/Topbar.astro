@@ -1,6 +1,7 @@
 ---
 /* eslint-disable astro/no-unused-css-selector -- reguły na `[open]` są używane;
    atrybut dokłada przeglądarka po kliknięciu, więc nie ma go w statycznym markupie */
+import Logo from "@/components/Logo.astro";
 import RoleBadge from "@/components/ui/RoleBadge.astro";
 import { homeRouteForRole, isUserRole } from "@/lib/auth/roles";
 
@@ -18,9 +19,13 @@ const role = isUserRole(profile?.role) ? profile.role : null;
 const homeRoute = role ? homeRouteForRole(role) : null;
 ---
 
-<header class="nav">
+{
+  /* `nav--guest`: tylko u gościa obok logo stoją dwa linki — do tego wariantu
+     przypięty jest ciaśniejszy odstęp na wąskim ekranie (style niżej). */
+}
+<header class:list={["nav", !user && "nav--guest"]}>
   <div class:list={[container === "page" ? "container-page" : "container-narrow", "nav-inner"]}>
-    <a href="/" class="brand">Stable Booksy</a>
+    <a href="/" class="brand"><Logo surface="light" /></a>
     {
       user ? (
         /* Zalogowany ma cztery rzeczy do pokazania: markę, adres, rolę i dwie akcje.
@@ -57,15 +62,14 @@ const homeRoute = role ? homeRouteForRole(role) : null;
         </>
       ) : (
         <>
-          {/* Gość: na wąskim ekranie ten napis znika, bo stojące obok „Zaloguj się"
-              i „Załóż konto" mówią to samo, a pasek łamał się przez niego na trzy
-              rzędy. Zalogowany zachowuje swój wiersz — tam adres i rola niosą treść. */}
-          <span class="nav-user nav-user--guest">
-            <span class="nav-mail">Nie jesteś zalogowany</span>
-          </span>
+          {/* Gość: bez napisu o stanie sesji — „Zaloguj się” i „Załóż konto” mówią
+              to same. Rejestracja jest wyróżniona pigułką, logowanie zostaje cichym
+              linkiem (wariant B z gałęzi `prototype/pasek-goscia`). */}
           <div class="nav-links">
             <a href="/auth/signin">Zaloguj się</a>
-            <a href="/auth/signup">Załóż konto</a>
+            <a href="/auth/signup" class="nav-cta">
+              Załóż konto
+            </a>
           </div>
         </>
       )
@@ -97,14 +101,12 @@ const homeRoute = role ? homeRouteForRole(role) : null;
     padding-block: 12px;
   }
 
+  /* Rozmiar logo (wysokość „.horse”); krój, wiersze i kolory niesie samo `Logo` (DESIGN.md §4). */
   .brand {
     display: inline-flex;
     align-items: center;
-    font-family: var(--font-display);
-    font-weight: 800;
-    font-size: 19px;
-    letter-spacing: -0.03em;
-    color: var(--primary-strong);
+    flex: none;
+    font-size: 28px;
   }
   .brand:focus-visible {
     outline: 2px solid var(--primary);
@@ -157,6 +159,16 @@ const homeRoute = role ? homeRouteForRole(role) : null;
   .nav-links button:hover {
     color: var(--primary-strong);
     background: var(--primary-soft);
+  }
+  /* Jedyne wypełnione wezwanie w pasku: „Załóż konto” u gościa. */
+  .nav-links a.nav-cta {
+    color: var(--color-primary-foreground);
+    background: var(--primary);
+    font-weight: 600;
+  }
+  .nav-links a.nav-cta:hover {
+    color: var(--color-primary-foreground);
+    background: var(--primary-strong);
   }
   .nav-links a:focus-visible,
   .nav-links button:focus-visible {
@@ -254,18 +266,24 @@ const homeRoute = role ? homeRouteForRole(role) : null;
   /* Poniżej progu łamania pasek musi zmieścić markę i linki w jednym rzędzie.
      Zmierzone na produkcji: przy 360 px marka i linki zajmowały 343 px przy 324 px
      dostępnych, więc schodziły do osobnych rzędów. Ciaśniejsze pigułki i mniejsza
-     marka mieszczą je z zapasem także na 320 px. */
+     marka mieszczą je także na 320 px. */
   @media (width < 768px) {
-    .nav-user--guest {
-      display: none;
-    }
     .brand {
-      font-size: 17.5px;
+      font-size: 25px;
     }
     .nav-links a,
     .nav-links button {
       padding: 8px 10px;
       font-size: 14px;
+    }
+  }
+
+  /* Tylko pasek gościa: obok logo stoją dwa linki, więc odstęp maleje do 8 px.
+     Logo dwuwierszowe ma 71 px szerokości przy 25 px, więc razem z linkami mieści
+     się w jednym rzędzie od 320 px. U zalogowanego obok logo stoi sam przycisk menu. */
+  @media (width < 768px) {
+    .nav--guest .nav-inner {
+      column-gap: 8px;
     }
   }
 
