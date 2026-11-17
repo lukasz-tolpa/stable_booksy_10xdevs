@@ -11,16 +11,35 @@ Nazwa produktu, w tekście zawsze małymi literami i z kropką, taka sama jak ad
 _Avoid_: Stable Booksy, Get On A Horse, GetOna, Getona
 
 **Ośrodek**:
-Stadnina prowadzona przez jedno konto, które układa jej grafik i widzi jej zapisy.
-_Avoid_: stajnia, klub, admin
+Stadnina, w której pracują instruktorzy; jeden z nich jest jej właścicielem. Gdy mowa, że coś robi ośrodek (układa grafik, przydziela konia, odwołuje zapis), robi to właściciel — a grafik także instruktor z uprawnieniem do układania grafiku.
+_Avoid_: stajnia, klub
 
 **Jeździec**:
-Osoba z kontem, która zapisuje się na jazdy w ośrodkach.
+Osoba z kontem, która zapisuje się na jazdy w ośrodkach. Konto jeźdźca nigdy nie jest zarazem kontem instruktora.
 _Avoid_: uczeń, kursant, klient
 
 **Instruktor**:
-Osoba prowadząca jazdy w ośrodku. Nie ma własnego konta — dodaje ją i układa jej grafik ośrodek. Jego nazwa jest unikalna w ośrodku i nie zmienia się. Instruktora się dezaktywuje, nie usuwa: nie można go dodać do nowego dnia, ale zostaje w dniach już ułożonych i przy dawnych zapisach.
+Osoba prowadząca jazdy w ośrodku. Może mieć konto, założone z zaproszenia właściciela; konto instruktora należy do jednego ośrodka, a instruktor z kontem widzi swoje sloty z zapisanymi jeźdźcami. Instruktor bez konta też prowadzi jazdy — jego grafik układa ośrodek. Nazwa instruktora jest unikalna w ośrodku i nie zmienia się. Instruktora się dezaktywuje, nie usuwa: nie można go dodać do nowego dnia, ale zostaje w dniach już ułożonych i przy dawnych zapisach. Dezaktywacja odbiera też dostęp do jego konta i uprawnienie do układania grafiku; ponowna aktywacja nie przywraca uprawnienia.
 _Avoid_: trener, prowadzący
+
+**Właściciel**:
+Instruktor z kontem, który ma w ośrodku wszystkie uprawnienia. Każdy ośrodek ma dokładnie jednego właściciela; może on nie prowadzić żadnej jazdy i nie można go dezaktywować.
+_Avoid_: admin, administrator, kierownik
+
+**Uprawnienie do układania grafiku**:
+Zgoda właściciela dla instruktora z kontem na układanie całego grafiku dnia ośrodka — koni pracujących i limitów miejsc wszystkich instruktorów — tak jak robi to właściciel. Właściciel może je w każdej chwili odebrać.
+_Avoid_: rola, admin grafiku
+
+**Dyscyplina**:
+Rodzaj jazdy z ustalonego zbioru: skoki, ujeżdżenie, rekreacja. Instruktor ma dyscypliny, które może prowadzić; slot ma jedną dyscyplinę spośród dyscyplin swojego instruktora. Jeździec widzi dyscyplinę przy slocie.
+_Avoid_: rodzaj treningu, specjalizacja
+
+**Dyscyplina zamknięta**:
+Dyscyplina, której sloty w danym ośrodku widzą i na które zapisują się tylko jeźdźcy z dopuszczeniem. Ośrodek sam decyduje, które dyscypliny zamyka; pozostałe są otwarte dla wszystkich jeźdźców. Jeździec bez dopuszczenia nie dowiaduje się o ukrytych slotach: dzień, w którym nie widzi żadnego slotu, w ogóle mu się nie pokazuje, a sam ośrodek widzi zawsze.
+
+**Dopuszczenie**:
+Zgoda właściciela, by jeździec zapisywał się w jego ośrodku na sloty danej dyscypliny zamkniętej. Właściciel wskazuje jeźdźca po adresie e-mail jego konta, także takiego, który nie ma jeszcze żadnego zapisu w ośrodku. Odebranie dopuszczenia nie odwołuje przyszłych zapisów jeźdźca — ośrodek może je odwołać sam.
+_Avoid_: grupa, uprawnienie jeźdźca
 
 **Slot**:
 Jedna godzina jednego instruktora w danym dniu, z własnym limitem miejsc.
@@ -64,7 +83,7 @@ _Avoid_: frekwencja, wykorzystanie
 
 **Odwołanie**:
 Zapis odwołany przed terminem przez jeźdźca albo przez ośrodek; zwalnia miejsce w slocie i przydzielonego konia i nie jest jazdą. Odwołanie zostaje w statystykach także wtedy, gdy ośrodek później zmieni grafik i slot zniknie. Jeździec widzi, kto odwołał; w statystykach jeźdźca liczą się tylko odwołania jego własne.
-_Avoid_: anulowanie, rezygnacja
+_Avoid_: anulowanie, rezygnacja, wypisanie
 
 **Jeździec zanonimizowany**:
 Jeździec po usunięciu konta: jego jazdy zostają w statystykach ośrodka, ale bez powiązania z osobą.
