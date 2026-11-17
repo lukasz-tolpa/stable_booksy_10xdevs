@@ -2,12 +2,13 @@ import type { APIContext, MiddlewareNext } from "astro";
 import { defineMiddleware } from "astro:middleware";
 import { BROKEN_SESSION_MESSAGE, OUTAGE_MESSAGE, SESSION_EXPIRED_MESSAGE } from "@/lib/auth/errors";
 import {
-  NEW_STABLE_ROUTE,
   SIGN_IN_ROUTE,
-  homeRouteForRole,
+  homeRouteForAccount,
+  instructorRedirect,
+  instructorStandingOf,
   isLegacyHomeRoute,
-  isStableSetupPath,
   routeGuardFor,
+  type InstructorStanding,
 } from "@/lib/auth/roles";
 import { currentUser, resolveRole, signOutUser } from "@/lib/auth/session";
 import { withSecurityHeaders } from "@/lib/http/security-headers";
@@ -24,6 +25,7 @@ async function guardSessionAndRoute(context: APIContext, next: MiddlewareNext): 
   const supabase = createClient(context.request.headers, context.cookies);
   context.locals.user = null;
   context.locals.profile = null;
+  context.locals.instructorStanding = null;
 
   // Powód, dla którego zalogowany użytkownik jest traktowany jak anonim (wygasła sesja,
   // GoTrue nieosiągalny) albo bez roli mimo profilu (awaria bazy). Trafia do ?error=
@@ -31,6 +33,9 @@ async function guardSessionAndRoute(context: APIContext, next: MiddlewareNext): 
   let sessionProblem: string | null = null;
   // Rola potwierdzona przez resolveRole (wiersz profilu ma `role: string`, guard potrzebuje UserRole).
   let userRole: UserRole | null = null;
+  // Kim jest konto instruktora w ośrodku (właściciel / instruktor / bez ośrodka) - z danych w bazie,
+  // nie z roli konta (ADR-0004). `null` dla jeźdźca i przy awarii odczytu.
+  let standing: InstructorStanding | null = null;
 
   if (supabase) {
     const session = await currentUser(supabase);
@@ -51,6 +56,30 @@ async function guardSessionAndRoute(context: APIContext, next: MiddlewareNext): 
       } else if (role.kind === "outage") {
         logError("auth:session", role.error);
         sessionProblem = OUTAGE_MESSAGE;
+      }
+
+      // Powiązanie konta z instruktorem i właściciel jego ośrodka. Na każdej trasie, nie tylko
+      // chronionej: górny pasek pokazuje „Mój panel” i pigułkę roli według tego, kim konto jest.
+      // Wiersz instruktora konto widzi zawsze (RLS: account_id), ośrodek - gdy instruktor aktywny.
+      if (userRole === "instructor") {
+        const link = await supabase
+          .from("instructors")
+          .select("stables(owner_id)")
+          .eq("account_id", session.user.id)
+          .maybeSingle();
+
+        if (link.error) {
+          logError("auth:session", link.error);
+          sessionProblem = OUTAGE_MESSAGE;
+        } else {
+          standing = instructorStandingOf(
+            // Wygenerowane typy obiecują ośrodek (FK not-null), ale RLS ukrywa go zdezaktywowanemu.
+            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+            link.data ? { stableOwnerId: link.data.stables?.owner_id ?? null } : null,
+            session.user.id,
+          );
+          context.locals.instructorStanding = standing;
+        }
       }
     } else if (session.kind !== "anonymous") {
       logError("auth:session", session.error);
@@ -89,37 +118,24 @@ async function guardSessionAndRoute(context: APIContext, next: MiddlewareNext): 
     // Reguła mieszka tutaj, a nie w pliku strony, bo cały routing według roli jest w
     // jednym miejscu (i bo `return Astro.redirect()` we frontmatterze wywala ESLinta).
     if (isLegacyHomeRoute(context.url.pathname)) {
-      return context.redirect(homeRouteForRole(role));
+      return context.redirect(homeRouteForAccount(role, standing));
     }
 
     if (guard.role && guard.role !== role) {
-      return context.redirect(homeRouteForRole(role));
+      return context.redirect(homeRouteForAccount(role, standing));
     }
 
-    // Konto instruktora bez ośrodka (rejestracja z wyborem „Ośrodek”) nie może zrobić nic
-    // sensownego: bez powiązania z instruktorem private.current_stable_id() zwraca NULL, więc
-    // RLS odetnie mu grafik i konie. Trzymamy je na ekranie zakładania ośrodka - i odwrotnie,
-    // konto powiązane z instruktorem (właściciel) z niego zawracamy.
-    if (role === "instructor" && supabase) {
-      const onSetupPath = isStableSetupPath(context.url.pathname);
-      const { count, error } = await supabase
-        .from("instructors")
-        .select("id", { count: "exact", head: true })
-        .eq("account_id", context.locals.user.id);
-
-      if (error) {
-        logError("auth:session", error);
-        return context.redirect(signInWithMessage(OUTAGE_MESSAGE));
+    // Konto instruktora: bez ośrodka - wyłącznie zakładanie ośrodka (bez powiązania z instruktorem
+    // RLS odetnie mu wszystko); właściciel - przestrzeń ośrodka; instruktor, który nie jest
+    // właścicielem - „Moje sloty”, także gdy wejdzie pod adres przestrzeni ośrodka (#72).
+    if (role === "instructor") {
+      if (!standing) {
+        return context.redirect(signInWithMessage(sessionProblem ?? OUTAGE_MESSAGE));
       }
 
-      const hasStable = (count ?? 0) > 0;
-
-      if (!hasStable && !onSetupPath) {
-        return context.redirect(NEW_STABLE_ROUTE);
-      }
-
-      if (hasStable && onSetupPath) {
-        return context.redirect(homeRouteForRole(role));
+      const target = instructorRedirect(context.url.pathname, standing);
+      if (target) {
+        return context.redirect(target);
       }
     }
   }

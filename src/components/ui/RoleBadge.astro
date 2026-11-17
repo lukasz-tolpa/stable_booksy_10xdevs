@@ -13,10 +13,12 @@ import type { UserRole } from "@/types";
 
 interface Props {
   role: UserRole;
+  /** Etykieta zamiast nazwy roli — konto instruktora bez praw właściciela to „Instruktor” (#72). */
+  label?: string;
   class?: string;
 }
 
-const { role, class: className } = Astro.props;
+const { role, label = ROLE_LABELS[role], class: className } = Astro.props;
 ---
 
 <span class:list={["pill", `pill--${role}`, className]}>
@@ -30,7 +32,7 @@ const { role, class: className } = Astro.props;
       </svg>
     )
   }
-  {ROLE_LABELS[role]}
+  {label}
 </span>
 
 <style>

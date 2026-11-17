@@ -10,11 +10,11 @@
 const SITEMAP_PATHS: readonly string[] = ["/"];
 
 /**
- * Przestrzenie zamknięte dla robotów: ośrodek, jeździec (`ROLE_HOME` w `@/lib/auth/roles`)
+ * Przestrzenie zamknięte dla robotów: ośrodek, instruktor, jeździec (`@/lib/auth/roles`)
  * i API. `/auth/` celowo nie — robot musi wejść na logowanie, żeby zobaczyć `noindex`.
  * Prefiksy bez ukośnika na końcu, bo strony startowe ról to `/osrodek` i `/jezdziec`.
  */
-const DISALLOWED_PREFIXES: readonly string[] = ["/osrodek", "/jezdziec", "/api"];
+const DISALLOWED_PREFIXES: readonly string[] = ["/osrodek", "/instruktor", "/jezdziec", "/api"];
 
 /** Na co zgadzamy się wobec robotów AI (contentsignals.org): wyszukiwanie i odpowiedzi tak, trening nie. */
 const CONTENT_SIGNAL = "search=yes, ai-input=yes, ai-train=no";

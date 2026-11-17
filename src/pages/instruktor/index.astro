@@ -1,0 +1,210 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import Topbar from "@/components/Topbar.astro";
+import Card from "@/components/ui/Card.astro";
+import EmptyState from "@/components/ui/EmptyState.astro";
+import FailureState from "@/components/ui/FailureState.astro";
+import { formatClockHour, formatLongDate, formatTakenSeats } from "@/lib/format";
+import { composeMySlots, type MySlotsDay } from "@/lib/my-slots/compose";
+import { getMyInstructor, getMySlotBookings, getMySlots } from "@/lib/my-slots/queries";
+import { todayIso } from "@/lib/schedule/dates";
+import { createClient } from "@/lib/supabase";
+import { logError } from "@/lib/log";
+
+// „Moje sloty” instruktora, który nie jest właścicielem (#72). Dostęp pilnuje middleware
+// (mapa tras w @/lib/auth/roles): właściciela przenosi do przestrzeni ośrodka. Tylko odczyt —
+// świeże zapisy i odwołania widać po odświeżeniu strony.
+const { profile } = Astro.locals;
+const today = todayIso();
+
+const supabase = createClient(Astro.request.headers, Astro.cookies);
+
+let stableName: string | null = null;
+let days: MySlotsDay[] = [];
+let loadFailed = false;
+
+if (supabase && profile) {
+  try {
+    const instructor = await getMyInstructor(supabase, profile.id);
+    if (instructor) {
+      stableName = instructor.stableName;
+      const [slots, bookings] = await Promise.all([
+        getMySlots(supabase, instructor.id, today),
+        getMySlotBookings(supabase, today),
+      ]);
+      days = composeMySlots({ slots, bookings });
+    }
+  } catch (error) {
+    loadFailed = true;
+    logError("page:instruktor", error);
+  }
+} else {
+  // Brak klienta Supabase lub profilu to awaria konfiguracji, nie pusta lista.
+  loadFailed = true;
+}
+---
+
+<Layout title="Moje sloty">
+  <Topbar />
+  <main class="container-narrow page">
+    <h1>Moje sloty</h1>
+    <p class="page-lead">
+      {stableName ? `Twoje godziny w ośrodku ${stableName}, od dziś.` : "Twoje godziny od dziś."} Odśwież stronę, żeby zobaczyć
+      najnowsze zapisy i odwołania.
+    </p>
+
+    {
+      loadFailed ? (
+        <div class="section">
+          <FailureState>
+            <p>Nie udało się wczytać slotów.</p>
+            <p>Odśwież stronę za chwilę.</p>
+          </FailureState>
+        </div>
+      ) : days.length === 0 ? (
+        <div class="section">
+          <Card>
+            <EmptyState>
+              <p>Nie prowadzisz żadnej jazdy od dziś.</p>
+              <p>Godziny i limity miejsc ustala właściciel ośrodka w grafiku dnia.</p>
+            </EmptyState>
+          </Card>
+        </div>
+      ) : (
+        days.map((day) => (
+          <section class="section" aria-labelledby={`day-${day.day}`}>
+            <Card>
+              <h2 id={`day-${day.day}`}>{formatLongDate(day.day)}</h2>
+              <ul class="slots">
+                {day.slots.map((slot) => (
+                  <li>
+                    <div class="slot__head">
+                      {/* Cały tekst tego elementu to sama godzina. */}
+                      <span class="slot__when">{formatClockHour(slot.hour)}</span>
+                      <span class="slot__seats">{formatTakenSeats(slot.taken, slot.seats)}</span>
+                    </div>
+                    {slot.riders.length === 0 ? (
+                      <p class="slot__empty">Nikt jeszcze się nie zapisał.</p>
+                    ) : (
+                      <ul class="riders">
+                        {slot.riders.map((rider) => (
+                          <li>
+                            <span class="rider__name">{rider.name}</span>
+                            <span class:list={rider.hasHorse ? "rider__horse" : ["tag", "tag--warn"]}>
+                              {rider.horse}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          </section>
+        ))
+      )
+    }
+  </main>
+</Layout>
+
+<style>
+  .page {
+    padding-block: 24px 56px;
+  }
+  h1 {
+    font-size: 32px;
+  }
+  .page-lead {
+    margin: 10px 0 0;
+    font-size: 15.5px;
+    color: var(--muted);
+    max-width: 62ch;
+  }
+  .section {
+    display: block;
+    margin-top: 18px;
+  }
+  h2 {
+    font-size: 22px;
+    margin: 0 0 14px;
+  }
+  h2::first-letter {
+    text-transform: uppercase;
+  }
+
+  .slots,
+  .riders {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .slots > li {
+    padding: 14px 0;
+    border-top: 1px solid var(--border);
+  }
+  .slots > li:first-child {
+    border-top: 0;
+    padding-top: 0;
+  }
+  .slots > li:last-child {
+    padding-bottom: 0;
+  }
+  .slot__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 14px;
+  }
+  .slot__when {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .slot__seats {
+    color: var(--muted);
+    font-size: 14.5px;
+  }
+  .slot__empty {
+    margin: 8px 0 0;
+    color: var(--muted);
+    font-size: 14.5px;
+  }
+  .riders {
+    margin-top: 8px;
+    display: grid;
+    gap: 6px;
+  }
+  .riders > li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 12px;
+    min-width: 0;
+  }
+  .rider__name {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+  .rider__horse {
+    color: var(--muted);
+    font-size: 14.5px;
+  }
+
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    background: var(--surface-3);
+    color: var(--muted);
+  }
+  .tag--warn {
+    background: var(--warn-soft);
+    color: var(--warn-ink);
+  }
+</style>

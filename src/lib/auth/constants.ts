@@ -22,3 +22,6 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   instructor: "Ośrodek",
   rider: "Jeździec",
 };
+
+/** Etykieta konta instruktora, który nie jest właścicielem (pigułka roli w górnym pasku, #72). */
+export const INSTRUCTOR_LABEL = "Instruktor";

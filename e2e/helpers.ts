@@ -13,6 +13,11 @@ export const STABLE_NAME = "Stadnina Pod Dębem";
 /** Hasło wszystkich kont z seeda i kont zakładanych przez setup. */
 export const PASSWORD = "sekret123";
 export const STABLE_EMAIL = "osrodek.debem@example.com";
+/**
+ * Instruktorka z kontem z seeda (nie właścicielka) w Stadninie Pod Dębem — „Moje sloty” (#72).
+ * Jutro 1 miejsce w każdej godzinie 10–15; Anna Kowalska zapisana o 11 bez konia.
+ */
+export const INSTRUCTOR_EMAIL = "joanna.wrona@example.com";
 
 export const AUTH_DIR = "playwright/.auth";
 export const RIDER_A_STATE = `${AUTH_DIR}/rider-a.json`;

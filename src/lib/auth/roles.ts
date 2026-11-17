@@ -1,4 +1,4 @@
-import { USER_ROLES } from "@/lib/auth/constants";
+import { INSTRUCTOR_LABEL, ROLE_LABELS, USER_ROLES } from "@/lib/auth/constants";
 import type { UserRole } from "@/types";
 
 /**
@@ -30,6 +30,36 @@ export const NEW_STABLE_ROUTE = "/osrodek/nowa-stadnina";
 /** Endpoint przyjmujący formularz stadniny; musi być wyłączony z wymuszenia, żeby nie zapętlić przekierowań. */
 export const CREATE_STABLE_ENDPOINT = "/api/stables/create";
 
+/**
+ * Przestrzeń instruktora, który nie jest właścicielem — strona „Moje sloty” (#72). Właściciel
+ * mieszka w przestrzeni ośrodka (`ROLE_HOME.instructor`).
+ */
+export const INSTRUCTOR_HOME_ROUTE = "/instruktor";
+
+/**
+ * Kim jest konto `instructor` w ośrodku — wynika z danych w bazie, nie z roli konta (ADR-0004):
+ * `none` — konto bez instruktora (rejestracja „Ośrodek”, ośrodek jeszcze niezałożony),
+ * `owner` — instruktor właściciel ośrodka, `instructor` — instruktor z kontem bez praw właściciela.
+ */
+export type InstructorStanding = "none" | "owner" | "instructor";
+
+/**
+ * Powiązanie konta z instruktorem, tak jak widzi je sesja: `null` — konto bez instruktora;
+ * `stableOwnerId` — właściciel jego ośrodka, `null`, gdy RLS nie pokazuje ośrodka
+ * (instruktor zdezaktywowany).
+ */
+export interface InstructorLink {
+  stableOwnerId: string | null;
+}
+
+/** Kim jest konto `instructor` w ośrodku — właściciel to konto zapisane przy ośrodku jego instruktora. */
+export function instructorStandingOf(link: InstructorLink | null, accountId: string): InstructorStanding {
+  if (!link) {
+    return "none";
+  }
+  return link.stableOwnerId === accountId ? "owner" : "instructor";
+}
+
 export interface RouteGuard {
   prefix: string;
   /** `null` = wystarczy dowolna zalogowana sesja, bez wymogu konkretnej roli. */
@@ -38,12 +68,60 @@ export interface RouteGuard {
 
 const PROTECTED_PREFIXES: readonly RouteGuard[] = [
   { prefix: ROLE_HOME.instructor, role: "instructor" },
+  { prefix: INSTRUCTOR_HOME_ROUTE, role: "instructor" },
   { prefix: ROLE_HOME.rider, role: "rider" },
   { prefix: LEGACY_HOME_ROUTE, role: null },
 ];
 
+/**
+ * Trasa startowa samej roli — bez wiedzy o powiązaniu konta instruktora. Konto `instructor`
+ * trafia do przestrzeni ośrodka, a middleware przenosi stamtąd instruktora, który nie jest
+ * właścicielem (`instructorRedirect`). Gdy powiązanie jest znane, `homeRouteForAccount`.
+ */
 export function homeRouteForRole(role: UserRole): string {
   return ROLE_HOME[role];
+}
+
+/** Trasa startowa konta: jeździec — jego przestrzeń; konto instruktora — według powiązania z ośrodkiem. */
+export function homeRouteForAccount(role: UserRole, standing: InstructorStanding | null): string {
+  if (role !== "instructor") {
+    return ROLE_HOME[role];
+  }
+  switch (standing) {
+    case "instructor":
+      return INSTRUCTOR_HOME_ROUTE;
+    case "none":
+      return NEW_STABLE_ROUTE;
+    case "owner":
+    case null:
+      return ROLE_HOME.instructor;
+  }
+}
+
+/**
+ * Dokąd przenieść konto `instructor` z chronionej ścieżki, albo `null`, gdy może na niej zostać.
+ * Konto bez ośrodka nie wychodzi poza zakładanie ośrodka; konto z ośrodkiem na nie nie wchodzi.
+ * Właściciel mieszka w przestrzeni ośrodka, instruktor — w „Moje sloty”, i każdy z nich jest
+ * przenoszony z przestrzeni drugiego do swojej.
+ */
+export function instructorRedirect(pathname: string, standing: InstructorStanding): string | null {
+  const home = homeRouteForAccount("instructor", standing);
+
+  if (standing === "none") {
+    return isStableSetupPath(pathname) ? null : home;
+  }
+
+  if (isStableSetupPath(pathname)) {
+    return home;
+  }
+
+  const foreignSpace = standing === "owner" ? INSTRUCTOR_HOME_ROUTE : ROLE_HOME.instructor;
+  return matchesPrefix(pathname, foreignSpace) ? home : null;
+}
+
+/** Etykieta pigułki roli w górnym pasku: instruktor bez praw właściciela to „Instruktor”, nie „Ośrodek”. */
+export function roleBadgeLabel(role: UserRole, standing: InstructorStanding | null): string {
+  return role === "instructor" && standing === "instructor" ? INSTRUCTOR_LABEL : ROLE_LABELS[role];
 }
 
 /**

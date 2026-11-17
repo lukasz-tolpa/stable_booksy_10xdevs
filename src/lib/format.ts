@@ -22,6 +22,24 @@ export function formatFreeSeats(freeSeats: number, seats: number): string {
   return `${formatNumber(freeSeats)} z ${formatNumber(seats)} wolne`;
 }
 
+/** Zajęte miejsca slotu wobec limitu, np. `zajęte 1 z 2` — widok instruktora „Moje sloty”. */
+export function formatTakenSeats(taken: number, seats: number): string {
+  return `zajęte ${formatNumber(taken)} z ${formatNumber(seats)}`;
+}
+
+/**
+ * Dzień grafiku (`RRRR-MM-DD`) z dniem tygodnia, bez roku, np. `środa, 18 listopada`. Data
+ * kalendarzowa, więc formatowana w UTC — strefa środowiska nie przesunie doby.
+ */
+export function formatLongDate(iso: string): string {
+  return new Date(`${iso}T00:00:00Z`).toLocaleDateString("pl-PL", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    timeZone: "UTC",
+  });
+}
+
 /** Godziny jako jeden tekst, np. `3 h` — do etykiet wykresów i ich tabel z danymi. */
 export function formatHours(hours: number): string {
   return `${formatNumber(hours)} ${HOURS_UNIT}`;
