@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MIN_PASSWORD_LENGTH, USER_ROLES } from "@/lib/auth/constants";
+import { INVITATION_TOKEN_PATTERN, MIN_PASSWORD_LENGTH, USER_ROLES } from "@/lib/auth/constants";
 
 /**
  * Schematy walidacji wejścia z formularzy. Komunikaty są po polsku i są jedynym
@@ -9,25 +9,50 @@ import { MIN_PASSWORD_LENGTH, USER_ROLES } from "@/lib/auth/constants";
 
 const emailField = z.email({ error: "Podaj poprawny adres e-mail" });
 
+const accountFields = {
+  // Imię trafia do metadanych konta, a stamtąd trigger bazy przepisuje je na profil.
+  // Przycinamy przed sprawdzeniem długości - inaczej same spacje przeszłyby walidację
+  // i ośrodek zobaczyłby pusty wiersz zamiast jeźdźca (FR-005).
+  fullName: z.string().trim().min(1, { error: "Podaj imię i nazwisko" }),
+  password: z.string().min(MIN_PASSWORD_LENGTH, {
+    error: `Hasło musi mieć co najmniej ${MIN_PASSWORD_LENGTH} znaków`,
+  }),
+  confirmPassword: z.string().min(1, { error: "Powtórz hasło" }),
+};
+
+const passwordsMatch = {
+  check: (data: { password: string; confirmPassword: string }) => data.password === data.confirmPassword,
+  params: { error: "Hasła nie są takie same", path: ["confirmPassword"] },
+};
+
 export const signUpSchema = z
   .object({
-    // Imię trafia do metadanych konta, a stamtąd trigger bazy przepisuje je na profil.
-    // Przycinamy przed sprawdzeniem długości - inaczej same spacje przeszłyby walidację
-    // i ośrodek zobaczyłby pusty wiersz zamiast jeźdźca (FR-005).
-    fullName: z.string().trim().min(1, { error: "Podaj imię i nazwisko" }),
+    fullName: accountFields.fullName,
     email: emailField,
-    password: z.string().min(MIN_PASSWORD_LENGTH, {
-      error: `Hasło musi mieć co najmniej ${MIN_PASSWORD_LENGTH} znaków`,
-    }),
-    confirmPassword: z.string().min(1, { error: "Powtórz hasło" }),
+    password: accountFields.password,
+    confirmPassword: accountFields.confirmPassword,
     // Nieznana rola odpada tutaj. Gdyby przeszła dalej, trigger bazy zamieniłby ją
     // po cichu na jeźdźca, a roli nie da się potem zmienić z poziomu sesji.
     role: z.enum(USER_ROLES, { error: "Wybierz rodzaj konta" }),
   })
-  .refine((data) => data.password === data.confirmPassword, {
-    error: "Hasła nie są takie same",
-    path: ["confirmPassword"],
-  });
+  .refine(passwordsMatch.check, passwordsMatch.params);
+
+/** Odmowa schematu dla tokenu spoza postaci z linku — strona pokaże wtedy powód zaproszenia. */
+export const INVITATION_TOKEN_MESSAGE = "Link zaproszenia jest nieprawidłowy";
+
+/**
+ * Rejestracja z linku zaproszenia (#75). Bez roli i bez adresu: konto z zaproszenia jest zawsze
+ * kontem instruktora (trigger `handle_new_user`), a adres wyznacza zaproszenie — endpoint bierze
+ * go z `invitation_by_token`, nie z formularza, gdzie pole jest zablokowane.
+ */
+export const invitedSignUpSchema = z
+  .object({
+    ...accountFields,
+    token: z.string({ error: INVITATION_TOKEN_MESSAGE }).regex(INVITATION_TOKEN_PATTERN, {
+      error: INVITATION_TOKEN_MESSAGE,
+    }),
+  })
+  .refine(passwordsMatch.check, passwordsMatch.params);
 
 export const signInSchema = z.object({
   email: emailField,
@@ -51,6 +76,7 @@ export const newStableSchema = z.object({
 });
 
 export type SignUpInput = z.infer<typeof signUpSchema>;
+export type InvitedSignUpInput = z.infer<typeof invitedSignUpSchema>;
 export type SignInInput = z.infer<typeof signInSchema>;
 export type NewStableInput = z.infer<typeof newStableSchema>;
 

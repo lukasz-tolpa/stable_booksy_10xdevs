@@ -210,7 +210,10 @@ local role authenticated; set local request.jwt.claims =
   invitations (issue / revoke / list, hash-only token, 7-day expiry, one open per
   instructor): `instructor_invitations.sql` — it creates its instructors and a
   non-owner instructor account (`7777…`) inside the rolled-back transaction, so it
-  does not depend on who has an account in the seed.
+  does not depend on who has an account in the seed. Accepting an invitation at sign-up
+  (anonymous read by token, `SB016`–`SB022`, no account left after a refusal):
+  `instructor_invitation_acceptance.sql` — it signs up as GoTrue does, by inserting
+  into `auth.users` with `invitation_token` in the metadata (temp accounts `aaaa…`–`eeee…`).
 
 ### 6.3 Adding an e2e test
 
@@ -270,7 +273,11 @@ local role authenticated; set local request.jwt.claims =
   Joanna Wrona@14 (refusal, 1 seat), Joanna Wrona@12 (`test:db` concurrency
   script, which raises the limit temporarily) — all at Stadnina Pod Dębem,
   tomorrow. Anna holds Joanna@11, Piotr holds Tomasz Lis@10 at Stajnia Nad Rzeką;
-  seed bookings have no horse. Do not run `npm run test:db` and `npm run test:e2e` against the
+  seed bookings have no horse. Tomasz Lis (no account in the seed) is reserved for
+  `instructor-invitation-signup.spec.ts`: the owner `osrodek.rzeka` invites him and the
+  invitee signs up and reads Piotr@10. Linking cannot be undone through the app, so the
+  spec's `beforeAll` deletes, as superuser, the `e2e-instructor-…@example.com` accounts linked
+  to Tomasz — it reruns without `db reset`. Do not run `npm run test:db` and `npm run test:e2e` against the
   same database at the same time.
 - **Past data**: the seed schedules only tomorrow and the past cannot be
   clicked together in a browser, so the `setup` project loads
@@ -296,7 +303,9 @@ local role authenticated; set local request.jwt.claims =
   horse or `bez konia`; on „Moje sloty” (`/instruktor`, `instructor-slots.spec.ts`)
   each slot `<li>` holds the hour `"{h}:00"`, `"zajęte {taken} z {seats}"` and nested
   rider `<li>`s with the name and the horse or `bez konia` (or the sentence `Nikt jeszcze
-się nie zapisał.`); the statistics summary is the
+się nie zapisał.`); the sign-up page with `?zaproszenie=` has the stable name as its only `h1`, no
+  radios and a read-only „Adres e-mail”; a refused link is a NoticeCard with the `h1`
+  `Link zaproszenia nie działa`; the statistics summary is the
   region "Podsumowanie okresu" with four `<dd>` tiles in the order rides,
   ride hours, occupancy, cancellations. The landing page (`landing.spec.ts`,
   guest, no storage state) repeats link names: "Załóż konto jeźdźca" and

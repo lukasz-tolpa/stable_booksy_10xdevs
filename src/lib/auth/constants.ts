@@ -25,3 +25,9 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 
 /** Etykieta konta instruktora, który nie jest właścicielem (pigułka roli w górnym pasku, #72). */
 export const INSTRUCTOR_LABEL = "Instruktor";
+
+/**
+ * Postać tokenu z linku zaproszenia (`/auth/signup?zaproszenie=<token>`, #74): 32 losowe bajty
+ * zapisane szesnastkowo małymi literami — tak, jak zwraca je `issue_instructor_invitation`.
+ */
+export const INVITATION_TOKEN_PATTERN = /^[0-9a-f]{64}$/;

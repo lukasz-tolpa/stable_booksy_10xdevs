@@ -456,6 +456,14 @@ export type Database = {
           taken: number
         }[]
       }
+      invitation_by_token: {
+        Args: { p_token: string }
+        Returns: {
+          email: string
+          stable_name: string
+          state: string
+        }[]
+      }
       issue_instructor_invitation: {
         Args: { p_email: string; p_instructor_id: number }
         Returns: {
