@@ -2,32 +2,101 @@
 import SignUpForm from "@/components/auth/SignUpForm";
 import Topbar from "@/components/Topbar.astro";
 import Card from "@/components/ui/Card.astro";
+import FailureState from "@/components/ui/FailureState.astro";
+import NoticeCard from "@/components/ui/NoticeCard.astro";
 import Layout from "@/layouts/Layout.astro";
 
+import { isInvitationToken, signupInvitation, type SignupInvitation } from "@/lib/auth/invitation";
 import { SIGN_IN_ROUTE, SIGNUP_ROLE_PARAM, signupRoleFromParam } from "@/lib/auth/roles";
+import { INVITATION_PARAM } from "@/lib/instructors/invitations";
+import { getInvitationByToken } from "@/lib/instructors/queries";
+import { logError } from "@/lib/log";
+import { createClient } from "@/lib/supabase";
 
 const error = Astro.url.searchParams.get("error");
 // Strona główna prowadzi tu z `?rola=jezdziec|osrodek`; formularz dostaje rolę tylko
 // jako zaznaczenie początkowe, które użytkownik może zmienić.
 const initialRole = signupRoleFromParam(Astro.url.searchParams.get(SIGNUP_ROLE_PARAM));
+
+// Link zaproszenia (#75): `?zaproszenie=<token>` przełącza stronę w tryb zaproszenia — formularz
+// bez wyboru rodzaju konta, z adresem zaproszenia i nazwą ośrodka, albo powód, dla którego link
+// nie działa. Token o złej postaci nie idzie do bazy.
+const invitationParam = Astro.url.searchParams.get(INVITATION_PARAM);
+let invitation: SignupInvitation | null = null;
+let invitationFailed = false;
+
+if (invitationParam !== null) {
+  if (!isInvitationToken(invitationParam)) {
+    invitation = signupInvitation(invitationParam, null);
+  } else {
+    try {
+      const supabase = createClient(Astro.request.headers, Astro.cookies);
+      if (!supabase) {
+        throw new Error("Supabase nie jest skonfigurowany");
+      }
+      const result = await getInvitationByToken(supabase, invitationParam);
+      if (result.error) {
+        throw result.error;
+      }
+      invitation = signupInvitation(invitationParam, result.invitation);
+    } catch (cause) {
+      logError("page:auth/signup", cause);
+      invitationFailed = true;
+    }
+  }
+}
 ---
 
 <Layout title="Rejestracja" noindex>
   <Topbar />
-  <div class="container-narrow authwrap">
-    <Card class="w-full max-w-[420px]" padding={28}>
-      <p class="eyebrow">Konto</p>
-      <h1>Załóż konto</h1>
-      <!-- Prototyp ma tu „Wybierz rodzaj konta — …", ale ta fraza jest dosłownym
-           komunikatem walidacji roli, więc każdy lokator tekstowy trafiałby w dwa
-           elementy naraz. Zdanie niesie ten sam sens innymi słowami. -->
-      <p class="lead">Zacznij od rodzaju konta — resztę ustawisz w środku.</p>
-      <SignUpForm serverError={error} initialRole={initialRole} client:load />
-      <p class="switch">
-        Masz już konto? <a href={SIGN_IN_ROUTE}>Zaloguj się</a>
-      </p>
-    </Card>
-  </div>
+  {
+    invitation?.kind === "refused" ? (
+      <NoticeCard
+        heading={invitation.heading}
+        lead={invitation.message}
+        href={invitation.href}
+        linkText={invitation.linkText}
+      />
+    ) : (
+      <div class="container-narrow authwrap">
+        <Card class="w-full max-w-[420px]" padding={28}>
+          {invitation?.kind === "open" ? (
+            <>
+              <p class="eyebrow">Zaproszenie do ośrodka</p>
+              <h1>{invitation.stableName}</h1>
+              <p class="lead">Zakładasz konto instruktora. Po rejestracji od razu zobaczysz swoje sloty.</p>
+              <SignUpForm
+                serverError={error}
+                invitation={{ token: invitation.token, email: invitation.email }}
+                client:load
+              />
+            </>
+          ) : invitationFailed ? (
+            <>
+              <p class="eyebrow">Zaproszenie</p>
+              <h1>Załóż konto</h1>
+              <FailureState>
+                <p>Nie udało się sprawdzić linku zaproszenia. Odśwież stronę za chwilę.</p>
+              </FailureState>
+            </>
+          ) : (
+            <>
+              <p class="eyebrow">Konto</p>
+              <h1>Załóż konto</h1>
+              {/* Prototyp ma tu „Wybierz rodzaj konta — …", ale ta fraza jest dosłownym
+                  komunikatem walidacji roli, więc każdy lokator tekstowy trafiałby w dwa
+                  elementy naraz. Zdanie niesie ten sam sens innymi słowami. */}
+              <p class="lead">Zacznij od rodzaju konta — resztę ustawisz w środku.</p>
+              <SignUpForm serverError={error} initialRole={initialRole} client:load />
+            </>
+          )}
+          <p class="switch">
+            Masz już konto? <a href={SIGN_IN_ROUTE}>Zaloguj się</a>
+          </p>
+        </Card>
+      </div>
+    )
+  }
 </Layout>
 
 <style>

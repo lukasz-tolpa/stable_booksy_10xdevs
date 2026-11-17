@@ -91,3 +91,12 @@ export async function listOpenSeatRows(client: Client, stableId: number, today: 
     ),
   );
 }
+
+/**
+ * Zaproszenie po tokenie z linku dla strony i endpointu rejestracji (#75): nazwa ośrodka, adres
+ * i stan — `invitation_by_token` działa także bez sesji. `invitation: null` — baza nie zna tokenu.
+ */
+export async function getInvitationByToken(client: Client, token: string) {
+  const { data, error } = await client.rpc("invitation_by_token", { p_token: token }).maybeSingle();
+  return { invitation: data, error };
+}
