@@ -204,7 +204,11 @@ local role authenticated; set local request.jwt.claims =
   `3333…` rider Anna, `4444…` rider Piotr; password
   `sekret123`. Identity ids of stables, horses, days and bookings are not fixed
   — resolve them by name or owner uuid, never hardcode. Owner rules (create_stable,
-  SB012, context from the instructor link): `stable_owner_account.sql`.
+  SB012, context from the instructor link): `stable_owner_account.sql`. Instructor
+  invitations (issue / revoke / list, hash-only token, 7-day expiry, one open per
+  instructor): `instructor_invitations.sql` — it creates its instructors and a
+  non-owner instructor account (`7777…`) inside the rolled-back transaction, so it
+  does not depend on who has an account in the seed.
 
 ### 6.3 Adding an e2e test
 
