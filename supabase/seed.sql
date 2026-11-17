@@ -5,6 +5,8 @@
 --   * dwa osrodki - drugi istnieje po to, zeby bylo czego NIE widziec w tescie izolacji;
 --     wlasciciel kazdego to konto `instructor` powiazane z instruktorem swojego osrodka
 --     (Marek Dębowski, Ewa Rzecka - ADR-0004), bez miejsc w grafiku
+--   * instruktorka z kontem, ktora nie jest wlascicielka: Joanna Wrona w Stadninie Pod Dębem
+--     (konto `instructor` 9999..., #72) - widzi wylacznie swoje sloty („Moje sloty”)
 --   * dwoch jezdzcow - kazdy zapisany w innym osrodku
 --   * grafik na jutro w obu stadninach + po jednym aktywnym zapisie
 --
@@ -56,6 +58,15 @@ values
     extensions.crypt('sekret123', extensions.gen_salt('bf')), now(),
     '{"provider":"email","providers":["email"]}',
     '{"role":"rider","full_name":"Piotr Nowak"}',
+    now(), now()
+  ),
+  (
+    '00000000-0000-0000-0000-000000000000',
+    '99999999-9999-9999-9999-999999999999',
+    'authenticated', 'authenticated', 'joanna.wrona@example.com',
+    extensions.crypt('sekret123', extensions.gen_salt('bf')), now(),
+    '{"provider":"email","providers":["email"]}',
+    '{"role":"instructor","full_name":"Joanna Wrona"}',
     now(), now()
   );
 
@@ -158,6 +169,13 @@ insert into public.instructors (stable_id, name, account_id)
 select s.id, p.full_name, p.id
 from public.stables s
 join public.profiles p on p.id = s.owner_id;
+
+-- Joanna Wrona ma konto (jak po przyjeciu zaproszenia, #74) - instruktorka bez uprawnien
+-- wlasciciela, widzi swoje sloty z zapisanymi (#72). Karol i Tomasz zostaja bez kont.
+update public.instructors i
+   set account_id = '99999999-9999-9999-9999-999999999999'
+  from public.stables s
+ where s.id = i.stable_id and s.name = 'Stadnina Pod Dębem' and i.name = 'Joanna Wrona';
 
 -- Karol nie pracuje jutro - scenariusz e2e dodaje go w formularzu grafiku (miejsce o 13),
 -- a testy bazy dokladaja go jako postgres. Drugi kon Pod Dębem zostawia na to miejsce w sumie.

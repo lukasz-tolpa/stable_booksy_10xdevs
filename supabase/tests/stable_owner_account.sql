@@ -109,7 +109,8 @@ begin;
 do $$
 begin
   perform set_config('app.stable_a', (select id::text from public.stables where owner_id = '11111111-1111-1111-1111-111111111111'), true);
-  perform set_config('app.joanna', (select i.id::text from public.instructors i join public.stables s on s.id = i.stable_id where s.owner_id = '11111111-1111-1111-1111-111111111111' and i.name = 'Joanna Wrona'), true);
+  -- Karol Jasny - instruktor bez konta (Joanna Wrona ma konto od #72).
+  perform set_config('app.karol', (select i.id::text from public.instructors i join public.stables s on s.id = i.stable_id where s.owner_id = '11111111-1111-1111-1111-111111111111' and i.name = 'Karol Jasny'), true);
 end $$;
 
 set local role authenticated;
@@ -119,7 +120,7 @@ do $$
 declare
   v_account uuid;
   v_stable_a bigint := current_setting('app.stable_a')::bigint;
-  v_joanna bigint := current_setting('app.joanna')::bigint;
+  v_karol bigint := current_setting('app.karol')::bigint;
 begin
   begin
     insert into public.instructors (stable_id, name, account_id)
@@ -130,12 +131,12 @@ begin
   end;
 
   begin
-    update public.instructors set account_id = '33333333-3333-3333-3333-333333333333' where id = v_joanna;
+    update public.instructors set account_id = '33333333-3333-3333-3333-333333333333' where id = v_karol;
     raise exception 'FAIL: wlasciciel powiazal instruktora z kontem';
   exception when insufficient_privilege then
-    select account_id into v_account from public.instructors where id = v_joanna;
+    select account_id into v_account from public.instructors where id = v_karol;
     if v_account is not null then
-      raise exception 'FAIL: po odmowie Joanna ma konto %', v_account;
+      raise exception 'FAIL: po odmowie Karol ma konto %', v_account;
     end if;
     raise notice 'PASS: zmiana powiazania instruktora z kontem odrzucona (42501), bez zmian';
   end;
