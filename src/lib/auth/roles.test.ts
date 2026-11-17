@@ -154,6 +154,10 @@ describe("homeRouteForAccount", () => {
     expect(homeRouteForAccount("instructor", "none")).toBe("/osrodek/nowa-stadnina");
   });
 
+  it("kieruje zdezaktywowanego instruktora na ekran nieaktywnego konta", () => {
+    expect(homeRouteForAccount("instructor", "inactive")).toBe("/instruktor/konto-nieaktywne");
+  });
+
   it("kieruje jeźdźca do jego przestrzeni niezależnie od powiązań", () => {
     expect(homeRouteForAccount("rider", null)).toBe("/jezdziec");
   });
@@ -188,6 +192,31 @@ describe("instructorRedirect", () => {
   });
 });
 
+describe("instructorRedirect — zdezaktywowany instruktor", () => {
+  it("z każdej trasy chronionej przenosi na ekran nieaktywnego konta", () => {
+    for (const pathname of [
+      "/instruktor",
+      "/osrodek",
+      "/osrodek/zapisy",
+      "/osrodek/grafik",
+      "/osrodek/nowa-stadnina",
+      "/dashboard",
+    ]) {
+      expect(instructorRedirect(pathname, "inactive")).toBe("/instruktor/konto-nieaktywne");
+    }
+  });
+
+  it("zostawia go na ekranie nieaktywnego konta", () => {
+    expect(instructorRedirect("/instruktor/konto-nieaktywne", "inactive")).toBeNull();
+  });
+
+  it("nie trzyma aktywnego konta na ekranie nieaktywnego konta", () => {
+    expect(instructorRedirect("/instruktor/konto-nieaktywne", "instructor")).toBe("/instruktor");
+    expect(instructorRedirect("/instruktor/konto-nieaktywne", "owner")).toBe("/osrodek");
+    expect(instructorRedirect("/instruktor/konto-nieaktywne", "none")).toBe("/osrodek/nowa-stadnina");
+  });
+});
+
 describe("routeGuardFor — przestrzeń instruktora", () => {
   it("chroni „Moje sloty” rolą instruktora", () => {
     expect(routeGuardFor("/instruktor")).toEqual({ prefix: "/instruktor", role: "instructor" });
@@ -206,18 +235,25 @@ describe("instructorStandingOf", () => {
   });
 
   it("konto zapisane jako właściciel ośrodka swojego instruktora to właściciel", () => {
-    expect(instructorStandingOf({ stableOwnerId: account }, account)).toBe("owner");
+    expect(instructorStandingOf({ active: true, stableOwnerId: account }, account)).toBe("owner");
   });
 
   it("konto instruktora w cudzym ośrodku (albo bez wglądu w ośrodek) to instruktor", () => {
-    expect(instructorStandingOf({ stableOwnerId: "11111111-1111-1111-1111-111111111111" }, account)).toBe("instructor");
-    expect(instructorStandingOf({ stableOwnerId: null }, account)).toBe("instructor");
+    expect(instructorStandingOf({ active: true, stableOwnerId: "11111111-1111-1111-1111-111111111111" }, account)).toBe(
+      "instructor",
+    );
+    expect(instructorStandingOf({ active: true, stableOwnerId: null }, account)).toBe("instructor");
+  });
+
+  it("konto instruktora zdezaktywowanego przez właściciela jest nieaktywne", () => {
+    expect(instructorStandingOf({ active: false, stableOwnerId: null }, account)).toBe("inactive");
   });
 });
 
 describe("roleBadgeLabel", () => {
   it("podpisuje instruktora, który nie jest właścicielem, jako „Instruktor”", () => {
     expect(roleBadgeLabel("instructor", "instructor")).toBe("Instruktor");
+    expect(roleBadgeLabel("instructor", "inactive")).toBe("Instruktor");
   });
 
   it("zostawia etykiety ról dla właściciela i jeźdźca", () => {

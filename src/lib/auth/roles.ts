@@ -37,18 +37,28 @@ export const CREATE_STABLE_ENDPOINT = "/api/stables/create";
 export const INSTRUCTOR_HOME_ROUTE = "/instruktor";
 
 /**
+ * Ekran komunikatu dla konta instruktora zdezaktywowanego przez właściciela (#73) — jedyna
+ * trasa chroniona, na którą takie konto wchodzi. Leży w przestrzeni instruktora, więc chroni
+ * ją ta sama reguła roli.
+ */
+export const INACTIVE_INSTRUCTOR_ROUTE = `${INSTRUCTOR_HOME_ROUTE}/konto-nieaktywne`;
+
+/**
  * Kim jest konto `instructor` w ośrodku — wynika z danych w bazie, nie z roli konta (ADR-0004):
  * `none` — konto bez instruktora (rejestracja „Ośrodek”, ośrodek jeszcze niezałożony),
- * `owner` — instruktor właściciel ośrodka, `instructor` — instruktor z kontem bez praw właściciela.
+ * `owner` — instruktor właściciel ośrodka, `instructor` — instruktor z kontem bez praw właściciela,
+ * `inactive` — instruktor zdezaktywowany przez właściciela (#73): RLS odcina mu cały ośrodek.
  */
-export type InstructorStanding = "none" | "owner" | "instructor";
+export type InstructorStanding = "none" | "owner" | "instructor" | "inactive";
 
 /**
  * Powiązanie konta z instruktorem, tak jak widzi je sesja: `null` — konto bez instruktora;
+ * `active` — czy instruktor jest aktywny (swój wiersz konto widzi także po dezaktywacji);
  * `stableOwnerId` — właściciel jego ośrodka, `null`, gdy RLS nie pokazuje ośrodka
  * (instruktor zdezaktywowany).
  */
 export interface InstructorLink {
+  active: boolean;
   stableOwnerId: string | null;
 }
 
@@ -56,6 +66,9 @@ export interface InstructorLink {
 export function instructorStandingOf(link: InstructorLink | null, accountId: string): InstructorStanding {
   if (!link) {
     return "none";
+  }
+  if (!link.active) {
+    return "inactive";
   }
   return link.stableOwnerId === accountId ? "owner" : "instructor";
 }
@@ -90,6 +103,8 @@ export function homeRouteForAccount(role: UserRole, standing: InstructorStanding
   switch (standing) {
     case "instructor":
       return INSTRUCTOR_HOME_ROUTE;
+    case "inactive":
+      return INACTIVE_INSTRUCTOR_ROUTE;
     case "none":
       return NEW_STABLE_ROUTE;
     case "owner":
@@ -102,10 +117,20 @@ export function homeRouteForAccount(role: UserRole, standing: InstructorStanding
  * Dokąd przenieść konto `instructor` z chronionej ścieżki, albo `null`, gdy może na niej zostać.
  * Konto bez ośrodka nie wychodzi poza zakładanie ośrodka; konto z ośrodkiem na nie nie wchodzi.
  * Właściciel mieszka w przestrzeni ośrodka, instruktor — w „Moje sloty”, i każdy z nich jest
- * przenoszony z przestrzeni drugiego do swojej.
+ * przenoszony z przestrzeni drugiego do swojej. Zdezaktywowany instruktor widzi wyłącznie ekran
+ * nieaktywnego konta, a aktywne konto na ten ekran nie wchodzi.
  */
 export function instructorRedirect(pathname: string, standing: InstructorStanding): string | null {
   const home = homeRouteForAccount("instructor", standing);
+  const onInactiveScreen = matchesPrefix(pathname, INACTIVE_INSTRUCTOR_ROUTE);
+
+  if (standing === "inactive") {
+    return onInactiveScreen ? null : home;
+  }
+
+  if (onInactiveScreen) {
+    return home;
+  }
 
   if (standing === "none") {
     return isStableSetupPath(pathname) ? null : home;
@@ -121,7 +146,9 @@ export function instructorRedirect(pathname: string, standing: InstructorStandin
 
 /** Etykieta pigułki roli w górnym pasku: instruktor bez praw właściciela to „Instruktor”, nie „Ośrodek”. */
 export function roleBadgeLabel(role: UserRole, standing: InstructorStanding | null): string {
-  return role === "instructor" && standing === "instructor" ? INSTRUCTOR_LABEL : ROLE_LABELS[role];
+  return role === "instructor" && (standing === "instructor" || standing === "inactive")
+    ? INSTRUCTOR_LABEL
+    : ROLE_LABELS[role];
 }
 
 /**

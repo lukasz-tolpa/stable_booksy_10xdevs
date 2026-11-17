@@ -8,7 +8,8 @@
 --     public.get_my_slot_bookings - ograniczona do jego slotow, bez poluzowania RLS na profiles;
 --     imie jezdzca widzi wylacznie instruktor slotu i wlasciciel,
 --   * instruktor niczego w osrodku nie zmienia (odmowa albo 0 wierszy) i nie zapisuje sie na jazde,
---   * dezaktywacja instruktora odcina mu odczyt (kontekst private.current_instructor_id() pusty),
+--   * dezaktywacja instruktora przez wlasciciela odcina mu odczyt (kontekst private.current_instructor_id()
+--     pusty), a ponowna aktywacja go przywraca (#73),
 --   * jezdziec i wlasciciel czytaja jak dotad.
 --
 -- Persony: Joanna Wrona (99999999..., konto z seeda, Stadnina Pod Dębem), tymczasowe konto
@@ -398,48 +399,103 @@ end $$;
 
 rollback;
 
-\echo '=== Dezaktywacja instruktora z kontem odcina mu odczyt ==='
+\echo '=== Dezaktywacja instruktora z kontem przez wlasciciela odcina mu odczyt; ponowna aktywacja go przywraca ==='
+
+-- Ten sam UPDATE, ktory wysyla strona Instruktorzy, jako wlasciciel przez RLS - nie jako postgres.
+-- Bez osobnej logiki: kontekst private.current_instructor_id()/current_stable_id() zdezaktywowanego
+-- jest pusty, wiec kazda polityka i funkcja odczytu daje mu 0 wierszy (#73). Odmowe dezaktywacji
+-- samego wlasciciela (SB012) dowodzi stable_owner_account.sql.
 
 begin;
 do $$ begin perform pg_temp.instructor_setup(); end $$;
 
-update public.instructors set active = false where id = current_setting('app.joanna')::bigint;
-
 set local role authenticated;
+set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
+
+do $$
+declare
+  v int;
+begin
+  update public.instructors set active = false
+   where id = current_setting('app.joanna')::bigint and stable_id = current_setting('app.stable_a')::bigint;
+  get diagnostics v = row_count;
+  if v <> 1 then
+    raise exception 'FAIL: wlasciciel nie zdezaktywowal instruktorki z kontem (% wierszy)', v;
+  end if;
+  raise notice 'PASS: wlasciciel dezaktywuje instruktorke z kontem';
+end $$;
+
+set local request.jwt.claims = '{"sub":"99999999-9999-9999-9999-999999999999","role":"authenticated"}';
+
+do $$
+declare
+  v_slots int;
+  v_days int;
+  v_bookings int;
+  v_named int;
+  v_taken int;
+  v_stables int;
+  v_rows int;
+  v_active boolean;
+begin
+  select count(*) into v_slots from public.schedule_slots;
+  select count(*) into v_days from public.schedule_days;
+  select count(*) into v_bookings from public.bookings;
+  select count(*) into v_named from public.get_my_slot_bookings(current_date);
+  select count(*) into v_taken
+  from public.get_slot_occupancy(current_setting('app.stable_a')::bigint, current_date + 1);
+  select count(*) into v_stables from public.stables;
+  if v_slots + v_days + v_bookings + v_named + v_taken + v_stables <> 0 then
+    raise exception 'FAIL: zdezaktywowana instruktorka czyta sloty %, dni %, zapisy %, jezdzcow %, oblozenie %, osrodki %',
+      v_slots, v_days, v_bookings, v_named, v_taken, v_stables;
+  end if;
+  raise notice 'PASS: zdezaktywowana instruktorka nie czyta slotow, dni, zapisow, jezdzcow, oblozenia ani osrodka';
+
+  -- Swoj wiersz instruktora widzi dalej: po nim aplikacja rozpoznaje nieaktywne konto.
+  select count(*), bool_and(active) into v_rows, v_active
+  from public.instructors where account_id = '99999999-9999-9999-9999-999999999999';
+  if v_rows <> 1 or v_active is distinct from false then
+    raise exception 'FAIL: zdezaktywowana instruktorka widzi % swoich wierszy (active=%)', v_rows, v_active;
+  end if;
+  raise notice 'PASS: zdezaktywowana instruktorka widzi swoj wiersz z active=false (ekran nieaktywnego konta)';
+end $$;
+
+set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
+
+do $$
+declare
+  v int;
+begin
+  update public.instructors set active = true
+   where id = current_setting('app.joanna')::bigint and stable_id = current_setting('app.stable_a')::bigint;
+  get diagnostics v = row_count;
+  if v <> 1 then
+    raise exception 'FAIL: wlasciciel nie aktywowal ponownie instruktorki (% wierszy)', v;
+  end if;
+  raise notice 'PASS: wlasciciel aktywuje instruktorke ponownie';
+end $$;
+
 set local request.jwt.claims = '{"sub":"99999999-9999-9999-9999-999999999999","role":"authenticated"}';
 
 do $$
 declare
   v_slots int;
   v_bookings int;
+  v_name text;
   v_named int;
   v_stables int;
+  v_joanna bigint := current_setting('app.joanna')::bigint;
 begin
-  select count(*) into v_slots from public.schedule_slots;
-  select count(*) into v_bookings from public.bookings;
-  select count(*) into v_named from public.get_my_slot_bookings(current_date);
-  select count(*) into v_stables from public.stables;
-  if v_slots + v_bookings + v_named + v_stables <> 0 then
-    raise exception 'FAIL: zdezaktywowana instruktorka czyta sloty %, zapisy %, jezdzcow %, osrodki %',
-      v_slots, v_bookings, v_named, v_stables;
+  select count(*) into v_slots from public.schedule_slots where instructor_id = v_joanna;
+  select count(*) into v_bookings from public.bookings
+   where status = 'active' and instructor_id = v_joanna and hour = 11;
+  select count(*), min(rider_name) into v_named, v_name from public.get_my_slot_bookings(current_date);
+  select count(*) into v_stables from public.stables where id = current_setting('app.stable_a')::bigint;
+  if v_slots <> 6 or v_bookings <> 1 or v_named <> 1 or v_name is distinct from 'Anna Kowalska' or v_stables <> 1 then
+    raise exception 'FAIL: po ponownej aktywacji sloty %, zapisy %, jezdzcy % (%), osrodek %',
+      v_slots, v_bookings, v_named, v_name, v_stables;
   end if;
-  raise notice 'PASS: zdezaktywowana instruktorka nie czyta niczego z osrodka';
-end $$;
-
-reset role;
-update public.instructors set active = true where id = current_setting('app.joanna')::bigint;
-set local role authenticated;
-set local request.jwt.claims = '{"sub":"99999999-9999-9999-9999-999999999999","role":"authenticated"}';
-
-do $$
-declare
-  v int;
-begin
-  select count(*) into v from public.get_my_slot_bookings(current_date);
-  if v <> 1 then
-    raise exception 'FAIL: po ponownej aktywacji instruktorka dostaje % zapisow', v;
-  end if;
-  raise notice 'PASS: ponowna aktywacja przywraca odczyt';
+  raise notice 'PASS: ponowna aktywacja przywraca odczyt slotow, zapisow, jezdzcow i osrodka bez nowego zaproszenia';
 end $$;
 
 rollback;

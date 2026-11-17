@@ -81,13 +81,14 @@ begin
     raise notice 'PASS: dezaktywacja instruktora wlasciciela odrzucona (SB012), nadal aktywny';
   end;
 
-  -- Ten sam przelacznik dziala dla instruktora bez konta (odmowa wyzej nie jest blanketowa).
+  -- Ten sam przelacznik dziala dla instruktora, ktory nie jest wlascicielem (odmowa wyzej nie jest
+  -- blanketowa). Skutki dezaktywacji konta instruktora: instructor_account_access.sql (#73).
   update public.instructors set active = false where id = v_joanna;
   get diagnostics v = row_count;
   if v <> 1 then
-    raise exception 'FAIL: wlasciciel nie zdezaktywowal instruktora bez konta (% wierszy)', v;
+    raise exception 'FAIL: wlasciciel nie zdezaktywowal instruktora, ktory nie jest wlascicielem (% wierszy)', v;
   end if;
-  raise notice 'PASS: wlasciciel dezaktywuje instruktora bez konta';
+  raise notice 'PASS: wlasciciel dezaktywuje instruktora, ktory nie jest wlascicielem';
 end $$;
 
 reset role;

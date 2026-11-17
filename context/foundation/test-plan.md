@@ -206,7 +206,8 @@ local role authenticated; set local request.jwt.claims =
   `sekret123`. Identity ids of stables, horses, days and bookings are not fixed
   — resolve them by name or owner uuid, never hardcode. Owner rules (create_stable,
   SB012, context from the instructor link): `stable_owner_account.sql`; what a
-  non-owner instructor reads and cannot change: `instructor_account_access.sql`. Instructor
+  non-owner instructor reads and cannot change, and how the owner's deactivation cuts it off and
+  reactivation restores it (#73): `instructor_account_access.sql`. Instructor
   invitations (issue / revoke / list, hash-only token, 7-day expiry, one open per
   instructor): `instructor_invitations.sql` — it creates its instructors and a
   non-owner instructor account (`7777…`) inside the rolled-back transaction, so it
@@ -270,7 +271,10 @@ local role authenticated; set local request.jwt.claims =
   Joanna Wrona@14 (refusal, 1 seat), Joanna Wrona@12 (`test:db` concurrency
   script, which raises the limit temporarily) — all at Stadnina Pod Dębem,
   tomorrow. Anna holds Joanna@11, Piotr holds Tomasz Lis@10 at Stajnia Nad Rzeką;
-  seed bookings have no horse. Do not run `npm run test:db` and `npm run test:e2e` against the
+  seed bookings have no horse. `instructor-deactivation.spec.ts` deactivates Joanna Wrona's
+  instructor (owner session) and reactivates her in a flag-guarded `finally`; a run that dies
+  before that leaves her inactive and `instructor-slots.spec.ts` red — repair with
+  `npx supabase db reset`. Do not run `npm run test:db` and `npm run test:e2e` against the
   same database at the same time.
 - **Past data**: the seed schedules only tomorrow and the past cannot be
   clicked together in a browser, so the `setup` project loads
@@ -296,7 +300,9 @@ local role authenticated; set local request.jwt.claims =
   horse or `bez konia`; on „Moje sloty” (`/instruktor`, `instructor-slots.spec.ts`)
   each slot `<li>` holds the hour `"{h}:00"`, `"zajęte {taken} z {seats}"` and nested
   rider `<li>`s with the name and the horse or `bez konia` (or the sentence `Nikt jeszcze
-się nie zapisał.`); the statistics summary is the
+się nie zapisał.`); the inactive-account screen (`/instruktor/konto-nieaktywne`) has the h1
+  `Konto nieaktywne` and its own `Wyloguj się` button next to the top bar's one — scope it to
+  `main`; the statistics summary is the
   region "Podsumowanie okresu" with four `<dd>` tiles in the order rides,
   ride hours, occupancy, cancellations. The landing page (`landing.spec.ts`,
   guest, no storage state) repeats link names: "Załóż konto jeźdźca" and

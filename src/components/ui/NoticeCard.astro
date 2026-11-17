@@ -2,18 +2,18 @@
 import Card from "@/components/ui/Card.astro";
 
 // Karta-komunikat na środku strony: opcjonalny znak, nagłówek `h1`, jedno zdanie
-// w `--muted` i link dalej. Potwierdzenie e-maila i strona 404 — szerokość i odstępy
-// jak karta logowania (420 px, padding 28 px).
-interface Props {
+// w `--muted` i jedno wyjście dalej — link (`href`) albo przycisk formularza POST
+// (`formAction`, np. wylogowanie). Potwierdzenie e-maila, strona 404, nieaktywne konto
+// instruktora — szerokość i odstępy jak karta logowania (420 px, padding 28 px).
+type Props = {
   heading: string;
   lead: string;
-  href: string;
   linkText: string;
   /** Znak nad nagłówkiem (emoji). */
   emoji?: string;
-}
+} & ({ href: string; formAction?: never } | { formAction: string; href?: never });
 
-const { heading, lead, href, linkText, emoji } = Astro.props;
+const { heading, lead, href, formAction, linkText, emoji } = Astro.props;
 ---
 
 <div class="container-narrow noticewrap">
@@ -22,7 +22,15 @@ const { heading, lead, href, linkText, emoji } = Astro.props;
       {emoji && <div class="emoji">{emoji}</div>}
       <h1>{heading}</h1>
       <p class="lead">{lead}</p>
-      <a href={href}>{linkText}</a>
+      {
+        formAction ? (
+          <form method="POST" action={formAction}>
+            <button type="submit">{linkText}</button>
+          </form>
+        ) : (
+          <a href={href}>{linkText}</a>
+        )
+      }
     </div>
   </Card>
 </div>
@@ -50,16 +58,26 @@ const { heading, lead, href, linkText, emoji } = Astro.props;
     color: var(--muted);
     margin: 0 0 22px;
   }
-  .notice a {
+  .notice a,
+  .notice button {
     font-size: 14.5px;
     color: var(--primary);
     font-weight: 600;
   }
-  .notice a:hover {
+  .notice button {
+    border: 0;
+    padding: 0;
+    background: none;
+    font-family: var(--font-body);
+    cursor: pointer;
+  }
+  .notice a:hover,
+  .notice button:hover {
     color: var(--primary-strong);
     text-decoration: underline;
   }
-  .notice a:focus-visible {
+  .notice a:focus-visible,
+  .notice button:focus-visible {
     outline: 2px solid var(--primary);
     outline-offset: 3px;
     border-radius: 6px;

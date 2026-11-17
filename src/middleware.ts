@@ -61,10 +61,11 @@ async function guardSessionAndRoute(context: APIContext, next: MiddlewareNext): 
       // Powiązanie konta z instruktorem i właściciel jego ośrodka. Na każdej trasie, nie tylko
       // chronionej: górny pasek pokazuje „Mój panel” i pigułkę roli według tego, kim konto jest.
       // Wiersz instruktora konto widzi zawsze (RLS: account_id), ośrodek - gdy instruktor aktywny.
+      // `active` odróżnia instruktora zdezaktywowanego, który dostaje ekran nieaktywnego konta (#73).
       if (userRole === "instructor") {
         const link = await supabase
           .from("instructors")
-          .select("stables(owner_id)")
+          .select("active, stables(owner_id)")
           .eq("account_id", session.user.id)
           .maybeSingle();
 
@@ -75,7 +76,7 @@ async function guardSessionAndRoute(context: APIContext, next: MiddlewareNext): 
           standing = instructorStandingOf(
             // Wygenerowane typy obiecują ośrodek (FK not-null), ale RLS ukrywa go zdezaktywowanemu.
             // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-            link.data ? { stableOwnerId: link.data.stables?.owner_id ?? null } : null,
+            link.data ? { active: link.data.active, stableOwnerId: link.data.stables?.owner_id ?? null } : null,
             session.user.id,
           );
           context.locals.instructorStanding = standing;
@@ -127,7 +128,8 @@ async function guardSessionAndRoute(context: APIContext, next: MiddlewareNext): 
 
     // Konto instruktora: bez ośrodka - wyłącznie zakładanie ośrodka (bez powiązania z instruktorem
     // RLS odetnie mu wszystko); właściciel - przestrzeń ośrodka; instruktor, który nie jest
-    // właścicielem - „Moje sloty”, także gdy wejdzie pod adres przestrzeni ośrodka (#72).
+    // właścicielem - „Moje sloty”, także gdy wejdzie pod adres przestrzeni ośrodka (#72);
+    // zdezaktywowany - ekran nieaktywnego konta z każdej trasy chronionej (#73).
     if (role === "instructor") {
       if (!standing) {
         return context.redirect(signInWithMessage(sessionProblem ?? OUTAGE_MESSAGE));
