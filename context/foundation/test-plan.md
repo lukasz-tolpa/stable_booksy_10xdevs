@@ -201,10 +201,12 @@ local role authenticated; set local request.jwt.claims =
 - **Seed personas**: `1111…` owner of stable A (Stadnina Pod Dębem, instructor
   Marek Dębowski), `2222…` owner of stable B (Stajnia Nad Rzeką, instructor Ewa
   Rzecka) — both `instructor` accounts linked to their owner instructor (ADR-0004),
+  `9999…` Joanna Wrona — instructor account at stable A that is not the owner (#72),
   `3333…` rider Anna, `4444…` rider Piotr; password
   `sekret123`. Identity ids of stables, horses, days and bookings are not fixed
   — resolve them by name or owner uuid, never hardcode. Owner rules (create_stable,
-  SB012, context from the instructor link): `stable_owner_account.sql`.
+  SB012, context from the instructor link): `stable_owner_account.sql`; what a
+  non-owner instructor reads and cannot change: `instructor_account_access.sql`.
 
 ### 6.3 Adding an e2e test
 
@@ -287,7 +289,10 @@ local role authenticated; set local request.jwt.claims =
   field's label is `Szukaj ośrodka`; each upcoming-booking `<li>` holds the
   cancel button, the stable name, the instructor name and the horse label
   together; the stable's day-list row holds the hour, instructor, rider and
-  horse or `bez konia`; the statistics summary is the
+  horse or `bez konia`; on „Moje sloty” (`/instruktor`, `instructor-slots.spec.ts`)
+  each slot `<li>` holds the hour `"{h}:00"`, `"zajęte {taken} z {seats}"` and nested
+  rider `<li>`s with the name and the horse or `bez konia` (or the sentence `Nikt jeszcze
+się nie zapisał.`); the statistics summary is the
   region "Podsumowanie okresu" with four `<dd>` tiles in the order rides,
   ride hours, occupancy, cancellations. The landing page (`landing.spec.ts`,
   guest, no storage state) repeats link names: "Załóż konto jeźdźca" and
