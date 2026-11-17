@@ -143,6 +143,7 @@ export type Database = {
       }
       instructors: {
         Row: {
+          account_id: string | null
           active: boolean
           created_at: string
           id: number
@@ -150,6 +151,7 @@ export type Database = {
           stable_id: number
         }
         Insert: {
+          account_id?: string | null
           active?: boolean
           created_at?: string
           id?: never
@@ -157,6 +159,7 @@ export type Database = {
           stable_id: number
         }
         Update: {
+          account_id?: string | null
           active?: boolean
           created_at?: string
           id?: never
@@ -164,6 +167,13 @@ export type Database = {
           stable_id?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "instructors_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "instructors_stable_id_fkey"
             columns: ["stable_id"]
@@ -373,6 +383,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_stable: {
+        Args: { p_city: string; p_instructor_name: string; p_name: string }
+        Returns: number
+      }
       get_slot_occupancy: {
         Args: { p_day: string; p_stable_id: number }
         Returns: {

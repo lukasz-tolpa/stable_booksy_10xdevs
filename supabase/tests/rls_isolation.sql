@@ -1,5 +1,7 @@
 -- Dowod izolacji danych (F-01): konto osrodka nie odczyta ani nie zmodyfikuje
 -- grafiku, koni i zapisow cudzej stadniny, a jezdziec nie ruszy cudzego zapisu.
+-- Od #71 persona osrodka to jego wlasciciel: konto `instructor` (1111..., 2222...) powiazane
+-- z instruktorem swojego osrodka (ADR-0004).
 --
 -- Realizuje guardrail PRD (sekcja Access Control) i sprawdza go od strony,
 -- z ktorej korzysta aplikacja - jako rola `authenticated` z sesja uzytkownika.
@@ -13,7 +15,7 @@
 
 \set ON_ERROR_STOP on
 
-\echo '=== Izolacja RLS: osrodek "Stadnina Pod Dębem" ==='
+\echo '=== Izolacja RLS: wlasciciel osrodka "Stadnina Pod Dębem" ==='
 
 begin;
 
@@ -233,7 +235,7 @@ end $$;
 
 rollback;
 
-\echo '=== Izolacja RLS: osrodek "Stajnia Nad Rzeką" ==='
+\echo '=== Izolacja RLS: wlasciciel osrodka "Stajnia Nad Rzeką" ==='
 
 begin;
 set local role authenticated;

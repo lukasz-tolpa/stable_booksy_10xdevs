@@ -10,7 +10,10 @@
 --   * instruktorami zarzadza wylacznie osrodek, do ktorego naleza; czytac moga zalogowani
 --     (jezdziec widzi nazwe przy slocie), niezalogowani nie widza nic.
 --
--- Jako kto: mutacje ida przez RLS jako wlasciciel (rola authenticated z `sub` z seeda),
+-- Dezaktywacje wlasciciela (SB012) dowodzi supabase/tests/stable_owner_account.sql.
+--
+-- Jako kto: mutacje ida przez RLS jako wlasciciel osrodka (konto `instructor` powiazane z
+-- instruktorem, #71; rola authenticated z `sub` z seeda),
 -- przygotowanie danych jako postgres. Kazda persona we wlasnej transakcji z ROLLBACK -
 -- skrypt nie zostawia zmian.
 --
@@ -19,7 +22,7 @@
 
 \set ON_ERROR_STOP on
 
-\echo '=== Instruktorzy: osrodek "Stadnina Pod Dębem" ==='
+\echo '=== Instruktorzy: wlasciciel osrodka "Stadnina Pod Dębem" ==='
 
 begin;
 
@@ -149,7 +152,7 @@ end $$;
 
 rollback;
 
-\echo '=== Instruktorzy: osrodek "Stajnia Nad Rzeką" ==='
+\echo '=== Instruktorzy: wlasciciel osrodka "Stajnia Nad Rzeką" ==='
 
 begin;
 

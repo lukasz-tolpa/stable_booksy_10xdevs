@@ -13,6 +13,8 @@
 --   * wypisanie konia z przydzialem do aktywnego zapisu              -> SB004 (save_schedule_day)
 --   * izolacja: osrodek przydziela i odwoluje tylko we wlasnej stadninie, jezdziec nie odwola
 --     cudzego zapisu (RLS -> 0 wierszy).
+-- "Osrodek" to od #71 wlasciciel: konto `instructor` powiazane z instruktorem osrodka; wpisuje
+-- `cancelled_by = 'stable'` (odwolal osrodek).
 -- Prog "godzina juz sie zaczela" dla odwolania zyje w aplikacji (src/pages/api/bookings/stable-cancel.ts).
 --
 -- Seed (jutro, Pod Dębem 10-16, Bella + Kasztan; Iskra ma wolne): Joanna Wrona 1 miejsce
@@ -101,7 +103,7 @@ end $$;
 
 set local role authenticated;
 
-\echo '=== Osrodek Pod Dębem: przydzial konia (RLS) ==='
+\echo '=== Wlasciciel Pod Dębem: przydzial konia (RLS) ==='
 
 set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
 
@@ -233,7 +235,7 @@ begin
   raise notice 'PASS 10: jezdziec nie odwola cudzego zapisu';
 end $$;
 
-\echo '=== Osrodek Pod Dębem: odwolanie zapisu (RLS) ==='
+\echo '=== Wlasciciel Pod Dębem: odwolanie zapisu (RLS) ==='
 
 set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
 
@@ -288,7 +290,7 @@ begin
   raise notice 'PASS 14: jezdziec odwolany przez osrodek zapisuje sie ponownie na ten sam slot';
 end $$;
 
-\echo '=== Osrodek Pod Dębem: wypisanie konia z przydzialem (save_schedule_day) ==='
+\echo '=== Wlasciciel Pod Dębem: wypisanie konia z przydzialem (save_schedule_day) ==='
 
 set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
 

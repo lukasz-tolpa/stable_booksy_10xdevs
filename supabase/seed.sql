@@ -2,7 +2,9 @@
 -- Ladowane automatycznie przez `npx supabase db reset`. NIE trafiaja na zdalny projekt.
 --
 -- Zawartosc:
---   * dwa osrodki - drugi istnieje po to, zeby bylo czego NIE widziec w tescie izolacji
+--   * dwa osrodki - drugi istnieje po to, zeby bylo czego NIE widziec w tescie izolacji;
+--     wlasciciel kazdego to konto `instructor` powiazane z instruktorem swojego osrodka
+--     (Marek Dębowski, Ewa Rzecka - ADR-0004), bez miejsc w grafiku
 --   * dwoch jezdzcow - kazdy zapisany w innym osrodku
 --   * grafik na jutro w obu stadninach + po jednym aktywnym zapisie
 --
@@ -26,7 +28,7 @@ values
     'authenticated', 'authenticated', 'osrodek.debem@example.com',
     extensions.crypt('sekret123', extensions.gen_salt('bf')), now(),
     '{"provider":"email","providers":["email"]}',
-    '{"role":"stable","full_name":"Marek Dębowski"}',
+    '{"role":"instructor","full_name":"Marek Dębowski"}',
     now(), now()
   ),
   (
@@ -35,7 +37,7 @@ values
     'authenticated', 'authenticated', 'osrodek.rzeka@example.com',
     extensions.crypt('sekret123', extensions.gen_salt('bf')), now(),
     '{"provider":"email","providers":["email"]}',
-    '{"role":"stable","full_name":"Ewa Rzecka"}',
+    '{"role":"instructor","full_name":"Ewa Rzecka"}',
     now(), now()
   ),
   (
@@ -149,6 +151,13 @@ join (
     ('Stadnina Pod Dębem', 'Karol Jasny'),
     ('Stajnia Nad Rzeką',  'Tomasz Lis')
 ) as i(stable_name, name) on i.stable_name = s.name;
+
+-- Wlasciciele jako instruktorzy swoich osrodkow (tak jak tworzy ich public.create_stable).
+-- Nie pracuja jutro - nie prowadza jazd.
+insert into public.instructors (stable_id, name, account_id)
+select s.id, p.full_name, p.id
+from public.stables s
+join public.profiles p on p.id = s.owner_id;
 
 -- Karol nie pracuje jutro - scenariusz e2e dodaje go w formularzu grafiku (miejsce o 13),
 -- a testy bazy dokladaja go jako postgres. Drugi kon Pod Dębem zostawia na to miejsce w sumie.
