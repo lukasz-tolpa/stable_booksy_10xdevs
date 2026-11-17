@@ -27,8 +27,8 @@ const entries = landingEntries(user ? { profileRole: profile?.role } : null);
 
 // Wygląd przycisku roli: w połowie (na jej kolorowym tle) i w zamknięciu (na jasnym tle).
 const CTA_CLASS = {
-  half: { rider: "cta--rider", stable: "cta--stable" },
-  closing: { rider: "cta--rider", stable: "cta--stable-solid" },
+  half: { rider: "cta--rider", instructor: "cta--stable" },
+  closing: { rider: "cta--rider", instructor: "cta--stable-solid" },
 } as const satisfies Record<string, Record<UserRole, string>>;
 
 // Obie ilustracje rysują ten sam dzień z jednego źródła, tymi samymi regułami co prawdziwe widoki.
@@ -161,9 +161,9 @@ const structuredData = homeStructuredData(requireSite(Astro.site, "dane struktur
           </p>
 
           {
-            entries.stable && (
-              <a class:list={["cta", CTA_CLASS.half.stable]} href={entries.stable.href}>
-                {entries.stable.label}
+            entries.instructor && (
+              <a class:list={["cta", CTA_CLASS.half.instructor]} href={entries.instructor.href}>
+                {entries.instructor.label}
               </a>
             )
           }

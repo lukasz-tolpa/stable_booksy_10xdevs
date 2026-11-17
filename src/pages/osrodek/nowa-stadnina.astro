@@ -4,9 +4,10 @@ import Topbar from "@/components/Topbar.astro";
 import NewStableForm from "@/components/stable/NewStableForm";
 import Card from "@/components/ui/Card.astro";
 
-// Middleware kieruje tutaj każde konto ośrodka, które nie ma jeszcze stadniny,
-// i zawraca stąd te, które już ją mają.
+// Middleware kieruje tutaj każde konto instruktora, które nie należy jeszcze do ośrodka,
+// i zawraca stąd te, które już należą. Nazwa instruktora właściciela domyślnie z konta.
 const error = Astro.url.searchParams.get("error");
+const defaultInstructorName = Astro.locals.profile?.full_name ?? null;
 ---
 
 <Layout title="Załóż stadninę">
@@ -19,7 +20,7 @@ const error = Astro.url.searchParams.get("error");
         Zanim ułożysz grafik i przyjmiesz pierwsze zapisy, powiedz nam, jak nazywa się Twoja stadnina i gdzie się
         znajduje. Bez tego jeźdźcy nie znajdą Cię na liście ośrodków.
       </p>
-      <NewStableForm serverError={error} client:load />
+      <NewStableForm serverError={error} defaultInstructorName={defaultInstructorName} client:load />
     </Card>
   </div>
 </Layout>

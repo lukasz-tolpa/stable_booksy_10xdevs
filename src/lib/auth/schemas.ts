@@ -35,13 +35,19 @@ export const signInSchema = z.object({
 });
 
 /**
- * Nazwa i miejscowość po przycięciu białych znaków muszą być niepuste — odpowiednik
- * ograniczeń `stables_name_not_blank` i `stables_city_not_blank` z migracji F-01.
- * Walidacja tutaj daje komunikat po polsku zamiast surowego błędu Postgresa.
+ * Nazwa, miejscowość i nazwa instruktora właściciela po przycięciu białych znaków muszą być
+ * niepuste — odpowiednik ograniczeń `stables_name_not_blank`, `stables_city_not_blank`
+ * i `instructors_name_not_blank`. Walidacja tutaj daje komunikat po polsku zamiast surowego
+ * błędu Postgresa. Nazwa instruktora pojawia się przy slotach właściciela, jak nazwa każdego
+ * instruktora, i potem się nie zmienia.
  */
 export const newStableSchema = z.object({
   name: z.string().trim().min(1, { error: "Podaj nazwę stadniny" }),
   city: z.string().trim().min(1, { error: "Podaj miejscowość" }),
+  instructorName: z
+    .string({ error: "Podaj swoją nazwę instruktora" })
+    .trim()
+    .min(1, { error: "Podaj swoją nazwę instruktora" }),
 });
 
 export type SignUpInput = z.infer<typeof signUpSchema>;

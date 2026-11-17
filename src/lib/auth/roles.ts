@@ -4,14 +4,14 @@ import type { UserRole } from "@/types";
 /**
  * Tabela decyzyjna routingu: gdzie mieszka każda rola i który prefiks ścieżki
  * wymaga której roli. Middleware, endpointy i nawigacja czytają stąd zamiast
- * powielać `if (role === "stable")` w kilku miejscach.
+ * powielać `if (role === "instructor")` w kilku miejscach.
  *
  * Dodanie trasy w kolejnym slice'ie to jeden wpis w `PROTECTED_PREFIXES`.
  */
 
 /** Trasa startowa każdej roli. */
 export const ROLE_HOME: Record<UserRole, string> = {
-  stable: "/osrodek",
+  instructor: "/osrodek",
   rider: "/jezdziec",
 };
 
@@ -24,7 +24,7 @@ export const SIGN_IN_ROUTE = "/auth/signin";
  */
 export const LEGACY_HOME_ROUTE = "/dashboard";
 
-/** Ekran zakładania stadniny — konto ośrodka bez stadniny nie wychodzi poza niego. */
+/** Ekran zakładania stadniny — konto instruktora bez ośrodka nie wychodzi poza niego. */
 export const NEW_STABLE_ROUTE = "/osrodek/nowa-stadnina";
 
 /** Endpoint przyjmujący formularz stadniny; musi być wyłączony z wymuszenia, żeby nie zapętlić przekierowań. */
@@ -37,7 +37,7 @@ export interface RouteGuard {
 }
 
 const PROTECTED_PREFIXES: readonly RouteGuard[] = [
-  { prefix: ROLE_HOME.stable, role: "stable" },
+  { prefix: ROLE_HOME.instructor, role: "instructor" },
   { prefix: ROLE_HOME.rider, role: "rider" },
   { prefix: LEGACY_HOME_ROUTE, role: null },
 ];
@@ -64,7 +64,7 @@ export const SIGNUP_ROLE_PARAM = "rola";
  */
 const SIGNUP_ROLE_PARAM_VALUES: Record<UserRole, string> = {
   rider: "jezdziec",
-  stable: "osrodek",
+  instructor: "osrodek",
 };
 
 export const SIGN_UP_ROUTE = "/auth/signup";

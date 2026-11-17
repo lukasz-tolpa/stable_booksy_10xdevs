@@ -14,8 +14,8 @@ describe("signupRoleFromParam", () => {
     expect(signupRoleFromParam("jezdziec")).toBe("rider");
   });
 
-  it("zamienia „osrodek” na rolę ośrodka", () => {
-    expect(signupRoleFromParam("osrodek")).toBe("stable");
+  it("zamienia „osrodek” na rolę instruktora (zakładającego ośrodek)", () => {
+    expect(signupRoleFromParam("osrodek")).toBe("instructor");
   });
 
   it("nie zaznacza niczego bez parametru", () => {
@@ -31,6 +31,7 @@ describe("signupRoleFromParam", () => {
     expect(signupRoleFromParam("admin")).toBeNull();
     expect(signupRoleFromParam("rider")).toBeNull();
     expect(signupRoleFromParam("stable")).toBeNull();
+    expect(signupRoleFromParam("instructor")).toBeNull();
     expect(signupRoleFromParam(" osrodek ")).toBeNull();
     expect(signupRoleFromParam("constructor")).toBeNull();
   });
@@ -46,14 +47,14 @@ describe("signupRouteForRole", () => {
     expect(signupRouteForRole("rider")).toBe("/auth/signup?rola=jezdziec");
   });
 
-  it("daje adres rejestracji z parametrem roli ośrodka", () => {
-    expect(signupRouteForRole("stable")).toBe("/auth/signup?rola=osrodek");
+  it("daje adres rejestracji z parametrem „osrodek” dla roli instruktora", () => {
+    expect(signupRouteForRole("instructor")).toBe("/auth/signup?rola=osrodek");
   });
 });
 
 describe("homeRouteForRole", () => {
-  it("kieruje ośrodek do jego przestrzeni", () => {
-    expect(homeRouteForRole("stable")).toBe("/osrodek");
+  it("kieruje instruktora (właściciela) do przestrzeni ośrodka", () => {
+    expect(homeRouteForRole("instructor")).toBe("/osrodek");
   });
 
   it("kieruje jeźdźca do jego przestrzeni", () => {
@@ -63,11 +64,11 @@ describe("homeRouteForRole", () => {
 
 describe("routeGuardFor", () => {
   it("chroni trasę dokładną", () => {
-    expect(routeGuardFor("/osrodek")).toEqual({ prefix: "/osrodek", role: "stable" });
+    expect(routeGuardFor("/osrodek")).toEqual({ prefix: "/osrodek", role: "instructor" });
   });
 
   it("chroni trasę zagnieżdżoną", () => {
-    expect(routeGuardFor("/osrodek/nowa-stadnina")).toEqual({ prefix: "/osrodek", role: "stable" });
+    expect(routeGuardFor("/osrodek/nowa-stadnina")).toEqual({ prefix: "/osrodek", role: "instructor" });
   });
 
   it("chroni trasę zagnieżdżoną głęboko, której jeszcze nie ma", () => {
@@ -75,7 +76,7 @@ describe("routeGuardFor", () => {
   });
 
   it("traktuje trasę z ukośnikiem na końcu jak tę samą przestrzeń", () => {
-    expect(routeGuardFor("/osrodek/")).toEqual({ prefix: "/osrodek", role: "stable" });
+    expect(routeGuardFor("/osrodek/")).toEqual({ prefix: "/osrodek", role: "instructor" });
   });
 
   it("NIE łapie ścieżki zaczynającej się tym samym ciągiem znaków", () => {
@@ -108,12 +109,13 @@ describe("isLegacyHomeRoute", () => {
 
 describe("isUserRole", () => {
   it("rozpoznaje obie znane role", () => {
-    expect(isUserRole("stable")).toBe(true);
+    expect(isUserRole("instructor")).toBe(true);
     expect(isUserRole("rider")).toBe(true);
   });
 
   it("odrzuca wartość, której aplikacja nie zna", () => {
     expect(isUserRole("admin")).toBe(false);
+    expect(isUserRole("stable")).toBe(false);
     expect(isUserRole("")).toBe(false);
     expect(isUserRole(null)).toBe(false);
     expect(isUserRole(undefined)).toBe(false);

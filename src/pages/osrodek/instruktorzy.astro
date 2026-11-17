@@ -31,7 +31,7 @@ if (supabase && profile) {
         listStableInstructors(supabase, stableId),
         listOpenSeatRows(supabase, stableId, todayIso()),
       ]);
-      list = composeInstructorList(instructors, openSeatRows);
+      list = composeInstructorList(instructors, openSeatRows, profile.id);
     }
   } catch (error) {
     loadFailed = true;
@@ -46,7 +46,9 @@ const { active, inactive } = list;
   <Topbar />
   <main class="container-narrow page">
     <h1>Instruktorzy</h1>
-    <p class="page-lead">Osoby prowadzące jazdy w Twoim ośrodku. Instruktor nie ma konta — grafik układasz za niego.</p>
+    <p class="page-lead">
+      Osoby prowadzące jazdy w Twoim ośrodku. Jesteś wśród nich jako właściciel i układasz grafik za wszystkich.
+    </p>
 
     <div class="cols">
       <div class="list">
@@ -70,15 +72,20 @@ const { active, inactive } = list;
               {active.map((instructor) => (
                 <Card padding={18}>
                   <article class="instructor">
-                    <h2>
-                      <UserRound className="size-4" />
-                      {instructor.name}
-                    </h2>
-                    <form method="POST" action="/api/instructors/toggle-active">
-                      <input type="hidden" name="instructorId" value={instructor.id} />
-                      <input type="hidden" name="active" value="false" />
-                      <button type="submit">Dezaktywuj</button>
-                    </form>
+                    <div class="instructor__text">
+                      <h2>
+                        <UserRound className="size-4" />
+                        {instructor.name}
+                      </h2>
+                      {instructor.owner && <p class="instructor__note">Właściciel</p>}
+                    </div>
+                    {!instructor.owner && (
+                      <form method="POST" action="/api/instructors/toggle-active">
+                        <input type="hidden" name="instructorId" value={instructor.id} />
+                        <input type="hidden" name="active" value="false" />
+                        <button type="submit">Dezaktywuj</button>
+                      </form>
+                    )}
                   </article>
                 </Card>
               ))}

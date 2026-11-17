@@ -50,7 +50,7 @@ export const DAY_CLOSING_HEADING = "Jutro może tak wyglądać Twój dzień.";
 export const DAY_MOMENTS: readonly DayMoment[] = [
   {
     time: "wczoraj, 19:00",
-    role: "stable",
+    role: "instructor",
     title: "Ośrodek układa grafik na jutro.",
     text: "Godziny pracy, konie, instruktorzy i limit miejsc w każdej godzinie. Licznik „Koni zajętych” pilnuje, żeby miejsc nie było więcej niż koni.",
     shot: shot(
@@ -70,7 +70,7 @@ export const DAY_MOMENTS: readonly DayMoment[] = [
   },
   {
     time: "dziś, 8:00",
-    role: "stable",
+    role: "instructor",
     title: "Ośrodek przydziela konie.",
     text: "Na liście zapisów dnia każdy jeździec dostaje konia. Ten sam koń nie trafi do dwóch osób w jednej godzinie.",
     shot: shot(
@@ -91,7 +91,7 @@ export const DAY_MOMENTS: readonly DayMoment[] = [
   { time: "11:00", role: null, title: "Jazda.", text: null, shot: null },
   {
     time: "koniec miesiąca",
-    role: "stable",
+    role: "instructor",
     title: "Ośrodek patrzy w statystyki.",
     text: "Obłożenie grafiku, godziny jazd, najaktywniejsi jeźdźcy i obciążenie każdego konia.",
     shot: shot(

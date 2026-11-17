@@ -5,10 +5,10 @@ import type { Instructor } from "@/types";
 
 type Client = SupabaseClient<Database>;
 
-/** Pola instruktora pokazywane na liście instruktorów ośrodka. */
-export type InstructorListItem = Pick<Instructor, "id" | "name" | "active">;
+/** Pola instruktora na liście instruktorów ośrodka; `account_id` rozpoznaje właściciela. */
+export type InstructorListItem = Pick<Instructor, "id" | "name" | "active" | "account_id">;
 
-const INSTRUCTOR_COLUMNS = "id, name, active";
+const INSTRUCTOR_COLUMNS = "id, name, active, account_id";
 
 /**
  * Instruktorzy ośrodka, posortowani: najpierw aktywni, potem nieaktywni, w obu grupach po nazwie.

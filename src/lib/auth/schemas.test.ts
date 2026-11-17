@@ -15,8 +15,12 @@ describe("signUpSchema", () => {
     expect(signUpSchema.safeParse(validSignUp).success).toBe(true);
   });
 
-  it("przepuszcza rolę ośrodka", () => {
-    expect(signUpSchema.safeParse({ ...validSignUp, role: "stable" }).success).toBe(true);
+  it("przepuszcza rolę instruktora (wybór „Ośrodek”)", () => {
+    expect(signUpSchema.safeParse({ ...validSignUp, role: "instructor" }).success).toBe(true);
+  });
+
+  it("odrzuca dawną rolę ośrodka", () => {
+    expect(signUpSchema.safeParse({ ...validSignUp, role: "stable" }).success).toBe(false);
   });
 
   it("odrzuca rolę spoza dozwolonego zbioru", () => {
@@ -82,20 +86,35 @@ describe("signInSchema", () => {
 });
 
 describe("newStableSchema", () => {
+  const validStable = { name: "Stadnina Pod Dębem", city: "Kraków", instructorName: "Marek Dębowski" };
+
   it("przepuszcza poprawne dane i przycina białe znaki", () => {
-    const result = newStableSchema.safeParse({ name: "  Stadnina Pod Dębem  ", city: " Kraków " });
+    const result = newStableSchema.safeParse({
+      name: "  Stadnina Pod Dębem  ",
+      city: " Kraków ",
+      instructorName: "  Marek Dębowski ",
+    });
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.name).toBe("Stadnina Pod Dębem");
       expect(result.data.city).toBe("Kraków");
+      expect(result.data.instructorName).toBe("Marek Dębowski");
     }
   });
 
   it("odrzuca nazwę z samych białych znaków", () => {
-    expect(newStableSchema.safeParse({ name: "   ", city: "Kraków" }).success).toBe(false);
+    expect(newStableSchema.safeParse({ ...validStable, name: "   " }).success).toBe(false);
   });
 
   it("odrzuca pustą miejscowość", () => {
-    expect(newStableSchema.safeParse({ name: "Stadnina", city: "" }).success).toBe(false);
+    expect(newStableSchema.safeParse({ ...validStable, city: "" }).success).toBe(false);
+  });
+
+  it.each([[""], ["   "], [null]])("odrzuca nazwę instruktora właściciela %j z komunikatem pola", (instructorName) => {
+    const result = newStableSchema.safeParse({ ...validStable, instructorName });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toBe("Podaj swoją nazwę instruktora");
+    }
   });
 });

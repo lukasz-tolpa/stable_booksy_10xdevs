@@ -19,6 +19,19 @@ export const INSTRUCTOR_NOT_FOUND = "Nie znaleziono instruktora w Twojej stadnin
 /** Przełączenie stanu nie powiodło się z przyczyny spoza reguł (awaria). */
 export const INSTRUCTOR_TOGGLE_FAILED = "Nie udało się zmienić stanu instruktora. Spróbuj ponownie.";
 
+/** Dezaktywacja instruktora właściciela — wyzwalacz `instructors_owner_stays_active` (#71). */
+export const INSTRUCTOR_OWNER_STAYS_ACTIVE = "SB012";
+
+/**
+ * Odmowa przełączenia stanu instruktora. Strona nie pokazuje właścicielowi przełącznika,
+ * więc SB012 dociera tu tylko ze starej strony albo spreparowanego formularza.
+ */
+export function instructorToggleErrorMessage(code: string | undefined): string {
+  return code === INSTRUCTOR_OWNER_STAYS_ACTIVE
+    ? "Właściciela ośrodka nie można dezaktywować."
+    : INSTRUCTOR_TOGGLE_FAILED;
+}
+
 export function instructorErrorMessage(code: string | undefined): string {
   switch (code) {
     case INSTRUCTOR_NAME_TAKEN:

@@ -96,15 +96,22 @@ async function guardSessionAndRoute(context: APIContext, next: MiddlewareNext): 
       return context.redirect(homeRouteForRole(role));
     }
 
-    // Konto ośrodka bez stadniny nie może zrobić nic sensownego: bez wiersza w `stables`
-    // funkcja private.current_stable_id() zwraca NULL, więc RLS odetnie mu grafik i konie.
-    // Trzymamy je na ekranie zakładania - i odwrotnie, konto ze stadniną z niego zawracamy.
-    if (role === "stable" && supabase) {
+    // Konto instruktora bez ośrodka (rejestracja z wyborem „Ośrodek”) nie może zrobić nic
+    // sensownego: bez powiązania z instruktorem private.current_stable_id() zwraca NULL, więc
+    // RLS odetnie mu grafik i konie. Trzymamy je na ekranie zakładania ośrodka - i odwrotnie,
+    // konto powiązane z instruktorem (właściciel) z niego zawracamy.
+    if (role === "instructor" && supabase) {
       const onSetupPath = isStableSetupPath(context.url.pathname);
-      const { count } = await supabase
-        .from("stables")
+      const { count, error } = await supabase
+        .from("instructors")
         .select("id", { count: "exact", head: true })
-        .eq("owner_id", context.locals.user.id);
+        .eq("account_id", context.locals.user.id);
+
+      if (error) {
+        logError("auth:session", error);
+        return context.redirect(signInWithMessage(OUTAGE_MESSAGE));
+      }
+
       const hasStable = (count ?? 0) > 0;
 
       if (!hasStable && !onSetupPath) {

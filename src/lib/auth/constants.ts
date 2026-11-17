@@ -12,10 +12,13 @@ export const MIN_PASSWORD_LENGTH = 6;
  * bazy, więc rozjazd z ograniczeniem `profiles_role_check` wyjdzie przy kompilacji,
  * a nie dopiero jako błąd Postgresa w czasie rejestracji.
  */
-export const USER_ROLES = ["stable", "rider"] as const satisfies readonly UserRole[];
+export const USER_ROLES = ["instructor", "rider"] as const satisfies readonly UserRole[];
 
-/** Etykiety ról widoczne dla użytkownika. */
+/**
+ * Etykiety ról widoczne dla użytkownika. Konto instruktora zakłada się w rejestracji wyborem
+ * „Ośrodek” — tak zostaje założony ośrodek i jego właściciel.
+ */
 export const ROLE_LABELS: Record<UserRole, string> = {
-  stable: "Ośrodek",
+  instructor: "Ośrodek",
   rider: "Jeździec",
 };

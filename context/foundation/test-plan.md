@@ -198,10 +198,13 @@ local role authenticated; set local request.jwt.claims =
   (drop the index or trigger, `alter table … disable row level security`), watch
   the script go red, then `npx supabase db reset`. A test that cannot fail
   proves nothing.
-- **Seed personas**: `1111…` stable A (Stadnina Pod Dębem), `2222…` stable B
-  (Stajnia Nad Rzeką), `3333…` rider Anna, `4444…` rider Piotr; password
+- **Seed personas**: `1111…` owner of stable A (Stadnina Pod Dębem, instructor
+  Marek Dębowski), `2222…` owner of stable B (Stajnia Nad Rzeką, instructor Ewa
+  Rzecka) — both `instructor` accounts linked to their owner instructor (ADR-0004),
+  `3333…` rider Anna, `4444…` rider Piotr; password
   `sekret123`. Identity ids of stables, horses, days and bookings are not fixed
-  — resolve them by name or owner uuid, never hardcode.
+  — resolve them by name or owner uuid, never hardcode. Owner rules (create_stable,
+  SB012, context from the instructor link): `stable_owner_account.sql`.
 
 ### 6.3 Adding an e2e test
 

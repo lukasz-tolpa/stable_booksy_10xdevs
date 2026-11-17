@@ -1,4 +1,7 @@
 import type { InstructorListItem } from "@/lib/instructors/queries";
+
+/** Pola instruktora, których potrzebuje formularz grafiku. */
+export type FormInstructor = Pick<InstructorListItem, "id" | "name" | "active">;
 import type { ScheduleDayData, SlotSeats } from "@/lib/schedule/queries";
 import type { HorseListItem } from "@/lib/stables/queries";
 
@@ -66,7 +69,7 @@ function namesIn(items: { id: number; name: string }[], ids: number[]): string {
 export function pastDaySummary(
   scheduleDay: ScheduleDayData,
   horses: HorseListItem[],
-  instructors: InstructorListItem[],
+  instructors: FormInstructor[],
 ): PastDaySummary {
   return {
     hours: `${String(scheduleDay.openHour)}–${String(scheduleDay.closeHour)}`,
@@ -78,7 +81,7 @@ export function pastDaySummary(
 export interface InstructorDefaults {
   selectedInstructorIds: number[];
   seats: SlotSeats[];
-  selectableInstructors: InstructorListItem[];
+  selectableInstructors: FormInstructor[];
 }
 
 /**
@@ -93,7 +96,7 @@ export interface InstructorDefaults {
 export function instructorDefaults(
   scheduleDay: ScheduleDayData | null,
   latestDay: ScheduleDayData | null,
-  instructors: InstructorListItem[],
+  instructors: FormInstructor[],
 ): InstructorDefaults {
   const inDay = new Set(scheduleDay?.instructorIds ?? []);
   const selectableInstructors = instructors.filter((instructor) => instructor.active || inDay.has(instructor.id));

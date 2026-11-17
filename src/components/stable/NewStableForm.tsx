@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { MapPin } from "lucide-react";
+import { MapPin, UserRound } from "lucide-react";
 import { StableBarn } from "@/components/ui/StableBarn";
 import { FormField } from "@/components/auth/FormField";
 import { ServerError } from "@/components/auth/ServerError";
@@ -7,12 +7,15 @@ import { SubmitButton } from "@/components/auth/SubmitButton";
 
 interface Props {
   serverError?: string | null;
+  /** Domyślna nazwa instruktora właściciela — imię i nazwisko z konta. */
+  defaultInstructorName?: string | null;
 }
 
-export default function NewStableForm({ serverError }: Props) {
+export default function NewStableForm({ serverError, defaultInstructorName }: Props) {
   const [name, setName] = useState("");
   const [city, setCity] = useState("");
-  const [errors, setErrors] = useState<{ name?: string; city?: string }>({});
+  const [instructorName, setInstructorName] = useState(defaultInstructorName ?? "");
+  const [errors, setErrors] = useState<{ name?: string; city?: string; instructorName?: string }>({});
 
   function validate() {
     const next: typeof errors = {};
@@ -25,6 +28,10 @@ export default function NewStableForm({ serverError }: Props) {
 
     if (!city.trim()) {
       next.city = "Podaj miejscowość";
+    }
+
+    if (!instructorName.trim()) {
+      next.instructorName = "Podaj swoją nazwę instruktora";
     }
 
     setErrors(next);
@@ -67,6 +74,24 @@ export default function NewStableForm({ serverError }: Props) {
         placeholder="np. Kraków"
         error={errors.city}
         icon={<MapPin className="size-4" />}
+      />
+
+      <FormField
+        id="instructorName"
+        label="Twoja nazwa instruktora"
+        value={instructorName}
+        onChange={(v) => {
+          setInstructorName(v);
+          clearError("instructorName");
+        }}
+        placeholder="np. Marek Dębowski"
+        error={errors.instructorName}
+        hint={
+          <p className="text-muted-foreground text-[12.5px]">
+            Jesteś właścicielem i pierwszym instruktorem ośrodka. Tej nazwy nie zmienisz później.
+          </p>
+        }
+        icon={<UserRound className="size-4" />}
       />
 
       <ServerError message={serverError} />

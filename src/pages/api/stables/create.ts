@@ -2,9 +2,11 @@ import type { APIContext, APIRoute } from "astro";
 import { createClient } from "@/lib/supabase";
 import { NEW_STABLE_ROUTE, ROLE_HOME, SIGN_IN_ROUTE } from "@/lib/auth/roles";
 import { firstErrorMessage, newStableSchema } from "@/lib/auth/schemas";
+import { errorCode } from "@/lib/db-errors";
 import { formValue } from "@/lib/form-data";
+import { logError } from "@/lib/log";
 
-/** Kod naruszenia klucza unikalnego w Postgresie - tu wyłącznie `stables_owner_id_key`. */
+/** Konto jest już instruktorem ośrodka (`create_stable`, także `stables_owner_id_key`). */
 const UNIQUE_VIOLATION = "23505";
 
 function backToForm(context: APIContext, message: string) {
@@ -17,6 +19,7 @@ export const POST: APIRoute = async (context) => {
   const parsed = newStableSchema.safeParse({
     name: formValue(form, "name"),
     city: formValue(form, "city"),
+    instructorName: formValue(form, "instructorName"),
   });
 
   if (!parsed.success) {
@@ -36,24 +39,30 @@ export const POST: APIRoute = async (context) => {
     return context.redirect(SIGN_IN_ROUTE);
   }
 
-  // Zapis idzie klientem z sesją użytkownika, nie kluczem serwisowym: polityka
-  // `stables_insert_own` z F-01 wymaga owner_id = auth.uid() ORAZ roli 'stable',
-  // więc baza odrzuci każdą inną drogę - reguła nie zależy od tego kodu.
-  const { error } = await supabase.from("stables").insert({
-    owner_id: user.id,
-    name: parsed.data.name,
-    city: parsed.data.city,
+  // Ośrodek i instruktor właściciel powstają razem w `public.create_stable` (jedna transakcja);
+  // właściciela funkcja bierze z sesji i sama odrzuca konto inne niż instruktora (42501).
+  const { data, error } = await supabase.rpc("create_stable", {
+    p_name: parsed.data.name,
+    p_city: parsed.data.city,
+    p_instructor_name: parsed.data.instructorName,
   });
 
   if (error) {
     // Skutek podwójnego wysłania formularza (np. przyciskiem wstecz). Konto ma już
-    // stadninę, więc zamiast surowego błędu bazy odsyłamy do panelu.
-    if (error.code === UNIQUE_VIOLATION) {
-      return context.redirect(ROLE_HOME.stable);
+    // ośrodek, więc zamiast surowego błędu bazy odsyłamy do panelu.
+    if (errorCode(error) === UNIQUE_VIOLATION) {
+      return context.redirect(ROLE_HOME.instructor);
     }
 
+    logError("api:stables/create", error);
     return backToForm(context, "Nie udało się zapisać stadniny. Spróbuj ponownie.");
   }
 
-  return context.redirect(ROLE_HOME.stable);
+  // Sukces dopiero, gdy baza oddała identyfikator założonego ośrodka.
+  if (typeof data !== "number") {
+    logError("api:stables/create", new Error("create_stable bez identyfikatora ośrodka"));
+    return backToForm(context, "Nie udało się zapisać stadniny. Spróbuj ponownie.");
+  }
+
+  return context.redirect(ROLE_HOME.instructor);
 };

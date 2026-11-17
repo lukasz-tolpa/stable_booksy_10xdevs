@@ -21,7 +21,7 @@ const { role, class: className } = Astro.props;
 
 <span class:list={["pill", `pill--${role}`, className]}>
   {
-    role === "stable" ? (
+    role === "instructor" ? (
       <StableBarn className="size-3.5" />
     ) : (
       <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -56,7 +56,7 @@ const { role, class: className } = Astro.props;
     stroke-linecap: round;
     stroke-linejoin: round;
   }
-  .pill--stable {
+  .pill--instructor {
     background: var(--primary-soft);
     color: var(--primary-strong);
   }

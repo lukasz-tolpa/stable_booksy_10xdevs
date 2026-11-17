@@ -134,7 +134,7 @@ export function composeDayBookingSections(input: DayBookingSectionsInput): DayBo
         instructorName: booking.instructorName ?? unknownInstructorName(booking.instructorId),
         riderName: riderLabel(booking),
         // CHECK spójności: odwołany zapis zawsze ma `cancelled_by`.
-        cancelledByLabel: cancelledByLabel(booking.cancelledBy ?? "rider", "stable"),
+        cancelledByLabel: cancelledByLabel(booking.cancelledBy ?? "rider", "instructor"),
       }),
     )
     .sort(byHourInstructorRider);

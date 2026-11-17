@@ -1,11 +1,13 @@
 import type { APIRoute } from "astro";
 import { SIGN_IN_ROUTE } from "@/lib/auth/roles";
+import { errorCode } from "@/lib/db-errors";
 import { formValue } from "@/lib/form-data";
 import {
   INSTRUCTOR_NO_STABLE,
   INSTRUCTOR_NOT_FOUND,
-  INSTRUCTOR_TOGGLE_FAILED,
+  INSTRUCTOR_OWNER_STAYS_ACTIVE,
   INSTRUCTOR_TOGGLE_INVALID,
+  instructorToggleErrorMessage,
 } from "@/lib/instructors/errors";
 import { backToInstructors } from "@/lib/instructors/redirect";
 import { toggleInstructorSchema } from "@/lib/instructors/schemas";
@@ -14,8 +16,8 @@ import { getOwnedStableId } from "@/lib/stables/queries";
 import { createClient } from "@/lib/supabase";
 
 /**
- * Dezaktywacja i ponowna aktywacja instruktora. Dezaktywacja nigdy nie jest odmawiana
- * i nie rusza dni już ułożonych (ADR-0002) — to sama flaga.
+ * Dezaktywacja i ponowna aktywacja instruktora. Dezaktywacja nie rusza dni już ułożonych
+ * (ADR-0002) — to sama flaga; baza odmawia jej wyłącznie dla właściciela (SB012).
  */
 export const POST: APIRoute = async (context) => {
   const form = await context.request.formData();
@@ -60,8 +62,11 @@ export const POST: APIRoute = async (context) => {
     .maybeSingle();
 
   if (error) {
-    logError("api:instructors/toggle-active", error);
-    return backToInstructors(context, INSTRUCTOR_TOGGLE_FAILED);
+    const code = errorCode(error);
+    if (code !== INSTRUCTOR_OWNER_STAYS_ACTIVE) {
+      logError("api:instructors/toggle-active", error);
+    }
+    return backToInstructors(context, instructorToggleErrorMessage(code));
   }
 
   if (data === null) {
