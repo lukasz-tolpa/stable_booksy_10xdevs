@@ -15,11 +15,36 @@ export const newInstructorSchema = z.object({
   name: z.string().trim().min(1, { error: "Podaj nazwę instruktora" }),
 });
 
+const instructorIdField = formInt("Nieprawidłowy instruktor").pipe(
+  z.number().positive({ error: "Nieprawidłowy instruktor" }),
+);
+
 /** Przełączenie flagi `active` — identyfikator instruktora i docelowy stan. */
 export const toggleInstructorSchema = z.object({
-  instructorId: formInt("Nieprawidłowy instruktor").pipe(z.number().positive({ error: "Nieprawidłowy instruktor" })),
+  instructorId: instructorIdField,
   active: z.enum(["true", "false"]).transform((value) => value === "true"),
 });
 
+/** Komunikat pola adresu w formularzu zaproszenia — `InviteForm` powtarza go słowo w słowo. */
+export const INVITE_EMAIL_MESSAGE = "Podaj poprawny adres e-mail instruktora";
+
+/**
+ * Zaproszenie instruktora do konta (#74): instruktor i adres, dla którego zaproszenie zadziała.
+ * Adres po przycięciu spacji i małymi literami — tak samo zapisuje go baza
+ * (`instructor_invitations_email_check`) i tak porówna go z adresem konta przy przyjęciu.
+ */
+export const inviteInstructorSchema = z.object({
+  instructorId: instructorIdField,
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .pipe(z.email({ error: INVITE_EMAIL_MESSAGE })),
+});
+
+/** Sam identyfikator instruktora — wycofanie zaproszenia. */
+export const instructorIdSchema = z.object({ instructorId: instructorIdField });
+
 export type NewInstructorInput = z.infer<typeof newInstructorSchema>;
 export type ToggleInstructorInput = z.infer<typeof toggleInstructorSchema>;
+export type InviteInstructorInput = z.infer<typeof inviteInstructorSchema>;

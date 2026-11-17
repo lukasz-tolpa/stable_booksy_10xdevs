@@ -32,6 +32,42 @@ export async function listStableInstructors(client: Client, stableId: number): P
   return data;
 }
 
+/** Żywe zaproszenie instruktora do konta (#74) — bez tokenu i jego skrótu. */
+export type LiveInvitation = Database["public"]["Functions"]["list_instructor_invitations"]["Returns"][number];
+
+/**
+ * Żywe zaproszenia ośrodka właściciela: nieprzyjęte, niewycofane, niewygasłe, tylko instruktorzy
+ * aktywni i bez konta. Ośrodek wybiera baza z sesji (`list_instructor_invitations`, 42501 dla
+ * nie-właściciela), więc filtra po stadninie nie ma tu czym podać.
+ */
+export async function listLiveInvitations(client: Client): Promise<LiveInvitation[]> {
+  const { data, error } = await client.rpc("list_instructor_invitations");
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+/**
+ * Wystawienie zaproszenia: token (jedyny raz — baza zna tylko jego skrót) i wygaśnięcie.
+ * Odmowy (42501, SB013–SB015, 23514) wracają w `error` do tłumaczenia przez
+ * `invitationErrorMessage`.
+ */
+export async function issueInvitation(client: Client, instructorId: number, email: string) {
+  const { data, error } = await client
+    .rpc("issue_instructor_invitation", { p_instructor_id: instructorId, p_email: email })
+    .single();
+  return { invitation: data, error };
+}
+
+/** Wycofanie żywego zaproszenia instruktora; `revoked: false` — nie było czego wycofać. */
+export async function revokeInvitation(client: Client, instructorId: number) {
+  const { data, error } = await client.rpc("revoke_instructor_invitation", { p_instructor_id: instructorId });
+  return { revoked: data === true, error };
+}
+
 /**
  * Sloty z wystawionymi miejscami (limit > 0) w dniach stadniny od `today` włącznie — wejście
  * dla `countDaysWithOpenSeats`, który odrzuca godziny już rozpoczęte. Filtr po `stable_id`

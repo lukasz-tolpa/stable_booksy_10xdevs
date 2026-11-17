@@ -4,6 +4,8 @@
  * wyglądała tak samo.
  */
 
+import { SCHEDULE_TIME_ZONE } from "@/lib/schedule/dates";
+
 /** Liczba w zapisie polskim (przecinek dziesiętny, tysiące oddzielone spacją). */
 export function formatNumber(value: number): string {
   return value.toLocaleString("pl-PL");
@@ -38,6 +40,13 @@ export function formatLongDate(iso: string): string {
     month: "long",
     timeZone: "UTC",
   });
+}
+
+const DAY_MONTH = new Intl.DateTimeFormat("pl-PL", { day: "numeric", month: "long", timeZone: SCHEDULE_TIME_ZONE });
+
+/** Dzień i miesiąc chwili w strefie ośrodka, np. `21 maja` — do terminów typu „ważne do …”. */
+export function formatDayMonth(at: Date): string {
+  return DAY_MONTH.format(at);
 }
 
 /** Godziny jako jeden tekst, np. `3 h` — do etykiet wykresów i ich tabel z danymi. */
