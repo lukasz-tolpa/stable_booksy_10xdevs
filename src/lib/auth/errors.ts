@@ -105,3 +105,26 @@ export function isRateLimited(code: string | undefined): boolean {
 export function isExpectedUserError(code: string | undefined): boolean {
   return code !== undefined && USER_ERROR_CODES.has(code);
 }
+
+/**
+ * Rejestracja z linku zaproszenia (#75): stany zaproszenia, w których link nie działa
+ * (`public.invitation_by_token`), i zdania, które strona rejestracji pokazuje dla każdego z nich.
+ */
+export type InvitationRefusal = "expired" | "revoked" | "accepted" | "inactive" | "has_account";
+
+export const INVITATION_REFUSED_HEADING = "Link zaproszenia nie działa";
+
+const ASK_OWNER = "Poproś właściciela ośrodka o nowy link.";
+
+/** Nieznany token (także stan, którego aplikacja nie zna). */
+export const INVITATION_INVALID_MESSAGE = `Ten link zaproszenia jest nieprawidłowy — sprawdź, czy skopiowano go w całości. ${ASK_OWNER}`;
+
+export const INVITATION_REFUSAL_MESSAGES: Record<InvitationRefusal, string> = {
+  expired: `Ten link zaproszenia wygasł — zaproszenie jest ważne 7 dni. ${ASK_OWNER}`,
+  revoked: `Ten link zaproszenia został wycofany albo zastąpiony nowszym. ${ASK_OWNER}`,
+  accepted:
+    "Ten link zaproszenia został już wykorzystany. Jeśli to Twoje konto, zaloguj się; jeśli nie, poproś właściciela ośrodka o nowy link.",
+  inactive: `Instruktor z tego zaproszenia jest nieaktywny w ośrodku. ${ASK_OWNER}`,
+  has_account:
+    "Instruktor z tego zaproszenia ma już konto. Jeśli to Ty, zaloguj się; jeśli nie, poproś właściciela ośrodka o nowy link.",
+};

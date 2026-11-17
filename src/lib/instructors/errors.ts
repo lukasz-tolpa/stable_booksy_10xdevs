@@ -5,17 +5,20 @@
  * w `newInstructorSchema`. Pozostałe kody (RLS, sieć) dostają wariant domyślny.
  */
 
-import { INVITE_EMAIL_MESSAGE } from "@/lib/instructors/schemas";
-
 /** Nazwa zajęta w ośrodku — indeks `instructors_stable_name_key` (także wśród nieaktywnych). */
 export const INSTRUCTOR_NAME_TAKEN = "23505";
 
 const FALLBACK = "Nie udało się dodać instruktora. Spróbuj ponownie.";
 
-/** Konto ośrodka bez stadniny (dodanie i przełączenie instruktora). */
+/** Konto ośrodka bez stadniny (każdy endpoint strony Instruktorzy). */
 export const INSTRUCTOR_NO_STABLE = "Twoje konto nie ma jeszcze stadniny";
-/** Formularz przełączenia stanu z nieczytelnym polem. */
-export const INSTRUCTOR_TOGGLE_INVALID = "Nieprawidłowe dane formularza";
+/** Formularz z ukrytymi polami (przełączenie stanu, wycofanie zaproszenia) z nieczytelnym polem. */
+export const INSTRUCTOR_FORM_INVALID = "Nieprawidłowe dane formularza";
+/**
+ * Pole adresu w formularzu zaproszenia — `inviteInstructorSchema` i `InviteForm` (bez JavaScriptu
+ * i z nim ośrodek widzi to samo zdanie); także odmowa 23514 z bazy.
+ */
+export const INVITE_EMAIL_MESSAGE = "Podaj poprawny adres e-mail instruktora";
 /** Cudzy albo nieistniejący instruktor — jeden komunikat, bez wyroczni istnienia. */
 export const INSTRUCTOR_NOT_FOUND = "Nie znaleziono instruktora w Twojej stadninie.";
 /** Przełączenie stanu nie powiodło się z przyczyny spoza reguł (awaria). */

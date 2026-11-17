@@ -1,4 +1,4 @@
-import { INSTRUCTOR_LABEL, ROLE_LABELS, USER_ROLES } from "@/lib/auth/constants";
+import { INSTRUCTOR_LABEL, ROLE_LABELS, STABLE_LABEL, USER_ROLES } from "@/lib/auth/constants";
 import type { UserRole } from "@/types";
 
 /**
@@ -62,6 +62,41 @@ export interface InstructorLink {
   stableOwnerId: string | null;
 }
 
+/**
+ * Wszystko, co zależy od tego, kim konto `instructor` jest w ośrodku — w jednym miejscu:
+ * trasa startowa, ścieżki chronione, na których konto może zostać (`staysOn`; z pozostałych
+ * middleware przenosi je na `home`), i etykieta pigułki roli w górnym pasku.
+ * Właściciel mieszka w przestrzeni ośrodka, instruktor — w „Moje sloty”; konto bez ośrodka nie
+ * wychodzi poza zakładanie ośrodka, a konto z ośrodkiem na nie nie wchodzi; zdezaktywowany
+ * instruktor widzi wyłącznie ekran nieaktywnego konta, aktywne konto na ten ekran nie wchodzi.
+ */
+const STANDINGS: Record<
+  InstructorStanding,
+  { home: string; staysOn: (pathname: string) => boolean; badgeLabel: string }
+> = {
+  none: { home: NEW_STABLE_ROUTE, staysOn: isStableSetupPath, badgeLabel: STABLE_LABEL },
+  owner: {
+    home: ROLE_HOME.instructor,
+    staysOn: (pathname) => isActiveAccountPath(pathname) && !matchesPrefix(pathname, INSTRUCTOR_HOME_ROUTE),
+    badgeLabel: STABLE_LABEL,
+  },
+  instructor: {
+    home: INSTRUCTOR_HOME_ROUTE,
+    staysOn: (pathname) => isActiveAccountPath(pathname) && !matchesPrefix(pathname, ROLE_HOME.instructor),
+    badgeLabel: INSTRUCTOR_LABEL,
+  },
+  inactive: {
+    home: INACTIVE_INSTRUCTOR_ROUTE,
+    staysOn: (pathname) => matchesPrefix(pathname, INACTIVE_INSTRUCTOR_ROUTE),
+    badgeLabel: INSTRUCTOR_LABEL,
+  },
+};
+
+/** Ścieżka dla aktywnego konta z ośrodkiem: poza zakładaniem ośrodka i ekranem nieaktywnego konta. */
+function isActiveAccountPath(pathname: string): boolean {
+  return !isStableSetupPath(pathname) && !matchesPrefix(pathname, INACTIVE_INSTRUCTOR_ROUTE);
+}
+
 /** Kim jest konto `instructor` w ośrodku — właściciel to konto zapisane przy ośrodku jego instruktora. */
 export function instructorStandingOf(link: InstructorLink | null, accountId: string): InstructorStanding {
   if (!link) {
@@ -97,58 +132,18 @@ export function homeRouteForRole(role: UserRole): string {
 
 /** Trasa startowa konta: jeździec — jego przestrzeń; konto instruktora — według powiązania z ośrodkiem. */
 export function homeRouteForAccount(role: UserRole, standing: InstructorStanding | null): string {
-  if (role !== "instructor") {
-    return ROLE_HOME[role];
-  }
-  switch (standing) {
-    case "instructor":
-      return INSTRUCTOR_HOME_ROUTE;
-    case "inactive":
-      return INACTIVE_INSTRUCTOR_ROUTE;
-    case "none":
-      return NEW_STABLE_ROUTE;
-    case "owner":
-    case null:
-      return ROLE_HOME.instructor;
-  }
+  return role === "instructor" && standing !== null ? STANDINGS[standing].home : ROLE_HOME[role];
 }
 
-/**
- * Dokąd przenieść konto `instructor` z chronionej ścieżki, albo `null`, gdy może na niej zostać.
- * Konto bez ośrodka nie wychodzi poza zakładanie ośrodka; konto z ośrodkiem na nie nie wchodzi.
- * Właściciel mieszka w przestrzeni ośrodka, instruktor — w „Moje sloty”, i każdy z nich jest
- * przenoszony z przestrzeni drugiego do swojej. Zdezaktywowany instruktor widzi wyłącznie ekran
- * nieaktywnego konta, a aktywne konto na ten ekran nie wchodzi.
- */
+/** Dokąd przenieść konto `instructor` z chronionej ścieżki, albo `null`, gdy może na niej zostać (`STANDINGS`). */
 export function instructorRedirect(pathname: string, standing: InstructorStanding): string | null {
-  const home = homeRouteForAccount("instructor", standing);
-  const onInactiveScreen = matchesPrefix(pathname, INACTIVE_INSTRUCTOR_ROUTE);
-
-  if (standing === "inactive") {
-    return onInactiveScreen ? null : home;
-  }
-
-  if (onInactiveScreen) {
-    return home;
-  }
-
-  if (standing === "none") {
-    return isStableSetupPath(pathname) ? null : home;
-  }
-
-  if (isStableSetupPath(pathname)) {
-    return home;
-  }
-
-  const foreignSpace = standing === "owner" ? INSTRUCTOR_HOME_ROUTE : ROLE_HOME.instructor;
-  return matchesPrefix(pathname, foreignSpace) ? home : null;
+  const { home, staysOn } = STANDINGS[standing];
+  return staysOn(pathname) ? null : home;
 }
 
 /** Etykieta pigułki roli w górnym pasku: instruktor bez praw właściciela to „Instruktor”, nie „Ośrodek”. */
 export function roleBadgeLabel(role: UserRole, standing: InstructorStanding | null): string {
-  return role === "instructor" && (standing === "instructor" || standing === "inactive")
-    ? INSTRUCTOR_LABEL
-    : ROLE_LABELS[role];
+  return role === "instructor" && standing !== null ? STANDINGS[standing].badgeLabel : ROLE_LABELS[role];
 }
 
 /**

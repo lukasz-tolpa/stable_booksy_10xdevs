@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { isInvitationToken, signupInvitation } from "@/lib/auth/invitation";
+import { isInvitationToken, signupInvitation, toInvitationRow, type InvitationState } from "@/lib/auth/invitation";
 
 const TOKEN = "0123456789abcdef".repeat(4);
 const STABLE = "Stajnia Nad Rzeką";
 const EMAIL = "tomasz.lis@example.com";
 
-function row(state: string) {
+function row(state: InvitationState) {
   return { stable_name: STABLE, email: EMAIL, state };
 }
 
@@ -24,6 +24,17 @@ describe("isInvitationToken", () => {
 
 // US 16 i 19: żywe zaproszenie otwiera formularz z adresem i nazwą ośrodka; każdy inny stan
 // daje jasny powód i prośbę o nowy link od właściciela.
+describe("toInvitationRow", () => {
+  it("przepuszcza wiersz ze znanym stanem", () => {
+    expect(toInvitationRow({ stable_name: STABLE, email: EMAIL, state: "expired" })).toEqual(row("expired"));
+  });
+
+  it("stan, którego aplikacja nie zna, i brak wiersza dają nieznane zaproszenie", () => {
+    expect(toInvitationRow({ stable_name: STABLE, email: EMAIL, state: "cos-nowego" })).toBeNull();
+    expect(toInvitationRow(null)).toBeNull();
+  });
+});
+
 describe("signupInvitation", () => {
   it("żywe zaproszenie otwiera formularz z nazwą ośrodka i adresem zaproszenia", () => {
     expect(signupInvitation(TOKEN, row("live"))).toEqual({
@@ -41,7 +52,11 @@ describe("signupInvitation", () => {
     ["wykorzystane", row("accepted"), "Ten link zaproszenia został już wykorzystany"],
     ["instruktor nieaktywny", row("inactive"), "nieaktywny"],
     ["instruktor z kontem", row("has_account"), "ma już konto"],
-    ["nieznany stan", row("cos-nowego"), "Ten link zaproszenia jest nieprawidłowy"],
+    [
+      "nieznany stan",
+      toInvitationRow({ stable_name: STABLE, email: EMAIL, state: "cos-nowego" }),
+      "Ten link zaproszenia jest nieprawidłowy",
+    ],
   ])("%s — powód i prośba o nowy link od właściciela", (_name, invitation, reason) => {
     const result = signupInvitation(TOKEN, invitation);
     expect(result.kind).toBe("refused");
@@ -52,7 +67,8 @@ describe("signupInvitation", () => {
   });
 
   it("odmowy to zamknięty zbiór polskich zdań bez tekstu dostawcy", () => {
-    const states = [null, ...["expired", "revoked", "accepted", "inactive", "has_account"].map(row)];
+    const refusals: InvitationState[] = ["expired", "revoked", "accepted", "inactive", "has_account"];
+    const states = [null, ...refusals.map(row)];
     const messages = states.map((invitation) => {
       const result = signupInvitation(TOKEN, invitation);
       return result.kind === "refused" ? result.message : "";

@@ -4,38 +4,6 @@ import type { MySlotBookingInput, MySlotInput } from "@/lib/my-slots/compose";
 
 type Client = SupabaseClient<Database>;
 
-/** Instruktor powiązany z kontem i nazwa jego ośrodka — nagłówek „Moje sloty”. */
-export interface MyInstructor {
-  id: number;
-  name: string;
-  /** `null`, gdy RLS nie pokazuje ośrodka (instruktor zdezaktywowany). */
-  stableName: string | null;
-}
-
-/**
- * Instruktor powiązany z kontem albo `null`. Filtr po `account_id` jest jawny, choć RLS
- * pokazuje instruktorowi tylko jego wiersz — właścicielowi pokazuje wszystkich.
- */
-export async function getMyInstructor(client: Client, accountId: string): Promise<MyInstructor | null> {
-  const { data, error } = await client
-    .from("instructors")
-    .select("id, name, stables(name)")
-    .eq("account_id", accountId)
-    .maybeSingle();
-
-  if (error) {
-    throw error;
-  }
-
-  if (!data) {
-    return null;
-  }
-
-  // Wygenerowane typy obiecują ośrodek (FK not-null), ale RLS ukrywa go zdezaktywowanemu.
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  return { id: data.id, name: data.name, stableName: data.stables?.name ?? null };
-}
-
 /**
  * Sloty instruktora od podanego dnia (włącznie), także z limitem zero — co pokazać, decyduje
  * `composeMySlots`. Filtr po `instructor_id` jest jawny, a RLS (`schedule_slots`) i tak

@@ -7,6 +7,7 @@ import Card from "@/components/ui/Card.astro";
 import DayNav from "@/components/ui/DayNav.astro";
 import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
+import Tag from "@/components/ui/Tag.astro";
 import { getDayBookings } from "@/lib/bookings/queries";
 import { composeDayBookingSections, NO_HORSE, type DayBookingSections } from "@/lib/bookings/rows";
 import { stableBookingSuccessMessage } from "@/lib/bookings/stable-redirect";
@@ -134,9 +135,11 @@ const successMessage = stableBookingSuccessMessage(success);
                         <span class="row__strong">{row.instructorName}</span>
                         <span class="row__sub">{row.riderName}</span>
                         {/* Zapis bez konia jest wyróżniony pigułką (US 48). */}
-                        <span class:list={row.horseId === null ? ["tag", "tag--warn"] : "row__sub"}>
-                          {row.horseName}
-                        </span>
+                        {row.horseId === null ? (
+                          <Tag variant="warn">{row.horseName}</Tag>
+                        ) : (
+                          <span class="row__sub">{row.horseName}</span>
+                        )}
                       </span>
                       <div class="row__actions">
                         <form method="post" action="/api/bookings/assign-horse" class="assign">
@@ -199,7 +202,7 @@ const successMessage = stableBookingSuccessMessage(success);
                         <span class="row__strong">{row.instructorName}</span>
                         <span class="row__sub">{row.riderName}</span>
                         {/* Cały tekst tego elementu to samo słowo — jak w „Moje zapisy". */}
-                        <span class="tag">odwołany</span>
+                        <Tag>odwołany</Tag>
                         <span class="row__sub">{row.cancelledByLabel}</span>
                       </span>
                     </li>
@@ -290,21 +293,6 @@ const successMessage = stableBookingSuccessMessage(success);
   .rows--cancelled .row__strong {
     font-weight: 500;
     color: var(--muted);
-  }
-
-  .tag {
-    display: inline-flex;
-    align-items: center;
-    padding: 3px 9px;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 600;
-    background: var(--surface-3);
-    color: var(--muted);
-  }
-  .tag--warn {
-    background: var(--warn-soft);
-    color: var(--warn-ink);
   }
 
   /* Akcje schodzą pod opis na całą szerokość — na telefonie nie mieszczą się obok. */

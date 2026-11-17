@@ -119,7 +119,6 @@ set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","r
 
 do $$
 declare
-  v_account uuid;
   v_stable_a bigint := current_setting('app.stable_a')::bigint;
   v_karol bigint := current_setting('app.karol')::bigint;
 begin
@@ -135,9 +134,9 @@ begin
     update public.instructors set account_id = '33333333-3333-3333-3333-333333333333' where id = v_karol;
     raise exception 'FAIL: wlasciciel powiazal instruktora z kontem';
   exception when insufficient_privilege then
-    select account_id into v_account from public.instructors where id = v_karol;
-    if v_account is not null then
-      raise exception 'FAIL: po odmowie Karol ma konto %', v_account;
+    -- Wlasciciel nie czyta account_id wprost - tylko, czy instruktor ma konto.
+    if exists (select 1 from public.list_instructor_accounts() where instructor_id = v_karol) then
+      raise exception 'FAIL: po odmowie Karol ma konto';
     end if;
     raise notice 'PASS: zmiana powiazania instruktora z kontem odrzucona (42501), bez zmian';
   end;
@@ -281,10 +280,11 @@ begin
 
   v_stable := public.create_stable('Stajnia Pod Lasem', 'Tarnów', 'Nowy Właściciel');
 
-  select s.owner_id, i.name, i.active into v_owner, v_name, v_active
-  from public.stables s
-  join public.instructors i on i.stable_id = s.id and i.account_id = '55555555-5555-5555-5555-555555555555'
-  where s.id = v_stable;
+  -- Konto widzi swojego instruktora przez my_instructor (account_id nie jest czytelny wprost).
+  select m.stable_owner_id, m.name, m.active into v_owner, v_name, v_active
+  from public.my_instructor() m
+  join public.instructors i on i.id = m.id
+  where i.stable_id = v_stable;
   if v_owner is distinct from '55555555-5555-5555-5555-555555555555'::uuid
      or v_name is distinct from 'Nowy Właściciel' or v_active is distinct from true then
     raise exception 'FAIL: osrodek % ma wlasciciela %, instruktora % (active=%)', v_stable, v_owner, v_name, v_active;

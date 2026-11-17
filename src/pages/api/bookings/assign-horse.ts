@@ -14,7 +14,7 @@ import { formValue } from "@/lib/form-data";
 import { logError } from "@/lib/log";
 import { parseScheduleDate } from "@/lib/schedule/dates";
 import { getOwnedStableId } from "@/lib/stables/queries";
-import { createClient } from "@/lib/supabase";
+import { SUPABASE_NOT_CONFIGURED, createClient } from "@/lib/supabase";
 
 /**
  * Przydział, zmiana albo cofnięcie konia przez ośrodek (#42). Bez progu czasu — przydział
@@ -36,7 +36,7 @@ export const POST: APIRoute = async (context) => {
 
   const supabase = createClient(context.request.headers, context.cookies);
   if (!supabase) {
-    return backToDayBookings(context, formDay, { error: "Supabase nie jest skonfigurowany" });
+    return backToDayBookings(context, formDay, { error: SUPABASE_NOT_CONFIGURED });
   }
 
   const {

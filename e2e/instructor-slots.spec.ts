@@ -16,7 +16,12 @@ test("instruktorka z kontem widzi swoje sloty z zapisanymi i nie wchodzi do prze
     await page.getByRole("button", { name: "Zaloguj się" }).click();
     await page.waitForURL("**/instruktor");
     await expect(page.getByRole("heading", { level: 1, name: "Moje sloty" })).toBeVisible();
-    await expect(page.getByText(`Twoje godziny w ośrodku ${STABLE_NAME}, od dziś.`, { exact: false })).toBeVisible();
+    await expect(
+      page.getByText(
+        `Twoje godziny w ośrodku ${STABLE_NAME}, od dziś. Odśwież stronę, żeby zobaczyć najnowsze zapisy i odwołania.`,
+        { exact: true },
+      ),
+    ).toBeVisible();
     await expect(page.getByRole("banner").getByText("Instruktor", { exact: true })).toBeVisible();
   });
 

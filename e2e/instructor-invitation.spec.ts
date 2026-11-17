@@ -14,6 +14,13 @@ test.use({ permissions: ["clipboard-read", "clipboard-write"] });
 
 const LINK_PATTERN = /\/auth\/signup\?zaproszenie=[0-9a-f]{64}$/;
 
+/** Etykieta stanu konta przy zaproszeniu wystawionym teraz: ważne 7 dni, dzień w strefie ośrodka. */
+function invitedLabel(): string {
+  const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const day = new Intl.DateTimeFormat("pl-PL", { day: "numeric", month: "long", timeZone: "Europe/Warsaw" });
+  return `Zaproszenie ważne do ${day.format(expires)}`;
+}
+
 function instructorCard(page: Page, name: string) {
   return page.getByRole("article").filter({ has: page.getByRole("heading", { name }) });
 }
@@ -73,12 +80,12 @@ test("właściciel zaprasza instruktora, kopiuje link, zaprasza ponownie i wycof
 
   await test.step("przy instruktorze: zaproszenie ważne do dnia, z adresem; link widać tylko raz", async () => {
     const card = instructorCard(page, instructor);
-    await expect(card.getByText(/Zaproszenie ważne do \d{1,2}\s[a-ząćęłńóśźż]+/)).toBeVisible();
+    await expect(card.getByText(invitedLabel(), { exact: true })).toBeVisible();
     await expect(card.getByText(`joanna.${stamp}@example.com`, { exact: true })).toBeVisible();
 
     await page.reload();
     await expect(page.getByRole("region", { name: "Link zaproszenia" })).toHaveCount(0);
-    await expect(card.getByText(/Zaproszenie ważne do/)).toBeVisible();
+    await expect(card.getByText(invitedLabel(), { exact: true })).toBeVisible();
   });
 
   await test.step("„Zaproś ponownie” — nowy link w miejsce poprzedniego", async () => {

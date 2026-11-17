@@ -4,9 +4,11 @@ import Topbar from "@/components/Topbar.astro";
 import Card from "@/components/ui/Card.astro";
 import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
+import Tag from "@/components/ui/Tag.astro";
 import { formatClockHour, formatLongDate, formatTakenSeats } from "@/lib/format";
 import { composeMySlots, type MySlotsDay } from "@/lib/my-slots/compose";
-import { getMyInstructor, getMySlotBookings, getMySlots } from "@/lib/my-slots/queries";
+import { getOwnInstructor } from "@/lib/instructors/queries";
+import { getMySlotBookings, getMySlots } from "@/lib/my-slots/queries";
 import { todayIso } from "@/lib/schedule/dates";
 import { createClient } from "@/lib/supabase";
 import { logError } from "@/lib/log";
@@ -25,7 +27,10 @@ let loadFailed = false;
 
 if (supabase && profile) {
   try {
-    const instructor = await getMyInstructor(supabase, profile.id);
+    const { instructor, error } = await getOwnInstructor(supabase);
+    if (error) {
+      throw error;
+    }
     if (instructor) {
       stableName = instructor.stableName;
       const [slots, bookings] = await Promise.all([
@@ -90,9 +95,11 @@ if (supabase && profile) {
                         {slot.riders.map((rider) => (
                           <li>
                             <span class="rider__name">{rider.name}</span>
-                            <span class:list={rider.hasHorse ? "rider__horse" : ["tag", "tag--warn"]}>
-                              {rider.horse}
-                            </span>
+                            {rider.hasHorse ? (
+                              <span class="rider__horse">{rider.horse}</span>
+                            ) : (
+                              <Tag variant="warn">{rider.horse}</Tag>
+                            )}
                           </li>
                         ))}
                       </ul>
@@ -191,20 +198,5 @@ if (supabase && profile) {
   .rider__horse {
     color: var(--muted);
     font-size: 14.5px;
-  }
-
-  .tag {
-    display: inline-flex;
-    align-items: center;
-    padding: 3px 9px;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 600;
-    background: var(--surface-3);
-    color: var(--muted);
-  }
-  .tag--warn {
-    background: var(--warn-soft);
-    color: var(--warn-ink);
   }
 </style>

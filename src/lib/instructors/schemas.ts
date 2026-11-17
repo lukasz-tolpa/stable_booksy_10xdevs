@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { formInt } from "@/lib/form-data";
+import { INVITE_EMAIL_MESSAGE } from "@/lib/instructors/errors";
 
 /**
  * Schematy formularzy instruktorów. Komunikaty po polsku; `InstructorForm` powtarza je
@@ -24,9 +25,6 @@ export const toggleInstructorSchema = z.object({
   instructorId: instructorIdField,
   active: z.enum(["true", "false"]).transform((value) => value === "true"),
 });
-
-/** Komunikat pola adresu w formularzu zaproszenia — `InviteForm` powtarza go słowo w słowo. */
-export const INVITE_EMAIL_MESSAGE = "Podaj poprawny adres e-mail instruktora";
 
 /**
  * Zaproszenie instruktora do konta (#74): instruktor i adres, dla którego zaproszenie zadziała.

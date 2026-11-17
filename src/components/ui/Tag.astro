@@ -1,0 +1,33 @@
+---
+// Pigułka stanu przy wierszu listy: „odwołany”, „bez konia”. Neutralna świadomie NIE kasztanowa,
+// żeby nie czytała się jak akcent (DESIGN.md §7); `warn` wyróżnia zapis, który czeka na ośrodek
+// (zapis bez konia, US 48).
+//
+// KONTRAKT: cały tekst elementu to podana treść — e2e szuka tych słów dokładnym dopasowaniem.
+type Variant = "neutral" | "warn";
+
+interface Props {
+  variant?: Variant;
+}
+
+const { variant = "neutral" } = Astro.props;
+---
+
+<span class:list={["tag", variant === "warn" && "tag--warn"]}><slot /></span>
+
+<style>
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    background: var(--surface-3);
+    color: var(--muted);
+  }
+  .tag--warn {
+    background: var(--warn-soft);
+    color: var(--warn-ink);
+  }
+</style>

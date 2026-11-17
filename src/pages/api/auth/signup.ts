@@ -9,7 +9,7 @@ import { formValue } from "@/lib/form-data";
 import { INVITATION_PARAM } from "@/lib/instructors/invitations";
 import { getInvitationByToken } from "@/lib/instructors/queries";
 import { logError } from "@/lib/log";
-import { createClient } from "@/lib/supabase";
+import { SUPABASE_NOT_CONFIGURED, createClient } from "@/lib/supabase";
 
 export const prerender = false;
 
@@ -82,7 +82,10 @@ async function signUpWithInvitation(context: APIContext, form: FormData, supabas
 
   if (errorCode(outcome.error) !== USER_ALREADY_EXISTS) {
     const after = await getInvitationByToken(supabase, token);
-    if (!after.error && signupInvitation(token, after.invitation).kind === "refused") {
+    if (after.error) {
+      // Powodu nie znamy — zostaje komunikat błędu rejestracji niżej.
+      logError("auth:signup", after.error);
+    } else if (signupInvitation(token, after.invitation).kind === "refused") {
       return backToInvitation(context, token);
     }
   }
@@ -96,7 +99,7 @@ export const POST: APIRoute = async (context) => {
 
   if (form.has(INVITATION_PARAM)) {
     if (!supabase) {
-      return backToForm(context, "Supabase nie jest skonfigurowany", formValue(form, INVITATION_PARAM));
+      return backToForm(context, SUPABASE_NOT_CONFIGURED, formValue(form, INVITATION_PARAM));
     }
     return signUpWithInvitation(context, form, supabase);
   }
@@ -116,7 +119,7 @@ export const POST: APIRoute = async (context) => {
   const { fullName, email, password, role } = parsed.data;
 
   if (!supabase) {
-    return backToForm(context, "Supabase nie jest skonfigurowany");
+    return backToForm(context, SUPABASE_NOT_CONFIGURED);
   }
 
   // Rola jedzie w metadanych użytkownika; profil zakłada trigger bazy z F-01,

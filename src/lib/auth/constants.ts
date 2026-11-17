@@ -15,16 +15,23 @@ export const MIN_PASSWORD_LENGTH = 6;
 export const USER_ROLES = ["instructor", "rider"] as const satisfies readonly UserRole[];
 
 /**
- * Etykiety ról widoczne dla użytkownika. Konto instruktora zakłada się w rejestracji wyborem
- * „Ośrodek” — tak zostaje założony ośrodek i jego właściciel.
+ * Etykieta strony ośrodka: wybór w rejestracji, którym zakłada się ośrodek i konto jego
+ * właściciela (rola `instructor`), i pigułka roli właściciela w górnym pasku.
  */
-export const ROLE_LABELS: Record<UserRole, string> = {
-  instructor: "Ośrodek",
-  rider: "Jeździec",
-};
+export const STABLE_LABEL = "Ośrodek";
 
 /** Etykieta konta instruktora, który nie jest właścicielem (pigułka roli w górnym pasku, #72). */
 export const INSTRUCTOR_LABEL = "Instruktor";
+
+/**
+ * Etykiety ról widoczne dla użytkownika — strona, po której konto stoi. Rola `instructor` to
+ * w rejestracji i na stronie głównej strona ośrodka (`STABLE_LABEL`), nie „Instruktor”: konto
+ * instruktora bez praw właściciela podpisuje `roleBadgeLabel`.
+ */
+export const ROLE_LABELS: Record<UserRole, string> = {
+  instructor: STABLE_LABEL,
+  rider: "Jeździec",
+};
 
 /**
  * Postać tokenu z linku zaproszenia (`/auth/signup?zaproszenie=<token>`, #74): 32 losowe bajty

@@ -1,4 +1,10 @@
 import { INVITATION_TOKEN_PATTERN } from "@/lib/auth/constants";
+import {
+  INVITATION_INVALID_MESSAGE,
+  INVITATION_REFUSAL_MESSAGES,
+  INVITATION_REFUSED_HEADING,
+  type InvitationRefusal,
+} from "@/lib/auth/errors";
 import { SIGN_IN_ROUTE } from "@/lib/auth/roles";
 
 /**
@@ -7,38 +13,42 @@ import { SIGN_IN_ROUTE } from "@/lib/auth/roles";
  * Stan zaproszenia podaje baza (`public.invitation_by_token`, dostępna anonimowo): nazwa
  * ośrodka, adres i stan. Żywe zaproszenie otwiera formularz w trybie zaproszenia; każdy inny
  * stan (i nieznany token) to jasny powód z prośbą o nowy link od właściciela. Zdania są
- * zamkniętym zbiorem — kod stanu ani tekst bazy nie trafiają do interfejsu.
+ * zamkniętym zbiorem w `@/lib/auth/errors` — kod stanu ani tekst bazy nie trafiają do interfejsu.
  */
 
-/** Wiersz `invitation_by_token` — `null`, gdy baza nie zna tokenu. */
+/** Stan zaproszenia: żywe albo jeden z powodów, dla których link nie działa. */
+export type InvitationState = "live" | InvitationRefusal;
+
+/** Wiersz `invitation_by_token` ze stanem, który aplikacja zna. */
 export interface InvitationRow {
   stable_name: string;
   email: string;
-  state: string;
+  state: InvitationState;
 }
 
 export type SignupInvitation =
   | { kind: "open"; token: string; stableName: string; email: string }
   | { kind: "refused"; heading: string; message: string; href: string; linkText: string };
 
-export const INVITATION_REFUSED_HEADING = "Link zaproszenia nie działa";
+/** Powody, po których ktoś ma już konto — karta prowadzi do logowania zamiast na stronę główną. */
+const SIGN_IN_REFUSALS: ReadonlySet<InvitationRefusal> = new Set<InvitationRefusal>(["accepted", "has_account"]);
 
-const ASK_OWNER = "Poproś właściciela ośrodka o nowy link.";
+function isInvitationState(value: string): value is InvitationState {
+  return value === "live" || Object.hasOwn(INVITATION_REFUSAL_MESSAGES, value);
+}
 
-const INVALID = `Ten link zaproszenia jest nieprawidłowy — sprawdź, czy skopiowano go w całości. ${ASK_OWNER}`;
-
-const REFUSALS: Record<string, string> = {
-  expired: `Ten link zaproszenia wygasł — zaproszenie jest ważne 7 dni. ${ASK_OWNER}`,
-  revoked: `Ten link zaproszenia został wycofany albo zastąpiony nowszym. ${ASK_OWNER}`,
-  accepted:
-    "Ten link zaproszenia został już wykorzystany. Jeśli to Twoje konto, zaloguj się; jeśli nie, poproś właściciela ośrodka o nowy link.",
-  inactive: `Instruktor z tego zaproszenia jest nieaktywny w ośrodku. ${ASK_OWNER}`,
-  has_account:
-    "Instruktor z tego zaproszenia ma już konto. Jeśli to Ty, zaloguj się; jeśli nie, poproś właściciela ośrodka o nowy link.",
-};
-
-/** Stany, po których ktoś ma już konto — karta prowadzi do logowania zamiast na stronę główną. */
-const SIGN_IN_STATES: ReadonlySet<string> = new Set(["accepted", "has_account"]);
+/**
+ * Wiersz z bazy (stan to tekst) jako `InvitationRow`; brak wiersza albo stan, którego aplikacja
+ * nie zna, daje `null` — strona traktuje to jak nieznany token.
+ */
+export function toInvitationRow(
+  row: { stable_name: string; email: string; state: string } | null,
+): InvitationRow | null {
+  if (!row || !isInvitationState(row.state)) {
+    return null;
+  }
+  return { stable_name: row.stable_name, email: row.email, state: row.state };
+}
 
 /** Czy wartość parametru `zaproszenie` ma postać tokenu z linku (przed zapytaniem do bazy). */
 export function isInvitationToken(value: string | null | undefined): value is string {
@@ -50,13 +60,12 @@ export function signupInvitation(token: string, invitation: InvitationRow | null
   if (invitation?.state === "live") {
     return { kind: "open", token, stableName: invitation.stable_name, email: invitation.email };
   }
-  const state = invitation?.state;
-  const message = (state === undefined ? undefined : REFUSALS[state]) ?? INVALID;
-  const signIn = state !== undefined && SIGN_IN_STATES.has(state);
+  const refusal = invitation?.state;
+  const signIn = refusal !== undefined && SIGN_IN_REFUSALS.has(refusal);
   return {
     kind: "refused",
     heading: INVITATION_REFUSED_HEADING,
-    message,
+    message: refusal === undefined ? INVITATION_INVALID_MESSAGE : INVITATION_REFUSAL_MESSAGES[refusal],
     href: signIn ? SIGN_IN_ROUTE : "/",
     linkText: signIn ? "Przejdź do logowania" : "Wróć na stronę główną",
   };

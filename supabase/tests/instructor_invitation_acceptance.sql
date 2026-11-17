@@ -9,8 +9,9 @@
 --     powiazane z instruktorem zaproszenia, a zaproszenie jest oznaczone jako przyjete;
 --     adres konta porownywany bez wielkosci liter i spacji na brzegach,
 --   * odmowa ze strukturalnym powodem i bez konta: SB016 nieznany token, SB017 wygaslo,
---     SB018 wycofane, SB019 wykorzystane, SB020 inny adres, SB021 instruktor nieaktywny,
---     SB022 instruktor ma juz konto,
+--     SB018 wycofane (takze przez dezaktywacje instruktora - i po jego ponownej aktywacji),
+--     SB019 wykorzystane, SB020 inny adres, SB022 instruktor ma juz konto; SB021 (instruktor
+--     nieaktywny) zostaje jako obrona, ale dezaktywacja zamyka zaproszenie wczesniej,
 --   * rejestracja bez tokenu dziala jak dotad.
 --
 -- Instruktorzy, zaproszenia i konta tymczasowe (aaaa..., bbbb..., cccc...) powstaja w transakcji
@@ -50,7 +51,7 @@ begin
   if v_a is null then
     raise exception 'Brak danych demo albo seed nieaktualny - uruchom npx supabase db reset';
   end if;
-  foreach v_name in array array['live', 'expired', 'revoked', 'used', 'other', 'inactive', 'taken'] loop
+  foreach v_name in array array['live', 'expired', 'revoked', 'used', 'other', 'inactive', 'reactivated', 'taken'] loop
     insert into public.instructors (stable_id, name) values (v_a, 'Przyjecie ' || v_name) returning id into v_id;
     perform set_config('app.i_' || v_name, v_id::text, true);
   end loop;
@@ -63,7 +64,7 @@ do $$
 declare
   v_name text;
 begin
-  foreach v_name in array array['live', 'expired', 'revoked', 'used', 'other', 'inactive', 'taken'] loop
+  foreach v_name in array array['live', 'expired', 'revoked', 'used', 'other', 'inactive', 'reactivated', 'taken'] loop
     perform set_config('app.t_' || v_name,
       (select token from public.issue_instructor_invitation(current_setting('app.i_' || v_name)::bigint,
                                                             v_name || '.instruktor@example.com')),
@@ -74,12 +75,15 @@ end $$;
 
 reset role;
 
--- Wygaslo dzien temu; instruktor dezaktywowany po zaproszeniu; instruktor powiazany z kontem
--- po zaproszeniu (aplikacja tego nie umie, ale baza i tak odmawia).
+-- Wygaslo dzien temu; instruktor dezaktywowany po zaproszeniu (dezaktywacja wycofuje zaproszenie);
+-- instruktor dezaktywowany i aktywowany ponownie (stary link zostaje wycofany); instruktor
+-- powiazany z kontem po zaproszeniu (aplikacja tego nie umie, ale baza i tak odmawia).
 update public.instructor_invitations
 set created_at = now() - interval '8 days', expires_at = now() - interval '1 day'
 where instructor_id = current_setting('app.i_expired')::bigint;
 update public.instructors set active = false where id = current_setting('app.i_inactive')::bigint;
+update public.instructors set active = false where id = current_setting('app.i_reactivated')::bigint;
+update public.instructors set active = true where id = current_setting('app.i_reactivated')::bigint;
 update public.instructors set account_id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
 where id = current_setting('app.i_taken')::bigint;
 
@@ -102,14 +106,19 @@ begin
   end if;
   raise notice 'PASS: anonim czyta po tokenie wylacznie nazwe osrodka, adres i stan';
 
-  foreach v_name in array array['expired', 'revoked', 'inactive', 'taken'] loop
-    v_expected := case v_name when 'taken' then 'has_account' else v_name end;
+  foreach v_name in array array['expired', 'revoked', 'inactive', 'reactivated', 'taken'] loop
+    v_expected := case v_name
+      when 'taken' then 'has_account'
+      when 'inactive' then 'revoked'
+      when 'reactivated' then 'revoked'
+      else v_name
+    end;
     select r.state into v_state from public.invitation_by_token(current_setting('app.t_' || v_name)) r;
     if v_state is distinct from v_expected then
       raise exception 'FAIL: stan zaproszenia "%" to %', v_name, v_state;
     end if;
   end loop;
-  raise notice 'PASS: odczyt po tokenie podaje stan wygaslego, wycofanego, nieaktywnego i z kontem';
+  raise notice 'PASS: odczyt po tokenie podaje stan wygaslego, wycofanego (takze przez dezaktywacje, i po ponownej aktywacji) i z kontem';
 
   select count(*) into v from public.invitation_by_token(repeat('0', 64));
   if v <> 0 then
@@ -196,7 +205,8 @@ declare
     array['wycofane', current_setting('app.t_revoked'), 'revoked.instruktor@example.com', 'SB018', 'revoked'],
     array['wykorzystane', current_setting('app.t_used'), 'used.drugi@example.com', 'SB019', ''],
     array['inny adres', current_setting('app.t_other'), 'ktos.inny@example.com', 'SB020', 'other'],
-    array['instruktor nieaktywny', current_setting('app.t_inactive'), 'inactive.instruktor@example.com', 'SB021', 'inactive'],
+    array['instruktor nieaktywny', current_setting('app.t_inactive'), 'inactive.instruktor@example.com', 'SB018', 'inactive'],
+    array['instruktor aktywowany ponownie', current_setting('app.t_reactivated'), 'reactivated.instruktor@example.com', 'SB018', 'reactivated'],
     array['instruktor z kontem', current_setting('app.t_taken'), 'taken.instruktor@example.com', 'SB022', '']
   ];
   v_state text;

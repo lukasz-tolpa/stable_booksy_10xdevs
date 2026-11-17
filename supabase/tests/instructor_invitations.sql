@@ -13,6 +13,8 @@
 --     wygasle), a indeks czesciowy odrzuca drugie otwarte nawet jako postgres (23505),
 --   * wycofane zaproszenie nie jest zywe; lista pomija wycofane, wygasle oraz instruktorow
 --     nieaktywnych i z kontem,
+--   * dezaktywacja instruktora wycofuje jego zywe zaproszenie, wiec ponowna aktywacja nie
+--     ozywia starego linku,
 --   * tabeli nie czyta ani nie zmienia nikt poza funkcjami (42501).
 --
 -- Instruktorzy i konta tymczasowe powstaja w transakcji (seed moze dawac instruktorom konta),
@@ -322,6 +324,23 @@ end $$;
 
 reset role;
 
+-- Dezaktywacja (ten sam UPDATE co strona Instruktorzy, jako wlasciciel przez RLS) wycofuje zywe
+-- zaproszenie w tej samej transakcji - ponowna aktywacja nie moze ozywic starego linku.
+do $$
+declare
+  v_revoked timestamptz;
+  v_open int;
+begin
+  select revoked_at into v_revoked from public.instructor_invitations
+  where instructor_id = current_setting('app.deactivated')::bigint;
+  select count(*) into v_open from public.instructor_invitations
+  where instructor_id = current_setting('app.deactivated')::bigint and accepted_at is null and revoked_at is null;
+  if v_revoked is null or v_open <> 0 then
+    raise exception 'FAIL: po dezaktywacji zaproszenie wycofane %, otwartych %', v_revoked, v_open;
+  end if;
+  raise notice 'PASS: dezaktywacja instruktora wycofuje jego zywe zaproszenie';
+end $$;
+
 -- Wystawione 8 dni temu: wygaslo dzien temu.
 update public.instructor_invitations
 set created_at = now() - interval '8 days', expires_at = now() - interval '1 day'
@@ -344,6 +363,15 @@ begin
     raise exception 'FAIL: lista zaproszen zawiera %', v_ids;
   end if;
   raise notice 'PASS: lista pomija wygasle zaproszenie i instruktora zdezaktywowanego po zaproszeniu';
+
+  -- Ponowna aktywacja: stare zaproszenie zostaje wycofane, na liscie go nie ma.
+  update public.instructors set active = true where id = current_setting('app.deactivated')::bigint;
+  select count(*) into v_open from public.list_instructor_invitations()
+  where instructor_id = current_setting('app.deactivated')::bigint;
+  if v_open <> 0 then
+    raise exception 'FAIL: po ponownej aktywacji stare zaproszenie wrocilo na liste';
+  end if;
+  raise notice 'PASS: ponowna aktywacja nie przywraca wycofanego zaproszenia';
 
   -- Odnowienie wygaslego linku: nowe zaproszenie zastepuje wygasle (ktore nie bylo wycofane).
   select token into v_token

@@ -10,7 +10,7 @@ import { formValue } from "@/lib/form-data";
 import { isPastDate, parseScheduleDate } from "@/lib/schedule/dates";
 import { getScheduleDay } from "@/lib/schedule/queries";
 import { parseStableId } from "@/lib/stables/search";
-import { createClient } from "@/lib/supabase";
+import { SUPABASE_NOT_CONFIGURED, createClient } from "@/lib/supabase";
 
 function backToStable(
   context: APIContext,
@@ -70,7 +70,7 @@ export const POST: APIRoute = async (context) => {
 
   const supabase = createClient(context.request.headers, context.cookies);
   if (!supabase) {
-    return backToStable(context, stableId, day, { error: "Supabase nie jest skonfigurowany" });
+    return backToStable(context, stableId, day, { error: SUPABASE_NOT_CONFIGURED });
   }
 
   const {

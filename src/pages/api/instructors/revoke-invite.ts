@@ -1,20 +1,17 @@
 import type { APIRoute } from "astro";
-import { SIGN_IN_ROUTE } from "@/lib/auth/roles";
 import { errorCode } from "@/lib/db-errors";
 import { formValue } from "@/lib/form-data";
 import {
-  INSTRUCTOR_NO_STABLE,
-  INSTRUCTOR_TOGGLE_INVALID,
+  INSTRUCTOR_FORM_INVALID,
   INVITATION_INSTRUCTOR_NOT_FOUND,
   INVITATION_NOTHING_TO_REVOKE,
   revokeInvitationErrorMessage,
 } from "@/lib/instructors/errors";
+import { ownerRequest } from "@/lib/instructors/owner-request";
 import { revokeInvitation } from "@/lib/instructors/queries";
 import { backToInstructors } from "@/lib/instructors/redirect";
 import { instructorIdSchema } from "@/lib/instructors/schemas";
 import { logError } from "@/lib/log";
-import { getOwnedStableId } from "@/lib/stables/queries";
-import { createClient } from "@/lib/supabase";
 
 export const prerender = false;
 
@@ -25,28 +22,15 @@ export const POST: APIRoute = async (context) => {
   const parsed = instructorIdSchema.safeParse({ instructorId: formValue(form, "instructorId") });
 
   if (!parsed.success) {
-    return backToInstructors(context, INSTRUCTOR_TOGGLE_INVALID);
+    return backToInstructors(context, INSTRUCTOR_FORM_INVALID);
   }
 
-  const supabase = createClient(context.request.headers, context.cookies);
-  if (!supabase) {
-    return backToInstructors(context, "Supabase nie jest skonfigurowany");
+  const owner = await ownerRequest(context, "api:instructors/revoke-invite");
+  if (owner instanceof Response) {
+    return owner;
   }
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return context.redirect(SIGN_IN_ROUTE);
-  }
-
-  const stableId = await getOwnedStableId(supabase, user.id);
-  if (stableId === null) {
-    return backToInstructors(context, INSTRUCTOR_NO_STABLE);
-  }
-
-  const { revoked, error } = await revokeInvitation(supabase, parsed.data.instructorId);
+  const { revoked, error } = await revokeInvitation(owner.supabase, parsed.data.instructorId);
 
   if (error) {
     const code = errorCode(error);

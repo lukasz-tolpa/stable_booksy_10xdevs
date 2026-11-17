@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link, Mail } from "lucide-react";
 import { FormField } from "@/components/auth/FormField";
 import { SubmitButton } from "@/components/auth/SubmitButton";
+import { INVITE_EMAIL_MESSAGE } from "@/lib/instructors/errors";
 
 interface Props {
   instructorId: number;
@@ -24,9 +25,9 @@ export default function InviteForm({ instructorId, instructorName, defaultEmail 
   const fieldId = `invite-email-${String(instructorId)}`;
 
   function handleSubmit(e: React.SubmitEvent<HTMLFormElement>) {
-    // Komunikat musi brzmieć tak samo jak INVITE_EMAIL_MESSAGE w `inviteInstructorSchema`.
+    // To samo zdanie co `inviteInstructorSchema` — bez JavaScriptu odpowiada serwer.
     if (!LOOKS_LIKE_EMAIL.test(email.trim())) {
-      setError("Podaj poprawny adres e-mail instruktora");
+      setError(INVITE_EMAIL_MESSAGE);
       e.preventDefault();
     }
   }

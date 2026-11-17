@@ -1,9 +1,9 @@
 import type { InstructorListItem } from "@/lib/instructors/queries";
+import type { ScheduleDayData, SlotSeats } from "@/lib/schedule/queries";
+import type { HorseListItem } from "@/lib/stables/queries";
 
 /** Pola instruktora, których potrzebuje formularz grafiku. */
 export type FormInstructor = Pick<InstructorListItem, "id" | "name" | "active">;
-import type { ScheduleDayData, SlotSeats } from "@/lib/schedule/queries";
-import type { HorseListItem } from "@/lib/stables/queries";
 
 export interface HorseDefaults {
   /** `""` — nowy dzień bez żadnego ułożonego wcześniej: pole startuje puste. */

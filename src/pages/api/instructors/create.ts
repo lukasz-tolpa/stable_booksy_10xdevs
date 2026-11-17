@@ -1,14 +1,14 @@
 import type { APIRoute } from "astro";
-import { SIGN_IN_ROUTE } from "@/lib/auth/roles";
 import { firstErrorMessage } from "@/lib/auth/schemas";
 import { errorCode } from "@/lib/db-errors";
 import { formValue } from "@/lib/form-data";
-import { INSTRUCTOR_NAME_TAKEN, INSTRUCTOR_NO_STABLE, instructorErrorMessage } from "@/lib/instructors/errors";
+import { INSTRUCTOR_NAME_TAKEN, instructorErrorMessage } from "@/lib/instructors/errors";
+import { ownerRequest } from "@/lib/instructors/owner-request";
 import { backToInstructors } from "@/lib/instructors/redirect";
 import { newInstructorSchema } from "@/lib/instructors/schemas";
 import { logError } from "@/lib/log";
-import { getOwnedStableId } from "@/lib/stables/queries";
-import { createClient } from "@/lib/supabase";
+
+export const prerender = false;
 
 export const POST: APIRoute = async (context) => {
   const form = await context.request.formData();
@@ -19,32 +19,19 @@ export const POST: APIRoute = async (context) => {
     return backToInstructors(context, firstErrorMessage(parsed.error));
   }
 
-  const supabase = createClient(context.request.headers, context.cookies);
-  if (!supabase) {
-    return backToInstructors(context, "Supabase nie jest skonfigurowany");
-  }
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return context.redirect(SIGN_IN_ROUTE);
-  }
-
   // Stadnina z sesji, nigdy z formularza; polityka `instructors_insert_own_stable` i tak
   // odrzuciłaby cudzą.
-  const stableId = await getOwnedStableId(supabase, user.id);
-  if (stableId === null) {
-    return backToInstructors(context, INSTRUCTOR_NO_STABLE);
+  const owner = await ownerRequest(context, "api:instructors/create");
+  if (owner instanceof Response) {
+    return owner;
   }
 
   // Unikalności nazwy nie sprawdzamy zapytaniem przed INSERT-em: strzeże jej indeks
   // `instructors_stable_name_key`, a odmowa wraca jako 23505.
   // `.select().single()`: sukces dopiero, gdy baza oddała wstawiony wiersz.
-  const { error } = await supabase
+  const { error } = await owner.supabase
     .from("instructors")
-    .insert({ stable_id: stableId, name: parsed.data.name })
+    .insert({ stable_id: owner.stableId, name: parsed.data.name })
     .select("id")
     .single();
 

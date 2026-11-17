@@ -10,7 +10,10 @@
 --   * instruktor niczego w osrodku nie zmienia (odmowa albo 0 wierszy) i nie zapisuje sie na jazde,
 --   * dezaktywacja instruktora przez wlasciciela odcina mu odczyt (kontekst private.current_instructor_id()
 --     pusty), a ponowna aktywacja go przywraca (#73),
---   * jezdziec i wlasciciel czytaja jak dotad.
+--   * jezdziec i wlasciciel czytaja jak dotad - poza powiazaniem instruktora z kontem
+--     (`instructors.account_id`), ktorego z aplikacji nie czyta wprost nikt: konto zna swojego
+--     instruktora przez public.my_instructor(), wlasciciel - konta instruktorow swojego osrodka
+--     przez public.list_instructor_accounts().
 --
 -- Persony: Joanna Wrona (99999999..., konto z seeda, Stadnina Pod Dębem), tymczasowe konto
 -- Karola Jasnego (88888888..., tylko w transakcji), wlasciciele 1111.../2222..., jezdzcy
@@ -437,6 +440,7 @@ declare
   v_stables int;
   v_rows int;
   v_active boolean;
+  v_hidden boolean;
 begin
   select count(*) into v_slots from public.schedule_slots;
   select count(*) into v_days from public.schedule_days;
@@ -451,13 +455,16 @@ begin
   end if;
   raise notice 'PASS: zdezaktywowana instruktorka nie czyta slotow, dni, zapisow, jezdzcow, oblozenia ani osrodka';
 
-  -- Swoj wiersz instruktora widzi dalej: po nim aplikacja rozpoznaje nieaktywne konto.
-  select count(*), bool_and(active) into v_rows, v_active
-  from public.instructors where account_id = '99999999-9999-9999-9999-999999999999';
-  if v_rows <> 1 or v_active is distinct from false then
-    raise exception 'FAIL: zdezaktywowana instruktorka widzi % swoich wierszy (active=%)', v_rows, v_active;
+  -- Swojego instruktora widzi dalej (public.my_instructor): po nim aplikacja rozpoznaje nieaktywne
+  -- konto. Osrodka - nie.
+  select count(*), bool_and(active), bool_and(stable_name is null and stable_owner_id is null)
+    into v_rows, v_active, v_hidden
+  from public.my_instructor();
+  if v_rows <> 1 or v_active is distinct from false or v_hidden is distinct from true then
+    raise exception 'FAIL: zdezaktywowana instruktorka widzi % swoich wierszy (active=%, osrodek ukryty=%)',
+      v_rows, v_active, v_hidden;
   end if;
-  raise notice 'PASS: zdezaktywowana instruktorka widzi swoj wiersz z active=false (ekran nieaktywnego konta)';
+  raise notice 'PASS: zdezaktywowana instruktorka widzi swojego instruktora z active=false, bez osrodka (ekran nieaktywnego konta)';
 end $$;
 
 set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
@@ -496,6 +503,145 @@ begin
       v_slots, v_bookings, v_named, v_name, v_stables;
   end if;
   raise notice 'PASS: ponowna aktywacja przywraca odczyt slotow, zapisow, jezdzcow i osrodka bez nowego zaproszenia';
+end $$;
+
+rollback;
+
+\echo '=== Powiazanie instruktora z kontem: jezdziec i cudzy osrodek go nie czytaja ==='
+
+-- `instructors.account_id` zdradza, ktory instruktor ma konto, i UUID jego profilu. Katalog
+-- (nazwa instruktora przy slocie) zostaje otwarty, sama kolumna - nie, takze dla anonima.
+-- Aplikacja dostaje tylko to, czego potrzebuje: konto - swojego instruktora (my_instructor),
+-- wlasciciel - ktory instruktor jego osrodka ma konto i ktory jest nim samym (list_instructor_accounts).
+
+begin;
+
+-- Wspolny zestaw odmow dla jezdzca i wlasciciela innego osrodka.
+create function pg_temp.assert_no_account_ids(p_who text) returns void
+language plpgsql
+as $$
+declare
+  v int;
+begin
+  select count(*) into v
+  from public.instructors i join public.stables s on s.id = i.stable_id
+  where s.name = 'Stadnina Pod Dębem' and i.name = 'Joanna Wrona';
+  if v <> 1 then
+    raise exception 'FAIL: % nie czyta instruktora w katalogu (% wierszy)', p_who, v;
+  end if;
+
+  begin
+    perform account_id from public.instructors;
+    raise exception 'FAIL: % czyta instructors.account_id', p_who;
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform 1 from public.instructors where account_id is not null;
+    raise exception 'FAIL: % filtruje instruktorow po account_id', p_who;
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform to_jsonb(i) from public.instructors i;
+    raise exception 'FAIL: % czyta caly wiersz instruktora', p_who;
+  exception when insufficient_privilege then null;
+  end;
+  raise notice 'PASS: % czyta instruktora w katalogu, ale nie account_id (42501, takze w filtrze i calym wierszu)', p_who;
+end;
+$$;
+
+set local role anon;
+
+do $$
+begin
+  begin
+    perform account_id from public.instructors;
+    raise exception 'FAIL: anonim czyta instructors.account_id';
+  exception when insufficient_privilege then
+    raise notice 'PASS: anonim nie czyta instructors.account_id (42501)';
+  end;
+end $$;
+
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"33333333-3333-3333-3333-333333333333","role":"authenticated"}';
+
+do $$
+declare
+  v int;
+begin
+  perform pg_temp.assert_no_account_ids('jezdziec');
+
+  begin
+    perform public.list_instructor_accounts();
+    raise exception 'FAIL: jezdziec czyta konta instruktorow';
+  exception when insufficient_privilege then
+    raise notice 'PASS: jezdziec nie czyta kont instruktorow (list_instructor_accounts, 42501)';
+  end;
+
+  select count(*) into v from public.my_instructor();
+  if v <> 0 then
+    raise exception 'FAIL: jezdziec ma % instruktorow powiazanych z kontem', v;
+  end if;
+  raise notice 'PASS: my_instructor jezdzca - zero wierszy';
+end $$;
+
+set local request.jwt.claims = '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}';
+
+do $$
+declare
+  v_names text[];
+begin
+  perform pg_temp.assert_no_account_ids('wlasciciel innego osrodka');
+
+  select array_agg(i.name || ':' || a.owner order by i.name) into v_names
+  from public.list_instructor_accounts() a join public.instructors i on i.id = a.instructor_id;
+  if v_names is distinct from array['Ewa Rzecka:true'] then
+    raise exception 'FAIL: wlasciciel Stajni Nad Rzeką widzi konta instruktorow %', v_names;
+  end if;
+  raise notice 'PASS: wlasciciel widzi konta wylacznie instruktorow swojego osrodka (tu tylko siebie)';
+end $$;
+
+set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
+
+do $$
+declare
+  v_names text[];
+  v_row jsonb;
+begin
+  -- Strona Instruktorzy: kto ma konto i kto jest wlascicielem - bez UUID kont.
+  select array_agg(i.name || ':' || a.owner order by i.name) into v_names
+  from public.list_instructor_accounts() a join public.instructors i on i.id = a.instructor_id;
+  if v_names is distinct from array['Joanna Wrona:false', 'Marek Dębowski:true'] then
+    raise exception 'FAIL: wlasciciel Stadniny Pod Dębem widzi konta instruktorow %', v_names;
+  end if;
+  raise notice 'PASS: wlasciciel widzi, ktorzy instruktorzy jego osrodka maja konto i ktory z nich to on';
+
+  select to_jsonb(m) - 'id' into v_row from public.my_instructor() m;
+  if v_row is distinct from jsonb_build_object('name', 'Marek Dębowski', 'active', true,
+       'stable_name', 'Stadnina Pod Dębem', 'stable_owner_id', '11111111-1111-1111-1111-111111111111') then
+    raise exception 'FAIL: my_instructor wlasciciela to %', v_row;
+  end if;
+  raise notice 'PASS: my_instructor wlasciciela - jego instruktor i osrodek, ktorego jest wlascicielem';
+end $$;
+
+set local request.jwt.claims = '{"sub":"99999999-9999-9999-9999-999999999999","role":"authenticated"}';
+
+do $$
+declare
+  v_row jsonb;
+begin
+  select to_jsonb(m) - 'id' into v_row from public.my_instructor() m;
+  if v_row is distinct from jsonb_build_object('name', 'Joanna Wrona', 'active', true,
+       'stable_name', 'Stadnina Pod Dębem', 'stable_owner_id', '11111111-1111-1111-1111-111111111111') then
+    raise exception 'FAIL: my_instructor instruktorki to %', v_row;
+  end if;
+  raise notice 'PASS: my_instructor instruktorki - jej instruktor i osrodek';
+
+  begin
+    perform public.list_instructor_accounts();
+    raise exception 'FAIL: instruktorka bez praw wlasciciela czyta konta instruktorow';
+  exception when insufficient_privilege then
+    raise notice 'PASS: instruktorka bez praw wlasciciela nie czyta kont instruktorow (42501)';
+  end;
 end $$;
 
 rollback;

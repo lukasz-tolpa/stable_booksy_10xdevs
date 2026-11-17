@@ -207,9 +207,12 @@ local role authenticated; set local request.jwt.claims =
   — resolve them by name or owner uuid, never hardcode. Owner rules (create_stable,
   SB012, context from the instructor link): `stable_owner_account.sql`; what a
   non-owner instructor reads and cannot change, and how the owner's deactivation cuts it off and
-  reactivation restores it (#73): `instructor_account_access.sql`. Instructor
+  reactivation restores it (#73), and that nobody reads `instructors.account_id`
+  directly (rider, other stable, anon: `42501`; `my_instructor` / `list_instructor_accounts`
+  instead): `instructor_account_access.sql` — as `authenticated`, read the link through
+  those functions, never `select account_id`. Instructor
   invitations (issue / revoke / list, hash-only token, 7-day expiry, one open per
-  instructor): `instructor_invitations.sql` — it creates its instructors and a
+  instructor, deactivation revokes the open one): `instructor_invitations.sql` — it creates its instructors and a
   non-owner instructor account (`7777…`) inside the rolled-back transaction, so it
   does not depend on who has an account in the seed. Accepting an invitation at sign-up
   (anonymous read by token, `SB016`–`SB022`, no account left after a refusal):

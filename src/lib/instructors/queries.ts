@@ -1,14 +1,19 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/db/database.types";
+import { toInvitationRow } from "@/lib/auth/invitation";
 import type { OpenSeatRow } from "@/lib/instructors/open-seats";
 import type { Instructor } from "@/types";
 
 type Client = SupabaseClient<Database>;
 
-/** Pola instruktora na liście instruktorów ośrodka; `account_id` rozpoznaje właściciela. */
-export type InstructorListItem = Pick<Instructor, "id" | "name" | "active" | "account_id">;
+/**
+ * Pola instruktora na liście instruktorów ośrodka. Bez `account_id`: tej kolumny nikt z aplikacji
+ * nie czyta wprost — konta instruktorów zna `listInstructorAccounts`, swojego instruktora konto
+ * zna z `getOwnInstructor`.
+ */
+export type InstructorListItem = Pick<Instructor, "id" | "name" | "active">;
 
-const INSTRUCTOR_COLUMNS = "id, name, active, account_id";
+const INSTRUCTOR_COLUMNS = "id, name, active";
 
 /**
  * Instruktorzy ośrodka, posortowani: najpierw aktywni, potem nieaktywni, w obu grupach po nazwie.
@@ -94,9 +99,61 @@ export async function listOpenSeatRows(client: Client, stableId: number, today: 
 
 /**
  * Zaproszenie po tokenie z linku dla strony i endpointu rejestracji (#75): nazwa ośrodka, adres
- * i stan — `invitation_by_token` działa także bez sesji. `invitation: null` — baza nie zna tokenu.
+ * i stan — `invitation_by_token` działa także bez sesji. `invitation: null` — baza nie zna tokenu
+ * (albo podała stan, którego aplikacja nie zna).
  */
 export async function getInvitationByToken(client: Client, token: string) {
   const { data, error } = await client.rpc("invitation_by_token", { p_token: token }).maybeSingle();
-  return { invitation: data, error };
+  return { invitation: toInvitationRow(data), error };
+}
+
+/** Instruktor ośrodka właściciela, który ma konto; `owner` — konto samego właściciela. */
+export type InstructorAccount = Database["public"]["Functions"]["list_instructor_accounts"]["Returns"][number];
+
+/**
+ * Którzy instruktorzy ośrodka właściciela mają konto i który z nich to on (kolumna stanu konta
+ * na stronie Instruktorzy) — bez identyfikatorów kont. Ośrodek bierze baza z sesji
+ * (`list_instructor_accounts`, 42501 dla nie-właściciela).
+ */
+export async function listInstructorAccounts(client: Client): Promise<InstructorAccount[]> {
+  const { data, error } = await client.rpc("list_instructor_accounts");
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+/** Instruktor powiązany z zalogowanym kontem, także nieaktywny. */
+export interface OwnInstructor {
+  id: number;
+  name: string;
+  active: boolean;
+  /** `null`, gdy instruktor jest nieaktywny — zdezaktywowanemu baza nie pokazuje ośrodka. */
+  stableName: string | null;
+  /** Właściciel ośrodka instruktora; `null` jak `stableName`. */
+  stableOwnerId: string | null;
+}
+
+/**
+ * Instruktor powiązany z zalogowanym kontem (`my_instructor`, konto z sesji) — middleware ustala
+ * z niego, kim konto jest w ośrodku, „Moje sloty” biorą nazwę instruktora i ośrodka.
+ * `instructor: null` — konto bez instruktora.
+ */
+export async function getOwnInstructor(client: Client) {
+  const { data, error } = await client.rpc("my_instructor").maybeSingle();
+  const instructor: OwnInstructor | null = data
+    ? {
+        id: data.id,
+        name: data.name,
+        active: data.active,
+        // Wygenerowane typy obiecują tekst, ale funkcja zwraca NULL dla nieaktywnego.
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+        stableName: data.stable_name ?? null,
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+        stableOwnerId: data.stable_owner_id ?? null,
+      }
+    : null;
+  return { instructor, error };
 }

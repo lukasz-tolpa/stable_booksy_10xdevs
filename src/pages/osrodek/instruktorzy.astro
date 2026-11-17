@@ -5,6 +5,7 @@ import Topbar from "@/components/Topbar.astro";
 import Banner from "@/components/Banner.astro";
 import CopyLink from "@/components/instructors/CopyLink";
 import InstructorForm from "@/components/instructors/InstructorForm";
+import InstructorMeta from "@/components/instructors/InstructorMeta.astro";
 import InviteForm from "@/components/instructors/InviteForm";
 import Card from "@/components/ui/Card.astro";
 import EmptyState from "@/components/ui/EmptyState.astro";
@@ -16,7 +17,12 @@ import {
   type InvitationNotice,
 } from "@/lib/instructors/invitations";
 import { composeInstructorList, type InstructorList } from "@/lib/instructors/list";
-import { listLiveInvitations, listOpenSeatRows, listStableInstructors } from "@/lib/instructors/queries";
+import {
+  listInstructorAccounts,
+  listLiveInvitations,
+  listOpenSeatRows,
+  listStableInstructors,
+} from "@/lib/instructors/queries";
 import { INSTRUCTORS_ROUTE } from "@/lib/instructors/redirect";
 import { todayIso } from "@/lib/schedule/dates";
 import { getOwnedStableId } from "@/lib/stables/queries";
@@ -42,12 +48,13 @@ if (supabase && profile) {
   try {
     const stableId = await getOwnedStableId(supabase, profile.id);
     if (stableId !== null) {
-      const [instructors, openSeatRows, invitations] = await Promise.all([
+      const [instructors, openSeatRows, invitations, accounts] = await Promise.all([
         listStableInstructors(supabase, stableId),
         listOpenSeatRows(supabase, stableId, todayIso()),
         listLiveInvitations(supabase),
+        listInstructorAccounts(supabase),
       ]);
-      list = composeInstructorList(instructors, openSeatRows, invitations, profile.id);
+      list = composeInstructorList(instructors, openSeatRows, invitations, accounts);
       notice = invitationNotice(list, flash, Astro.url.origin);
     }
   } catch (error) {
@@ -123,13 +130,7 @@ const { active, inactive } = list;
                           <UserRound className="size-4" />
                           {instructor.name}
                         </h2>
-                        <p class="instructor__meta">
-                          {instructor.owner && <span class="instructor__owner">Właściciel</span>}
-                          <span class:list={["account", `account--${instructor.account.kind}`]}>
-                            {instructor.account.label}
-                          </span>
-                          {instructor.account.kind === "invited" && <span>{instructor.account.email}</span>}
-                        </p>
+                        <InstructorMeta account={instructor.account} owner={instructor.owner} />
                       </div>
                       {!instructor.owner && (
                         <form method="POST" action="/api/instructors/toggle-active">
@@ -140,15 +141,15 @@ const { active, inactive } = list;
                       )}
                     </div>
 
-                    {instructor.account.kind !== "account" && (
+                    {instructor.invite && (
                       <div class="instructor__invite">
                         <details>
-                          <summary>{instructor.account.kind === "invited" ? "Zaproś ponownie" : "Zaproś"}</summary>
+                          <summary>{instructor.invite.summary}</summary>
                           <div class="instructor__invite-form">
                             <InviteForm
                               instructorId={instructor.id}
                               instructorName={instructor.name}
-                              defaultEmail={instructor.account.kind === "invited" ? instructor.account.email : ""}
+                              defaultEmail={instructor.invite.defaultEmail}
                               client:load
                             />
                           </div>
@@ -177,11 +178,7 @@ const { active, inactive } = list;
                               <UserRound className="size-4" />
                               {instructor.name}
                             </h3>
-                            <p class="instructor__meta">
-                              <span class:list={["account", `account--${instructor.account.kind}`]}>
-                                {instructor.account.label}
-                              </span>
-                            </p>
+                            <InstructorMeta account={instructor.account} />
                             {instructor.note && <p class="instructor__note">{instructor.note}</p>}
                           </div>
                           <form method="POST" action="/api/instructors/toggle-active">
@@ -276,26 +273,6 @@ const { active, inactive } = list;
   }
   .instructor__text {
     min-width: 0;
-  }
-  .instructor__meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px 10px;
-    margin: 4px 0 0;
-    font-size: 13px;
-    color: var(--muted);
-    overflow-wrap: anywhere;
-  }
-  .instructor__owner {
-    font-weight: 600;
-    color: var(--fg);
-  }
-  .account--account {
-    color: var(--primary-strong);
-    font-weight: 600;
-  }
-  .account--invited {
-    color: var(--fg);
   }
   .instructor__note {
     margin: 4px 0 0;

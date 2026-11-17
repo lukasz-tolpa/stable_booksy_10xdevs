@@ -9,7 +9,6 @@ import { composeInstructorList } from "@/lib/instructors/list";
 
 const TOKEN = "0123456789abcdef".repeat(4);
 const NOW = new Date("2030-05-14T10:30:00Z");
-const OWNER_ACCOUNT = "11111111-1111-1111-1111-111111111111";
 
 describe("invitationLink", () => {
   it("prowadzi na rejestrację z tokenem w parametrze „zaproszenie”", () => {
@@ -34,13 +33,13 @@ describe("flash linku zaproszenia", () => {
 });
 
 describe("invitationNotice", () => {
-  const joanna = { id: 1, name: "Joanna Wrona", active: true, account_id: null };
-  const karol = { id: 2, name: "Karol Jasny", active: true, account_id: null };
+  const joanna = { id: 1, name: "Joanna Wrona", active: true };
+  const karol = { id: 2, name: "Karol Jasny", active: true };
   const list = composeInstructorList(
     [joanna, karol],
     [],
     [{ instructor_id: joanna.id, email: "joanna@example.com", expires_at: "2030-05-21T10:00:00Z" }],
-    OWNER_ACCOUNT,
+    [],
     NOW,
   );
 

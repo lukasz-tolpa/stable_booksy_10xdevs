@@ -11,7 +11,7 @@ import { SIGN_IN_ROUTE, SIGNUP_ROLE_PARAM, signupRoleFromParam } from "@/lib/aut
 import { INVITATION_PARAM } from "@/lib/instructors/invitations";
 import { getInvitationByToken } from "@/lib/instructors/queries";
 import { logError } from "@/lib/log";
-import { createClient } from "@/lib/supabase";
+import { SUPABASE_NOT_CONFIGURED, createClient } from "@/lib/supabase";
 
 const error = Astro.url.searchParams.get("error");
 // Strona główna prowadzi tu z `?rola=jezdziec|osrodek`; formularz dostaje rolę tylko
@@ -32,7 +32,7 @@ if (invitationParam !== null) {
     try {
       const supabase = createClient(Astro.request.headers, Astro.cookies);
       if (!supabase) {
-        throw new Error("Supabase nie jest skonfigurowany");
+        throw new Error(SUPABASE_NOT_CONFIGURED);
       }
       const result = await getInvitationByToken(supabase, invitationParam);
       if (result.error) {

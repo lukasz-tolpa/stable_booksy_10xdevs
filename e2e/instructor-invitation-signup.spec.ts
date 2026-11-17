@@ -117,7 +117,12 @@ test("instruktor zakłada konto z linku zaproszenia i trafia do swoich slotów",
       const strangerPage = await stranger.newPage();
       await strangerPage.goto(link);
       await expect(strangerPage.getByRole("heading", { level: 1, name: "Link zaproszenia nie działa" })).toBeVisible();
-      await expect(strangerPage.getByText(/został już wykorzystany/)).toBeVisible();
+      await expect(
+        strangerPage.getByText(
+          "Ten link zaproszenia został już wykorzystany. Jeśli to Twoje konto, zaloguj się; jeśli nie, poproś właściciela ośrodka o nowy link.",
+          { exact: true },
+        ),
+      ).toBeVisible();
       await expect(strangerPage.getByRole("button", { name: "Załóż konto" })).toHaveCount(0);
     } finally {
       await stranger.close();

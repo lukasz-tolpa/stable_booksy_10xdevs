@@ -4,24 +4,28 @@ import { composeInstructorList } from "@/lib/instructors/list";
 /** 2030-05-14, 12:30 w Warszawie (czas letni, UTC+2). */
 const NOW = new Date("2030-05-14T10:30:00Z");
 
-const OWNER_ACCOUNT = "11111111-1111-1111-1111-111111111111";
+const marek = { id: 4, name: "Marek Dębowski", active: true };
+const joanna = { id: 1, name: "Joanna Wrona", active: true };
+const karol = { id: 2, name: "Karol Jasny", active: false };
+const tomasz = { id: 3, name: "Tomasz Lis", active: false };
+const ewa = { id: 5, name: "Ewa Rzecka", active: true };
 
-const marek = { id: 4, name: "Marek Dębowski", active: true, account_id: OWNER_ACCOUNT };
-const joanna = { id: 1, name: "Joanna Wrona", active: true, account_id: null };
-const karol = { id: 2, name: "Karol Jasny", active: false, account_id: null };
-const tomasz = { id: 3, name: "Tomasz Lis", active: false, account_id: null };
-const ewa = { id: 5, name: "Ewa Rzecka", active: true, account_id: "22222222-2222-2222-2222-222222222222" };
+/** Konta instruktorów ośrodka (`list_instructor_accounts`): Marek to właściciel, Ewa ma konto bez praw właściciela. */
+const ACCOUNTS = [
+  { instructor_id: marek.id, owner: true },
+  { instructor_id: ewa.id, owner: false },
+];
 
 describe("composeInstructorList", () => {
   it("dzieli instruktorów na aktywnych i nieaktywnych, z zachowaniem kolejności listy", () => {
-    const list = composeInstructorList([joanna, karol, tomasz], [], [], OWNER_ACCOUNT, NOW);
+    const list = composeInstructorList([joanna, karol, tomasz], [], [], ACCOUNTS, NOW);
 
     expect(list.active.map((i) => i.name)).toEqual(["Joanna Wrona"]);
     expect(list.inactive.map((i) => i.name)).toEqual(["Karol Jasny", "Tomasz Lis"]);
   });
 
   it("oznacza właściciela — instruktora powiązanego z kontem właściciela ośrodka — i tylko jego", () => {
-    const list = composeInstructorList([joanna, marek], [], [], OWNER_ACCOUNT, NOW);
+    const list = composeInstructorList([joanna, marek], [], [], ACCOUNTS, NOW);
 
     expect(list.active.map((i) => [i.name, i.owner])).toEqual([
       ["Joanna Wrona", false],
@@ -30,7 +34,7 @@ describe("composeInstructorList", () => {
   });
 
   it("instruktor z kontem innym niż konto właściciela nie jest właścicielem", () => {
-    expect(composeInstructorList([ewa], [], [], OWNER_ACCOUNT, NOW).active[0]?.owner).toBe(false);
+    expect(composeInstructorList([ewa], [], [], ACCOUNTS, NOW).active[0]?.owner).toBe(false);
   });
 
   it("nieaktywny z wystawionymi miejscami dostaje notkę z liczbą dni, bez miejsc — żadnej", () => {
@@ -43,7 +47,7 @@ describe("composeInstructorList", () => {
         { instructorId: joanna.id, day: "2030-05-15", hour: 10 },
       ],
       [],
-      OWNER_ACCOUNT,
+      ACCOUNTS,
       NOW,
     );
 
@@ -54,7 +58,7 @@ describe("composeInstructorList", () => {
   });
 
   it("pusta lista daje dwie puste grupy", () => {
-    expect(composeInstructorList([], [], [], OWNER_ACCOUNT, NOW)).toEqual({ active: [], inactive: [] });
+    expect(composeInstructorList([], [], [], [], NOW)).toEqual({ active: [], inactive: [] });
   });
 });
 
@@ -68,7 +72,7 @@ describe("composeInstructorList — stan konta", () => {
   };
 
   it("przy każdym aktywnym: z kontem, zaproszenie ważne do dnia (w Warszawie) z adresem albo bez konta", () => {
-    const list = composeInstructorList([marek, ewa, joanna, karolActive], [], [joannaInvitation], OWNER_ACCOUNT, NOW);
+    const list = composeInstructorList([marek, ewa, joanna, karolActive], [], [joannaInvitation], ACCOUNTS, NOW);
 
     expect(list.active.map((i) => [i.name, i.account])).toEqual([
       ["Marek Dębowski", { kind: "account", label: "Z kontem" }],
@@ -83,7 +87,7 @@ describe("composeInstructorList — stan konta", () => {
       [karol],
       [],
       [{ instructor_id: karol.id, email: "karol@example.com", expires_at: "2030-05-20T10:00:00Z" }],
-      OWNER_ACCOUNT,
+      ACCOUNTS,
       NOW,
     );
 
@@ -95,10 +99,20 @@ describe("composeInstructorList — stan konta", () => {
       [ewa],
       [],
       [{ instructor_id: ewa.id, email: "ewa@example.com", expires_at: "2030-05-20T10:00:00Z" }],
-      OWNER_ACCOUNT,
+      ACCOUNTS,
       NOW,
     );
 
     expect(list.active[0]?.account.kind).toBe("account");
+  });
+
+  it("zaproszenie: „Zaproś” z pustym adresem bez konta, „Zaproś ponownie” z adresem poprzedniego, bez przycisku z kontem", () => {
+    const list = composeInstructorList([marek, joanna, karolActive], [], [joannaInvitation], ACCOUNTS, NOW);
+
+    expect(list.active.map((i) => [i.name, i.invite])).toEqual([
+      ["Marek Dębowski", null],
+      ["Joanna Wrona", { summary: "Zaproś ponownie", defaultEmail: "joanna@example.com" }],
+      ["Karol Jasny", { summary: "Zaproś", defaultEmail: "" }],
+    ]);
   });
 });

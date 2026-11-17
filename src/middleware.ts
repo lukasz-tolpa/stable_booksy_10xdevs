@@ -12,6 +12,7 @@ import {
 } from "@/lib/auth/roles";
 import { currentUser, resolveRole, signOutUser } from "@/lib/auth/session";
 import { withSecurityHeaders } from "@/lib/http/security-headers";
+import { getOwnInstructor } from "@/lib/instructors/queries";
 import { logError } from "@/lib/log";
 import { createClient } from "@/lib/supabase";
 import type { UserRole } from "@/types";
@@ -60,25 +61,16 @@ async function guardSessionAndRoute(context: APIContext, next: MiddlewareNext): 
 
       // Powiązanie konta z instruktorem i właściciel jego ośrodka. Na każdej trasie, nie tylko
       // chronionej: górny pasek pokazuje „Mój panel” i pigułkę roli według tego, kim konto jest.
-      // Wiersz instruktora konto widzi zawsze (RLS: account_id), ośrodek - gdy instruktor aktywny.
+      // Swojego instruktora konto widzi zawsze (`my_instructor`), ośrodek - gdy instruktor aktywny.
       // `active` odróżnia instruktora zdezaktywowanego, który dostaje ekran nieaktywnego konta (#73).
       if (userRole === "instructor") {
-        const link = await supabase
-          .from("instructors")
-          .select("active, stables(owner_id)")
-          .eq("account_id", session.user.id)
-          .maybeSingle();
+        const { instructor, error } = await getOwnInstructor(supabase);
 
-        if (link.error) {
-          logError("auth:session", link.error);
+        if (error) {
+          logError("auth:session", error);
           sessionProblem = OUTAGE_MESSAGE;
         } else {
-          standing = instructorStandingOf(
-            // Wygenerowane typy obiecują ośrodek (FK not-null), ale RLS ukrywa go zdezaktywowanemu.
-            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-            link.data ? { active: link.data.active, stableOwnerId: link.data.stables?.owner_id ?? null } : null,
-            session.user.id,
-          );
+          standing = instructorStandingOf(instructor, session.user.id);
           context.locals.instructorStanding = standing;
         }
       }

@@ -6,6 +6,7 @@ import Topbar from "@/components/Topbar.astro";
 import Card from "@/components/ui/Card.astro";
 import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
+import Tag from "@/components/ui/Tag.astro";
 import { ROLE_HOME } from "@/lib/auth/roles";
 import { getRiderBookings } from "@/lib/bookings/queries";
 import { splitRiderBookings, type RiderBookingSections } from "@/lib/bookings/rider-list";
@@ -133,7 +134,7 @@ function formatDay(day: string): string {
                     {row.horseLabel && <span class="row__sub">{row.horseLabel}</span>}
                     {/* Cały tekst tego elementu to samo słowo - scenariusz odwołania
                         szuka wiersza po dokładnym dopasowaniu. */}
-                    {row.status === "cancelled" && <span class="tag">odwołany</span>}
+                    {row.status === "cancelled" && <Tag>odwołany</Tag>}
                     {row.cancelledByLabel && <span class="row__sub">{row.cancelledByLabel}</span>}
                   </span>
                 </li>
@@ -263,18 +264,6 @@ function formatDay(day: string): string {
   .rows--history .row__when,
   .rows--history .row__horse {
     font-weight: 500;
-    color: var(--muted);
-  }
-
-  /* Neutralna pigułka - świadomie NIE kasztanowa, żeby nie czytała się jak akcent. */
-  .tag {
-    display: inline-flex;
-    align-items: center;
-    padding: 3px 9px;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 600;
-    background: var(--surface-3);
     color: var(--muted);
   }
 

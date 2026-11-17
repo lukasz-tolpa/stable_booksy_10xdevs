@@ -1,25 +1,18 @@
 import type { APIRoute } from "astro";
-import { SIGN_IN_ROUTE } from "@/lib/auth/roles";
 import { firstErrorMessage } from "@/lib/auth/schemas";
 import { errorCode } from "@/lib/db-errors";
 import { formValue } from "@/lib/form-data";
-import {
-  INSTRUCTOR_NO_STABLE,
-  INVITATION_FAILED,
-  invitationErrorMessage,
-  isExpectedInvitationRefusal,
-} from "@/lib/instructors/errors";
+import { INVITATION_FAILED, invitationErrorMessage, isExpectedInvitationRefusal } from "@/lib/instructors/errors";
 import {
   encodeInvitationFlash,
   INVITATION_FLASH_COOKIE,
   INVITATION_FLASH_MAX_AGE,
 } from "@/lib/instructors/invitations";
+import { ownerRequest } from "@/lib/instructors/owner-request";
 import { issueInvitation } from "@/lib/instructors/queries";
 import { backToInstructors, INSTRUCTORS_ROUTE } from "@/lib/instructors/redirect";
 import { inviteInstructorSchema } from "@/lib/instructors/schemas";
 import { logError } from "@/lib/log";
-import { getOwnedStableId } from "@/lib/stables/queries";
-import { createClient } from "@/lib/supabase";
 
 export const prerender = false;
 
@@ -41,26 +34,13 @@ export const POST: APIRoute = async (context) => {
     return backToInstructors(context, firstErrorMessage(parsed.error));
   }
 
-  const supabase = createClient(context.request.headers, context.cookies);
-  if (!supabase) {
-    return backToInstructors(context, "Supabase nie jest skonfigurowany");
+  // Jawne sprawdzenie właściciela obok bazy, która i tak bierze ośrodek z sesji (42501, SB013).
+  const owner = await ownerRequest(context, "api:instructors/invite");
+  if (owner instanceof Response) {
+    return owner;
   }
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return context.redirect(SIGN_IN_ROUTE);
-  }
-
-  // Jawne sprawdzenie obok bazy, która i tak bierze ośrodek z sesji (42501, SB013).
-  const stableId = await getOwnedStableId(supabase, user.id);
-  if (stableId === null) {
-    return backToInstructors(context, INSTRUCTOR_NO_STABLE);
-  }
-
-  const { invitation, error } = await issueInvitation(supabase, parsed.data.instructorId, parsed.data.email);
+  const { invitation, error } = await issueInvitation(owner.supabase, parsed.data.instructorId, parsed.data.email);
 
   if (error) {
     const code = errorCode(error);
