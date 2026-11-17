@@ -14,6 +14,11 @@ import { INSTRUCTOR_EMAIL, PASSWORD, STABLE_STATE, asError, hourSection, waitFor
  */
 const INSTRUCTOR = "Joanna Wrona";
 const INACTIVE_HEADING = "Konto nieaktywne";
+// Przekierowania sprawdza `toHaveURL` (limit asercji), nie `waitForURL` (limit całego testu):
+// przy złym przekierowaniu scenariusz pada od razu z adresem w komunikacie, a `finally` zdąży
+// aktywować Joannę z powrotem.
+const INACTIVE_URL = /\/instruktor\/konto-nieaktywne$/;
+const MY_SLOTS_URL = /\/instruktor$/;
 
 function instructorCard(page: Page) {
   return page.getByRole("article").filter({ has: page.getByRole("heading", { name: INSTRUCTOR, exact: true }) });
@@ -58,7 +63,7 @@ test("zdezaktywowany instruktor widzi ekran nieaktywnego konta, a ponowna aktywa
 
     await test.step("po zalogowaniu instruktorka trafia na ekran nieaktywnego konta", async () => {
       await signInAsInstructor(page);
-      await page.waitForURL("**/instruktor/konto-nieaktywne");
+      await expect(page).toHaveURL(INACTIVE_URL);
       await expect(page.getByRole("heading", { level: 1, name: INACTIVE_HEADING })).toBeVisible();
       await expect(page.getByRole("banner").getByText("Instruktor", { exact: true })).toBeVisible();
     });
@@ -66,18 +71,18 @@ test("zdezaktywowany instruktor widzi ekran nieaktywnego konta, a ponowna aktywa
     await test.step("każda trasa chroniona prowadzi na ten sam ekran", async () => {
       for (const path of ["/instruktor", "/osrodek", "/osrodek/zapisy", "/osrodek/nowa-stadnina", "/dashboard"]) {
         await page.goto(path);
-        await page.waitForURL("**/instruktor/konto-nieaktywne");
+        await expect(page).toHaveURL(INACTIVE_URL);
         await expect(page.getByRole("heading", { level: 1, name: INACTIVE_HEADING })).toBeVisible();
       }
     });
 
     await test.step("„Wyloguj się” na karcie kończy sesję", async () => {
       await page.getByRole("main").getByRole("button", { name: "Wyloguj się", exact: true }).click();
-      await page.waitForURL((url) => url.pathname === "/");
+      await expect(page).toHaveURL((url) => url.pathname === "/");
       await expect(page.getByRole("banner").getByRole("link", { name: "Zaloguj się" })).toBeVisible();
 
       await page.goto("/instruktor/konto-nieaktywne");
-      await page.waitForURL("**/auth/signin");
+      await expect(page).toHaveURL(/\/auth\/signin$/);
     });
 
     await test.step("ponowna aktywacja przywraca „Moje sloty” bez nowego zaproszenia", async () => {
@@ -85,12 +90,12 @@ test("zdezaktywowany instruktor widzi ekran nieaktywnego konta, a ponowna aktywa
       state.deactivated = false;
 
       await signInAsInstructor(page);
-      await page.waitForURL("**/instruktor");
+      await expect(page).toHaveURL(MY_SLOTS_URL);
       await expect(page.getByRole("heading", { level: 1, name: "Moje sloty" })).toBeVisible();
       await expect(hourSection(page, 11).getByText("zajęte 1 z 1", { exact: true })).toBeVisible();
 
       await page.goto("/instruktor/konto-nieaktywne");
-      await page.waitForURL((url) => url.pathname === "/instruktor");
+      await expect(page).toHaveURL(MY_SLOTS_URL);
     });
   } catch (error) {
     failure = asError(error);
@@ -102,7 +107,9 @@ test("zdezaktywowany instruktor widzi ekran nieaktywnego konta, a ponowna aktywa
         failure ??= asError(cleanupError);
       }
     }
-    await ownerContext.close();
+    await ownerContext.close().catch((closeError: unknown) => {
+      failure ??= asError(closeError);
+    });
   }
 
   if (failure) {
