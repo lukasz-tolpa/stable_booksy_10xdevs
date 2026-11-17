@@ -79,6 +79,7 @@ run_one "schedule_day_save.sql" run_sql schedule_day_save.sql
 run_one "booking_seats.sql" run_sql booking_seats.sql
 run_one "stable_booking_actions.sql" run_sql stable_booking_actions.sql
 run_one "stable_owner_account.sql" run_sql stable_owner_account.sql
+run_one "instructor_invitations.sql" run_sql instructor_invitations.sql
 run_one "concurrent_seat_booking.sh" bash "$SCRIPT_DIR/concurrent_seat_booking.sh"
 
 echo

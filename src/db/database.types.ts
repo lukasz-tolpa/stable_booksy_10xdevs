@@ -141,6 +141,57 @@ export type Database = {
           },
         ]
       }
+      instructor_invitations: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          id: number
+          instructor_id: number
+          revoked_at: string | null
+          stable_id: number
+          token_hash: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: never
+          instructor_id: number
+          revoked_at?: string | null
+          stable_id: number
+          token_hash: string
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: never
+          instructor_id?: number
+          revoked_at?: string | null
+          stable_id?: number
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instructor_invitations_instructor_fkey"
+            columns: ["instructor_id", "stable_id"]
+            isOneToOne: false
+            referencedRelation: "instructors"
+            referencedColumns: ["id", "stable_id"]
+          },
+          {
+            foreignKeyName: "instructor_invitations_stable_id_fkey"
+            columns: ["stable_id"]
+            isOneToOne: false
+            referencedRelation: "stables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       instructors: {
         Row: {
           account_id: string | null
@@ -394,6 +445,25 @@ export type Database = {
           instructor_id: number
           taken: number
         }[]
+      }
+      issue_instructor_invitation: {
+        Args: { p_email: string; p_instructor_id: number }
+        Returns: {
+          expires_at: string
+          token: string
+        }[]
+      }
+      list_instructor_invitations: {
+        Args: never
+        Returns: {
+          email: string
+          expires_at: string
+          instructor_id: number
+        }[]
+      }
+      revoke_instructor_invitation: {
+        Args: { p_instructor_id: number }
+        Returns: boolean
       }
       save_schedule_day: {
         Args: {
