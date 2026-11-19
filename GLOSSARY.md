@@ -11,7 +11,7 @@ Nazwa produktu, w tekście zawsze małymi literami i z kropką, taka sama jak ad
 _Avoid_: Stable Booksy, Get On A Horse, GetOna, Getona
 
 **Ośrodek**:
-Stadnina, w której pracują instruktorzy; jeden z nich jest jej właścicielem. Gdy mowa, że coś robi ośrodek (układa grafik, przydziela konia, odwołuje zapis), robi to właściciel — a grafik także instruktor z uprawnieniem do układania grafiku.
+Stadnina, w której pracują instruktorzy; jeden z nich jest jej właścicielem. Gdy mowa, że coś robi ośrodek (układa grafik, przydziela konia, odwołuje zapis), robi to właściciel — a grafik także instruktor z uprawnieniem do układania grafiku, konia zaś także instruktor przy zapisach na swoje sloty.
 _Avoid_: stajnia, klub
 
 **Jeździec**:
@@ -19,7 +19,7 @@ Osoba z kontem, która zapisuje się na jazdy w ośrodkach. Konto jeźdźca nigd
 _Avoid_: uczeń, kursant, klient
 
 **Instruktor**:
-Osoba prowadząca jazdy w ośrodku. Może mieć konto, założone z zaproszenia właściciela; konto instruktora należy do jednego ośrodka, a instruktor z kontem widzi swoje sloty z zapisanymi jeźdźcami. Instruktor bez konta też prowadzi jazdy — jego grafik układa ośrodek. Nazwa instruktora jest unikalna w ośrodku i nie zmienia się. Instruktora się dezaktywuje, nie usuwa: nie można go dodać do nowego dnia, ale zostaje w dniach już ułożonych i przy dawnych zapisach. Dezaktywacja odbiera też dostęp do jego konta i uprawnienie do układania grafiku; ponowna aktywacja nie przywraca uprawnienia.
+Osoba prowadząca jazdy w ośrodku. Może mieć konto, założone z zaproszenia właściciela; konto instruktora należy do jednego ośrodka, a instruktor z kontem widzi swoje sloty z zapisanymi jeźdźcami i przydziela im konie. Instruktor bez konta też prowadzi jazdy — jego grafik układa ośrodek. Nazwa instruktora jest unikalna w ośrodku i nie zmienia się. Instruktora się dezaktywuje, nie usuwa: nie można go dodać do nowego dnia, ale zostaje w dniach już ułożonych i przy dawnych zapisach. Dezaktywacja odbiera też dostęp do jego konta i uprawnienie do układania grafiku; ponowna aktywacja nie przywraca uprawnienia.
 _Avoid_: trener, prowadzący
 
 **Właściciel**:
@@ -58,7 +58,7 @@ Jedno miejsce w slocie zajęte przez jednego jeźdźca; jest aktywny albo odwoł
 _Avoid_: rezerwacja, booking
 
 **Przydział konia**:
-Wskazanie przez ośrodek konia do zapisu — w dowolnym momencie, także po terminie. Koń ma najwyżej jednego jeźdźca w danej godzinie; zapis może pozostać bez konia. Jeździec widzi przydzielonego konia przy swoim zapisie.
+Wskazanie konia do zapisu przez ośrodek albo przez instruktora z kontem, gdy zapis jest na jego slot — w dowolnym momencie, także po terminie. Koń pochodzi z koni pracujących tego dnia. Koń ma najwyżej jednego jeźdźca w danej godzinie; zapis może pozostać bez konia. Jeździec widzi przydzielonego konia przy swoim zapisie.
 _Avoid_: wybór konia
 
 **Jazda**:

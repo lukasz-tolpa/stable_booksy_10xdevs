@@ -23,3 +23,4 @@ Pierwotnie slot był parą koń × godzina i jeździec sam wybierał konia, wię
 - Dezaktywacja instruktora nie jest odmawiana i nie rusza dni już ułożonych: jego sloty zostają otwarte na zapisy, dopóki ośrodek sam nie wyzeruje limitów. Nieaktywnego instruktora nie da się dodać do dnia, w którym go nie było.
 - Grafik dnia zapisuje jedna funkcja w bazie, w jednej transakcji, i jest to jedyna droga zapisu — bezpośredni zapis do tabel grafiku jest odebrany. Reguła sumy limitów jest oceniana na stanie końcowym w tej funkcji.
 - Zapisanie jeźdźca przez ośrodek i przenoszenie zapisów między slotami pozostają poza zakresem.
+- Częściowo zastąpione przez KAN-93: konia przydziela ośrodek albo instruktor z kontem przy zapisach na swoje sloty.
