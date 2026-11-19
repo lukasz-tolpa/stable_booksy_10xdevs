@@ -224,3 +224,35 @@ describe("odmowy grafiku dla instruktora z uprawnieniem", () => {
     expect(isScheduleRefusal(SEATS_EXCEED_HORSES, "instructor")).toBe(true);
   });
 });
+
+describe("dopisek o właścicielu przy odmowach, których instruktor nie rozwiąże", () => {
+  const HINT = "Odwołać zapis albo zmienić przydział konia może właściciel.";
+
+  it("limit poniżej liczby zapisów: instruktor widzi szczegóły odmowy i dopisek o właścicielu", () => {
+    expect(scheduleErrorMessage(SEATS_BELOW_BOOKINGS, '{"hour": 15, "seats": 1, "bookings": 2}', "instructor")).toBe(
+      "O 15:00 limit miejsc (1) jest niższy niż liczba aktywnych zapisów w slocie (2). Podnieś limit albo najpierw doprowadź do odwołania zapisów. Odwołać zapis albo zmienić przydział konia może właściciel.",
+    );
+  });
+
+  it("kolidujące zapisy i przydziały koni: u instruktora komunikat właściciela z dopiskiem", () => {
+    const cases: [string, string | undefined][] = [
+      [SCHEDULE_DATE_CONFLICT, '{"bookings": 2}'],
+      [SCHEDULE_HOURS_CONFLICT, '{"bookings": 1}'],
+      [HORSE_HAS_BOOKINGS, undefined],
+      [FOREIGN_KEY_VIOLATION, undefined],
+      [SEATS_BELOW_BOOKINGS, undefined],
+      [INSTRUCTOR_HAS_BOOKINGS, '{"bookings": 3}'],
+    ];
+    for (const [code, detail] of cases) {
+      const owner = scheduleErrorMessage(code, detail, "owner");
+      expect(owner).not.toContain("może właściciel");
+      expect(scheduleErrorMessage(code, detail, "instructor")).toBe(`${owner} ${HINT}`);
+    }
+  });
+
+  it("odmowy, które instruktor rozwiąże sam, nie mają dopisku", () => {
+    for (const code of [SEATS_EXCEED_HORSES, HORSE_NOT_IN_STABLE, INSTRUCTOR_INACTIVE, SCHEDULE_DAY_PAST]) {
+      expect(scheduleErrorMessage(code, undefined, "instructor")).not.toContain("może właściciel");
+    }
+  });
+});

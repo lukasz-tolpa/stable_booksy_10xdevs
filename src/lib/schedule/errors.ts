@@ -10,8 +10,8 @@
  *
  * Grafik układa właściciel albo instruktor z uprawnieniem do układania grafiku (#79). Kto zapisuje,
  * mówi `ScheduleCaller` — trzeci argument `scheduleErrorMessage` i drugi `isScheduleRefusal`.
- * Komunikat zależny od wywołującego dopisuje się w gałęzi kodu przez `caller` (#80: dopisek
- * o właścicielu przy kolidujących zapisach i przydziałach koni).
+ * Komunikat zależny od wywołującego dopisuje się w gałęzi kodu przez `caller` — tak dochodzi dopisek
+ * o właścicielu przy kolidujących zapisach i przydziałach koni (#80).
  */
 
 import { formatClockHour } from "@/lib/format";
@@ -53,6 +53,12 @@ export const SCHEDULE_PERMISSION_MISSING = "42501";
 export type ScheduleCaller = "owner" | "instructor";
 
 const FALLBACK = "Nie udało się zapisać grafiku. Spróbuj ponownie.";
+
+/**
+ * Dopisek dla instruktora przy odmowach, które rozwiązuje odwołanie zapisu albo zmiana przydziału
+ * konia — obie czynności zostają przy właścicielu (#80).
+ */
+const OWNER_RESOLVES = "Odwołać zapis albo zmienić przydział konia może właściciel.";
 
 const REFUSAL_CODES = new Set<string>([
   SCHEDULE_DATE_CONFLICT,
@@ -160,17 +166,19 @@ export function scheduleErrorMessage(
   const howMany = count === null ? " aktywne zapisy" : ` ${String(count)} ${pluralizeBookings(count)}`;
   // Przy jednym zapisie „ich odwołania" brzmi jak błąd - zaimek musi iść za liczbą.
   const theirCancellation = count === 1 ? "jego odwołania" : "ich odwołania";
+  // Kolidujące zapisy i przydziały koni rozwiązuje właściciel - instruktor dostaje wskazówkę, do kogo iść.
+  const ownerHint = caller === "instructor" ? ` ${OWNER_RESOLVES}` : "";
 
   switch (code) {
     case SCHEDULE_HOURS_CONFLICT:
-      return `Nie można zawęzić godzin pracy — poza nowym zakresem znalazłoby się${howMany}. Najpierw doprowadź do ${theirCancellation}.`;
+      return `Nie można zawęzić godzin pracy — poza nowym zakresem znalazłoby się${howMany}. Najpierw doprowadź do ${theirCancellation}.${ownerHint}`;
     case SCHEDULE_DATE_CONFLICT:
-      return `Nie można zmienić daty dnia, który ma${howMany}.`;
+      return `Nie można zmienić daty dnia, który ma${howMany}.${ownerHint}`;
     case HORSE_NOT_IN_STABLE:
       return "Wybrany koń nie należy do Twojej stadniny.";
     case HORSE_HAS_BOOKINGS:
     case FOREIGN_KEY_VIOLATION:
-      return "Nie można wypisać konia, który jest przydzielony do zapisu w tym dniu. Najpierw zmień przydział konia albo doprowadź do odwołania zapisu.";
+      return `Nie można wypisać konia, który jest przydzielony do zapisu w tym dniu. Najpierw zmień przydział konia albo doprowadź do odwołania zapisu.${ownerHint}`;
     case INSTRUCTOR_NOT_IN_STABLE:
       return "Wybrany instruktor nie należy do Twojego ośrodka.";
     case INSTRUCTOR_INACTIVE:
@@ -185,11 +193,11 @@ export function scheduleErrorMessage(
       const { hour, seats } = detail;
       const advice = "Podnieś limit albo najpierw doprowadź do odwołania zapisów.";
       return hour !== undefined && seats !== undefined && count !== null
-        ? `O ${formatClockHour(hour)} limit miejsc (${String(seats)}) jest niższy niż liczba aktywnych zapisów w slocie (${String(count)}). ${advice}`
-        : `W jednym ze slotów limit miejsc jest niższy niż liczba aktywnych zapisów. ${advice}`;
+        ? `O ${formatClockHour(hour)} limit miejsc (${String(seats)}) jest niższy niż liczba aktywnych zapisów w slocie (${String(count)}). ${advice}${ownerHint}`
+        : `W jednym ze slotów limit miejsc jest niższy niż liczba aktywnych zapisów. ${advice}${ownerHint}`;
     }
     case INSTRUCTOR_HAS_BOOKINGS:
-      return `Nie można wypisać z dnia instruktora, który ma w nim ${count === null ? "aktywne zapisy" : activeBookings(count)}. Najpierw doprowadź do ${theirCancellation}.`;
+      return `Nie można wypisać z dnia instruktora, który ma w nim ${count === null ? "aktywne zapisy" : activeBookings(count)}. Najpierw doprowadź do ${theirCancellation}.${ownerHint}`;
     case SCHEDULE_DAY_PAST:
       return "Nie można układać grafiku na przeszłe dni";
     case SCHEDULE_PERMISSION_MISSING:

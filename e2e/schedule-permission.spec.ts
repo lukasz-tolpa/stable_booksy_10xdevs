@@ -16,11 +16,19 @@ import { INSTRUCTOR_EMAIL, PASSWORD, STABLE_STATE, asError, seedDay, waitForIsla
  * widzi zmianę w swoim grafiku. Właściciel odbiera uprawnienie przy otwartym formularzu Joanny —
  * jej zapis kończy się odmową w „Moje sloty”, a zakładka znika. Sprzątanie przywraca limit 1
  * (formularzem właściciela) i wyłącza przełącznik, gdy mogły zostać zmienione.
+ *
+ * W nim także #80 (US 13): Joanna obniża swój limit o 11:00 poniżej zapisu Anny — odmowa (SB010)
+ * pokazuje jej te same szczegóły co właścicielowi i dopisek o właścicielu. Odmowa niczego nie
+ * zapisuje, więc nie potrzebuje sprzątania; Joanna@11 tylko czyta zapis Anny.
  */
 const INSTRUCTORS = "/osrodek/instruktorzy";
 const OWNER_SCHEDULE = "/osrodek/grafik";
 const INSTRUCTOR_SCHEDULE = "/instruktor/grafik";
 const SEATS_HOUR = 15;
+/** Godzina zapisu Anny u Joanny w seedzie — obniżenie limitu pod nią to odmowa SB010. */
+const BOOKED_HOUR = 11;
+const SEATS_BELOW_BOOKING =
+  "O 11:00 limit miejsc (0) jest niższy niż liczba aktywnych zapisów w slocie (1). Podnieś limit albo najpierw doprowadź do odwołania zapisów. Odwołać zapis albo zmienić przydział konia może właściciel.";
 const PERMISSION_LOST = "Nie masz już uprawnienia do układania grafiku";
 const INSTRUCTOR = "Joanna Wrona";
 const OWNER = "Marek Dębowski";
@@ -57,14 +65,14 @@ function instructorTabs(page: Page) {
   return page.getByRole("navigation", { name: "Przestrzeń instruktora", exact: true });
 }
 
-function seatsInput(page: Page) {
-  return page.getByLabel(`${INSTRUCTOR}, ${String(SEATS_HOUR)}:00`, { exact: true });
+function seatsInput(page: Page, hour: number = SEATS_HOUR) {
+  return page.getByLabel(`${INSTRUCTOR}, ${String(hour)}:00`, { exact: true });
 }
 
-/** Ustawia limit Joanny o 15:00 w otwartym formularzu dnia seeda i zapisuje go. */
-async function saveSeats(page: Page, seats: number): Promise<void> {
+/** Ustawia limit Joanny o danej godzinie (domyślnie 15:00) w otwartym formularzu dnia seeda i zapisuje go. */
+async function saveSeats(page: Page, seats: number, hour: number = SEATS_HOUR): Promise<void> {
   await waitForIslands(page);
-  await seatsInput(page).fill(String(seats));
+  await seatsInput(page, hour).fill(String(seats));
   await page.getByRole("button", { name: "Zapisz grafik" }).click();
 }
 
@@ -120,6 +128,17 @@ test("instruktorka z uprawnieniem układa grafik w zakładce „Grafik”, po od
       await instructorTabs(joanna).getByRole("link", { name: "Grafik", exact: true }).click();
       await expect(joanna).toHaveURL((url) => url.pathname === INSTRUCTOR_SCHEDULE);
       await expect(joanna.getByRole("heading", { level: 1, name: "Grafik dnia" })).toBeVisible();
+    });
+
+    await test.step("limit poniżej zapisu Anny: Joanna widzi szczegóły odmowy i dopisek o właścicielu", async () => {
+      await joanna.goto(scheduleOfSeedDay);
+      await expect(seatsInput(joanna, BOOKED_HOUR)).toHaveValue("1");
+      await saveSeats(joanna, 0, BOOKED_HOUR);
+      await expect(joanna).toHaveURL(
+        (url) => url.pathname === INSTRUCTOR_SCHEDULE && url.searchParams.get("dzien") === seedDay(),
+      );
+      await expect(joanna.getByText(SEATS_BELOW_BOOKING, { exact: true })).toBeVisible();
+      await expect(seatsInput(joanna, BOOKED_HOUR)).toHaveValue("1");
     });
 
     await test.step("Joanna zmienia limit w grafiku dnia i zapisuje, właściciel widzi zmianę", async () => {
