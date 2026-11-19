@@ -1,0 +1,96 @@
+---
+// Przełącznik „Układa grafik” na stronie Instruktorzy (#78). Formularz POST bez JavaScriptu:
+// przycisk wysyła stan przeciwny do bieżącego, więc kliknięcie nadaje albo odbiera uprawnienie.
+// Kiedy przełącznik się pokazuje i w jakim stanie, mówi model widoku (`composeInstructorList`).
+interface Props {
+  instructorId: number;
+  instructorName: string;
+  granted: boolean;
+}
+
+const { instructorId, instructorName, granted } = Astro.props;
+---
+
+<form method="POST" action="/api/instructors/schedule-permission" class="permission">
+  <input type="hidden" name="instructorId" value={instructorId} />
+  <input type="hidden" name="granted" value={granted ? "false" : "true"} />
+  <button
+    type="submit"
+    role="switch"
+    aria-checked={granted ? "true" : "false"}
+    aria-label={`Układa grafik — ${instructorName}`}
+  >
+    <span class="track" aria-hidden="true"><span class="knob"></span></span>
+    <span>Układa grafik</span>
+  </button>
+  <p class="hint">
+    {
+      granted
+        ? "Ustawia konie pracujące i limity miejsc wszystkich instruktorów."
+        : "Włącz, żeby układał grafik dnia tak jak Ty."
+    }
+  </p>
+</form>
+
+<style>
+  .permission {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 12px;
+  }
+  button {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    padding: 0;
+    border: 0;
+    background: none;
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--fg);
+    cursor: pointer;
+  }
+  button:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 4px;
+    border-radius: 999px;
+  }
+  .track {
+    position: relative;
+    flex-shrink: 0;
+    width: 40px;
+    height: 24px;
+    border-radius: 999px;
+    border: 1px solid var(--border-2);
+    background: var(--surface-3);
+    transition:
+      background 0.15s,
+      border-color 0.15s;
+  }
+  .knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+    transition: left 0.15s;
+  }
+  button[aria-checked="true"] .track {
+    background: var(--primary);
+    border-color: var(--primary);
+  }
+  button[aria-checked="true"] .knob {
+    left: 18px;
+  }
+  .hint {
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
+  }
+</style>

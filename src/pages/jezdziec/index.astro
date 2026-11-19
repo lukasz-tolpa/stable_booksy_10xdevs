@@ -1,6 +1,7 @@
 ---
 import Layout from "@/layouts/Layout.astro";
 import Topbar from "@/components/Topbar.astro";
+import GhostButton from "@/components/ui/GhostButton.astro";
 import StableCard from "@/components/stables/StableCard.astro";
 import StableFilter from "@/components/stables/StableFilter.astro";
 import Card from "@/components/ui/Card.astro";
@@ -43,7 +44,7 @@ const isEmpty = stables.length === 0;
   <main class="container-narrow page">
     <div class="page-head">
       <h1>Ośrodki</h1>
-      <a href="/jezdziec/zapisy" class="btn-ghost">Moje zapisy</a>
+      <GhostButton href="/jezdziec/zapisy">Moje zapisy</GhostButton>
     </div>
     <p class="page-lead">Wybierz ośrodek, w którym chcesz się zapisać na jazdę.</p>
 
@@ -103,32 +104,6 @@ const isEmpty = stables.length === 0;
     font-size: 15.5px;
     color: var(--muted);
     max-width: 62ch;
-  }
-
-  .btn-ghost {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 44px;
-    padding: 11px 18px;
-    border-radius: 999px;
-    border: 1px solid var(--border-2);
-    background: var(--surface);
-    font-family: var(--font-display);
-    font-size: 15px;
-    font-weight: 600;
-    line-height: 1;
-    color: var(--fg);
-    transition:
-      background 0.15s,
-      border-color 0.15s;
-  }
-  .btn-ghost:hover {
-    background: var(--surface-2);
-  }
-  .btn-ghost:focus-visible {
-    outline: 2px solid var(--primary);
-    outline-offset: 2px;
   }
 
   .cards {

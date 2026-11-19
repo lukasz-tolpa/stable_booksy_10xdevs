@@ -190,6 +190,7 @@ export type Database = {
         Row: {
           account_id: string | null;
           active: boolean;
+          arranges_schedule: boolean;
           created_at: string;
           id: number;
           name: string;
@@ -198,6 +199,7 @@ export type Database = {
         Insert: {
           account_id?: string | null;
           active?: boolean;
+          arranges_schedule?: boolean;
           created_at?: string;
           id?: never;
           name: string;
@@ -206,6 +208,7 @@ export type Database = {
         Update: {
           account_id?: string | null;
           active?: boolean;
+          arranges_schedule?: boolean;
           created_at?: string;
           id?: never;
           name?: string;
@@ -428,6 +431,10 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      assign_my_slot_horse: {
+        Args: { p_booking_id: number; p_horse_id?: number };
+        Returns: undefined;
+      };
       create_stable: {
         Args: { p_city: string; p_instructor_name: string; p_name: string };
         Returns: number;
@@ -436,10 +443,21 @@ export type Database = {
         Args: { p_from: string };
         Returns: {
           anonymised: boolean;
+          booking_id: number;
           day: string;
+          horse_id: number;
           horse_name: string;
           hour: number;
           rider_name: string;
+        }[];
+      };
+      get_my_slot_horse_options: {
+        Args: { p_from: string };
+        Returns: {
+          booking_id: number;
+          horse_id: number;
+          horse_name: string;
+          taken: boolean;
         }[];
       };
       get_slot_occupancy: {
@@ -468,6 +486,7 @@ export type Database = {
       list_instructor_accounts: {
         Args: never;
         Returns: {
+          arranges_schedule: boolean;
           instructor_id: number;
           owner: boolean;
         }[];
@@ -484,6 +503,7 @@ export type Database = {
         Args: never;
         Returns: {
           active: boolean;
+          arranges_schedule: boolean;
           id: number;
           name: string;
           stable_name: string;
@@ -504,6 +524,11 @@ export type Database = {
           p_seats?: Json;
         };
         Returns: number;
+      };
+      schedule_stable_id: { Args: never; Returns: number };
+      set_schedule_permission: {
+        Args: { p_granted: boolean; p_instructor_id: number };
+        Returns: undefined;
       };
     };
     Enums: {

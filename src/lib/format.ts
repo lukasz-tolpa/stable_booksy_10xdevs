@@ -42,6 +42,20 @@ export function formatLongDate(iso: string): string {
   });
 }
 
+/**
+ * Dzień (`RRRR-MM-DD`) z dniem tygodnia i rokiem, np. `środa, 18 listopada 2026` — data w nawigacji
+ * dniami (grafik, zapisy dnia, strona ośrodka). Data kalendarzowa, więc w UTC, jak `formatLongDate`.
+ */
+export function formatLongDateWithYear(iso: string): string {
+  return new Date(`${iso}T00:00:00Z`).toLocaleDateString("pl-PL", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 const DAY_MONTH = new Intl.DateTimeFormat("pl-PL", { day: "numeric", month: "long", timeZone: SCHEDULE_TIME_ZONE });
 
 /** Dzień i miesiąc chwili w strefie ośrodka, np. `21 maja` — do terminów typu „ważne do …”. */

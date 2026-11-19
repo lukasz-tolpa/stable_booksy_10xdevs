@@ -7,6 +7,7 @@ import CopyLink from "@/components/instructors/CopyLink";
 import InstructorForm from "@/components/instructors/InstructorForm";
 import InstructorMeta from "@/components/instructors/InstructorMeta.astro";
 import InviteForm from "@/components/instructors/InviteForm";
+import SchedulePermissionSwitch from "@/components/instructors/SchedulePermissionSwitch.astro";
 import Card from "@/components/ui/Card.astro";
 import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
@@ -72,7 +73,8 @@ const { active, inactive } = list;
     <h1>Instruktorzy</h1>
     <p class="page-lead">
       Osoby prowadzące jazdy w Twoim ośrodku. Jesteś wśród nich jako właściciel i układasz grafik za wszystkich.
-      Instruktora bez konta możesz zaprosić — dostaniesz link, który przekażesz mu sam.
+      Instruktora bez konta możesz zaprosić — dostaniesz link, który przekażesz mu sam. Instruktorowi z kontem możesz
+      pozwolić układać grafik.
     </p>
 
     {
@@ -140,6 +142,16 @@ const { active, inactive } = list;
                         </form>
                       )}
                     </div>
+
+                    {instructor.schedulePermission && (
+                      <div class="instructor__row">
+                        <SchedulePermissionSwitch
+                          instructorId={instructor.id}
+                          instructorName={instructor.name}
+                          granted={instructor.schedulePermission.granted}
+                        />
+                      </div>
+                    )}
 
                     {instructor.invite && (
                       <div class="instructor__invite">
@@ -323,15 +335,20 @@ const { active, inactive } = list;
     border-color: var(--primary-tint);
   }
 
+  /* Wiersze pod danymi instruktora (przełącznik uprawnienia, zaproszenie) oddziela ta sama linia. */
+  .instructor__row,
+  .instructor__invite {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
   .instructor__invite {
     display: flex;
     flex-wrap: wrap;
     align-items: flex-start;
     gap: 10px;
-    margin-top: 14px;
-    padding-top: 14px;
-    border-top: 1px solid var(--border);
   }
+
   .instructor__invite :global(details[open]) {
     flex-basis: 100%;
   }

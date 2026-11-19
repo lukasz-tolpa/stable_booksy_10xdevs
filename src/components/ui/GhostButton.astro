@@ -1,0 +1,55 @@
+---
+// Przycisk ghost z DESIGN.md §5: pigułka na `--surface` z obrysem `--border-2`, hover `--primary-soft`.
+// Z `href` — link wyglądający jak przycisk, bez niego — `<button>` (domyślnie wysyła formularz).
+//
+// KONTRAKT: cały tekst elementu to podana treść — e2e szuka przycisków po dokładnej nazwie.
+interface Props {
+  href?: string;
+  type?: "submit" | "button";
+}
+
+const { href, type = "submit" } = Astro.props;
+---
+
+{
+  href ? (
+    <a href={href} class="btn-ghost">
+      <slot />
+    </a>
+  ) : (
+    <button type={type} class="btn-ghost">
+      <slot />
+    </button>
+  )
+}
+
+<style>
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 10px 15px;
+    border: 1px solid var(--border-2);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--fg);
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+      background 0.15s,
+      border-color 0.15s;
+  }
+  .btn-ghost:hover {
+    background: var(--primary-soft);
+  }
+  .btn-ghost:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+</style>

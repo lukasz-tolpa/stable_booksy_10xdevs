@@ -1,23 +1,31 @@
 ---
 import Layout from "@/layouts/Layout.astro";
+import Banner from "@/components/Banner.astro";
 import Topbar from "@/components/Topbar.astro";
+import InstructorTabs from "@/components/instructors/InstructorTabs.astro";
 import Card from "@/components/ui/Card.astro";
+import GhostButton from "@/components/ui/GhostButton.astro";
 import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
 import Tag from "@/components/ui/Tag.astro";
 import { formatClockHour, formatLongDate, formatTakenSeats } from "@/lib/format";
 import { composeMySlots, type MySlotsDay } from "@/lib/my-slots/compose";
 import { getOwnInstructor } from "@/lib/instructors/queries";
-import { getMySlotBookings, getMySlots } from "@/lib/my-slots/queries";
+import { getMySlotBookings, getMySlotHorseOptions, getMySlots } from "@/lib/my-slots/queries";
+import { mySlotsSuccessMessage } from "@/lib/my-slots/redirect";
+import { NO_HORSE } from "@/lib/bookings/rows";
 import { todayIso } from "@/lib/schedule/dates";
 import { createClient } from "@/lib/supabase";
 import { logError } from "@/lib/log";
 
 // „Moje sloty” instruktora, który nie jest właścicielem (#72). Dostęp pilnuje middleware
-// (mapa tras w @/lib/auth/roles): właściciela przenosi do przestrzeni ośrodka. Tylko odczyt —
-// świeże zapisy i odwołania widać po odświeżeniu strony.
+// (mapa tras w @/lib/auth/roles): właściciela przenosi do przestrzeni ośrodka. Świeże zapisy
+// i odwołania widać po odświeżeniu strony. Przy każdym zapisie instruktor przydziela konia (#81):
+// formularz bez JavaScriptu, zajęte o tej godzinie konie są na liście, ale nie da się ich wybrać.
 const { profile } = Astro.locals;
 const today = todayIso();
+const error = Astro.url.searchParams.get("error");
+const successMessage = mySlotsSuccessMessage(Astro.url.searchParams.get("sukces"));
 
 const supabase = createClient(Astro.request.headers, Astro.cookies);
 
@@ -33,11 +41,12 @@ if (supabase && profile) {
     }
     if (instructor) {
       stableName = instructor.stableName;
-      const [slots, bookings] = await Promise.all([
+      const [slots, bookings, horseOptions] = await Promise.all([
         getMySlots(supabase, instructor.id, today),
         getMySlotBookings(supabase, today),
+        getMySlotHorseOptions(supabase, today),
       ]);
-      days = composeMySlots({ slots, bookings });
+      days = composeMySlots({ slots, bookings, horseOptions });
     }
   } catch (error) {
     loadFailed = true;
@@ -52,11 +61,27 @@ if (supabase && profile) {
 <Layout title="Moje sloty">
   <Topbar />
   <main class="container-narrow page">
+    <InstructorTabs />
     <h1>Moje sloty</h1>
     <p class="page-lead">
       {stableName ? `Twoje godziny w ośrodku ${stableName}, od dziś.` : "Twoje godziny od dziś."} Odśwież stronę, żeby zobaczyć
       najnowsze zapisy i odwołania.
     </p>
+
+    {
+      successMessage && (
+        <div class="notice">
+          <Banner variant="success">{successMessage}</Banner>
+        </div>
+      )
+    }
+    {
+      error && (
+        <div class="notice">
+          <Banner variant="error">{error}</Banner>
+        </div>
+      )
+    }
 
     {
       loadFailed ? (
@@ -100,6 +125,23 @@ if (supabase && profile) {
                             ) : (
                               <Tag variant="warn">{rider.horse}</Tag>
                             )}
+                            <form method="post" action="/api/bookings/instructor-assign-horse" class="assign">
+                              <input type="hidden" name="bookingId" value={rider.bookingId} />
+                              <label for={`horse-${String(rider.bookingId)}`}>
+                                Koń<span class="sr-only"> — {rider.name}</span>
+                              </label>
+                              <select id={`horse-${String(rider.bookingId)}`} name="horseId">
+                                <option value="" selected={!rider.hasHorse}>
+                                  {NO_HORSE}
+                                </option>
+                                {rider.horseChoices.map((horse) => (
+                                  <option value={horse.id} selected={horse.selected} disabled={horse.taken}>
+                                    {horse.label}
+                                  </option>
+                                ))}
+                              </select>
+                              <GhostButton>Zapisz konia</GhostButton>
+                            </form>
                           </li>
                         ))}
                       </ul>
@@ -121,6 +163,9 @@ if (supabase && profile) {
   }
   h1 {
     font-size: 32px;
+  }
+  .notice {
+    margin-top: 18px;
   }
   .page-lead {
     margin: 10px 0 0;
@@ -198,5 +243,32 @@ if (supabase && profile) {
   .rider__horse {
     color: var(--muted);
     font-size: 14.5px;
+  }
+
+  .assign {
+    flex-basis: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .assign label {
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .assign select {
+    min-height: 44px;
+    padding: 8px 12px;
+    border: 1px solid var(--border-2);
+    border-radius: 12px;
+    background: var(--surface);
+    color: var(--fg);
+    font: inherit;
+    font-size: 14.5px;
+  }
+  .assign select:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
   }
 </style>

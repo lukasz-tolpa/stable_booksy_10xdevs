@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { INSTRUCTOR_EMAIL, PASSWORD, STABLE_NAME, hourSection, waitForIslands } from "./helpers";
+import { INSTRUCTOR_EMAIL, STABLE_NAME, hourSection, signIn } from "./helpers";
 
 /**
  * „Moje sloty” (#72): instruktorka z kontem z seeda, która nie jest właścicielką, loguje się
@@ -9,12 +9,7 @@ import { INSTRUCTOR_EMAIL, PASSWORD, STABLE_NAME, hourSection, waitForIslands } 
  */
 test("instruktorka z kontem widzi swoje sloty z zapisanymi i nie wchodzi do przestrzeni ośrodka", async ({ page }) => {
   await test.step("logowanie tym samym formularzem prowadzi do „Moje sloty”", async () => {
-    await page.goto("/auth/signin");
-    await waitForIslands(page);
-    await page.getByLabel("Adres e-mail").fill(INSTRUCTOR_EMAIL);
-    await page.getByLabel("Hasło", { exact: true }).fill(PASSWORD);
-    await page.getByRole("button", { name: "Zaloguj się" }).click();
-    await page.waitForURL("**/instruktor");
+    await signIn(page, INSTRUCTOR_EMAIL, "/instruktor");
     await expect(page.getByRole("heading", { level: 1, name: "Moje sloty" })).toBeVisible();
     await expect(
       page.getByText(
@@ -30,7 +25,8 @@ test("instruktorka z kontem widzi swoje sloty z zapisanymi i nie wchodzi do prze
     await expect(slot).toHaveCount(1);
     await expect(slot.getByText("zajęte 1 z 1", { exact: true })).toBeVisible();
     const rider = slot.getByRole("listitem").filter({ hasText: "Anna Kowalska" });
-    await expect(rider.getByText("bez konia", { exact: true })).toBeVisible();
+    // `.first()`: pigułka przy jeźdźcu; ten sam tekst ma opcja przydziału konia (#81).
+    await expect(rider.getByText("bez konia", { exact: true }).first()).toBeVisible();
   });
 
   await test.step("wolny slot jest na liście bez zapisanych", async () => {

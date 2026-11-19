@@ -82,6 +82,9 @@ run_one "stable_owner_account.sql" run_sql stable_owner_account.sql
 run_one "instructor_account_access.sql" run_sql instructor_account_access.sql
 run_one "instructor_invitations.sql" run_sql instructor_invitations.sql
 run_one "instructor_invitation_acceptance.sql" run_sql instructor_invitation_acceptance.sql
+run_one "instructor_horse_assignment.sql" run_sql instructor_horse_assignment.sql
+run_one "schedule_permission.sql" run_sql schedule_permission.sql
+run_one "schedule_arranging.sql" run_sql schedule_arranging.sql
 run_one "concurrent_seat_booking.sh" bash "$SCRIPT_DIR/concurrent_seat_booking.sh"
 
 echo

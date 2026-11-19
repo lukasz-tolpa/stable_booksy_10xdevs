@@ -107,7 +107,20 @@ export async function getInvitationByToken(client: Client, token: string) {
   return { invitation: toInvitationRow(data), error };
 }
 
-/** Instruktor ośrodka właściciela, który ma konto; `owner` — konto samego właściciela. */
+/**
+ * Nadanie (`granted: true`) albo odebranie uprawnienia do układania grafiku (#78). Ośrodek bierze
+ * baza z sesji; odmowy (42501, SB013, SB023–SB025) wracają w `error` do tłumaczenia przez
+ * `schedulePermissionErrorMessage`.
+ */
+export async function setSchedulePermission(client: Client, instructorId: number, granted: boolean) {
+  const { error } = await client.rpc("set_schedule_permission", { p_instructor_id: instructorId, p_granted: granted });
+  return { error };
+}
+
+/**
+ * Instruktor ośrodka właściciela, który ma konto; `owner` — konto samego właściciela,
+ * `arranges_schedule` — uprawnienie do układania grafiku.
+ */
 export type InstructorAccount = Database["public"]["Functions"]["list_instructor_accounts"]["Returns"][number];
 
 /**
@@ -134,6 +147,8 @@ export interface OwnInstructor {
   stableName: string | null;
   /** Właściciel ośrodka instruktora; `null` jak `stableName`. */
   stableOwnerId: string | null;
+  /** Uprawnienie do układania grafiku (#78); zawsze `false` u nieaktywnego i u właściciela. */
+  arrangesSchedule: boolean;
 }
 
 /**
@@ -153,6 +168,7 @@ export async function getOwnInstructor(client: Client) {
         stableName: data.stable_name ?? null,
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         stableOwnerId: data.stable_owner_id ?? null,
+        arrangesSchedule: data.arranges_schedule,
       }
     : null;
   return { instructor, error };

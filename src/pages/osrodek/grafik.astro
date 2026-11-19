@@ -1,192 +1,29 @@
 ---
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import Layout from "@/layouts/Layout.astro";
 import Topbar from "@/components/Topbar.astro";
-import Card from "@/components/ui/Card.astro";
-import DayNav from "@/components/ui/DayNav.astro";
-import EmptyState from "@/components/ui/EmptyState.astro";
-import FailureState from "@/components/ui/FailureState.astro";
-import ScheduleDayForm from "@/components/schedule/ScheduleDayForm";
-import { addDays, defaultScheduleDate, isPastDate, parseScheduleDate } from "@/lib/schedule/dates";
-import { horseDefaults, instructorDefaults, pastDaySummary, prefillSourceDay } from "@/lib/schedule/form";
-import { getLatestScheduleDay, getScheduleDay, type ScheduleDayData } from "@/lib/schedule/queries";
-import { listStableInstructors, type InstructorListItem } from "@/lib/instructors/queries";
-import { getOwnedStableId, listStableHorses, type HorseListItem } from "@/lib/stables/queries";
-import { createClient } from "@/lib/supabase";
-import { logError } from "@/lib/log";
+import ScheduleDayPage from "@/components/schedule/ScheduleDayPage.astro";
+import { OWNER_SCHEDULE_ROUTE } from "@/lib/auth/roles";
+import { defaultScheduleDate, parseScheduleDate } from "@/lib/schedule/dates";
 
-// Dostęp pilnuje middleware (mapa tras w @/lib/auth/roles). Konto ośrodka ma
-// gwarantowaną stadninę dzięki wymuszeniu z S-01.
-const { profile } = Astro.locals;
-const error = Astro.url.searchParams.get("error");
-
+// Grafik dnia właściciela. Dostęp pilnuje middleware (mapa tras w @/lib/auth/roles); konto
+// ośrodka ma gwarantowaną stadninę dzięki wymuszeniu z S-01.
 const day = parseScheduleDate(Astro.url.searchParams.get("dzien")) ?? defaultScheduleDate();
-const readOnly = isPastDate(day);
-
-const supabase = createClient(Astro.request.headers, Astro.cookies);
-
-let scheduleDay: ScheduleDayData | null = null;
-let latestDay: ScheduleDayData | null = null;
-let horses: HorseListItem[] = [];
-let instructors: InstructorListItem[] = [];
-let loadFailed = false;
-
-if (supabase && profile) {
-  try {
-    const stableId = await getOwnedStableId(supabase, profile.id);
-    if (stableId !== null) {
-      [scheduleDay, latestDay, horses, instructors] = await Promise.all([
-        getScheduleDay(supabase, stableId, day),
-        getLatestScheduleDay(supabase, stableId),
-        listStableHorses(supabase, stableId),
-        listStableInstructors(supabase, stableId),
-      ]);
-    }
-  } catch (error) {
-    loadFailed = true;
-    logError("page:osrodek/grafik", error);
-  }
-} else {
-  // Brak klienta Supabase lub profilu to awaria konfiguracji - bez tej gałęzi
-  // strona pokazywałaby mylące "Nie masz jeszcze żadnych koni".
-  loadFailed = true;
-}
-
-const horseForm = horseDefaults(scheduleDay, latestDay, horses);
-const instructorForm = instructorDefaults(scheduleDay, latestDay, instructors);
-const pastSummary = scheduleDay ? pastDaySummary(scheduleDay, horses, instructors) : null;
-
-const dayLabel = new Date(`${day}T00:00:00`).toLocaleDateString("pl-PL", {
-  weekday: "long",
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-});
 ---
 
 <Layout title={`Grafik ${day}`}>
   <Topbar />
   <main class="container-narrow page">
-    <h1>Grafik dnia</h1>
-    <p class="page-lead">
-      Zakres godzin, konie i instruktorzy pracujący danego dnia oraz limity miejsc. Zakres 10–16 oznacza jazdy od 10:00
-      do 15:00.
-    </p>
-
-    <DayNav>
-      <a slot="prev" href={`/osrodek/grafik?dzien=${addDays(day, -1)}`}>
-        <ChevronLeft className="size-4" />
-        Poprzedni
-      </a>
-      <Fragment slot="date">{dayLabel}</Fragment>
-      <a slot="next" href={`/osrodek/grafik?dzien=${addDays(day, 1)}`}>
-        Następny
-        <ChevronRight className="size-4" />
-      </a>
-    </DayNav>
-
-    {
-      loadFailed ? (
-        <FailureState>
-          <p>Nie udało się wczytać grafiku.</p>
-          <p>Odśwież stronę za chwilę.</p>
-        </FailureState>
-      ) : readOnly ? (
-        <Card>
-          <div class="past">
-            <p class="past__flag">Dzień miniony — tylko do odczytu.</p>
-            {pastSummary ? (
-              <dl>
-                <div>
-                  <dt>Godziny pracy</dt>
-                  <dd class="mono-nums">{pastSummary.hours}</dd>
-                </div>
-                <div>
-                  <dt>Konie</dt>
-                  <dd>{pastSummary.horseNames}</dd>
-                </div>
-                <div>
-                  <dt>Instruktorzy</dt>
-                  <dd>{pastSummary.instructorNames}</dd>
-                </div>
-              </dl>
-            ) : (
-              <p class="past__none">Tego dnia nie było ułożonego grafiku.</p>
-            )}
-          </div>
-        </Card>
-      ) : horses.length === 0 ? (
-        <Card>
-          <EmptyState>
-            <p>
-              Nie masz jeszcze żadnych koni. Grafik przydziela konie do godzin, więc bez stada nie ma czego układać.
-            </p>
-            <a href="/osrodek/konie">Dodaj pierwszego konia</a>
-          </EmptyState>
-        </Card>
-      ) : (
-        <Card>
-          <ScheduleDayForm
-            day={day}
-            openHour={horseForm.openHour}
-            closeHour={horseForm.closeHour}
-            selectedHorseIds={horseForm.selectedHorseIds}
-            horses={horseForm.selectableHorses}
-            selectedInstructorIds={instructorForm.selectedInstructorIds}
-            instructors={instructorForm.selectableInstructors}
-            seats={instructorForm.seats}
-            prefillFrom={prefillSourceDay(scheduleDay, latestDay)}
-            serverError={error}
-            client:load
-          />
-        </Card>
-      )
-    }
+    <ScheduleDayPage
+      route={OWNER_SCHEDULE_ROUTE}
+      day={day}
+      horsesRoute="/osrodek/konie"
+      error={Astro.url.searchParams.get("error")}
+    />
   </main>
 </Layout>
 
 <style>
   .page {
     padding-block: 24px 56px;
-  }
-  h1 {
-    font-size: 32px;
-  }
-  .page-lead {
-    margin: 10px 0 0;
-    font-size: 15.5px;
-    color: var(--muted);
-    max-width: 62ch;
-  }
-
-  /* ── Dzień miniony ────────────────────────────────────────────────────── */
-  .past__flag {
-    margin: 0;
-    padding: 10px 14px;
-    background: var(--surface-2);
-    border-radius: var(--r);
-    font-size: 13.5px;
-    color: var(--muted);
-  }
-  .past dl {
-    margin: 16px 0 0;
-    display: grid;
-    gap: 10px;
-  }
-  .past dt {
-    font-family: var(--font-mono);
-    font-size: 11.5px;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--muted);
-  }
-  .past dd {
-    margin: 2px 0 0;
-    font-size: 15px;
-    font-weight: 500;
-  }
-  .past__none {
-    margin: 16px 0 0;
-    color: var(--muted);
   }
 </style>

@@ -276,7 +276,8 @@ local role authenticated; set local request.jwt.claims =
   the seed; the scenario adds him with 1 seat at 13:00 and removes him after),
   Joanna Wrona@14 (refusal, 1 seat), Joanna Wrona@12 (`test:db` concurrency
   script, which raises the limit temporarily) — all at Stadnina Pod Dębem,
-  tomorrow. Anna holds Joanna@11, Piotr holds Tomasz Lis@10 at Stajnia Nad Rzeką;
+  tomorrow. Anna holds Joanna@11 (`instructor-horse-assignment.spec.ts` gives it Kasztan through
+  Joanna and takes it off again in a flag-guarded `finally`), Piotr holds Tomasz Lis@10 at Stajnia Nad Rzeką;
   seed bookings have no horse. Tomasz Lis (no account in the seed) is reserved for
   `instructor-invitation-signup.spec.ts`: the owner `osrodek.rzeka` invites him and the
   invitee signs up and reads Piotr@10. Linking cannot be undone through the app, so the
@@ -284,7 +285,16 @@ local role authenticated; set local request.jwt.claims =
   to Tomasz — it reruns without `db reset`. `instructor-deactivation.spec.ts` deactivates Joanna
   Wrona's instructor (owner session) and reactivates her in a flag-guarded `finally`; a run that
   dies before that leaves her inactive and `instructor-slots.spec.ts` red — repair with
-  `npx supabase db reset`. Do not run `npm run test:db` and `npm run test:e2e` against the
+  `npx supabase db reset`. `schedule-permission.spec.ts` toggles Joanna's „Układa grafik” switch
+  (`getByRole("switch", { name: "Układa grafik — Joanna Wrona" })`, state in `aria-checked`) and
+  deactivates her once; its `finally` reactivates her and switches the permission off. Its second
+  scenario (#79) grants the permission, signs Joanna in (empty storage state) and has her raise her
+  own limit at 15:00 on the seed day 1 → 2 in the „Grafik” tab (`/instruktor/grafik`, tabs in
+  `getByRole("navigation", { name: "Przestrzeń instruktora" })`), then the owner revokes it while
+  her form is open — her save lands on `/instruktor?error=` — and the owner's form sets 15:00 back
+  to 1; a flag-guarded `finally` repeats both. Joanna Wrona@15 is reserved for it. The same scenario (#80) has her lower
+  Joanna@11 to 0 under Anna's booking and asserts the SB010 refusal text with the owner hint — a refusal writes nothing, so it
+  needs no cleanup. Do not run `npm run test:db` and `npm run test:e2e` against the
   same database at the same time.
 - **Past data**: the seed schedules only tomorrow and the past cannot be
   clicked together in a browser, so the `setup` project loads
@@ -309,7 +319,10 @@ local role authenticated; set local request.jwt.claims =
   together; the stable's day-list row holds the hour, instructor, rider and
   horse or `bez konia`; on „Moje sloty” (`/instruktor`, `instructor-slots.spec.ts`)
   each slot `<li>` holds the hour `"{h}:00"`, `"zajęte {taken} z {seats}"` and nested
-  rider `<li>`s with the name and the horse or `bez konia` (or the sentence `Nikt jeszcze
+  rider `<li>`s with the name, the horse or `bez konia` and the horse form — a select labelled
+  `Koń — {rider}` (first option `bez konia`, a horse taken this hour reads `{horse} — zajęty`
+  and is disabled) and the button `Zapisz konia`; `bez konia` thus appears twice in the rider
+  `<li>`, take `.first()` (or the sentence `Nikt jeszcze
 się nie zapisał.`); the inactive-account screen (`/instruktor/konto-nieaktywne`) has the h1
   `Konto nieaktywne` and its own `Wyloguj się` button next to the top bar's one — scope it to
   `main`; the sign-up page with `?zaproszenie=` has the stable name as its only `h1`, no

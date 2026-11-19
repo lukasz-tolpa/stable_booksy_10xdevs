@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { formatFreeSeats, formatHours, formatLongDate, formatNumber, formatTakenSeats } from "@/lib/format";
+import {
+  formatFreeSeats,
+  formatHours,
+  formatLongDate,
+  formatLongDateWithYear,
+  formatNumber,
+  formatTakenSeats,
+} from "@/lib/format";
 
 // Polski zapis grupuje tysiące twardą spacją (U+00A0) dopiero od pięciu cyfr.
 describe("formatNumber", () => {
@@ -30,6 +37,13 @@ describe("formatLongDate", () => {
   it("zapisuje dzień grafiku z dniem tygodnia, bez roku", () => {
     expect(formatLongDate("2026-11-18")).toBe("środa, 18 listopada");
     expect(formatLongDate("2026-03-01")).toBe("niedziela, 1 marca");
+  });
+});
+
+describe("formatLongDateWithYear", () => {
+  it("zapisuje dzień nawigacji dniami z dniem tygodnia i rokiem", () => {
+    expect(formatLongDateWithYear("2026-11-18")).toBe("środa, 18 listopada 2026");
+    expect(formatLongDateWithYear("2027-01-01")).toBe("piątek, 1 stycznia 2027");
   });
 });
 

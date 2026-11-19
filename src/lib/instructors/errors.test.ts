@@ -7,7 +7,9 @@ import {
   instructorToggleErrorMessage,
   invitationErrorMessage,
   isExpectedInvitationRefusal,
+  isExpectedSchedulePermissionRefusal,
   revokeInvitationErrorMessage,
+  schedulePermissionErrorMessage,
 } from "@/lib/instructors/errors";
 
 describe("instructorToggleErrorMessage", () => {
@@ -74,6 +76,34 @@ describe("instructorErrorMessage", () => {
     "kod %j daje dokładnie wariant domyślny",
     (code) => {
       expect(instructorErrorMessage(code)).toBe(FALLBACK);
+    },
+  );
+});
+
+describe("schedulePermissionErrorMessage", () => {
+  it.each([
+    ["SB013", "Nie znaleziono instruktora w Twojej stadninie."],
+    [
+      "SB023",
+      "Ten instruktor nie ma konta. Uprawnienie do układania grafiku możesz nadać dopiero po przyjęciu zaproszenia.",
+    ],
+    [
+      "SB024",
+      "Ten instruktor jest nieaktywny — dezaktywacja odebrała mu uprawnienie do układania grafiku. Aktywuj go, żeby nadać je ponownie.",
+    ],
+    ["SB025", "Jako właściciel masz już wszystkie uprawnienia, także do układania grafiku."],
+  ])("odmowa %s ma własny komunikat po polsku", (code, message) => {
+    expect(schedulePermissionErrorMessage(code)).toBe(message);
+    expect(isExpectedSchedulePermissionRefusal(code)).toBe(true);
+  });
+
+  it.each([["42501"], ["SB014"], [""], [undefined]])(
+    "kod %j daje wariant awarii i nie jest spodziewaną odmową",
+    (code) => {
+      expect(schedulePermissionErrorMessage(code)).toBe(
+        "Nie udało się zmienić uprawnienia do układania grafiku. Spróbuj ponownie.",
+      );
+      expect(isExpectedSchedulePermissionRefusal(code)).toBe(false);
     },
   );
 });

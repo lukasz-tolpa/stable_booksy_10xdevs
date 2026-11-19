@@ -4,10 +4,13 @@ import {
   homeRouteForRole,
   instructorRedirect,
   instructorStandingOf,
+  instructorTabs,
   isLegacyHomeRoute,
   isStableSetupPath,
   isUserRole,
   roleBadgeLabel,
+  scheduleCallerFor,
+  scheduleRouteFor,
   routeGuardFor,
   signupRoleFromParam,
   signupRouteForRole,
@@ -235,18 +238,27 @@ describe("instructorStandingOf", () => {
   });
 
   it("konto zapisane jako właściciel ośrodka swojego instruktora to właściciel", () => {
-    expect(instructorStandingOf({ active: true, stableOwnerId: account }, account)).toBe("owner");
+    expect(instructorStandingOf({ active: true, stableOwnerId: account, arrangesSchedule: false }, account)).toBe(
+      "owner",
+    );
   });
 
   it("konto instruktora w cudzym ośrodku (albo bez wglądu w ośrodek) to instruktor", () => {
-    expect(instructorStandingOf({ active: true, stableOwnerId: "11111111-1111-1111-1111-111111111111" }, account)).toBe(
+    expect(
+      instructorStandingOf(
+        { active: true, stableOwnerId: "11111111-1111-1111-1111-111111111111", arrangesSchedule: false },
+        account,
+      ),
+    ).toBe("instructor");
+    expect(instructorStandingOf({ active: true, stableOwnerId: null, arrangesSchedule: false }, account)).toBe(
       "instructor",
     );
-    expect(instructorStandingOf({ active: true, stableOwnerId: null }, account)).toBe("instructor");
   });
 
   it("konto instruktora zdezaktywowanego przez właściciela jest nieaktywne", () => {
-    expect(instructorStandingOf({ active: false, stableOwnerId: null }, account)).toBe("inactive");
+    expect(instructorStandingOf({ active: false, stableOwnerId: null, arrangesSchedule: false }, account)).toBe(
+      "inactive",
+    );
   });
 });
 
@@ -260,5 +272,108 @@ describe("roleBadgeLabel", () => {
     expect(roleBadgeLabel("instructor", "owner")).toBe("Ośrodek");
     expect(roleBadgeLabel("instructor", null)).toBe("Ośrodek");
     expect(roleBadgeLabel("rider", null)).toBe("Jeździec");
+  });
+});
+
+describe("instruktor z uprawnieniem do układania grafiku", () => {
+  const account = "99999999-9999-9999-9999-999999999999";
+  const owner = "11111111-1111-1111-1111-111111111111";
+
+  it("aktywny instruktor z uprawnieniem ma osobny stan konta", () => {
+    expect(instructorStandingOf({ active: true, stableOwnerId: owner, arrangesSchedule: true }, account)).toBe(
+      "arranging-instructor",
+    );
+    expect(instructorStandingOf({ active: true, stableOwnerId: owner, arrangesSchedule: false }, account)).toBe(
+      "instructor",
+    );
+  });
+
+  it("właściciel zostaje właścicielem, nieaktywny — nieaktywnym, niezależnie od znacznika", () => {
+    expect(instructorStandingOf({ active: true, stableOwnerId: account, arrangesSchedule: true }, account)).toBe(
+      "owner",
+    );
+    expect(instructorStandingOf({ active: false, stableOwnerId: null, arrangesSchedule: true }, account)).toBe(
+      "inactive",
+    );
+  });
+
+  it("strona startowa to nadal „Moje sloty”, a pigułka — „Instruktor”", () => {
+    expect(homeRouteForAccount("instructor", "arranging-instructor")).toBe("/instruktor");
+    expect(roleBadgeLabel("instructor", "arranging-instructor")).toBe("Instruktor");
+  });
+
+  it("wchodzi na stronę grafiku w swojej przestrzeni i na „Moje sloty”", () => {
+    expect(instructorRedirect("/instruktor/grafik", "arranging-instructor")).toBeNull();
+    expect(instructorRedirect("/instruktor", "arranging-instructor")).toBeNull();
+  });
+
+  it("instruktora bez uprawnienia strona grafiku przenosi do „Moje sloty”", () => {
+    expect(instructorRedirect("/instruktor/grafik", "instructor")).toBe("/instruktor");
+  });
+
+  it("przestrzeń ośrodka — także jej grafik — zostaje przy właścicielu", () => {
+    for (const pathname of [
+      "/osrodek",
+      "/osrodek/grafik",
+      "/osrodek/konie",
+      "/osrodek/zapisy",
+      "/osrodek/statystyki",
+      "/osrodek/instruktorzy",
+    ]) {
+      expect(instructorRedirect(pathname, "arranging-instructor")).toBe("/instruktor");
+    }
+    expect(instructorRedirect("/instruktor/grafik", "owner")).toBe("/osrodek");
+  });
+
+  it("zdezaktywowanego instruktora strona grafiku przenosi na ekran nieaktywnego konta", () => {
+    expect(instructorRedirect("/instruktor/grafik", "inactive")).toBe("/instruktor/konto-nieaktywne");
+  });
+});
+
+describe("instructorTabs", () => {
+  it("instruktor z uprawnieniem ma zakładki „Moje sloty” i „Grafik”", () => {
+    expect(instructorTabs("arranging-instructor")).toEqual([
+      { href: "/instruktor", label: "Moje sloty" },
+      { href: "/instruktor/grafik", label: "Grafik" },
+    ]);
+  });
+
+  it("instruktor bez uprawnienia nie ma zakładki „Grafik” (ani paska zakładek)", () => {
+    expect(instructorTabs("instructor")).toEqual([]);
+  });
+
+  it("pozostałe stany nie mają zakładek instruktora", () => {
+    expect(instructorTabs("owner")).toEqual([]);
+    expect(instructorTabs("inactive")).toEqual([]);
+    expect(instructorTabs("none")).toEqual([]);
+    expect(instructorTabs(null)).toEqual([]);
+  });
+});
+
+describe("scheduleRouteFor", () => {
+  it("właściciel układa grafik w przestrzeni ośrodka, instruktor z uprawnieniem — w swojej", () => {
+    expect(scheduleRouteFor("owner")).toBe("/osrodek/grafik");
+    expect(scheduleRouteFor("arranging-instructor")).toBe("/instruktor/grafik");
+  });
+
+  it("pozostali nie mają strony grafiku", () => {
+    expect(scheduleRouteFor("instructor")).toBeNull();
+    expect(scheduleRouteFor("inactive")).toBeNull();
+    expect(scheduleRouteFor("none")).toBeNull();
+    expect(scheduleRouteFor(null)).toBeNull();
+  });
+});
+
+describe("scheduleCallerFor", () => {
+  it("instruktor — z uprawnieniem, po jego utracie albo zdezaktywowany — dostaje komunikaty grafiku instruktora", () => {
+    expect(scheduleCallerFor("arranging-instructor")).toBe("instructor");
+    expect(scheduleCallerFor("instructor")).toBe("instructor");
+    expect(scheduleCallerFor("inactive")).toBe("instructor");
+  });
+
+  it("właściciel i pozostałe konta dostają komunikaty właściciela", () => {
+    expect(scheduleCallerFor("owner")).toBe("owner");
+    expect(scheduleCallerFor("none")).toBe("owner");
+    expect(scheduleCallerFor(null)).toBe("owner");
   });
 });

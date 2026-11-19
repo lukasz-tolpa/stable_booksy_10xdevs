@@ -617,7 +617,8 @@ begin
 
   select to_jsonb(m) - 'id' into v_row from public.my_instructor() m;
   if v_row is distinct from jsonb_build_object('name', 'Marek Dębowski', 'active', true,
-       'stable_name', 'Stadnina Pod Dębem', 'stable_owner_id', '11111111-1111-1111-1111-111111111111') then
+       'stable_name', 'Stadnina Pod Dębem', 'stable_owner_id', '11111111-1111-1111-1111-111111111111',
+       'arranges_schedule', false) then
     raise exception 'FAIL: my_instructor wlasciciela to %', v_row;
   end if;
   raise notice 'PASS: my_instructor wlasciciela - jego instruktor i osrodek, ktorego jest wlascicielem';
@@ -631,7 +632,8 @@ declare
 begin
   select to_jsonb(m) - 'id' into v_row from public.my_instructor() m;
   if v_row is distinct from jsonb_build_object('name', 'Joanna Wrona', 'active', true,
-       'stable_name', 'Stadnina Pod Dębem', 'stable_owner_id', '11111111-1111-1111-1111-111111111111') then
+       'stable_name', 'Stadnina Pod Dębem', 'stable_owner_id', '11111111-1111-1111-1111-111111111111',
+       'arranges_schedule', false) then
     raise exception 'FAIL: my_instructor instruktorki to %', v_row;
   end if;
   raise notice 'PASS: my_instructor instruktorki - jej instruktor i osrodek';

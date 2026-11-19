@@ -10,7 +10,7 @@ import Layout from "@/layouts/Layout.astro";
 import { ROLE_HOME } from "@/lib/auth/roles";
 import { getMyBookings, getSlotOccupancy } from "@/lib/bookings/queries";
 import { computeSlotHours, currentWarsawHour, slotStatusLabel, type SlotHour } from "@/lib/bookings/slots";
-import { formatClockHour, formatFreeSeats } from "@/lib/format";
+import { formatClockHour, formatFreeSeats, formatLongDateWithYear } from "@/lib/format";
 import { listStableInstructors } from "@/lib/instructors/queries";
 import { addDays, defaultScheduleDate, isPastDate, parseScheduleDate, todayIso } from "@/lib/schedule/dates";
 import { getScheduleDay, type ScheduleDayData } from "@/lib/schedule/queries";
@@ -79,12 +79,7 @@ if (id !== null && supabase && user) {
 const previousDay = addDays(day, -1);
 const canGoBack = !isPastDate(previousDay);
 
-const dayLabel = new Date(`${day}T00:00:00`).toLocaleDateString("pl-PL", {
-  weekday: "long",
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-});
+const dayLabel = formatLongDateWithYear(day);
 ---
 
 <Layout title={stable ? stable.name : "Nie znaleziono ośrodka"}>
