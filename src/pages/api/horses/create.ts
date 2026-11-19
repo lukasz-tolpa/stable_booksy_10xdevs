@@ -4,7 +4,7 @@ import { firstErrorMessage } from "@/lib/auth/schemas";
 import { formValue } from "@/lib/form-data";
 import { getOwnedStableId } from "@/lib/stables/queries";
 import { newHorseSchema } from "@/lib/stables/schemas";
-import { createClient } from "@/lib/supabase";
+import { SUPABASE_NOT_CONFIGURED, createClient } from "@/lib/supabase";
 
 const HORSES_ROUTE = "/osrodek/konie";
 
@@ -26,7 +26,7 @@ export const POST: APIRoute = async (context) => {
 
   const supabase = createClient(context.request.headers, context.cookies);
   if (!supabase) {
-    return backToList(context, "Supabase nie jest skonfigurowany");
+    return backToList(context, SUPABASE_NOT_CONFIGURED);
   }
 
   const {

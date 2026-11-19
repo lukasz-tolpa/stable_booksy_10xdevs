@@ -13,15 +13,17 @@ import type { UserRole } from "@/types";
 
 interface Props {
   role: UserRole;
+  /** Etykieta zamiast nazwy roli — konto instruktora bez praw właściciela to „Instruktor” (#72). */
+  label?: string;
   class?: string;
 }
 
-const { role, class: className } = Astro.props;
+const { role, label = ROLE_LABELS[role], class: className } = Astro.props;
 ---
 
 <span class:list={["pill", `pill--${role}`, className]}>
   {
-    role === "stable" ? (
+    role === "instructor" ? (
       <StableBarn className="size-3.5" />
     ) : (
       <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -30,7 +32,7 @@ const { role, class: className } = Astro.props;
       </svg>
     )
   }
-  {ROLE_LABELS[role]}
+  {label}
 </span>
 
 <style>
@@ -56,7 +58,7 @@ const { role, class: className } = Astro.props;
     stroke-linecap: round;
     stroke-linejoin: round;
   }
-  .pill--stable {
+  .pill--instructor {
     background: var(--primary-soft);
     color: var(--primary-strong);
   }

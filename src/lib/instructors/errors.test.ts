@@ -1,5 +1,65 @@
 import { describe, expect, it } from "vitest";
-import { INSTRUCTOR_NAME_TAKEN, instructorErrorMessage } from "@/lib/instructors/errors";
+import {
+  INSTRUCTOR_NAME_TAKEN,
+  INSTRUCTOR_OWNER_STAYS_ACTIVE,
+  INSTRUCTOR_TOGGLE_FAILED,
+  instructorErrorMessage,
+  instructorToggleErrorMessage,
+  invitationErrorMessage,
+  isExpectedInvitationRefusal,
+  revokeInvitationErrorMessage,
+} from "@/lib/instructors/errors";
+
+describe("instructorToggleErrorMessage", () => {
+  it("dezaktywacja właściciela (SB012) mówi, że właściciela nie można dezaktywować", () => {
+    expect(instructorToggleErrorMessage(INSTRUCTOR_OWNER_STAYS_ACTIVE)).toBe(
+      "Właściciela ośrodka nie można dezaktywować.",
+    );
+  });
+
+  it.each([["42501"], ["23505"], [""], ["sb012"], ["SB0120"], [undefined]])(
+    "kod %j daje dokładnie wariant awarii",
+    (code) => {
+      expect(instructorToggleErrorMessage(code)).toBe(INSTRUCTOR_TOGGLE_FAILED);
+    },
+  );
+});
+
+describe("invitationErrorMessage", () => {
+  it.each([
+    ["SB013", "Nie znaleziono instruktora w Twojej stadninie."],
+    ["SB014", "Nie można zaprosić nieaktywnego instruktora. Najpierw go aktywuj."],
+    ["SB015", "Ten instruktor ma już konto."],
+    ["23514", "Podaj poprawny adres e-mail instruktora"],
+  ])("odmowa %s ma własny komunikat", (code, message) => {
+    expect(invitationErrorMessage(code)).toBe(message);
+  });
+
+  it.each([["42501"], ["23505"], [""], ["sb014"], ["SB0140"], ["PGRST202"], [undefined]])(
+    "kod %j daje dokładnie wariant awarii",
+    (code) => {
+      expect(invitationErrorMessage(code)).toBe("Nie udało się utworzyć zaproszenia. Spróbuj ponownie.");
+    },
+  );
+
+  it.each(["SB013", "SB014", "SB015", "23514"])("odmowa %s jest spodziewana (bez logu)", (code) => {
+    expect(isExpectedInvitationRefusal(code)).toBe(true);
+  });
+
+  it.each(["42501", "23505", undefined])("kod %j nie jest spodziewaną odmową", (code) => {
+    expect(isExpectedInvitationRefusal(code)).toBe(false);
+  });
+});
+
+describe("revokeInvitationErrorMessage", () => {
+  it("cudzy albo nieistniejący instruktor (SB013) — ten sam komunikat co przy przełączaniu", () => {
+    expect(revokeInvitationErrorMessage("SB013")).toBe("Nie znaleziono instruktora w Twojej stadninie.");
+  });
+
+  it.each([["42501"], ["SB014"], [""], [undefined]])("kod %j daje dokładnie wariant awarii", (code) => {
+    expect(revokeInvitationErrorMessage(code)).toBe("Nie udało się wycofać zaproszenia. Spróbuj ponownie.");
+  });
+});
 
 const FALLBACK = "Nie udało się dodać instruktora. Spróbuj ponownie.";
 

@@ -16,18 +16,18 @@ import type { UserRole } from "@/types";
  */
 
 const DESCRIPTIONS: Record<UserRole, string> = {
-  stable: "Układasz grafik jazd, wskazujesz konie i przyjmujesz zapisy.",
+  instructor: "Układasz grafik jazd, wskazujesz konie i przyjmujesz zapisy.",
   rider: "Przeglądasz ośrodki i zapisujesz się na jazdy.",
 };
 
 const ICONS: Record<UserRole, (props: { className?: string }) => React.ReactNode> = {
-  stable: StableBarn,
+  instructor: StableBarn,
   rider: User,
 };
 
 /** Kolory roli: ośrodek na zieleni marki, jeździec na kasztanie (DESIGN.md §2). */
 const OPTION_STYLES: Record<UserRole, { selected: string; radio: string; pill: string }> = {
-  stable: {
+  instructor: {
     selected: "border-primary bg-primary-soft",
     radio: "accent-primary",
     pill: "bg-primary-soft text-primary-strong",

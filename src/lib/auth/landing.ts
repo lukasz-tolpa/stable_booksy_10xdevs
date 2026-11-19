@@ -32,15 +32,15 @@ export type LandingEntries = Record<UserRole, LandingAction | null> & {
  */
 const BOOK_ROUTES: Record<UserRole, string> = {
   rider: homeRouteForRole("rider"),
-  stable: STABLE_DAY_BOOKINGS_ROUTE,
+  instructor: STABLE_DAY_BOOKINGS_ROUTE,
 };
 
 /** Kolejność połów na stronie - w tej samej stoją przyciski zamknięcia. */
-const HALVES = ["rider", "stable"] as const satisfies readonly UserRole[];
+const HALVES = ["rider", "instructor"] as const satisfies readonly UserRole[];
 
 const SIGNUP_LABELS: Record<UserRole, string> = {
   rider: "Załóż konto jeźdźca",
-  stable: "Załóż konto ośrodka",
+  instructor: "Załóż konto ośrodka",
 };
 
 const HOME_LABEL = "Mój panel";
@@ -81,7 +81,7 @@ function halfActions(visitor: LandingVisitor): Record<UserRole, LandingAction | 
   if (visitor === null) {
     return {
       rider: { label: SIGNUP_LABELS.rider, href: signupRouteForRole("rider") },
-      stable: { label: SIGNUP_LABELS.stable, href: signupRouteForRole("stable") },
+      instructor: { label: SIGNUP_LABELS.instructor, href: signupRouteForRole("instructor") },
     };
   }
 
@@ -89,5 +89,5 @@ function halfActions(visitor: LandingVisitor): Record<UserRole, LandingAction | 
   const home = (half: UserRole): LandingAction | null =>
     role === half ? { label: HOME_LABEL, href: homeRouteForRole(half) } : null;
 
-  return { rider: home("rider"), stable: home("stable") };
+  return { rider: home("rider"), instructor: home("instructor") };
 }

@@ -42,7 +42,7 @@ describe("robotsTxt", () => {
     const prefixes = lines(SITE)
       .filter((line) => line.startsWith("Disallow: "))
       .map((line) => line.slice("Disallow: ".length));
-    for (const home of ["/osrodek", "/jezdziec"]) {
+    for (const home of ["/osrodek", "/jezdziec", "/instruktor"]) {
       expect(prefixes.some((prefix) => home.startsWith(prefix))).toBe(true);
     }
   });

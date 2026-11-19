@@ -1,0 +1,42 @@
+---
+// Wiersz pod nazwą instruktora na stronie Instruktorzy: „Właściciel”, stan konta i — przy żywym
+// zaproszeniu — adres, dla którego zaproszenie działa. Etykiety przychodzą z modelu widoku
+// (`composeInstructorList`).
+import type { AccountState } from "@/lib/instructors/list";
+
+interface Props {
+  account: AccountState;
+  owner?: boolean;
+}
+
+const { account, owner = false } = Astro.props;
+---
+
+<p class="meta">
+  {owner && <span class="meta__owner">Właściciel</span>}
+  <span class:list={["account", `account--${account.kind}`]}>{account.label}</span>
+  {account.kind === "invited" && <span>{account.email}</span>}
+</p>
+
+<style>
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+    margin: 4px 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    overflow-wrap: anywhere;
+  }
+  .meta__owner {
+    font-weight: 600;
+    color: var(--fg);
+  }
+  .account--account {
+    color: var(--primary-strong);
+    font-weight: 600;
+  }
+  .account--invited {
+    color: var(--fg);
+  }
+</style>

@@ -1,21 +1,23 @@
 import type { APIRoute } from "astro";
-import { SIGN_IN_ROUTE } from "@/lib/auth/roles";
+import { errorCode } from "@/lib/db-errors";
 import { formValue } from "@/lib/form-data";
 import {
-  INSTRUCTOR_NO_STABLE,
+  INSTRUCTOR_FORM_INVALID,
   INSTRUCTOR_NOT_FOUND,
-  INSTRUCTOR_TOGGLE_FAILED,
-  INSTRUCTOR_TOGGLE_INVALID,
+  INSTRUCTOR_OWNER_STAYS_ACTIVE,
+  instructorToggleErrorMessage,
 } from "@/lib/instructors/errors";
+import { ownerRequest } from "@/lib/instructors/owner-request";
 import { backToInstructors } from "@/lib/instructors/redirect";
 import { toggleInstructorSchema } from "@/lib/instructors/schemas";
 import { logError } from "@/lib/log";
-import { getOwnedStableId } from "@/lib/stables/queries";
-import { createClient } from "@/lib/supabase";
+
+export const prerender = false;
 
 /**
- * Dezaktywacja i ponowna aktywacja instruktora. Dezaktywacja nigdy nie jest odmawiana
- * i nie rusza dni już ułożonych (ADR-0002) — to sama flaga.
+ * Dezaktywacja i ponowna aktywacja instruktora. Dezaktywacja nie rusza dni już ułożonych
+ * (ADR-0002) — to sama flaga; baza odmawia jej wyłącznie dla właściciela (SB012). Żywe
+ * zaproszenie instruktora wycofuje przy dezaktywacji baza, w tej samej transakcji.
  */
 export const POST: APIRoute = async (context) => {
   const form = await context.request.formData();
@@ -26,42 +28,32 @@ export const POST: APIRoute = async (context) => {
   });
 
   if (!parsed.success) {
-    return backToInstructors(context, INSTRUCTOR_TOGGLE_INVALID);
+    return backToInstructors(context, INSTRUCTOR_FORM_INVALID);
   }
 
-  const supabase = createClient(context.request.headers, context.cookies);
-  if (!supabase) {
-    return backToInstructors(context, "Supabase nie jest skonfigurowany");
-  }
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return context.redirect(SIGN_IN_ROUTE);
-  }
-
-  const stableId = await getOwnedStableId(supabase, user.id);
-  if (stableId === null) {
-    return backToInstructors(context, INSTRUCTOR_NO_STABLE);
+  const owner = await ownerRequest(context, "api:instructors/toggle-active");
+  if (owner instanceof Response) {
+    return owner;
   }
 
   // Jawny warunek po stadninie obok polityki `instructors_update_own_stable`.
   // `.select().maybeSingle()`: UPDATE odfiltrowany przez RLS kończy się bez błędu i z zerem
   // wierszy — bez odczytu wyglądałby jak sukces. Cudzy i nieistniejący instruktor dostają
   // jeden komunikat, bez wyroczni istnienia.
-  const { data, error } = await supabase
+  const { data, error } = await owner.supabase
     .from("instructors")
     .update({ active: parsed.data.active })
     .eq("id", parsed.data.instructorId)
-    .eq("stable_id", stableId)
+    .eq("stable_id", owner.stableId)
     .select("id")
     .maybeSingle();
 
   if (error) {
-    logError("api:instructors/toggle-active", error);
-    return backToInstructors(context, INSTRUCTOR_TOGGLE_FAILED);
+    const code = errorCode(error);
+    if (code !== INSTRUCTOR_OWNER_STAYS_ACTIVE) {
+      logError("api:instructors/toggle-active", error);
+    }
+    return backToInstructors(context, instructorToggleErrorMessage(code));
   }
 
   if (data === null) {

@@ -25,6 +25,8 @@ interface FormFieldProps {
   hint?: ReactNode;
   icon: ReactNode;
   endContent?: ReactNode;
+  /** Pole zablokowane, ale wysyłane z formularzem (np. adres z zaproszenia). */
+  readOnly?: boolean;
 }
 
 export function FormField({
@@ -39,6 +41,7 @@ export function FormField({
   hint,
   icon,
   endContent,
+  readOnly = false,
 }: FormFieldProps) {
   return (
     <div className="flex flex-col gap-1.5">
@@ -56,8 +59,10 @@ export function FormField({
             onChange(e.target.value);
           }}
           placeholder={placeholder}
+          readOnly={readOnly}
           className={cn(
             controlBase,
+            readOnly && "bg-surface-2 text-muted-foreground",
             error
               ? "border-danger focus:border-danger focus:ring-danger/15"
               : "border-border-2 hover:border-faint focus:border-primary focus:ring-primary-soft",

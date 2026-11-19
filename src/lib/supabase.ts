@@ -3,6 +3,9 @@ import type { AstroCookies } from "astro";
 import { SUPABASE_URL, SUPABASE_KEY } from "astro:env/server";
 import type { Database } from "@/db/database.types";
 
+/** Komunikat formularza, gdy brakuje adresu albo klucza Supabase (`createClient` zwraca `null`). */
+export const SUPABASE_NOT_CONFIGURED = "Supabase nie jest skonfigurowany";
+
 export function createClient(requestHeaders: Headers, cookies: AstroCookies) {
   if (!SUPABASE_URL || !SUPABASE_KEY) {
     return null;

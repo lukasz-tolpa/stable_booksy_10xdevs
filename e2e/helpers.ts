@@ -13,6 +13,11 @@ export const STABLE_NAME = "Stadnina Pod Dębem";
 /** Hasło wszystkich kont z seeda i kont zakładanych przez setup. */
 export const PASSWORD = "sekret123";
 export const STABLE_EMAIL = "osrodek.debem@example.com";
+/**
+ * Instruktorka z kontem z seeda (nie właścicielka) w Stadninie Pod Dębem — „Moje sloty” (#72).
+ * Jutro 1 miejsce w każdej godzinie 10–15; Anna Kowalska zapisana o 11 bez konia.
+ */
+export const INSTRUCTOR_EMAIL = "joanna.wrona@example.com";
 
 export const AUTH_DIR = "playwright/.auth";
 export const RIDER_A_STATE = `${AUTH_DIR}/rider-a.json`;
@@ -156,4 +161,27 @@ export async function openStable(page: Page, name: string): Promise<OpenedStable
   await assertSlotsRendered(page);
 
   return { path, day };
+}
+
+/**
+ * Świeży właściciel przez prawdziwe formularze: rejestracja z wyborem „Ośrodek”, potem
+ * założenie stadniny z domyślną nazwą instruktora (imię i nazwisko). Własny ośrodek per
+ * uruchomienie — scenariusz nie zostawia instruktorów ani zaproszeń w ośrodku z seeda.
+ */
+export async function signUpOwnerWithStable(page: Page, fullName: string, email: string): Promise<void> {
+  await page.goto("/auth/signup");
+  await waitForIslands(page);
+  await page.getByRole("radio", { name: "Ośrodek" }).check();
+  await page.getByLabel("Imię i nazwisko").fill(fullName);
+  await page.getByLabel("Adres e-mail").fill(email);
+  await page.getByLabel("Hasło", { exact: true }).fill(PASSWORD);
+  await page.getByLabel("Powtórz hasło").fill(PASSWORD);
+  await page.getByRole("button", { name: "Załóż konto" }).click();
+  await page.waitForURL("**/osrodek/nowa-stadnina");
+
+  await waitForIslands(page);
+  await page.getByLabel("Nazwa stadniny").fill(`Ośrodek ${fullName}`);
+  await page.getByLabel("Miejscowość").fill("Testowo");
+  await page.getByRole("button", { name: "Załóż stadninę" }).click();
+  await page.waitForURL("**/osrodek");
 }

@@ -3,7 +3,7 @@ import { CalendarCheck, Check, CircleAlert, Info, Plus } from "lucide-react";
 import { ServerError } from "@/components/auth/ServerError";
 import { SubmitButton } from "@/components/auth/SubmitButton";
 import { formatClockHour } from "@/lib/format";
-import type { InstructorListItem } from "@/lib/instructors/queries";
+import type { FormInstructor } from "@/lib/schedule/form";
 import type { SlotSeats } from "@/lib/schedule/queries";
 import { hoursError, seatFieldName } from "@/lib/schedule/schema";
 import {
@@ -43,7 +43,7 @@ interface Props {
   selectedHorseIds: number[];
   horses: HorseListItem[];
   selectedInstructorIds: number[];
-  instructors: InstructorListItem[];
+  instructors: FormInstructor[];
   seats: SlotSeats[];
   /** Data dnia, z którego pochodzi szkic (`prefillSourceDay` z `@/lib/schedule/form`), albo `null`. */
   prefillFrom: string | null;

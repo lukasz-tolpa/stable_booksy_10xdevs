@@ -5,7 +5,7 @@ import { cancelBooking, getRiderBookingForCancel } from "@/lib/bookings/queries"
 import { cancelSchema } from "@/lib/bookings/schema";
 import { hasSlotStarted } from "@/lib/bookings/slots";
 import { formValue } from "@/lib/form-data";
-import { createClient } from "@/lib/supabase";
+import { SUPABASE_NOT_CONFIGURED, createClient } from "@/lib/supabase";
 
 const MY_BOOKINGS_ROUTE = "/jezdziec/zapisy";
 const NOT_FOUND_MESSAGE = "Nie znaleziono zapisu do odwołania.";
@@ -32,7 +32,7 @@ export const POST: APIRoute = async (context) => {
 
   const supabase = createClient(context.request.headers, context.cookies);
   if (!supabase) {
-    return backToMyBookings(context, { error: "Supabase nie jest skonfigurowany" });
+    return backToMyBookings(context, { error: SUPABASE_NOT_CONFIGURED });
   }
 
   const {

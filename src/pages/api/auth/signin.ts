@@ -5,7 +5,7 @@ import { firstErrorMessage, signInSchema } from "@/lib/auth/schemas";
 import { authFailureMessage, profileRoleLoader, resolveRole, signOutUser } from "@/lib/auth/session";
 import { formValue } from "@/lib/form-data";
 import { logError } from "@/lib/log";
-import { createClient } from "@/lib/supabase";
+import { SUPABASE_NOT_CONFIGURED, createClient } from "@/lib/supabase";
 
 function backToForm(context: APIContext, message: string) {
   return context.redirect(`/auth/signin?error=${encodeURIComponent(message)}`);
@@ -25,7 +25,7 @@ export const POST: APIRoute = async (context) => {
 
   const supabase = createClient(context.request.headers, context.cookies);
   if (!supabase) {
-    return backToForm(context, "Supabase nie jest skonfigurowany");
+    return backToForm(context, SUPABASE_NOT_CONFIGURED);
   }
 
   // Nigdy surowa treść błędu GoTrue: to angielski tekst, a przy awarii sieci `fetch failed`

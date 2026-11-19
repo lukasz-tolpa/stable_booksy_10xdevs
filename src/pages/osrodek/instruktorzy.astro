@@ -2,12 +2,28 @@
 import { UserRound } from "lucide-react";
 import Layout from "@/layouts/Layout.astro";
 import Topbar from "@/components/Topbar.astro";
+import Banner from "@/components/Banner.astro";
+import CopyLink from "@/components/instructors/CopyLink";
 import InstructorForm from "@/components/instructors/InstructorForm";
+import InstructorMeta from "@/components/instructors/InstructorMeta.astro";
+import InviteForm from "@/components/instructors/InviteForm";
 import Card from "@/components/ui/Card.astro";
 import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
+import {
+  INVITATION_FLASH_COOKIE,
+  invitationNotice,
+  parseInvitationFlash,
+  type InvitationNotice,
+} from "@/lib/instructors/invitations";
 import { composeInstructorList, type InstructorList } from "@/lib/instructors/list";
-import { listOpenSeatRows, listStableInstructors } from "@/lib/instructors/queries";
+import {
+  listInstructorAccounts,
+  listLiveInvitations,
+  listOpenSeatRows,
+  listStableInstructors,
+} from "@/lib/instructors/queries";
+import { INSTRUCTORS_ROUTE } from "@/lib/instructors/redirect";
 import { todayIso } from "@/lib/schedule/dates";
 import { getOwnedStableId } from "@/lib/stables/queries";
 import { createClient } from "@/lib/supabase";
@@ -18,20 +34,28 @@ import { logError } from "@/lib/log";
 const { profile } = Astro.locals;
 const error = Astro.url.searchParams.get("error");
 
+// Link zaproszenia pokazujemy raz, zaraz po wystawieniu (endpoint odkłada token w ciasteczku).
+const flash = parseInvitationFlash(Astro.cookies.get(INVITATION_FLASH_COOKIE)?.value);
+Astro.cookies.delete(INVITATION_FLASH_COOKIE, { path: INSTRUCTORS_ROUTE });
+
 const supabase = createClient(Astro.request.headers, Astro.cookies);
 
 let list: InstructorList = { active: [], inactive: [] };
+let notice: InvitationNotice | null = null;
 let loadFailed = false;
 
 if (supabase && profile) {
   try {
     const stableId = await getOwnedStableId(supabase, profile.id);
     if (stableId !== null) {
-      const [instructors, openSeatRows] = await Promise.all([
+      const [instructors, openSeatRows, invitations, accounts] = await Promise.all([
         listStableInstructors(supabase, stableId),
         listOpenSeatRows(supabase, stableId, todayIso()),
+        listLiveInvitations(supabase),
+        listInstructorAccounts(supabase),
       ]);
-      list = composeInstructorList(instructors, openSeatRows);
+      list = composeInstructorList(instructors, openSeatRows, invitations, accounts);
+      notice = invitationNotice(list, flash, Astro.url.origin);
     }
   } catch (error) {
     loadFailed = true;
@@ -46,10 +70,40 @@ const { active, inactive } = list;
   <Topbar />
   <main class="container-narrow page">
     <h1>Instruktorzy</h1>
-    <p class="page-lead">Osoby prowadzące jazdy w Twoim ośrodku. Instruktor nie ma konta — grafik układasz za niego.</p>
+    <p class="page-lead">
+      Osoby prowadzące jazdy w Twoim ośrodku. Jesteś wśród nich jako właściciel i układasz grafik za wszystkich.
+      Instruktora bez konta możesz zaprosić — dostaniesz link, który przekażesz mu sam.
+    </p>
+
+    {
+      error && (
+        <div class="notice">
+          <Banner variant="error">{error}</Banner>
+        </div>
+      )
+    }
 
     <div class="cols">
       <div class="list">
+        {
+          notice && (
+            <Card>
+              <section class="invitation" aria-labelledby="invitation-heading">
+                <h2 id="invitation-heading">Link zaproszenia</h2>
+                <p>
+                  Dla: <strong>{notice.instructorName}</strong>, adres {notice.email}. {notice.expiresLabel}. Przekaż go
+                  instruktorowi SMS-em, komunikatorem albo e-mailem — aplikacja niczego nie wysyła.
+                </p>
+                <p class="invitation__once">
+                  Link widzisz tylko teraz. Jeśli go zgubisz, zaproś instruktora ponownie — poprzedni link przestanie
+                  działać.
+                </p>
+                <CopyLink link={notice.link} client:load />
+              </section>
+            </Card>
+          )
+        }
+
         {
           loadFailed ? (
             <FailureState>
@@ -70,15 +124,44 @@ const { active, inactive } = list;
               {active.map((instructor) => (
                 <Card padding={18}>
                   <article class="instructor">
-                    <h2>
-                      <UserRound className="size-4" />
-                      {instructor.name}
-                    </h2>
-                    <form method="POST" action="/api/instructors/toggle-active">
-                      <input type="hidden" name="instructorId" value={instructor.id} />
-                      <input type="hidden" name="active" value="false" />
-                      <button type="submit">Dezaktywuj</button>
-                    </form>
+                    <div class="instructor__head">
+                      <div class="instructor__text">
+                        <h2>
+                          <UserRound className="size-4" />
+                          {instructor.name}
+                        </h2>
+                        <InstructorMeta account={instructor.account} owner={instructor.owner} />
+                      </div>
+                      {!instructor.owner && (
+                        <form method="POST" action="/api/instructors/toggle-active">
+                          <input type="hidden" name="instructorId" value={instructor.id} />
+                          <input type="hidden" name="active" value="false" />
+                          <button type="submit">Dezaktywuj</button>
+                        </form>
+                      )}
+                    </div>
+
+                    {instructor.invite && (
+                      <div class="instructor__invite">
+                        <details>
+                          <summary>{instructor.invite.summary}</summary>
+                          <div class="instructor__invite-form">
+                            <InviteForm
+                              instructorId={instructor.id}
+                              instructorName={instructor.name}
+                              defaultEmail={instructor.invite.defaultEmail}
+                              client:load
+                            />
+                          </div>
+                        </details>
+                        {instructor.account.kind === "invited" && (
+                          <form method="POST" action="/api/instructors/revoke-invite">
+                            <input type="hidden" name="instructorId" value={instructor.id} />
+                            <button type="submit">Wycofaj zaproszenie</button>
+                          </form>
+                        )}
+                      </div>
+                    )}
                   </article>
                 </Card>
               ))}
@@ -89,18 +172,21 @@ const { active, inactive } = list;
                   {inactive.map((instructor) => (
                     <Card padding={18} class="opacity-70">
                       <article class="instructor">
-                        <div class="instructor__text">
-                          <h3>
-                            <UserRound className="size-4" />
-                            {instructor.name}
-                          </h3>
-                          {instructor.note && <p class="instructor__note">{instructor.note}</p>}
+                        <div class="instructor__head">
+                          <div class="instructor__text">
+                            <h3>
+                              <UserRound className="size-4" />
+                              {instructor.name}
+                            </h3>
+                            <InstructorMeta account={instructor.account} />
+                            {instructor.note && <p class="instructor__note">{instructor.note}</p>}
+                          </div>
+                          <form method="POST" action="/api/instructors/toggle-active">
+                            <input type="hidden" name="instructorId" value={instructor.id} />
+                            <input type="hidden" name="active" value="true" />
+                            <button type="submit">Aktywuj</button>
+                          </form>
                         </div>
-                        <form method="POST" action="/api/instructors/toggle-active">
-                          <input type="hidden" name="instructorId" value={instructor.id} />
-                          <input type="hidden" name="active" value="true" />
-                          <button type="submit">Aktywuj</button>
-                        </form>
                       </article>
                     </Card>
                   ))}
@@ -113,7 +199,7 @@ const { active, inactive } = list;
 
       <Card>
         <h2 class="form-head">Dodaj instruktora</h2>
-        <InstructorForm serverError={error} client:load />
+        <InstructorForm client:load />
       </Card>
     </div>
   </main>
@@ -132,6 +218,9 @@ const { active, inactive } = list;
     color: var(--muted);
     max-width: 62ch;
   }
+  .notice {
+    margin-top: 18px;
+  }
 
   .cols {
     margin-top: 24px;
@@ -148,9 +237,25 @@ const { active, inactive } = list;
   .list {
     display: grid;
     gap: 12px;
+    min-width: 0;
   }
 
-  .instructor {
+  .invitation h2 {
+    font-size: 17px;
+    margin: 0;
+  }
+  .invitation p {
+    margin: 8px 0 0;
+    font-size: 14px;
+    overflow-wrap: anywhere;
+  }
+  .invitation .invitation__once {
+    margin-bottom: 14px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .instructor__head {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -177,7 +282,8 @@ const { active, inactive } = list;
   .instructor :global(svg) {
     flex-shrink: 0;
   }
-  .instructor button {
+  .instructor button,
+  .instructor summary {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -197,12 +303,40 @@ const { active, inactive } = list;
       background 0.15s,
       border-color 0.15s;
   }
-  .instructor button:hover {
+  .instructor summary {
+    list-style: none;
+  }
+  .instructor summary::-webkit-details-marker {
+    display: none;
+  }
+  .instructor button:hover,
+  .instructor summary:hover {
     background: var(--surface-2);
   }
-  .instructor button:focus-visible {
+  .instructor button:focus-visible,
+  .instructor summary:focus-visible {
     outline: 2px solid var(--primary);
     outline-offset: 2px;
+  }
+  .instructor :global(details[open]) summary {
+    background: var(--primary-soft);
+    border-color: var(--primary-tint);
+  }
+
+  .instructor__invite {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+  .instructor__invite :global(details[open]) {
+    flex-basis: 100%;
+  }
+  .instructor__invite-form {
+    margin-top: 12px;
   }
 
   .inactive-head {

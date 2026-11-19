@@ -21,7 +21,7 @@ export function toCancelledBy(value: string | null): CancelledBy | null {
 }
 
 const CANCELLED_BY_LABELS: Record<UserRole, Record<CancelledBy, string>> = {
-  stable: { rider: "przez jeźdźca", stable: "przez ośrodek" },
+  instructor: { rider: "przez jeźdźca", stable: "przez ośrodek" },
   rider: { rider: "przez Ciebie", stable: "przez ośrodek" },
 };
 

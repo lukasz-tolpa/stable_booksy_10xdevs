@@ -3,7 +3,7 @@
    atrybut dokłada przeglądarka po kliknięciu, więc nie ma go w statycznym markupie */
 import Logo from "@/components/Logo.astro";
 import RoleBadge from "@/components/ui/RoleBadge.astro";
-import { homeRouteForRole, isUserRole } from "@/lib/auth/roles";
+import { homeRouteForAccount, isUserRole, roleBadgeLabel } from "@/lib/auth/roles";
 
 interface Props {
   /** Szerokość kontenera: landing ma 1200 px, ekrany aplikacji 880 px (DESIGN.md §4). */
@@ -11,12 +11,14 @@ interface Props {
 }
 
 const { container = "narrow" } = Astro.props;
-const { user, profile } = Astro.locals;
+const { user, profile, instructorStanding } = Astro.locals;
 
 // Górny pasek prowadzi do przestrzeni roli, a nie do wspólnego panelu - adres i etykieta
 // pochodzą z tabeli decyzyjnej, więc nie rozjadą się z regułami middleware.
 const role = isUserRole(profile?.role) ? profile.role : null;
-const homeRoute = role ? homeRouteForRole(role) : null;
+// Konto instruktora prowadzi do przestrzeni ośrodka (właściciel) albo do „Moje sloty” (instruktor).
+const homeRoute = role ? homeRouteForAccount(role, instructorStanding) : null;
+const roleLabel = role ? roleBadgeLabel(role, instructorStanding) : null;
 ---
 
 {
@@ -50,7 +52,7 @@ const homeRoute = role ? homeRouteForRole(role) : null;
           <div class="menu-body">
             <span class="nav-user">
               <span class="nav-mail">{user.email}</span>
-              {role && <RoleBadge role={role} />}
+              {role && <RoleBadge role={role} label={roleLabel ?? undefined} />}
             </span>
             <div class="nav-links">
               {homeRoute && <a href={homeRoute}>Mój panel</a>}

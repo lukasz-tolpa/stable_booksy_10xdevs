@@ -9,7 +9,7 @@ import { SCHEDULE_DAY_PAST, isScheduleRefusal, scheduleErrorMessage } from "@/li
 import { saveScheduleDay } from "@/lib/schedule/queries";
 import { parseScheduleDayForm } from "@/lib/schedule/schema";
 import { getOwnedStableId } from "@/lib/stables/queries";
-import { createClient } from "@/lib/supabase";
+import { SUPABASE_NOT_CONFIGURED, createClient } from "@/lib/supabase";
 
 const SCHEDULE_ROUTE = "/osrodek/grafik";
 
@@ -44,7 +44,7 @@ export const POST: APIRoute = async (context) => {
 
   const supabase = createClient(context.request.headers, context.cookies);
   if (!supabase) {
-    return backToDay(context, parsed.data.day, "Supabase nie jest skonfigurowany");
+    return backToDay(context, parsed.data.day, SUPABASE_NOT_CONFIGURED);
   }
 
   const {

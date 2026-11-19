@@ -7,8 +7,12 @@ import type { Database } from "@/db/database.types";
 
 type Tables = Database["public"]["Tables"];
 
-/** Rola konta ustawiana przy rejestracji; zrodlem prawdy jest check constraint na public.profiles. */
-export type UserRole = "stable" | "rider";
+/**
+ * Rola konta ustawiana przy rejestracji; zrodlem prawdy jest check constraint na public.profiles.
+ * `instructor` to konto instruktora osrodka - wlasciciela albo (od kolejnych ticketow) instruktora
+ * z zaproszenia; kim jest, mowi powiazanie w `instructors`, nie rola (ADR-0004).
+ */
+export type UserRole = "instructor" | "rider";
 
 /** Cykl zycia zapisu. Odwolanie nie kasuje wiersza, tylko przestawia status. */
 export type BookingStatus = "active" | "cancelled";

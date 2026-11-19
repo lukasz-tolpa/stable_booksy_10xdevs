@@ -23,9 +23,9 @@ describe("toCancelledBy", () => {
 });
 
 describe("cancelledByLabel", () => {
-  it("ośrodek widzi, czy odwołał jeździec, czy on sam", () => {
-    expect(cancelledByLabel("rider", "stable")).toBe("przez jeźdźca");
-    expect(cancelledByLabel("stable", "stable")).toBe("przez ośrodek");
+  it("właściciel ośrodka widzi, czy odwołał jeździec, czy ośrodek", () => {
+    expect(cancelledByLabel("rider", "instructor")).toBe("przez jeźdźca");
+    expect(cancelledByLabel("stable", "instructor")).toBe("przez ośrodek");
   });
 
   it("jeździec widzi własne odwołanie jako „przez Ciebie”", () => {

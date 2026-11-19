@@ -6,17 +6,23 @@ import { RoleSelect } from "@/components/auth/RoleSelect";
 import { SubmitButton } from "@/components/auth/SubmitButton";
 import { ServerError } from "@/components/auth/ServerError";
 import { MIN_PASSWORD_LENGTH } from "@/lib/auth/constants";
+import { INVITATION_PARAM } from "@/lib/instructors/invitations";
 import type { UserRole } from "@/types";
 
 interface Props {
   serverError?: string | null;
   /** Rodzaj konta zaznaczony na starcie (z adresu rejestracji); `null` = bez zaznaczenia. */
   initialRole?: UserRole | null;
+  /**
+   * Tryb zaproszenia (#75): bez wyboru rodzaju konta (konto z zaproszenia jest kontem instruktora),
+   * z zablokowanym adresem zaproszenia; token jedzie ukrytym polem do endpointu rejestracji.
+   */
+  invitation?: { token: string; email: string } | null;
 }
 
-export default function SignUpForm({ serverError, initialRole }: Props) {
+export default function SignUpForm({ serverError, initialRole, invitation }: Props) {
   const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(invitation?.email ?? "");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [role, setRole] = useState<UserRole | "">(initialRole ?? "");
@@ -35,7 +41,7 @@ export default function SignUpForm({ serverError, initialRole }: Props) {
 
     // Komunikat musi brzmieć tak samo jak w schemacie zod - inaczej użytkownik zobaczy
     // inne zdanie zależnie od tego, czy ma włączony JavaScript.
-    if (!role) {
+    if (!invitation && !role) {
       next.role = "Wybierz rodzaj konta";
     }
 
@@ -43,7 +49,7 @@ export default function SignUpForm({ serverError, initialRole }: Props) {
       next.fullName = "Podaj imię i nazwisko";
     }
 
-    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!invitation && (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
       next.email = "Podaj poprawny adres e-mail";
     }
 
@@ -82,14 +88,18 @@ export default function SignUpForm({ serverError, initialRole }: Props) {
 
   return (
     <form method="POST" action="/api/auth/signup" className="space-y-4" onSubmit={handleSubmit} noValidate>
-      <RoleSelect
-        value={role}
-        onChange={(v) => {
-          setRole(v);
-          clearError("role");
-        }}
-        error={errors.role}
-      />
+      {invitation ? (
+        <input type="hidden" name={INVITATION_PARAM} value={invitation.token} />
+      ) : (
+        <RoleSelect
+          value={role}
+          onChange={(v) => {
+            setRole(v);
+            clearError("role");
+          }}
+          error={errors.role}
+        />
+      )}
 
       <FormField
         id="fullName"
@@ -116,6 +126,7 @@ export default function SignUpForm({ serverError, initialRole }: Props) {
         placeholder="ty@example.com"
         error={errors.email}
         icon={<Mail className="size-4" />}
+        readOnly={Boolean(invitation)}
       />
 
       <FormField

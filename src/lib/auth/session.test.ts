@@ -200,6 +200,24 @@ describe("signUpOutcome", () => {
     expect(signUpCalls[0]?.options?.data).toEqual({ role: "rider", full_name: "Anna Kowalska" });
   });
 
+  // #75: zaproszenie przyjmuje trigger `handle_new_user` przy zakładaniu konta, więc token
+  // z linku musi dotrzeć w metadanych — bez niego powstałoby zwykłe konto bez instruktora.
+  it("przekazuje token zaproszenia w metadanych konta instruktora", async () => {
+    const signUpCalls: SignUpArgs[] = [];
+    const client = stubClient({
+      signUp: { data: { user: fakeUser("u3"), session: {} }, error: null },
+      signUpCalls,
+    });
+
+    await signUpOutcome(client, { ...input, role: "instructor", invitationToken: "ab".repeat(32) });
+
+    expect(signUpCalls[0]?.options?.data).toEqual({
+      role: "instructor",
+      full_name: "Anna Kowalska",
+      invitation_token: "ab".repeat(32),
+    });
+  });
+
   it("konto bez sesji wymaga potwierdzenia, a nie wejścia do panelu", async () => {
     const client = stubClient({ signUp: { data: { user: fakeUser("u2"), session: null }, error: null } });
 

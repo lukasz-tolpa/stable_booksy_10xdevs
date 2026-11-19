@@ -29,8 +29,11 @@ export function unknownHorseName(horseId: number): string {
   return `(koń #${String(horseId)})`;
 }
 
-/** Miniony zapis, którego jeździec usunął konto (jeździec zanonimizowany, ADR-0001). */
-const ANONYMISED_RIDER = "Usunięty jeździec";
+/**
+ * Miniony zapis, którego jeździec usunął konto (jeździec zanonimizowany, ADR-0001). Jedyna
+ * definicja: lista zapisów dnia ośrodka i „Moje sloty” instruktora.
+ */
+export const ANONYMISED_RIDER = "Usunięty jeździec";
 
 export interface HorseOption {
   id: number;
@@ -134,7 +137,7 @@ export function composeDayBookingSections(input: DayBookingSectionsInput): DayBo
         instructorName: booking.instructorName ?? unknownInstructorName(booking.instructorId),
         riderName: riderLabel(booking),
         // CHECK spójności: odwołany zapis zawsze ma `cancelled_by`.
-        cancelledByLabel: cancelledByLabel(booking.cancelledBy ?? "rider", "stable"),
+        cancelledByLabel: cancelledByLabel(booking.cancelledBy ?? "rider", "instructor"),
       }),
     )
     .sort(byHourInstructorRider);

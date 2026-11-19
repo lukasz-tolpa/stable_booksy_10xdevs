@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { newInstructorSchema, toggleInstructorSchema } from "@/lib/instructors/schemas";
+import {
+  instructorIdSchema,
+  inviteInstructorSchema,
+  newInstructorSchema,
+  toggleInstructorSchema,
+} from "@/lib/instructors/schemas";
 
 describe("newInstructorSchema", () => {
   it("przepuszcza nazwę i przycina spacje na brzegach", () => {
@@ -42,5 +47,38 @@ describe("toggleInstructorSchema", () => {
 
   it("odrzuca stan spoza dozwolonego zbioru", () => {
     expect(toggleInstructorSchema.safeParse({ instructorId: "4", active: "maybe" }).success).toBe(false);
+  });
+});
+
+describe("inviteInstructorSchema", () => {
+  it("przepuszcza instruktora i adres, zapisując adres małymi literami bez spacji na brzegach", () => {
+    expect(inviteInstructorSchema.safeParse({ instructorId: "7", email: "  Joanna.Wrona@Example.COM " }).data).toEqual({
+      instructorId: 7,
+      email: "joanna.wrona@example.com",
+    });
+  });
+
+  it.each(["", "   ", "joanna", "joanna@", "@example.com", "jo anna@example.com"])(
+    "odrzuca adres %j polskim komunikatem pola",
+    (email) => {
+      const result = inviteInstructorSchema.safeParse({ instructorId: "7", email });
+      expect(result.success).toBe(false);
+      expect(result.error?.issues[0]?.message).toBe("Podaj poprawny adres e-mail instruktora");
+    },
+  );
+
+  it.each(["0", "abc", ""])("odrzuca identyfikator instruktora %j", (instructorId) => {
+    const result = inviteInstructorSchema.safeParse({ instructorId, email: "joanna@example.com" });
+    expect(result.error?.issues[0]?.message).toBe("Nieprawidłowy instruktor");
+  });
+});
+
+describe("instructorIdSchema", () => {
+  it("przepuszcza identyfikator instruktora", () => {
+    expect(instructorIdSchema.safeParse({ instructorId: " 12 " }).data).toEqual({ instructorId: 12 });
+  });
+
+  it.each(["0", "-1", "x", ""])("odrzuca identyfikator %j", (instructorId) => {
+    expect(instructorIdSchema.safeParse({ instructorId }).error?.issues[0]?.message).toBe("Nieprawidłowy instruktor");
   });
 });

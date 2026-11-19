@@ -1,0 +1,22 @@
+---
+import Topbar from "@/components/Topbar.astro";
+import NoticeCard from "@/components/ui/NoticeCard.astro";
+import Layout from "@/layouts/Layout.astro";
+
+// Ekran konta instruktora zdezaktywowanego przez właściciela (#73, US 30). Trafia tu z każdej
+// trasy chronionej (middleware, `instructorRedirect` w @/lib/auth/roles); aktywne konto stąd
+// odchodzi do swojej przestrzeni. Strona nie czyta danych ośrodka — RLS i tak by ich nie dał.
+---
+
+<Layout title="Konto nieaktywne" noindex>
+  <Topbar />
+  <main>
+    <NoticeCard
+      emoji="🔒"
+      heading="Konto nieaktywne"
+      lead="Właściciel ośrodka dezaktywował Twoje konto instruktora. Gdy aktywuje je ponownie, znów zobaczysz swoje sloty."
+      formAction="/api/auth/signout"
+      linkText="Wyloguj się"
+    />
+  </main>
+</Layout>

@@ -60,6 +60,41 @@ setup("jeździec B — świeże konto", async ({ page }) => {
   await page.context().storageState({ path: RIDER_B_STATE });
 });
 
+/**
+ * Właściciel zakładany przez prawdziwy formularz: rejestracja z wyborem „Ośrodek” zakłada
+ * konto instruktora, które trafia na zakładanie ośrodka; nazwa instruktora właściciela ma
+ * domyślnie imię i nazwisko z konta. Na stronie Instruktorzy właściciel jest oznaczony i nie
+ * ma przełącznika dezaktywacji. Sesja nie jest zapisywana - scenariusze pracują na ośrodku
+ * z seeda.
+ */
+setup("właściciel — rejestracja i założenie ośrodka przez formularz", async ({ page }) => {
+  const stamp = String(Date.now());
+  const fullName = `Właściciel E2E ${stamp}`;
+
+  await page.goto("/auth/signup");
+  await waitForIslands(page);
+  await page.getByRole("radio", { name: "Ośrodek" }).check();
+  await page.getByLabel("Imię i nazwisko").fill(fullName);
+  await page.getByLabel("Adres e-mail").fill(`e2e-owner-${stamp}@example.com`);
+  await page.getByLabel("Hasło", { exact: true }).fill(PASSWORD);
+  await page.getByLabel("Powtórz hasło").fill(PASSWORD);
+  await page.getByRole("button", { name: "Załóż konto" }).click();
+  await page.waitForURL("**/osrodek/nowa-stadnina");
+
+  await waitForIslands(page);
+  await expect(page.getByLabel("Twoja nazwa instruktora")).toHaveValue(fullName);
+  await page.getByLabel("Nazwa stadniny").fill(`Ośrodek E2E ${stamp}`);
+  await page.getByLabel("Miejscowość").fill("Testowo");
+  await page.getByRole("button", { name: "Załóż stadninę" }).click();
+  await page.waitForURL("**/osrodek");
+  await expect(page.getByRole("heading", { level: 1, name: "Panel ośrodka" })).toBeVisible();
+
+  await page.goto("/osrodek/instruktorzy");
+  const ownerCard = page.getByRole("article").filter({ has: page.getByRole("heading", { name: fullName }) });
+  await expect(ownerCard.getByText("Właściciel", { exact: true })).toBeVisible();
+  await expect(ownerCard.getByRole("button", { name: "Dezaktywuj" })).toHaveCount(0);
+});
+
 setup("ośrodek z seeda — logowanie", async ({ page }) => {
   await page.goto("/auth/signin");
   await waitForIslands(page);
