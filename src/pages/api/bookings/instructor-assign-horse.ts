@@ -3,9 +3,8 @@ import { SIGN_IN_ROUTE } from "@/lib/auth/roles";
 import { firstErrorMessage } from "@/lib/auth/schemas";
 import { assignHorseSchema } from "@/lib/bookings/schema";
 import {
-  NOT_MY_SLOT_BOOKING,
   instructorHorseAssignmentErrorMessage,
-  isHorseAssignmentRefusal,
+  isInstructorHorseAssignmentRefusal,
 } from "@/lib/bookings/stable-errors";
 import { errorCode } from "@/lib/db-errors";
 import { formValue } from "@/lib/form-data";
@@ -13,6 +12,8 @@ import { logError } from "@/lib/log";
 import { assignMySlotHorse } from "@/lib/my-slots/queries";
 import { backToMySlots } from "@/lib/my-slots/redirect";
 import { SUPABASE_NOT_CONFIGURED, createClient } from "@/lib/supabase";
+
+export const prerender = false;
 
 /**
  * Przydział, zmiana albo zdjęcie konia przez instruktora przy zapisie na jego slot (#81).
@@ -49,7 +50,7 @@ export const POST: APIRoute = async (context) => {
     // Odmowa reguły (koń zajęty, nie pracuje, zapis odwołany, zapis spoza moich slotów) to
     // decyzja bazy; wszystko inne to awaria — ta trafia do logu.
     const code = errorCode(error);
-    if (!isHorseAssignmentRefusal(code) && code !== NOT_MY_SLOT_BOOKING) {
+    if (!isInstructorHorseAssignmentRefusal(code)) {
       logError("api:bookings/instructor-assign-horse", error);
     }
     return backToMySlots(context, { error: instructorHorseAssignmentErrorMessage(code) });

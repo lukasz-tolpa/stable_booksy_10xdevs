@@ -1,5 +1,5 @@
 import type { APIContext, APIRoute } from "astro";
-import { SIGN_IN_ROUTE, homeRouteForAccount, isUserRole, scheduleRouteFor } from "@/lib/auth/roles";
+import { SIGN_IN_ROUTE, homeRouteForAccount, isUserRole, scheduleCallerFor, scheduleRouteFor } from "@/lib/auth/roles";
 import { firstErrorMessage } from "@/lib/auth/schemas";
 import { errorCode, errorDetails } from "@/lib/db-errors";
 import { formValue } from "@/lib/form-data";
@@ -10,11 +10,12 @@ import {
   SCHEDULE_PERMISSION_MISSING,
   isScheduleRefusal,
   scheduleErrorMessage,
-  type ScheduleCaller,
 } from "@/lib/schedule/errors";
 import { saveScheduleDay } from "@/lib/schedule/queries";
 import { parseScheduleDayForm } from "@/lib/schedule/schema";
 import { SUPABASE_NOT_CONFIGURED, createClient } from "@/lib/supabase";
+
+export const prerender = false;
 
 /**
  * Zapis grafiku dnia — właściciela i instruktora z uprawnieniem do układania grafiku (#79). Ośrodek
@@ -45,10 +46,7 @@ export const POST: APIRoute = async (context) => {
   const home = homeRouteForAccount(profile.role, standing);
   const scheduleRoute = scheduleRouteFor(standing);
   // Instruktor (z uprawnieniem albo po jego utracie) dostaje komunikaty instruktora.
-  const caller: ScheduleCaller =
-    standing === "instructor" || standing === "arranging-instructor" || standing === "inactive"
-      ? "instructor"
-      : "owner";
+  const caller = scheduleCallerFor(standing);
   const back = (day: string | null, message?: string) =>
     scheduleRoute ? backTo(context, scheduleRoute, day, message) : backTo(context, home, null, message);
 

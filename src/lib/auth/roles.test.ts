@@ -9,6 +9,7 @@ import {
   isStableSetupPath,
   isUserRole,
   roleBadgeLabel,
+  scheduleCallerFor,
   scheduleRouteFor,
   routeGuardFor,
   signupRoleFromParam,
@@ -360,5 +361,19 @@ describe("scheduleRouteFor", () => {
     expect(scheduleRouteFor("inactive")).toBeNull();
     expect(scheduleRouteFor("none")).toBeNull();
     expect(scheduleRouteFor(null)).toBeNull();
+  });
+});
+
+describe("scheduleCallerFor", () => {
+  it("instruktor — z uprawnieniem, po jego utracie albo zdezaktywowany — dostaje komunikaty grafiku instruktora", () => {
+    expect(scheduleCallerFor("arranging-instructor")).toBe("instructor");
+    expect(scheduleCallerFor("instructor")).toBe("instructor");
+    expect(scheduleCallerFor("inactive")).toBe("instructor");
+  });
+
+  it("właściciel i pozostałe konta dostają komunikaty właściciela", () => {
+    expect(scheduleCallerFor("owner")).toBe("owner");
+    expect(scheduleCallerFor("none")).toBe("owner");
+    expect(scheduleCallerFor(null)).toBe("owner");
   });
 });

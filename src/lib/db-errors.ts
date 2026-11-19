@@ -10,6 +10,13 @@
  * tabeli obszaru.
  */
 
+/**
+ * SQLSTATE `insufficient_privilege` — wywołujący nie ma prawa do tej czynności. Funkcje bazy podnoszą
+ * go jako odmowę; każdy obszar nadaje mu własne znaczenie (`SCHEDULE_PERMISSION_MISSING`,
+ * `NOT_MY_SLOT_BOOKING`).
+ */
+export const INSUFFICIENT_PRIVILEGE = "42501";
+
 /** Kod błędu Postgresa z odpowiedzi Supabase, jeśli w ogóle go niesie. */
 export function errorCode(error: unknown): string | undefined {
   return typeof error === "object" && error !== null && "code" in error && typeof error.code === "string"

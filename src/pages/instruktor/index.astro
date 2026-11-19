@@ -4,6 +4,7 @@ import Banner from "@/components/Banner.astro";
 import Topbar from "@/components/Topbar.astro";
 import InstructorTabs from "@/components/instructors/InstructorTabs.astro";
 import Card from "@/components/ui/Card.astro";
+import GhostButton from "@/components/ui/GhostButton.astro";
 import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
 import Tag from "@/components/ui/Tag.astro";
@@ -139,9 +140,7 @@ if (supabase && profile) {
                                   </option>
                                 ))}
                               </select>
-                              <button type="submit" class="btn-ghost">
-                                Zapisz konia
-                              </button>
+                              <GhostButton>Zapisz konia</GhostButton>
                             </form>
                           </li>
                         ))}
@@ -269,31 +268,6 @@ if (supabase && profile) {
     font-size: 14.5px;
   }
   .assign select:focus-visible {
-    outline: 2px solid var(--primary);
-    outline-offset: 2px;
-  }
-  .btn-ghost {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 44px;
-    padding: 10px 15px;
-    border: 1px solid var(--border-2);
-    border-radius: 999px;
-    background: var(--surface);
-    color: var(--fg);
-    font-family: var(--font-display);
-    font-size: 14px;
-    font-weight: 600;
-    line-height: 1;
-    white-space: nowrap;
-    cursor: pointer;
-    transition: background 0.15s;
-  }
-  .btn-ghost:hover {
-    background: var(--primary-soft);
-  }
-  .btn-ghost:focus-visible {
     outline: 2px solid var(--primary);
     outline-offset: 2px;
   }

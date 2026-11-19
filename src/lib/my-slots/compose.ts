@@ -3,7 +3,7 @@ import { ANONYMISED_RIDER, NO_HORSE, UNNAMED_RIDER } from "@/lib/bookings/rows";
 /**
  * „Moje sloty” instruktora (#72): dni od dziś, w każdym jego godziny z limitem > 0, zajęte
  * miejsca wobec limitu i zapisani jeźdźcy z przydzielonym koniem albo „bez konia”, a przy każdym
- * zapisie konie do wyboru (#81): pracujące tego dnia, zajęte o tej godzinie oznaczone „zajęty”.
+ * zapisie konie do przydziału (#81): pracujące tego dnia, zajęte o tej godzinie oznaczone „zajęty”.
  * Limit zero znaczy „nie prowadzę jazdy w tej godzinie” (GLOSSARY „Limit miejsc”), więc taka
  * godzina nie trafia na listę, a dzień bez żadnej prowadzonej godziny — też nie.
  */
@@ -29,7 +29,7 @@ export interface MySlotBookingInput {
   anonymised: boolean;
 }
 
-/** Koń do wyboru przy zapisie — z `get_my_slot_horse_options`. */
+/** Koń do przydziału przy zapisie — z `get_my_slot_horse_options`. */
 export interface MySlotHorseOptionInput {
   bookingId: number;
   horseId: number;
@@ -38,7 +38,7 @@ export interface MySlotHorseOptionInput {
   taken: boolean;
 }
 
-/** Pozycja listy wyboru konia; zajętej nie da się wybrać. */
+/** Pozycja listy przydziału konia; zajętej nie da się wybrać. */
 export interface MySlotHorseChoice {
   id: number;
   /** Nazwa konia, przy zajętym z dopiskiem `HORSE_TAKEN_LABEL`. */

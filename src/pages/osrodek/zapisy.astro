@@ -4,6 +4,7 @@ import Layout from "@/layouts/Layout.astro";
 import Banner from "@/components/Banner.astro";
 import Topbar from "@/components/Topbar.astro";
 import Card from "@/components/ui/Card.astro";
+import GhostButton from "@/components/ui/GhostButton.astro";
 import DayNav from "@/components/ui/DayNav.astro";
 import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
@@ -11,7 +12,7 @@ import Tag from "@/components/ui/Tag.astro";
 import { getDayBookings } from "@/lib/bookings/queries";
 import { composeDayBookingSections, NO_HORSE, type DayBookingSections } from "@/lib/bookings/rows";
 import { stableBookingSuccessMessage } from "@/lib/bookings/stable-redirect";
-import { formatClockHour } from "@/lib/format";
+import { formatClockHour, formatLongDateWithYear } from "@/lib/format";
 import { addDays, parseScheduleDate, todayIso } from "@/lib/schedule/dates";
 import { getScheduleDay, type ScheduleDayData } from "@/lib/schedule/queries";
 import { getOwnedStableId, listStableHorses } from "@/lib/stables/queries";
@@ -57,12 +58,7 @@ if (supabase && profile) {
   loadFailed = true;
 }
 
-const dayLabel = new Date(`${day}T00:00:00`).toLocaleDateString("pl-PL", {
-  weekday: "long",
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-});
+const dayLabel = formatLongDateWithYear(day);
 
 const successMessage = stableBookingSuccessMessage(success);
 ---
@@ -156,9 +152,7 @@ const successMessage = stableBookingSuccessMessage(success);
                               </option>
                             ))}
                           </select>
-                          <button type="submit" class="btn-ghost">
-                            Zapisz konia
-                          </button>
+                          <GhostButton>Zapisz konia</GhostButton>
                         </form>
                         {row.cancellable && (
                           /* Jeden krok potwierdzenia bez JavaScriptu (US 83): odwołania nie da się cofnąć. */
@@ -328,7 +322,6 @@ const successMessage = stableBookingSuccessMessage(success);
     outline-offset: 2px;
   }
 
-  .btn-ghost,
   .btn-danger,
   .cancel summary {
     display: inline-flex;
@@ -348,19 +341,6 @@ const successMessage = stableBookingSuccessMessage(success);
       background 0.15s,
       border-color 0.15s;
   }
-  .btn-ghost {
-    border: 1px solid var(--border-2);
-    background: var(--surface);
-    color: var(--fg);
-  }
-  .btn-ghost:hover {
-    background: var(--primary-soft);
-  }
-  .btn-ghost:focus-visible {
-    outline: 2px solid var(--primary);
-    outline-offset: 2px;
-  }
-
   .cancel summary {
     list-style: none;
     border: 1px solid var(--danger);

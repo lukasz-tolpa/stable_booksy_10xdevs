@@ -335,19 +335,18 @@ const { active, inactive } = list;
     border-color: var(--primary-tint);
   }
 
+  /* Wiersze pod danymi instruktora (przełącznik uprawnienia, zaproszenie) oddziela ta sama linia. */
+  .instructor__row,
+  .instructor__invite {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
   .instructor__invite {
     display: flex;
     flex-wrap: wrap;
     align-items: flex-start;
     gap: 10px;
-    margin-top: 14px;
-    padding-top: 14px;
-    border-top: 1px solid var(--border);
-  }
-  .instructor__row {
-    margin-top: 14px;
-    padding-top: 14px;
-    border-top: 1px solid var(--border);
   }
 
   .instructor__invite :global(details[open]) {

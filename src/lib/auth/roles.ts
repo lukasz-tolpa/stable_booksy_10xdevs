@@ -1,4 +1,5 @@
 import { INSTRUCTOR_LABEL, ROLE_LABELS, STABLE_LABEL, USER_ROLES } from "@/lib/auth/constants";
+import type { ScheduleCaller } from "@/lib/schedule/errors";
 import type { UserRole } from "@/types";
 
 /**
@@ -85,8 +86,9 @@ export interface InstructorTab {
  * Wszystko, co zależy od tego, kim konto `instructor` jest w ośrodku — w jednym miejscu:
  * trasa startowa, ścieżki chronione, na których konto może zostać (`staysOn`; z pozostałych
  * middleware przenosi je na `home`), etykieta pigułki roli w górnym pasku, strona grafiku dnia
- * (`schedule`, `null` — konto grafiku nie układa) i zakładki przestrzeni instruktora (`tabs`;
- * pusta lista — bez paska zakładek).
+ * (`schedule`, `null` — konto grafiku nie układa), czyje komunikaty grafiku dostaje (`scheduleCaller`;
+ * instruktor także po utracie uprawnienia) i zakładki przestrzeni instruktora (`tabs`; pusta lista —
+ * bez paska zakładek).
  * Właściciel mieszka w przestrzeni ośrodka, instruktor — w „Moje sloty”; konto bez ośrodka nie
  * wychodzi poza zakładanie ośrodka, a konto z ośrodkiem na nie nie wchodzi; zdezaktywowany
  * instruktor widzi wyłącznie ekran nieaktywnego konta, aktywne konto na ten ekran nie wchodzi.
@@ -98,15 +100,24 @@ const STANDINGS: Record<
     staysOn: (pathname: string) => boolean;
     badgeLabel: string;
     schedule: string | null;
+    scheduleCaller: ScheduleCaller;
     tabs: readonly InstructorTab[];
   }
 > = {
-  none: { home: NEW_STABLE_ROUTE, staysOn: isStableSetupPath, badgeLabel: STABLE_LABEL, schedule: null, tabs: [] },
+  none: {
+    home: NEW_STABLE_ROUTE,
+    staysOn: isStableSetupPath,
+    badgeLabel: STABLE_LABEL,
+    schedule: null,
+    scheduleCaller: "owner",
+    tabs: [],
+  },
   owner: {
     home: ROLE_HOME.instructor,
     staysOn: (pathname) => isActiveAccountPath(pathname) && !matchesPrefix(pathname, INSTRUCTOR_HOME_ROUTE),
     badgeLabel: STABLE_LABEL,
     schedule: OWNER_SCHEDULE_ROUTE,
+    scheduleCaller: "owner",
     tabs: [],
   },
   instructor: {
@@ -114,6 +125,7 @@ const STANDINGS: Record<
     staysOn: (pathname) => isInstructorSpacePath(pathname) && !matchesPrefix(pathname, INSTRUCTOR_SCHEDULE_ROUTE),
     badgeLabel: INSTRUCTOR_LABEL,
     schedule: null,
+    scheduleCaller: "instructor",
     // Jedna zakładka to nie nawigacja — bez uprawnienia pasek zakładek się nie pokazuje.
     tabs: [],
   },
@@ -122,6 +134,7 @@ const STANDINGS: Record<
     staysOn: isInstructorSpacePath,
     badgeLabel: INSTRUCTOR_LABEL,
     schedule: INSTRUCTOR_SCHEDULE_ROUTE,
+    scheduleCaller: "instructor",
     tabs: [
       { href: INSTRUCTOR_HOME_ROUTE, label: "Moje sloty" },
       { href: INSTRUCTOR_SCHEDULE_ROUTE, label: "Grafik" },
@@ -132,6 +145,7 @@ const STANDINGS: Record<
     staysOn: (pathname) => matchesPrefix(pathname, INACTIVE_INSTRUCTOR_ROUTE),
     badgeLabel: INSTRUCTOR_LABEL,
     schedule: null,
+    scheduleCaller: "instructor",
     tabs: [],
   },
 };
@@ -203,6 +217,14 @@ export function instructorRedirect(pathname: string, standing: InstructorStandin
 /** Strona grafiku dnia konta albo `null`, gdy konto grafiku nie układa (endpoint zapisu wraca na nią). */
 export function scheduleRouteFor(standing: InstructorStanding | null): string | null {
   return standing === null ? null : STANDINGS[standing].schedule;
+}
+
+/**
+ * Czyje komunikaty dostaje konto przy zapisie grafiku: instruktor (z uprawnieniem, po jego utracie
+ * albo zdezaktywowany) — instruktora; właściciel i konto bez powiązania (jeździec) — właściciela.
+ */
+export function scheduleCallerFor(standing: InstructorStanding | null): ScheduleCaller {
+  return standing === null ? "owner" : STANDINGS[standing].scheduleCaller;
 }
 
 /** Zakładki przestrzeni instruktora — pusta lista, gdy konto ich nie ma (pasek się nie pokazuje). */

@@ -57,7 +57,7 @@ export async function getMySlotBookings(client: Client, from: string): Promise<M
 }
 
 /**
- * Konie do wyboru przy aktywnych zapisach na sloty zalogowanego instruktora od podanego dnia —
+ * Konie do przydziału przy aktywnych zapisach na sloty zalogowanego instruktora od podanego dnia —
  * przez RPC `get_my_slot_horse_options`: konie pracujące tego dnia ze znacznikiem „zajęty o tej
  * godzinie”, bez danych jeźdźca ani instruktora, który ma zajętego konia (#81).
  */

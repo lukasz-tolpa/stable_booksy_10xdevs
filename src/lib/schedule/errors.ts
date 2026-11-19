@@ -10,10 +10,11 @@
  *
  * Grafik układa właściciel albo instruktor z uprawnieniem do układania grafiku (#79). Kto zapisuje,
  * mówi `ScheduleCaller` — trzeci argument `scheduleErrorMessage` i drugi `isScheduleRefusal`.
- * Komunikat zależny od wywołującego dopisuje się w gałęzi kodu przez `caller` — tak dochodzi dopisek
- * o właścicielu przy kolidujących zapisach i przydziałach koni (#80).
+ * Instruktor dostaje komunikat właściciela, a przy odmowach z `OWNER_RESOLVABLE_CODES` także dopisek
+ * o właścicielu (#80).
  */
 
+import { INSUFFICIENT_PRIVILEGE } from "@/lib/db-errors";
 import { formatClockHour } from "@/lib/format";
 
 /** Zmiana daty dnia, który ma aktywne zapisy (trigger z S-02). */
@@ -47,7 +48,7 @@ export const INSTRUCTOR_HAS_BOOKINGS = "SB011";
  * `20261122090000_schedule_arranging.sql`). U instruktora to odebrane uprawnienie (albo dezaktywacja)
  * przy otwartym formularzu; u właściciela nie powinno się zdarzyć — awaria.
  */
-export const SCHEDULE_PERMISSION_MISSING = "42501";
+export const SCHEDULE_PERMISSION_MISSING = INSUFFICIENT_PRIVILEGE;
 
 /** Kto zapisuje grafik: właściciel czy instruktor z uprawnieniem do układania grafiku. */
 export type ScheduleCaller = "owner" | "instructor";
@@ -55,10 +56,26 @@ export type ScheduleCaller = "owner" | "instructor";
 const FALLBACK = "Nie udało się zapisać grafiku. Spróbuj ponownie.";
 
 /**
+ * Odmowa dla instruktora, któremu odebrano uprawnienie do układania grafiku (albo konto) — przy zapisie
+ * i na stronie grafiku, gdy uprawnienie zniknęło między middleware a odczytem.
+ */
+export const SCHEDULE_PERMISSION_LOST = "Nie masz już uprawnienia do układania grafiku";
+
+/**
  * Dopisek dla instruktora przy odmowach, które rozwiązuje odwołanie zapisu albo zmiana przydziału
  * konia — obie czynności zostają przy właścicielu (#80).
  */
 const OWNER_RESOLVES = "Odwołać zapis albo zmienić przydział konia może właściciel.";
+
+/** Odmowy, które rozwiązuje odwołanie zapisu albo zmiana przydziału konia — przy nich instruktor dostaje dopisek. */
+const OWNER_RESOLVABLE_CODES = new Set<string>([
+  SCHEDULE_DATE_CONFLICT,
+  SCHEDULE_HOURS_CONFLICT,
+  FOREIGN_KEY_VIOLATION,
+  HORSE_HAS_BOOKINGS,
+  SEATS_BELOW_BOOKINGS,
+  INSTRUCTOR_HAS_BOOKINGS,
+]);
 
 const REFUSAL_CODES = new Set<string>([
   SCHEDULE_DATE_CONFLICT,
@@ -161,24 +178,35 @@ export function scheduleErrorMessage(
   dbDetail?: string,
   caller: ScheduleCaller = "owner",
 ): string {
+  if (caller === "instructor") {
+    if (code === SCHEDULE_PERMISSION_MISSING) {
+      return SCHEDULE_PERMISSION_LOST;
+    }
+    // Kolidujące zapisy i przydziały koni rozwiązuje właściciel - instruktor dostaje wskazówkę, do kogo iść.
+    const message = ownerScheduleErrorMessage(code, dbDetail);
+    return code !== undefined && OWNER_RESOLVABLE_CODES.has(code) ? `${message} ${OWNER_RESOLVES}` : message;
+  }
+  return ownerScheduleErrorMessage(code, dbDetail);
+}
+
+/** Komunikat właściciela — instruktor dostaje ten sam, uzupełniony w `scheduleErrorMessage`. */
+function ownerScheduleErrorMessage(code: string | undefined, dbDetail: string | undefined): string {
   const detail = parseRefusalDetail(dbDetail);
   const count = detail.bookings ?? null;
   const howMany = count === null ? " aktywne zapisy" : ` ${String(count)} ${pluralizeBookings(count)}`;
   // Przy jednym zapisie „ich odwołania" brzmi jak błąd - zaimek musi iść za liczbą.
   const theirCancellation = count === 1 ? "jego odwołania" : "ich odwołania";
-  // Kolidujące zapisy i przydziały koni rozwiązuje właściciel - instruktor dostaje wskazówkę, do kogo iść.
-  const ownerHint = caller === "instructor" ? ` ${OWNER_RESOLVES}` : "";
 
   switch (code) {
     case SCHEDULE_HOURS_CONFLICT:
-      return `Nie można zawęzić godzin pracy — poza nowym zakresem znalazłoby się${howMany}. Najpierw doprowadź do ${theirCancellation}.${ownerHint}`;
+      return `Nie można zawęzić godzin pracy — poza nowym zakresem znalazłoby się${howMany}. Najpierw doprowadź do ${theirCancellation}.`;
     case SCHEDULE_DATE_CONFLICT:
-      return `Nie można zmienić daty dnia, który ma${howMany}.${ownerHint}`;
+      return `Nie można zmienić daty dnia, który ma${howMany}.`;
     case HORSE_NOT_IN_STABLE:
       return "Wybrany koń nie należy do Twojej stadniny.";
     case HORSE_HAS_BOOKINGS:
     case FOREIGN_KEY_VIOLATION:
-      return `Nie można wypisać konia, który jest przydzielony do zapisu w tym dniu. Najpierw zmień przydział konia albo doprowadź do odwołania zapisu.${ownerHint}`;
+      return "Nie można wypisać konia, który jest przydzielony do zapisu w tym dniu. Najpierw zmień przydział konia albo doprowadź do odwołania zapisu.";
     case INSTRUCTOR_NOT_IN_STABLE:
       return "Wybrany instruktor nie należy do Twojego ośrodka.";
     case INSTRUCTOR_INACTIVE:
@@ -193,15 +221,13 @@ export function scheduleErrorMessage(
       const { hour, seats } = detail;
       const advice = "Podnieś limit albo najpierw doprowadź do odwołania zapisów.";
       return hour !== undefined && seats !== undefined && count !== null
-        ? `O ${formatClockHour(hour)} limit miejsc (${String(seats)}) jest niższy niż liczba aktywnych zapisów w slocie (${String(count)}). ${advice}${ownerHint}`
-        : `W jednym ze slotów limit miejsc jest niższy niż liczba aktywnych zapisów. ${advice}${ownerHint}`;
+        ? `O ${formatClockHour(hour)} limit miejsc (${String(seats)}) jest niższy niż liczba aktywnych zapisów w slocie (${String(count)}). ${advice}`
+        : `W jednym ze slotów limit miejsc jest niższy niż liczba aktywnych zapisów. ${advice}`;
     }
     case INSTRUCTOR_HAS_BOOKINGS:
-      return `Nie można wypisać z dnia instruktora, który ma w nim ${count === null ? "aktywne zapisy" : activeBookings(count)}. Najpierw doprowadź do ${theirCancellation}.${ownerHint}`;
+      return `Nie można wypisać z dnia instruktora, który ma w nim ${count === null ? "aktywne zapisy" : activeBookings(count)}. Najpierw doprowadź do ${theirCancellation}.`;
     case SCHEDULE_DAY_PAST:
       return "Nie można układać grafiku na przeszłe dni";
-    case SCHEDULE_PERMISSION_MISSING:
-      return caller === "instructor" ? "Nie masz już uprawnienia do układania grafiku" : FALLBACK;
     default:
       return FALLBACK;
   }

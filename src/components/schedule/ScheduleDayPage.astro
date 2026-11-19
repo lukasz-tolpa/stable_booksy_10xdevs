@@ -6,6 +6,9 @@ import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
 import ScheduleDayForm from "@/components/schedule/ScheduleDayForm";
 import { addDays, isPastDate } from "@/lib/schedule/dates";
+import { formatLongDateWithYear } from "@/lib/format";
+import { homeRouteForAccount } from "@/lib/auth/roles";
+import { SCHEDULE_PERMISSION_LOST } from "@/lib/schedule/errors";
 import { horseDefaults, instructorDefaults, pastDaySummary, prefillSourceDay } from "@/lib/schedule/form";
 import {
   getLatestScheduleDay,
@@ -36,7 +39,7 @@ interface Props {
 }
 
 const { route, day, horsesRoute, error } = Astro.props;
-const { profile } = Astro.locals;
+const { profile, instructorStanding } = Astro.locals;
 const readOnly = isPastDate(day);
 
 const supabase = createClient(Astro.request.headers, Astro.cookies);
@@ -46,13 +49,14 @@ let latestDay: ScheduleDayData | null = null;
 let horses: HorseListItem[] = [];
 let instructors: InstructorListItem[] = [];
 let loadFailed = false;
+// Uprawnienie odebrane między middleware a odczytem — to nie awaria, tylko brak dostępu do grafiku.
+let permissionLost = false;
 
 if (supabase && profile) {
   try {
     const stableId = await getScheduleStableId(supabase);
     if (stableId === null) {
-      // Uprawnienie odebrane między middleware a odczytem - pusta strona byłaby myląca.
-      loadFailed = true;
+      permissionLost = true;
     } else {
       [scheduleDay, latestDay, horses, instructors] = await Promise.all([
         getScheduleDay(supabase, stableId, day),
@@ -63,7 +67,7 @@ if (supabase && profile) {
     }
   } catch (error) {
     loadFailed = true;
-    logError("page:grafik", error);
+    logError(`page:${route.slice(1)}`, error);
   }
 } else {
   // Brak klienta Supabase lub profilu to awaria konfiguracji - bez tej gałęzi
@@ -73,14 +77,11 @@ if (supabase && profile) {
 
 const horseForm = horseDefaults(scheduleDay, latestDay, horses);
 const instructorForm = instructorDefaults(scheduleDay, latestDay, instructors);
+// Obie strony grafiku leżą w przestrzeniach chronionych rolą `instructor` (middleware).
+const home = homeRouteForAccount("instructor", instructorStanding);
 const pastSummary = scheduleDay ? pastDaySummary(scheduleDay, horses, instructors) : null;
 
-const dayLabel = new Date(`${day}T00:00:00`).toLocaleDateString("pl-PL", {
-  weekday: "long",
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-});
+const dayLabel = formatLongDateWithYear(day);
 ---
 
 <h1>Grafik dnia</h1>
@@ -107,6 +108,13 @@ const dayLabel = new Date(`${day}T00:00:00`).toLocaleDateString("pl-PL", {
       <p>Nie udało się wczytać grafiku.</p>
       <p>Odśwież stronę za chwilę.</p>
     </FailureState>
+  ) : permissionLost ? (
+    <Card>
+      <EmptyState>
+        <p>{SCHEDULE_PERMISSION_LOST}.</p>
+        <a href={home}>Wróć na stronę startową</a>
+      </EmptyState>
+    </Card>
   ) : readOnly ? (
     <Card>
       <div class="past">

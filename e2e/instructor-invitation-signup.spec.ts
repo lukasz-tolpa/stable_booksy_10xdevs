@@ -94,7 +94,7 @@ test("instruktor zakłada konto z linku zaproszenia i trafia do swoich slotów",
       const slot = hourSection(instructorPage, 10);
       await expect(slot.getByText("zajęte 1 z 1", { exact: true })).toBeVisible();
       const rider = slot.getByRole("listitem").filter({ hasText: "Piotr Nowak" });
-      // `.first()`: pigułka przy jeźdźcu; ten sam tekst ma opcja wyboru konia (#81).
+      // `.first()`: pigułka przy jeźdźcu; ten sam tekst ma opcja przydziału konia (#81).
       await expect(rider.getByText("bez konia", { exact: true }).first()).toBeVisible();
     });
 

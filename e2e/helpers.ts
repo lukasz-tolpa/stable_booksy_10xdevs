@@ -54,6 +54,19 @@ export async function waitForIslands(page: Page): Promise<void> {
 }
 
 /**
+ * Logowanie przez prawdziwy formularz w świeżym kontekście — dla scenariuszy, które grają drugą
+ * osobą obok sesji z `storageState`. Czeka na trasę startową konta (`home`, np. `/instruktor`).
+ */
+export async function signIn(page: Page, email: string, home: string): Promise<void> {
+  await page.goto("/auth/signin");
+  await waitForIslands(page);
+  await page.getByLabel("Adres e-mail").fill(email);
+  await page.getByLabel("Hasło", { exact: true }).fill(PASSWORD);
+  await page.getByRole("button", { name: "Zaloguj się" }).click();
+  await page.waitForURL(`**${home}`);
+}
+
+/**
  * Sekcja godziny na stronie ośrodka (lista „Wolne sloty") albo wiersz godziny na
  * liście „Zapisy dnia" ośrodka. Godzina siedzi we własnym elemencie, więc zawężamy do
  * `<li>` z dokładnym tekstem godziny („1:00" jest podciągiem „11:00" — stąd `exact`).

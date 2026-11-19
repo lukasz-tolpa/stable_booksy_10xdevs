@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { INSTRUCTOR_EMAIL, PASSWORD, STABLE_NAME, asError, hourSection, upcomingRow, waitForIslands } from "./helpers";
+import { INSTRUCTOR_EMAIL, STABLE_NAME, asError, hourSection, signIn, upcomingRow } from "./helpers";
 
 /**
  * Przydział konia przez instruktora (#81, US 18, 19, 25): Joanna Wrona w „Moje sloty” daje
@@ -14,15 +14,6 @@ const RIDER = "Anna Kowalska";
 const INSTRUCTOR = "Joanna Wrona";
 const HORSE = "Kasztan";
 const HOUR = 11;
-
-async function signIn(page: Page, email: string, home: string): Promise<void> {
-  await page.goto("/auth/signin");
-  await waitForIslands(page);
-  await page.getByLabel("Adres e-mail").fill(email);
-  await page.getByLabel("Hasło", { exact: true }).fill(PASSWORD);
-  await page.getByRole("button", { name: "Zaloguj się" }).click();
-  await page.waitForURL(`**${home}`);
-}
 
 function riderItem(page: Page) {
   return hourSection(page, HOUR).getByRole("listitem").filter({ hasText: RIDER });

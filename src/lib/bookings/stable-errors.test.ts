@@ -3,6 +3,7 @@ import {
   horseAssignmentErrorMessage,
   instructorHorseAssignmentErrorMessage,
   isHorseAssignmentRefusal,
+  isInstructorHorseAssignmentRefusal,
 } from "@/lib/bookings/stable-errors";
 
 describe("horseAssignmentErrorMessage", () => {
@@ -68,5 +69,16 @@ describe("instructorHorseAssignmentErrorMessage", () => {
 
   it.each([[undefined], ["SB009"]])("nieznany kod %j daje ogólny komunikat", (code) => {
     expect(instructorHorseAssignmentErrorMessage(code)).toBe("Nie udało się przydzielić konia. Spróbuj ponownie.");
+  });
+});
+
+describe("isInstructorHorseAssignmentRefusal", () => {
+  // U instruktora odmową jest też zapis spoza jego slotów (42501) — endpoint „Moje sloty” loguje tylko resztę.
+  it.each([["23505"], ["23503"], ["23514"], ["42501"]])("kod %s to odmowa przydziału przez instruktora", (code) => {
+    expect(isInstructorHorseAssignmentRefusal(code)).toBe(true);
+  });
+
+  it.each([[undefined], ["PGRST301"], ["08006"]])("kod %j to błąd spoza reguł przydziału", (code) => {
+    expect(isInstructorHorseAssignmentRefusal(code)).toBe(false);
   });
 });

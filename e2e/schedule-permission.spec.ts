@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { INSTRUCTOR_EMAIL, PASSWORD, STABLE_STATE, asError, seedDay, waitForIslands } from "./helpers";
+import { INSTRUCTOR_EMAIL, STABLE_STATE, asError, seedDay, signIn, waitForIslands } from "./helpers";
 
 /**
  * Uprawnienie do układania grafiku (#78, US 1–6): właściciel Stadniny Pod Dębem włącza i wyłącza
@@ -85,15 +85,6 @@ async function ownerSetsSeats(page: Page, seats: number): Promise<void> {
   await expect(seatsInput(page)).toHaveValue(String(seats));
 }
 
-async function signInAsInstructor(page: Page): Promise<void> {
-  await page.goto("/auth/signin");
-  await waitForIslands(page);
-  await page.getByLabel("Adres e-mail").fill(INSTRUCTOR_EMAIL);
-  await page.getByLabel("Hasło", { exact: true }).fill(PASSWORD);
-  await page.getByRole("button", { name: "Zaloguj się" }).click();
-  await page.waitForURL("**/instruktor");
-}
-
 test.use({ storageState: STABLE_STATE });
 
 test("instruktorka z uprawnieniem układa grafik w zakładce „Grafik”, po odebraniu zakładka znika", async ({
@@ -108,7 +99,7 @@ test("instruktorka z uprawnieniem układa grafik w zakładce „Grafik”, po od
 
   try {
     await test.step("bez uprawnienia Joanna nie ma zakładki „Grafik”, a jej adres przenosi do „Moje sloty”", async () => {
-      await signInAsInstructor(joanna);
+      await signIn(joanna, INSTRUCTOR_EMAIL, "/instruktor");
       await expect(instructorTabs(joanna)).toHaveCount(0);
       await joanna.goto(INSTRUCTOR_SCHEDULE);
       await expect(joanna).toHaveURL((url) => url.pathname === "/instruktor");
