@@ -12,8 +12,8 @@ const ewa = { id: 5, name: "Ewa Rzecka", active: true };
 
 /** Konta instruktorów ośrodka (`list_instructor_accounts`): Marek to właściciel, Ewa ma konto bez praw właściciela. */
 const ACCOUNTS = [
-  { instructor_id: marek.id, owner: true },
-  { instructor_id: ewa.id, owner: false },
+  { instructor_id: marek.id, owner: true, arranges_schedule: false },
+  { instructor_id: ewa.id, owner: false, arranges_schedule: false },
 ];
 
 describe("composeInstructorList", () => {
@@ -114,5 +114,50 @@ describe("composeInstructorList — stan konta", () => {
       ["Joanna Wrona", { summary: "Zaproś ponownie", defaultEmail: "joanna@example.com" }],
       ["Karol Jasny", { summary: "Zaproś", defaultEmail: "" }],
     ]);
+  });
+});
+
+describe("composeInstructorList — przełącznik „Układa grafik”", () => {
+  const karolActive = { ...karol, active: true };
+  const joannaInvitation = {
+    instructor_id: joanna.id,
+    email: "joanna@example.com",
+    expires_at: "2030-05-20T22:30:00Z",
+  };
+
+  it("pokazuje przełącznik tylko aktywnemu instruktorowi z kontem, poza właścicielem", () => {
+    const list = composeInstructorList([marek, ewa, joanna, karolActive], [], [joannaInvitation], ACCOUNTS, NOW);
+
+    expect(list.active.map((i) => [i.name, i.schedulePermission])).toEqual([
+      ["Marek Dębowski", null],
+      ["Ewa Rzecka", { granted: false }],
+      // Nieprzyjęte zaproszenie to jeszcze nie konto.
+      ["Joanna Wrona", null],
+      ["Karol Jasny", null],
+    ]);
+  });
+
+  it("przełącznik pokazuje, czy instruktor ma uprawnienie", () => {
+    const list = composeInstructorList(
+      [ewa],
+      [],
+      [],
+      [{ instructor_id: ewa.id, owner: false, arranges_schedule: true }],
+      NOW,
+    );
+
+    expect(list.active[0]?.schedulePermission).toEqual({ granted: true });
+  });
+
+  it("nieaktywny z kontem nie ma przełącznika", () => {
+    const list = composeInstructorList(
+      [karol],
+      [],
+      [],
+      [{ instructor_id: karol.id, owner: false, arranges_schedule: false }],
+      NOW,
+    );
+
+    expect(list.inactive[0]).not.toHaveProperty("schedulePermission");
   });
 });

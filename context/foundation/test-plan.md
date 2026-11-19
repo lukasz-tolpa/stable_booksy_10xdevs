@@ -285,7 +285,9 @@ local role authenticated; set local request.jwt.claims =
   to Tomasz — it reruns without `db reset`. `instructor-deactivation.spec.ts` deactivates Joanna
   Wrona's instructor (owner session) and reactivates her in a flag-guarded `finally`; a run that
   dies before that leaves her inactive and `instructor-slots.spec.ts` red — repair with
-  `npx supabase db reset`. Do not run `npm run test:db` and `npm run test:e2e` against the
+  `npx supabase db reset`. `schedule-permission.spec.ts` toggles Joanna's „Układa grafik” switch
+  (`getByRole("switch", { name: "Układa grafik — Joanna Wrona" })`, state in `aria-checked`) and
+  deactivates her once; its `finally` reactivates her and switches the permission off. Do not run `npm run test:db` and `npm run test:e2e` against the
   same database at the same time.
 - **Past data**: the seed schedules only tomorrow and the past cannot be
   clicked together in a browser, so the `setup` project loads

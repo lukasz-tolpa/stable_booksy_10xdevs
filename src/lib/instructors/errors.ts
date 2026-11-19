@@ -80,3 +80,36 @@ export function isExpectedInvitationRefusal(code: string | undefined): boolean {
 export function revokeInvitationErrorMessage(code: string | undefined): string {
   return code === INVITATION_INSTRUCTOR_NOT_FOUND ? INSTRUCTOR_NOT_FOUND : INVITATION_REVOKE_FAILED;
 }
+
+/** Cudzy albo nieistniejący instruktor przy uprawnieniu — ten sam kod co przy zaproszeniu (#78). */
+export const SCHEDULE_PERMISSION_INSTRUCTOR_NOT_FOUND = "SB013";
+
+/**
+ * Odmowy nadania i odebrania uprawnienia do układania grafiku (`public.set_schedule_permission`,
+ * #78). Strona pokazuje przełącznik tylko przy aktywnym instruktorze z kontem, który nie jest
+ * właścicielem, więc SB023–SB025 docierają tu ze starej strony albo spreparowanego formularza.
+ */
+const SCHEDULE_PERMISSION_REFUSALS = new Map<string, string>([
+  [SCHEDULE_PERMISSION_INSTRUCTOR_NOT_FOUND, INSTRUCTOR_NOT_FOUND],
+  [
+    "SB023",
+    "Ten instruktor nie ma konta. Uprawnienie do układania grafiku możesz nadać dopiero po przyjęciu zaproszenia.",
+  ],
+  [
+    "SB024",
+    "Ten instruktor jest nieaktywny — dezaktywacja odebrała mu uprawnienie do układania grafiku. Aktywuj go, żeby nadać je ponownie.",
+  ],
+  ["SB025", "Jako właściciel masz już wszystkie uprawnienia, także do układania grafiku."],
+]);
+
+/** Zmiana uprawnienia nie powiodła się z przyczyny spoza reguł (awaria). */
+export const SCHEDULE_PERMISSION_FAILED = "Nie udało się zmienić uprawnienia do układania grafiku. Spróbuj ponownie.";
+
+export function schedulePermissionErrorMessage(code: string | undefined): string {
+  return (code === undefined ? undefined : SCHEDULE_PERMISSION_REFUSALS.get(code)) ?? SCHEDULE_PERMISSION_FAILED;
+}
+
+/** Odmowa wynikająca z reguł uprawnienia, nie awaria — endpoint jej nie loguje. */
+export function isExpectedSchedulePermissionRefusal(code: string | undefined): boolean {
+  return code !== undefined && SCHEDULE_PERMISSION_REFUSALS.has(code);
+}

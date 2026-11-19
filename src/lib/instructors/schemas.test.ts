@@ -3,6 +3,7 @@ import {
   instructorIdSchema,
   inviteInstructorSchema,
   newInstructorSchema,
+  schedulePermissionSchema,
   toggleInstructorSchema,
 } from "@/lib/instructors/schemas";
 
@@ -80,5 +81,26 @@ describe("instructorIdSchema", () => {
 
   it.each(["0", "-1", "x", ""])("odrzuca identyfikator %j", (instructorId) => {
     expect(instructorIdSchema.safeParse({ instructorId }).error?.issues[0]?.message).toBe("Nieprawidłowy instruktor");
+  });
+});
+
+describe("schedulePermissionSchema", () => {
+  it("zamienia tekstowy stan uprawnienia na wartość logiczną", () => {
+    expect(schedulePermissionSchema.safeParse({ instructorId: "3", granted: "true" }).data).toEqual({
+      instructorId: 3,
+      granted: true,
+    });
+    expect(schedulePermissionSchema.safeParse({ instructorId: "3", granted: "false" }).data).toEqual({
+      instructorId: 3,
+      granted: false,
+    });
+  });
+
+  it.each([
+    { instructorId: "3", granted: "tak" },
+    { instructorId: "3", granted: undefined },
+    { instructorId: "0", granted: "true" },
+  ])("odrzuca nieczytelny formularz %j", (input) => {
+    expect(schedulePermissionSchema.safeParse(input).success).toBe(false);
   });
 });

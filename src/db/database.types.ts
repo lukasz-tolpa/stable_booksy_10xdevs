@@ -190,6 +190,7 @@ export type Database = {
         Row: {
           account_id: string | null;
           active: boolean;
+          arranges_schedule: boolean;
           created_at: string;
           id: number;
           name: string;
@@ -198,6 +199,7 @@ export type Database = {
         Insert: {
           account_id?: string | null;
           active?: boolean;
+          arranges_schedule?: boolean;
           created_at?: string;
           id?: never;
           name: string;
@@ -206,6 +208,7 @@ export type Database = {
         Update: {
           account_id?: string | null;
           active?: boolean;
+          arranges_schedule?: boolean;
           created_at?: string;
           id?: never;
           name?: string;
@@ -483,6 +486,7 @@ export type Database = {
       list_instructor_accounts: {
         Args: never;
         Returns: {
+          arranges_schedule: boolean;
           instructor_id: number;
           owner: boolean;
         }[];
@@ -499,6 +503,7 @@ export type Database = {
         Args: never;
         Returns: {
           active: boolean;
+          arranges_schedule: boolean;
           id: number;
           name: string;
           stable_name: string;
@@ -519,6 +524,10 @@ export type Database = {
           p_seats?: Json;
         };
         Returns: number;
+      };
+      set_schedule_permission: {
+        Args: { p_granted: boolean; p_instructor_id: number };
+        Returns: undefined;
       };
     };
     Enums: {
