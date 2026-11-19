@@ -276,7 +276,8 @@ local role authenticated; set local request.jwt.claims =
   the seed; the scenario adds him with 1 seat at 13:00 and removes him after),
   Joanna Wrona@14 (refusal, 1 seat), Joanna Wrona@12 (`test:db` concurrency
   script, which raises the limit temporarily) — all at Stadnina Pod Dębem,
-  tomorrow. Anna holds Joanna@11, Piotr holds Tomasz Lis@10 at Stajnia Nad Rzeką;
+  tomorrow. Anna holds Joanna@11 (`instructor-horse-assignment.spec.ts` gives it Kasztan through
+  Joanna and takes it off again in a flag-guarded `finally`), Piotr holds Tomasz Lis@10 at Stajnia Nad Rzeką;
   seed bookings have no horse. Tomasz Lis (no account in the seed) is reserved for
   `instructor-invitation-signup.spec.ts`: the owner `osrodek.rzeka` invites him and the
   invitee signs up and reads Piotr@10. Linking cannot be undone through the app, so the
@@ -309,7 +310,10 @@ local role authenticated; set local request.jwt.claims =
   together; the stable's day-list row holds the hour, instructor, rider and
   horse or `bez konia`; on „Moje sloty” (`/instruktor`, `instructor-slots.spec.ts`)
   each slot `<li>` holds the hour `"{h}:00"`, `"zajęte {taken} z {seats}"` and nested
-  rider `<li>`s with the name and the horse or `bez konia` (or the sentence `Nikt jeszcze
+  rider `<li>`s with the name, the horse or `bez konia` and the horse form — a select labelled
+  `Koń — {rider}` (first option `bez konia`, a horse taken this hour reads `{horse} — zajęty`
+  and is disabled) and the button `Zapisz konia`; `bez konia` thus appears twice in the rider
+  `<li>`, take `.first()` (or the sentence `Nikt jeszcze
 się nie zapisał.`); the inactive-account screen (`/instruktor/konto-nieaktywne`) has the h1
   `Konto nieaktywne` and its own `Wyloguj się` button next to the top bar's one — scope it to
   `main`; the sign-up page with `?zaproszenie=` has the stable name as its only `h1`, no

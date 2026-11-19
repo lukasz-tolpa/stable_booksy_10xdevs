@@ -41,3 +41,27 @@ export function horseAssignmentErrorMessage(code: string | undefined): string {
       return FALLBACK;
   }
 }
+
+/**
+ * Zapis spoza slotów instruktora, nieistniejący albo instruktor nieaktywny — odmowa 42501
+ * funkcji `assign_my_slot_horse` (#81).
+ */
+export const NOT_MY_SLOT_BOOKING = "42501";
+
+/**
+ * Te same odmowy przy przydziale konia przez instruktora w „Moje sloty” (#81). Instruktor nie
+ * dodaje koni do grafiku dnia ani nie zmienia przydziału na cudzym slocie, więc komunikat
+ * każe mu tylko wybrać innego konia.
+ */
+export function instructorHorseAssignmentErrorMessage(code: string | undefined): string {
+  switch (code) {
+    case HORSE_TAKEN_THIS_HOUR:
+      return "Ten koń ma już jazdę o tej godzinie. Wybierz innego konia.";
+    case HORSE_NOT_WORKING_THIS_DAY:
+      return "Ten koń nie pracuje tego dnia. Wybierz innego konia.";
+    case NOT_MY_SLOT_BOOKING:
+      return "Nie znaleziono aktywnego zapisu na Twój slot.";
+    default:
+      return horseAssignmentErrorMessage(code);
+  }
+}

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { horseAssignmentErrorMessage, isHorseAssignmentRefusal } from "@/lib/bookings/stable-errors";
+import {
+  horseAssignmentErrorMessage,
+  instructorHorseAssignmentErrorMessage,
+  isHorseAssignmentRefusal,
+} from "@/lib/bookings/stable-errors";
 
 describe("horseAssignmentErrorMessage", () => {
   it("koń zajęty o tej godzinie (23505, bookings_horse_hour_key) — komunikat każe wybrać innego konia", () => {
@@ -37,5 +41,32 @@ describe("isHorseAssignmentRefusal", () => {
 
   it.each([[undefined], ["42501"], ["PGRST301"], ["08006"]])("kod %j to błąd spoza decyzji ośrodka", (code) => {
     expect(isHorseAssignmentRefusal(code)).toBe(false);
+  });
+});
+
+describe("instructorHorseAssignmentErrorMessage", () => {
+  // Instruktor nie zmieni grafiku dnia ani przydziału na cudzym slocie — komunikat każe tylko wybrać innego konia.
+  it("koń zajęty o tej godzinie (23505) — wybierz innego konia", () => {
+    expect(instructorHorseAssignmentErrorMessage("23505")).toBe(
+      "Ten koń ma już jazdę o tej godzinie. Wybierz innego konia.",
+    );
+  });
+
+  it("koń niepracujący tego dnia (23503) — wybierz innego konia", () => {
+    expect(instructorHorseAssignmentErrorMessage("23503")).toBe("Ten koń nie pracuje tego dnia. Wybierz innego konia.");
+  });
+
+  it("zapis odwołany w międzyczasie (23514) — jak u właściciela", () => {
+    expect(instructorHorseAssignmentErrorMessage("23514")).toBe(
+      "Zapis został odwołany — konia przydziela się tylko do aktywnych zapisów.",
+    );
+  });
+
+  it("zapis spoza slotów instruktora albo instruktor nieaktywny (42501)", () => {
+    expect(instructorHorseAssignmentErrorMessage("42501")).toBe("Nie znaleziono aktywnego zapisu na Twój slot.");
+  });
+
+  it.each([[undefined], ["SB009"]])("nieznany kod %j daje ogólny komunikat", (code) => {
+    expect(instructorHorseAssignmentErrorMessage(code)).toBe("Nie udało się przydzielić konia. Spróbuj ponownie.");
   });
 });

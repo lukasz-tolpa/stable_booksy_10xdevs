@@ -31,8 +31,24 @@ describe("composeMySlots", () => {
     const days = composeMySlots({
       slots: [{ day: "2026-11-18", hour: 11, seats: 3 }],
       bookings: [
-        { day: "2026-11-18", hour: 11, riderName: "Piotr Nowak", horseName: null, anonymised: false },
-        { day: "2026-11-18", hour: 11, riderName: "Anna Kowalska", horseName: "Bella", anonymised: false },
+        {
+          bookingId: 101,
+          day: "2026-11-18",
+          hour: 11,
+          riderName: "Piotr Nowak",
+          horseId: null,
+          horseName: null,
+          anonymised: false,
+        },
+        {
+          bookingId: 102,
+          day: "2026-11-18",
+          hour: 11,
+          riderName: "Anna Kowalska",
+          horseId: 1,
+          horseName: "Bella",
+          anonymised: false,
+        },
       ],
     });
 
@@ -42,8 +58,8 @@ describe("composeMySlots", () => {
         seats: 3,
         taken: 2,
         riders: [
-          { name: "Anna Kowalska", horse: "Bella", hasHorse: true },
-          { name: "Piotr Nowak", horse: "bez konia", hasHorse: false },
+          { bookingId: 102, name: "Anna Kowalska", horse: "Bella", hasHorse: true, horseChoices: [] },
+          { bookingId: 101, name: "Piotr Nowak", horse: "bez konia", hasHorse: false, horseChoices: [] },
         ],
       },
     ]);
@@ -55,7 +71,17 @@ describe("composeMySlots", () => {
         { day: "2026-11-18", hour: 11, seats: 1 },
         { day: "2026-11-19", hour: 11, seats: 1 },
       ],
-      bookings: [{ day: "2026-11-19", hour: 11, riderName: "Anna Kowalska", horseName: null, anonymised: false }],
+      bookings: [
+        {
+          bookingId: 103,
+          day: "2026-11-19",
+          hour: 11,
+          riderName: "Anna Kowalska",
+          horseId: null,
+          horseName: null,
+          anonymised: false,
+        },
+      ],
     });
 
     expect(days.map((day) => day.slots.map((slot) => slot.taken))).toEqual([[0], [1]]);
@@ -81,11 +107,83 @@ describe("composeMySlots", () => {
     const days = composeMySlots({
       slots: [{ day: "2026-11-18", hour: 11, seats: 2 }],
       bookings: [
-        { day: "2026-11-18", hour: 11, riderName: null, horseName: null, anonymised: false },
-        { day: "2026-11-18", hour: 11, riderName: null, horseName: null, anonymised: true },
+        {
+          bookingId: 104,
+          day: "2026-11-18",
+          hour: 11,
+          riderName: null,
+          horseId: null,
+          horseName: null,
+          anonymised: false,
+        },
+        {
+          bookingId: 105,
+          day: "2026-11-18",
+          hour: 11,
+          riderName: null,
+          horseId: null,
+          horseName: null,
+          anonymised: true,
+        },
       ],
     });
 
     expect(days[0]?.slots[0]?.riders.map((rider) => rider.name)).toEqual(["(bez nazwiska)", "Usunięty jeździec"]);
+  });
+
+  it("przy zapisie podaje konie pracujące tego dnia, a zajęte o tej godzinie oznacza „zajęty”", () => {
+    const days = composeMySlots({
+      slots: [{ day: "2026-11-18", hour: 11, seats: 1 }],
+      bookings: [
+        {
+          bookingId: 7,
+          day: "2026-11-18",
+          hour: 11,
+          riderName: "Anna Kowalska",
+          horseId: null,
+          horseName: null,
+          anonymised: false,
+        },
+      ],
+      horseOptions: [
+        { bookingId: 7, horseId: 2, horseName: "Kasztan", taken: false },
+        { bookingId: 7, horseId: 1, horseName: "Bella", taken: true },
+        { bookingId: 8, horseId: 3, horseName: "Iskra", taken: false },
+      ],
+    });
+
+    expect(days[0]?.slots[0]?.riders[0]).toMatchObject({
+      bookingId: 7,
+      horseChoices: [
+        { id: 1, label: "Bella — zajęty", taken: true, selected: false },
+        { id: 2, label: "Kasztan", taken: false, selected: false },
+      ],
+    });
+  });
+
+  it("zaznacza konia przydzielonego temu zapisowi", () => {
+    const days = composeMySlots({
+      slots: [{ day: "2026-11-18", hour: 11, seats: 1 }],
+      bookings: [
+        {
+          bookingId: 7,
+          day: "2026-11-18",
+          hour: 11,
+          riderName: "Anna Kowalska",
+          horseId: 2,
+          horseName: "Kasztan",
+          anonymised: false,
+        },
+      ],
+      horseOptions: [
+        { bookingId: 7, horseId: 1, horseName: "Bella", taken: false },
+        { bookingId: 7, horseId: 2, horseName: "Kasztan", taken: false },
+      ],
+    });
+
+    expect(days[0]?.slots[0]?.riders[0]?.horseChoices).toEqual([
+      { id: 1, label: "Bella", taken: false, selected: false },
+      { id: 2, label: "Kasztan", taken: false, selected: true },
+    ]);
   });
 });

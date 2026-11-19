@@ -428,6 +428,10 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      assign_my_slot_horse: {
+        Args: { p_booking_id: number; p_horse_id?: number };
+        Returns: undefined;
+      };
       create_stable: {
         Args: { p_city: string; p_instructor_name: string; p_name: string };
         Returns: number;
@@ -436,10 +440,21 @@ export type Database = {
         Args: { p_from: string };
         Returns: {
           anonymised: boolean;
+          booking_id: number;
           day: string;
+          horse_id: number;
           horse_name: string;
           hour: number;
           rider_name: string;
+        }[];
+      };
+      get_my_slot_horse_options: {
+        Args: { p_from: string };
+        Returns: {
+          booking_id: number;
+          horse_id: number;
+          horse_name: string;
+          taken: boolean;
         }[];
       };
       get_slot_occupancy: {

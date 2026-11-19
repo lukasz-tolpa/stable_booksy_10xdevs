@@ -30,7 +30,8 @@ test("instruktorka z kontem widzi swoje sloty z zapisanymi i nie wchodzi do prze
     await expect(slot).toHaveCount(1);
     await expect(slot.getByText("zajęte 1 z 1", { exact: true })).toBeVisible();
     const rider = slot.getByRole("listitem").filter({ hasText: "Anna Kowalska" });
-    await expect(rider.getByText("bez konia", { exact: true })).toBeVisible();
+    // `.first()`: pigułka przy jeźdźcu; ten sam tekst ma opcja wyboru konia (#81).
+    await expect(rider.getByText("bez konia", { exact: true }).first()).toBeVisible();
   });
 
   await test.step("wolny slot jest na liście bez zapisanych", async () => {

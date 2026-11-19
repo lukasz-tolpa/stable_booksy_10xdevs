@@ -2,7 +2,8 @@ import { ANONYMISED_RIDER, NO_HORSE, UNNAMED_RIDER } from "@/lib/bookings/rows";
 
 /**
  * „Moje sloty” instruktora (#72): dni od dziś, w każdym jego godziny z limitem > 0, zajęte
- * miejsca wobec limitu i zapisani jeźdźcy z przydzielonym koniem albo „bez konia”. Tylko odczyt.
+ * miejsca wobec limitu i zapisani jeźdźcy z przydzielonym koniem albo „bez konia”, a przy każdym
+ * zapisie konie do wyboru (#81): pracujące tego dnia, zajęte o tej godzinie oznaczone „zajęty”.
  * Limit zero znaczy „nie prowadzę jazdy w tej godzinie” (GLOSSARY „Limit miejsc”), więc taka
  * godzina nie trafia na listę, a dzień bez żadnej prowadzonej godziny — też nie.
  */
@@ -16,21 +17,48 @@ export interface MySlotInput {
 
 /** Aktywny zapis na slot instruktora — z `get_my_slot_bookings`. */
 export interface MySlotBookingInput {
+  bookingId: number;
   day: string;
   hour: number;
   /** `null` — jeździec bez imienia i nazwiska albo zanonimizowany. */
   riderName: string | null;
   /** `null` — zapis jeszcze bez konia. */
+  horseId: number | null;
   horseName: string | null;
   /** Jeździec usunął konto (ADR-0001). */
   anonymised: boolean;
 }
 
+/** Koń do wyboru przy zapisie — z `get_my_slot_horse_options`. */
+export interface MySlotHorseOptionInput {
+  bookingId: number;
+  horseId: number;
+  horseName: string;
+  /** Koń przydzielony innemu aktywnemu zapisowi o tej godzinie (także na cudzym slocie). */
+  taken: boolean;
+}
+
+/** Pozycja listy wyboru konia; zajętej nie da się wybrać. */
+export interface MySlotHorseChoice {
+  id: number;
+  /** Nazwa konia, przy zajętym z dopiskiem `HORSE_TAKEN_LABEL`. */
+  label: string;
+  taken: boolean;
+  /** Koń przydzielony temu zapisowi. */
+  selected: boolean;
+}
+
+/** Dopisek przy koniu zajętym o tej godzinie. */
+export const HORSE_TAKEN_LABEL = "zajęty";
+
 export interface MySlotRider {
+  bookingId: number;
   name: string;
   /** Nazwa konia albo `NO_HORSE`. */
   horse: string;
   hasHorse: boolean;
+  /** Konie pracujące tego dnia, alfabetycznie; „bez konia” dokłada formularz. */
+  horseChoices: MySlotHorseChoice[];
 }
 
 export interface MySlotView {
@@ -48,6 +76,7 @@ export interface MySlotsDay {
 export interface MySlotsInput {
   slots: MySlotInput[];
   bookings: MySlotBookingInput[];
+  horseOptions?: MySlotHorseOptionInput[];
 }
 
 function riderName(booking: MySlotBookingInput): string {
@@ -56,15 +85,35 @@ function riderName(booking: MySlotBookingInput): string {
 
 const slotKey = (day: string, hour: number) => `${day} ${String(hour)}`;
 
+function horseChoices(booking: MySlotBookingInput, options: MySlotHorseOptionInput[]): MySlotHorseChoice[] {
+  return [...options]
+    .sort((a, b) => a.horseName.localeCompare(b.horseName, "pl"))
+    .map((option) => ({
+      id: option.horseId,
+      label: option.taken ? `${option.horseName} — ${HORSE_TAKEN_LABEL}` : option.horseName,
+      taken: option.taken,
+      selected: option.horseId === booking.horseId,
+    }));
+}
+
 export function composeMySlots(input: MySlotsInput): MySlotsDay[] {
+  const optionsByBooking = new Map<number, MySlotHorseOptionInput[]>();
+  for (const option of input.horseOptions ?? []) {
+    const options = optionsByBooking.get(option.bookingId) ?? [];
+    options.push(option);
+    optionsByBooking.set(option.bookingId, options);
+  }
+
   const ridersBySlot = new Map<string, MySlotRider[]>();
   for (const booking of input.bookings) {
     const key = slotKey(booking.day, booking.hour);
     const riders = ridersBySlot.get(key) ?? [];
     riders.push({
+      bookingId: booking.bookingId,
       name: riderName(booking),
       horse: booking.horseName ?? NO_HORSE,
       hasHorse: booking.horseName !== null,
+      horseChoices: horseChoices(booking, optionsByBooking.get(booking.bookingId) ?? []),
     });
     ridersBySlot.set(key, riders);
   }
