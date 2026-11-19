@@ -10,6 +10,7 @@ import {
   SCHEDULE_DAY_PAST,
   SCHEDULE_HOURS_CONFLICT,
   SEATS_BELOW_BOOKINGS,
+  SCHEDULE_PERMISSION_MISSING,
   SEATS_EXCEED_HORSES,
   isScheduleRefusal,
   parseRefusalDetail,
@@ -194,5 +195,32 @@ describe("scheduleErrorMessage", () => {
   it("nierozpoznany kod daje wariant domyślny", () => {
     expect(scheduleErrorMessage("42P01", '{"bookings": 2}')).toBe("Nie udało się zapisać grafiku. Spróbuj ponownie.");
     expect(scheduleErrorMessage(undefined)).toBe("Nie udało się zapisać grafiku. Spróbuj ponownie.");
+  });
+});
+
+describe("odmowy grafiku dla instruktora z uprawnieniem", () => {
+  it("brak uprawnienia (42501) przy zapisie instruktora to „Nie masz już uprawnienia do układania grafiku”", () => {
+    expect(scheduleErrorMessage(SCHEDULE_PERMISSION_MISSING, undefined, "instructor")).toBe(
+      "Nie masz już uprawnienia do układania grafiku",
+    );
+  });
+
+  it("u instruktora brak uprawnienia to odmowa, nie awaria warta logu", () => {
+    expect(isScheduleRefusal(SCHEDULE_PERMISSION_MISSING, "instructor")).toBe(true);
+  });
+
+  it("u właściciela 42501 zostaje awarią z komunikatem domyślnym", () => {
+    expect(isScheduleRefusal(SCHEDULE_PERMISSION_MISSING, "owner")).toBe(false);
+    expect(scheduleErrorMessage(SCHEDULE_PERMISSION_MISSING, undefined, "owner")).toBe(
+      "Nie udało się zapisać grafiku. Spróbuj ponownie.",
+    );
+  });
+
+  it("reguła sumy limitów brzmi u instruktora tak samo jak u właściciela", () => {
+    const detail = '{"hour": 15, "seats": 3, "horses": 2}';
+    expect(scheduleErrorMessage(SEATS_EXCEED_HORSES, detail, "instructor")).toBe(
+      scheduleErrorMessage(SEATS_EXCEED_HORSES, detail, "owner"),
+    );
+    expect(isScheduleRefusal(SEATS_EXCEED_HORSES, "instructor")).toBe(true);
   });
 });

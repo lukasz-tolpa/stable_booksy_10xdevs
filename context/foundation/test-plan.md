@@ -287,7 +287,12 @@ local role authenticated; set local request.jwt.claims =
   dies before that leaves her inactive and `instructor-slots.spec.ts` red — repair with
   `npx supabase db reset`. `schedule-permission.spec.ts` toggles Joanna's „Układa grafik” switch
   (`getByRole("switch", { name: "Układa grafik — Joanna Wrona" })`, state in `aria-checked`) and
-  deactivates her once; its `finally` reactivates her and switches the permission off. Do not run `npm run test:db` and `npm run test:e2e` against the
+  deactivates her once; its `finally` reactivates her and switches the permission off. Its second
+  scenario (#79) grants the permission, signs Joanna in (empty storage state) and has her raise her
+  own limit at 15:00 on the seed day 1 → 2 in the „Grafik” tab (`/instruktor/grafik`, tabs in
+  `getByRole("navigation", { name: "Przestrzeń instruktora" })`), then the owner revokes it while
+  her form is open — her save lands on `/instruktor?error=` — and the owner's form sets 15:00 back
+  to 1; a flag-guarded `finally` repeats both. Joanna Wrona@15 is reserved for it. Do not run `npm run test:db` and `npm run test:e2e` against the
   same database at the same time.
 - **Past data**: the seed schedules only tomorrow and the past cannot be
   clicked together in a browser, so the `setup` project loads

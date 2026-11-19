@@ -108,3 +108,20 @@ export async function saveScheduleDay(client: Client, input: ScheduleDayInput): 
     throw error;
   }
 }
+
+/**
+ * Ośrodek, którego grafik zalogowane konto może układać — właściciela albo aktywnego instruktora
+ * z uprawnieniem do układania grafiku (#79) — albo `null`. Ten sam pomocnik bazy wybiera ośrodek
+ * przy zapisie (`save_schedule_day`), więc strona czyta dokładnie ten ośrodek, który zapisze.
+ */
+export async function getScheduleStableId(client: Client): Promise<number | null> {
+  const { data, error } = await client.rpc("schedule_stable_id");
+
+  if (error) {
+    throw error;
+  }
+
+  // Wygenerowane typy obiecują liczbę, ale funkcja zwraca NULL dla konta bez prawa do grafiku.
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  return data ?? null;
+}

@@ -1,0 +1,55 @@
+---
+import { instructorTabs } from "@/lib/auth/roles";
+
+// Zakładki przestrzeni instruktora (#79): „Moje sloty” i „Grafik” u instruktora z uprawnieniem do
+// układania grafiku. Bez uprawnienia lista jest pusta i pasek się nie pokazuje — mapa stanów konta
+// w @/lib/auth/roles decyduje, nie strona.
+const tabs = instructorTabs(Astro.locals.instructorStanding);
+const current = Astro.url.pathname.replace(/\/$/, "");
+---
+
+{
+  tabs.length > 0 && (
+    <nav class="tabs" aria-label="Przestrzeń instruktora">
+      {tabs.map((tab) => (
+        <a href={tab.href} aria-current={tab.href === current ? "page" : undefined}>
+          {tab.label}
+        </a>
+      ))}
+    </nav>
+  )
+}
+
+<style>
+  .tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 18px;
+  }
+  .tabs a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--muted);
+    transition:
+      background 0.15s,
+      color 0.15s;
+  }
+  .tabs a:hover {
+    color: var(--primary-strong);
+    background: var(--surface-2);
+  }
+  .tabs a[aria-current="page"] {
+    color: var(--primary-strong);
+    background: var(--primary-soft);
+  }
+  .tabs a:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+</style>

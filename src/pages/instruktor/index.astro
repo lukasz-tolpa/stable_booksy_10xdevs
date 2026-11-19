@@ -2,6 +2,7 @@
 import Layout from "@/layouts/Layout.astro";
 import Banner from "@/components/Banner.astro";
 import Topbar from "@/components/Topbar.astro";
+import InstructorTabs from "@/components/instructors/InstructorTabs.astro";
 import Card from "@/components/ui/Card.astro";
 import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
@@ -59,6 +60,7 @@ if (supabase && profile) {
 <Layout title="Moje sloty">
   <Topbar />
   <main class="container-narrow page">
+    <InstructorTabs />
     <h1>Moje sloty</h1>
     <p class="page-lead">
       {stableName ? `Twoje godziny w ośrodku ${stableName}, od dziś.` : "Twoje godziny od dziś."} Odśwież stronę, żeby zobaczyć

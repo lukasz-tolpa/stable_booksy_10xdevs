@@ -1,0 +1,32 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import Topbar from "@/components/Topbar.astro";
+import InstructorTabs from "@/components/instructors/InstructorTabs.astro";
+import ScheduleDayPage from "@/components/schedule/ScheduleDayPage.astro";
+import { INSTRUCTOR_SCHEDULE_ROUTE } from "@/lib/auth/roles";
+import { defaultScheduleDate, parseScheduleDate } from "@/lib/schedule/dates";
+
+// Zakładka „Grafik” instruktora z uprawnieniem do układania grafiku (#79): ten sam formularz dnia
+// co u właściciela. Instruktora bez uprawnienia middleware przenosi do „Moje sloty”. Konie dodaje
+// tylko właściciel, więc przy pustym stadzie strona nie linkuje do koni.
+const day = parseScheduleDate(Astro.url.searchParams.get("dzien")) ?? defaultScheduleDate();
+---
+
+<Layout title={`Grafik ${day}`}>
+  <Topbar />
+  <main class="container-narrow page">
+    <InstructorTabs />
+    <ScheduleDayPage
+      route={INSTRUCTOR_SCHEDULE_ROUTE}
+      day={day}
+      horsesRoute={null}
+      error={Astro.url.searchParams.get("error")}
+    />
+  </main>
+</Layout>
+
+<style>
+  .page {
+    padding-block: 24px 56px;
+  }
+</style>

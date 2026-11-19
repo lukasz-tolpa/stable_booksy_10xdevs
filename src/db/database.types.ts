@@ -525,6 +525,7 @@ export type Database = {
         };
         Returns: number;
       };
+      schedule_stable_id: { Args: never; Returns: number };
       set_schedule_permission: {
         Args: { p_granted: boolean; p_instructor_id: number };
         Returns: undefined;

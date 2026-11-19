@@ -7,6 +7,11 @@
  * `20261113090000_schedule_day_instructors_and_seats.sql`; SB010, SB011 i nowe znaczenie
  * SB004 — `20261114090000_bookings_on_instructor_seats.sql`). Każdy kod to inna czynność
  * po stronie ośrodka.
+ *
+ * Grafik układa właściciel albo instruktor z uprawnieniem do układania grafiku (#79). Kto zapisuje,
+ * mówi `ScheduleCaller` — trzeci argument `scheduleErrorMessage` i drugi `isScheduleRefusal`.
+ * Komunikat zależny od wywołującego dopisuje się w gałęzi kodu przez `caller` (#80: dopisek
+ * o właścicielu przy kolidujących zapisach i przydziałach koni).
  */
 
 import { formatClockHour } from "@/lib/format";
@@ -37,6 +42,15 @@ export const SCHEDULE_DAY_PAST = "SB008";
 export const SEATS_BELOW_BOOKINGS = "SB010";
 /** Wypisanie z dnia instruktora, który ma w nim aktywne zapisy; DETAIL niesie ich liczbę. */
 export const INSTRUCTOR_HAS_BOOKINGS = "SB011";
+/**
+ * Wywołujący nie może układać grafiku (`private.schedule_stable_id()` puste, migracja
+ * `20261122090000_schedule_arranging.sql`). U instruktora to odebrane uprawnienie (albo dezaktywacja)
+ * przy otwartym formularzu; u właściciela nie powinno się zdarzyć — awaria.
+ */
+export const SCHEDULE_PERMISSION_MISSING = "42501";
+
+/** Kto zapisuje grafik: właściciel czy instruktor z uprawnieniem do układania grafiku. */
+export type ScheduleCaller = "owner" | "instructor";
 
 const FALLBACK = "Nie udało się zapisać grafiku. Spróbuj ponownie.";
 
@@ -55,7 +69,10 @@ const REFUSAL_CODES = new Set<string>([
 ]);
 
 /** Czy kod to odmowa reguły grafiku (decyzja ośrodka), a nie awaria warta logu. */
-export function isScheduleRefusal(code: string | undefined): boolean {
+export function isScheduleRefusal(code: string | undefined, caller: ScheduleCaller = "owner"): boolean {
+  if (code === SCHEDULE_PERMISSION_MISSING) {
+    return caller === "instructor";
+  }
   return code !== undefined && REFUSAL_CODES.has(code);
 }
 
@@ -130,9 +147,14 @@ function activeBookings(count: number): string {
 /**
  * Komunikat dla ośrodka. Treść mówi, CO blokuje zmianę i ILU zapisów dotyczy — decyzja
  * produktowa wymaga od ośrodka doprowadzenia do ich odwołania, więc samo „nie można"
- * zostawiłoby go w ślepym zaułku. `dbDetail` to pole DETAIL błędu bazy (`errorDetails`).
+ * zostawiłoby go w ślepym zaułku. `dbDetail` to pole DETAIL błędu bazy (`errorDetails`),
+ * `caller` — kto zapisuje grafik.
  */
-export function scheduleErrorMessage(code: string | undefined, dbDetail?: string): string {
+export function scheduleErrorMessage(
+  code: string | undefined,
+  dbDetail?: string,
+  caller: ScheduleCaller = "owner",
+): string {
   const detail = parseRefusalDetail(dbDetail);
   const count = detail.bookings ?? null;
   const howMany = count === null ? " aktywne zapisy" : ` ${String(count)} ${pluralizeBookings(count)}`;
@@ -170,6 +192,8 @@ export function scheduleErrorMessage(code: string | undefined, dbDetail?: string
       return `Nie można wypisać z dnia instruktora, który ma w nim ${count === null ? "aktywne zapisy" : activeBookings(count)}. Najpierw doprowadź do ${theirCancellation}.`;
     case SCHEDULE_DAY_PAST:
       return "Nie można układać grafiku na przeszłe dni";
+    case SCHEDULE_PERMISSION_MISSING:
+      return caller === "instructor" ? "Nie masz już uprawnienia do układania grafiku" : FALLBACK;
     default:
       return FALLBACK;
   }
