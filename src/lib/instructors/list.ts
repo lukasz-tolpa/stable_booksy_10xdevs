@@ -21,13 +21,23 @@ export interface InviteAction {
 }
 
 /**
+ * Przełącznik „Układa grafik” (#78): `granted` — instruktor ma uprawnienie do układania grafiku.
+ */
+export interface SchedulePermissionToggle {
+  granted: boolean;
+}
+
+/**
  * Aktywny instruktor; `owner` — właściciel ośrodka (oznaczony, bez przełącznika dezaktywacji);
- * `invite: null` — instruktor ma konto, zaprosić go nie można.
+ * `invite: null` — instruktor ma konto, zaprosić go nie można; `schedulePermission: null` — bez
+ * przełącznika „Układa grafik” (właściciel ma wszystkie uprawnienia, a instruktorowi bez konta
+ * baza uprawnienia nie nada).
  */
 export interface ActiveInstructorItem extends InstructorListItem {
   owner: boolean;
   account: AccountState;
   invite: InviteAction | null;
+  schedulePermission: SchedulePermissionToggle | null;
 }
 
 /** Nieaktywny instruktor z notką o wciąż wystawionych miejscach (US 73); `null` — bez notki. */
@@ -67,6 +77,17 @@ function accountState(
   return WITHOUT_ACCOUNT;
 }
 
+/**
+ * Przełącznik tylko u aktywnego instruktora z kontem, który nie jest właścicielem — dokładnie tam,
+ * gdzie `set_schedule_permission` nie odmówi (SB023–SB025).
+ */
+function schedulePermission(account: InstructorAccount | undefined): SchedulePermissionToggle | null {
+  if (!account || account.owner) {
+    return null;
+  }
+  return { granted: account.arranges_schedule };
+}
+
 function inviteAction(account: AccountState): InviteAction | null {
   switch (account.kind) {
     case "account":
@@ -83,7 +104,8 @@ function inviteAction(account: AccountState): InviteAction | null {
  * `listStableInstructors`). Kto ma konto i kto jest właścicielem, mówi `accounts`
  * (`listInstructorAccounts`); właściciela baza nie pozwala dezaktywować (SB012), więc stoi wśród
  * aktywnych. Nieaktywny dostaje notkę, w ilu dniach ma jeszcze miejsca, na które jeździec
- * może się zapisać. Każdy dostaje stan konta z kont i żywych zaproszeń ośrodka (`invitations`).
+ * może się zapisać. Każdy dostaje stan konta z kont i żywych zaproszeń ośrodka (`invitations`);
+ * aktywny z kontem (poza właścicielem) — przełącznik „Układa grafik” w stanie z `accounts`.
  */
 export function composeInstructorList(
   instructors: InstructorListItem[],
@@ -103,11 +125,13 @@ export function composeInstructorList(
       .filter((instructor) => instructor.active)
       .map((instructor) => {
         const account = stateOf(instructor);
+        const linked = accountOf.get(instructor.id);
         return {
           ...instructor,
-          owner: accountOf.get(instructor.id)?.owner ?? false,
+          owner: linked?.owner ?? false,
           account,
           invite: inviteAction(account),
+          schedulePermission: schedulePermission(linked),
         };
       }),
     inactive: instructors

@@ -43,6 +43,12 @@ export const inviteInstructorSchema = z.object({
 /** Sam identyfikator instruktora — wycofanie zaproszenia. */
 export const instructorIdSchema = z.object({ instructorId: instructorIdField });
 
+/** Nadanie (`true`) albo odebranie (`false`) uprawnienia do układania grafiku (#78). */
+export const schedulePermissionSchema = z.object({
+  instructorId: instructorIdField,
+  granted: z.enum(["true", "false"]).transform((value) => value === "true"),
+});
+
 export type NewInstructorInput = z.infer<typeof newInstructorSchema>;
 export type ToggleInstructorInput = z.infer<typeof toggleInstructorSchema>;
 export type InviteInstructorInput = z.infer<typeof inviteInstructorSchema>;
