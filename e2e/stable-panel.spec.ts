@@ -2,9 +2,11 @@ import { expect, test } from "@playwright/test";
 import { SEED_HINT, STABLE_NAME, STABLE_STATE, seedDay } from "./helpers";
 
 /**
- * Panel ośrodka (`/osrodek`, #84): właściciel Stadniny Pod Dębem widzi najbliższe 7 dni i boczną
- * kolumnę „Ośrodek”. Seed układa tylko jutro (z zapisem Anny u Joanny o 11:00), więc jutro jest
- * dniem ułożonym, a pozostałe dni tygodnia — „brak grafiku”. Liczby zapisów i miejsc nie są
+ * Panel ośrodka (`/osrodek`, #84, #85): właściciel Stadniny Pod Dębem widzi najbliższe 7 dni,
+ * liczby z ostatnich 30 dni i boczną kolumnę „Ośrodek”. Seed układa tylko jutro (z zapisem Anny
+ * u Joanny o 11:00), więc jutro jest dniem ułożonym, a pozostałe dni tygodnia — „brak grafiku”.
+ * Ostatnie 30 dni liczą minioną historię demo, którą ładuje setup; wyrocznią jest spójność ze
+ * Statystykami tego samego okresu, nie konkretne liczby (historia liczy się od dnia załadowania). Liczby zapisów i miejsc nie są
  * przypięte: inne scenariusze zmieniają limity jutra i po sobie sprzątają.
  *
  * Panel liczy „dziś” w Europe/Warsaw, a seed jutro wg `current_date` bazy (UTC): między północą
@@ -13,7 +15,12 @@ import { SEED_HINT, STABLE_NAME, STABLE_STATE, seedDay } from "./helpers";
  */
 test.use({ storageState: STABLE_STATE });
 
-test("panel ośrodka pokazuje najbliższe 7 dni i prowadzi do pięciu sekcji ośrodka", async ({ page }) => {
+const DEMO_HINT = "Brak minionej historii demo — uruchom: npm run db:demo";
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+test("panel ośrodka pokazuje najbliższe 7 dni, ostatnie 30 dni i prowadzi do pięciu sekcji ośrodka", async ({
+  page,
+}) => {
   await page.goto("/osrodek");
   await expect(page.getByRole("heading", { level: 1, name: "Panel ośrodka" })).toBeVisible();
   await expect(page.getByText(STABLE_NAME, { exact: true })).toBeVisible();
@@ -49,6 +56,44 @@ test("panel ośrodka pokazuje najbliższe 7 dni i prowadzi do pięciu sekcji oś
     await unscheduled.click();
     await page.waitForURL(`**${href ?? ""}`);
     await expect(page.getByRole("heading", { level: 1, name: "Grafik dnia" })).toBeVisible();
+    await page.goBack();
+  });
+
+  await test.step("ostatnie 30 dni: kafelki z historii demo, wykres i „Pełne statystyki” z tym samym okresem", async () => {
+    const month = page.getByRole("region", { name: "Ostatnie 30 dni" });
+    await expect(month.getByRole("term")).toHaveText([
+      "Godziny jazd",
+      "Obłożenie grafiku",
+      "Odwołania",
+      "Najbardziej obciążony koń",
+    ]);
+    const tiles = month.getByRole("definition");
+    await expect(tiles.nth(0), DEMO_HINT).toContainText(/[1-9]\d* h/);
+    await expect(tiles.nth(1)).toContainText(/\d+%/);
+    await expect(tiles.nth(2)).toContainText(/[1-9]\d*/);
+    // Historia demo ma jazdy na Belli, Kasztanie i Iskrze — któryś z nich jest najbardziej obciążony.
+    await expect(tiles.nth(3)).toContainText(/(Bella|Kasztan|Iskra)\s*[1-9]\d* h/);
+    await expect(month.getByRole("figure", { name: "Godziny jazd dzień po dniu" })).toBeVisible();
+
+    const ridesText = /(\d+) jazd/.exec(await tiles.nth(0).innerText());
+    expect(ridesText, "kafelek godzin jazd podaje liczbę jazd").not.toBeNull();
+    const rides = Number(ridesText?.[1]);
+
+    const fullStats = month.getByRole("link", { name: "Pełne statystyki" });
+    const href = (await fullStats.getAttribute("href")) ?? "";
+    const period = /^\/osrodek\/statystyki\?od=(\d{4}-\d{2}-\d{2})&do=(\d{4}-\d{2}-\d{2})$/.exec(href);
+    expect(period, `adres „Pełnych statystyk”: ${href}`).not.toBeNull();
+    const [, from = "", to = ""] = period ?? [];
+    expect(Date.parse(to) - Date.parse(from), "okres to 30 dni do dziś włącznie").toBe(29 * DAY_MS);
+
+    await fullStats.click();
+    await page.waitForURL(`**${href}`);
+    await expect(page.getByRole("heading", { level: 1, name: "Statystyki" })).toBeVisible();
+    await expect(page.getByLabel("Od", { exact: true })).toHaveValue(from);
+    await expect(page.getByLabel("Do", { exact: true })).toHaveValue(to);
+    // Te same liczby: Statystyki tego okresu mają tyle samo jazd co kafelek panelu.
+    const summary = page.getByRole("region", { name: "Podsumowanie okresu" });
+    await expect(summary.getByRole("definition").first()).toHaveText(String(rides));
     await page.goBack();
   });
 

@@ -16,6 +16,20 @@ export const PANEL_TEXTS = {
     arrange: "Ułóż",
     failure: "Nie udało się wczytać najbliższych dni.",
   },
+  lastMonth: {
+    heading: "Ostatnie 30 dni",
+    fullStats: "Pełne statystyki",
+    empty: "W ostatnich 30 dniach nie było jazd ani wystawionych miejsc.",
+    rideHours: "Godziny jazd",
+    occupancy: "Obłożenie grafiku",
+    occupancyNote: "miejsc, na których była jazda",
+    cancellations: "Odwołania",
+    cancellationsNote: "jeźdźców i ośrodka",
+    topHorse: "Najbardziej obciążony koń",
+    noHorseRides: "brak jazd z koniem",
+    none: "—",
+    failure: "Nie udało się wczytać liczb z ostatnich 30 dni.",
+  },
   side: {
     heading: "Ośrodek",
     schedule: "Grafik",
@@ -34,3 +48,4 @@ export const PANEL_TEXTS = {
 export const SEAT_FORMS: PluralForms = { one: "miejsce", few: "miejsca", many: "miejsc" };
 export const DAY_FORMS: PluralForms = { one: "dzień", few: "dni", many: "dni" };
 export const ACTIVE_FORMS: PluralForms = { one: "aktywny", few: "aktywne", many: "aktywnych" };
+export const RIDE_FORMS: PluralForms = { one: "jazda", few: "jazdy", many: "jazd" };

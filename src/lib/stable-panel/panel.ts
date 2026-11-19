@@ -5,19 +5,30 @@ import {
   BOOKING_FORMS,
   formatCount,
   formatHourRange,
+  formatHours,
   formatNumber,
   formatShortDate,
   formatShortWeekday,
 } from "@/lib/format";
 import { addDays } from "@/lib/schedule/dates";
-import { ACTIVE_FORMS, DAY_FORMS, PANEL_TEXTS, SEAT_FORMS } from "@/lib/stable-panel/texts";
-import type { StatsBooking, StatsPeriod, StatsScheduleDay } from "@/lib/stats/stats";
+import { ACTIVE_FORMS, DAY_FORMS, PANEL_TEXTS, RIDE_FORMS, SEAT_FORMS } from "@/lib/stable-panel/texts";
+import { statsPeriodSearch } from "@/lib/stats/period";
+import type { StatsRider } from "@/lib/stats/riders";
+import {
+  computeStableStats,
+  type StatsBooking,
+  type StatsHorse,
+  type StatsPeriod,
+  type StatsScheduleDay,
+} from "@/lib/stats/stats";
+import type { RideHoursSeries } from "@/lib/stats/time-series";
+import { bucketLabels, GRANULARITY_NAMES } from "@/lib/stats/time-series-labels";
 
 /**
  * Panel ośrodka (`/osrodek`, spec #83): model widoku każdej części strony. Strona wczytuje
  * części osobno (awaria jednej nie zabiera reszty), każdą składa tu osobna funkcja, a markup
- * tylko renderuje wynik. Części: najbliższe 7 dni (`composeWeek`) i boczna kolumna „Ośrodek”
- * (`composeSideColumn`).
+ * tylko renderuje wynik. Części: najbliższe 7 dni (`composeWeek`), ostatnie 30 dni
+ * (`composeLastMonth`) i boczna kolumna „Ośrodek” (`composeSideColumn`).
  */
 
 /** Stado ośrodka (`/osrodek/konie`). */
@@ -27,6 +38,9 @@ export const STATS_ROUTE = "/osrodek/statystyki";
 
 /** Liczba dni paska tygodnia, od dziś włącznie. */
 export const WEEK_LENGTH = 7;
+
+/** Liczba dni części „Ostatnie 30 dni”, do dziś włącznie. */
+export const LAST_MONTH_LENGTH = 30;
 
 /** Dni paska tygodnia jako okres wierszy statystyk: dziś…dziś+6. */
 export function weekPeriod(today: string): StatsPeriod {
@@ -208,4 +222,128 @@ export function composeSideColumn(input: SideColumnInput): SideLink[] {
     { name: texts.instructors, href: INSTRUCTORS_ROUTE, fact: instructorsFact(input), warn: false },
     { name: texts.stats, href: STATS_ROUTE, fact: texts.anyPeriod, warn: false },
   ];
+}
+
+// --- Ostatnie 30 dni ---
+
+/** Ostatnie 30 dni jako okres statystyk: dziś-29…dziś. */
+export function lastMonthPeriod(today: string): StatsPeriod {
+  return { from: addDays(today, -(LAST_MONTH_LENGTH - 1)), to: today };
+}
+
+export interface LastMonthInput {
+  today: string;
+  /** Wiersze statystyk (`getStatsRows` dla `lastMonthPeriod(today)`); wiersze spoza okresu są pomijane. */
+  days: StatsScheduleDay[];
+  bookings: StatsBooking[];
+  riders: StatsRider[];
+  /** Wszystkie konie stadniny, także zdezaktywowane (`listStableHorses`) — źródło nazw. */
+  horses: StatsHorse[];
+}
+
+export interface MonthTile {
+  label: string;
+  /** Liczba albo nazwa konia, gotowa do wyświetlenia; `—`, gdy nie ma czego pokazać. */
+  value: string;
+  /** Dopisek pod wartością, np. `12 jazd`. */
+  note: string;
+  /** Wartość jest nazwą (koń), nie liczbą — inny krój. */
+  isName: boolean;
+}
+
+/** Słupek wykresu; kształt `BarChartItem` z `@/components/ui/BarChart.astro`. */
+export interface MonthChartBar {
+  /** Np. `9.11` — pod słupkiem. */
+  label: string;
+  /** Np. `9 listopada 2026` — w tabeli z danymi wykresu. */
+  longLabel: string;
+  value: number;
+  /** Np. `3 h`. */
+  valueText: string;
+}
+
+export interface MonthChart {
+  /** Nagłówek wykresu i jego nazwa dla czytników ekranu, np. `Godziny jazd dzień po dniu`. */
+  title: string;
+  /** Nagłówek kolumny przedziałów w tabeli z danymi, np. `Dzień`. */
+  labelHeader: string;
+  bars: MonthChartBar[];
+}
+
+export interface LastMonthView {
+  /**
+   * Okres bez jazd i wystawionych miejsc (`StatsView.isEmpty` — ten sam pusty okres co na
+   * Statystykach) — zamiast kafelków i wykresu spokojny komunikat.
+   */
+  isEmpty: boolean;
+  tiles: MonthTile[];
+  /** Godziny jazd w czasie (seria statystyk z ich etykietami przedziałów). */
+  chart: MonthChart;
+  /** „Pełne statystyki”: Statystyki z tym samym okresem. */
+  statsHref: string;
+}
+
+function monthChart(series: RideHoursSeries): MonthChart {
+  const names = GRANULARITY_NAMES[series.granularity];
+  return {
+    title: `${PANEL_TEXTS.lastMonth.rideHours} ${names.phrase}`,
+    labelHeader: names.bucket,
+    bars: series.buckets.map((bucket) => {
+      const labels = bucketLabels(bucket, series.granularity);
+      return {
+        label: labels.short,
+        longLabel: labels.long,
+        value: bucket.rideHours,
+        valueText: formatHours(bucket.rideHours),
+      };
+    }),
+  };
+}
+
+/**
+ * Część „Ostatnie 30 dni”: kafelki z wyliczenia statystyk ośrodka (`computeStableStats`) dla
+ * okresu dziś-29…dziś. `now` wstrzykiwane jak w statystykach — liczy się tylko to, co minęło.
+ */
+export function composeLastMonth(input: LastMonthInput, now: Date = new Date()): LastMonthView {
+  const texts = PANEL_TEXTS.lastMonth;
+  const period = lastMonthPeriod(input.today);
+  const stats = computeStableStats(
+    { period, days: input.days, bookings: input.bookings, riders: input.riders, horses: input.horses },
+    now,
+  );
+  const { summary } = stats;
+  // Tabela koni idzie od najbardziej obciążonego; koń bez godzin jazd nie jest „obciążony”.
+  const topHorse = stats.horses.find((row) => row.rideHours > 0);
+
+  return {
+    isEmpty: stats.isEmpty,
+    tiles: [
+      {
+        label: texts.rideHours,
+        value: formatHours(summary.rideHours),
+        note: formatCount(summary.rides, RIDE_FORMS),
+        isName: false,
+      },
+      {
+        label: texts.occupancy,
+        value: summary.occupancyPercent === null ? texts.none : `${formatNumber(summary.occupancyPercent)}%`,
+        note: texts.occupancyNote,
+        isName: false,
+      },
+      {
+        label: texts.cancellations,
+        value: formatNumber(summary.cancellations),
+        note: texts.cancellationsNote,
+        isName: false,
+      },
+      {
+        label: texts.topHorse,
+        value: topHorse?.name ?? texts.none,
+        note: topHorse ? formatHours(topHorse.rideHours) : texts.noHorseRides,
+        isName: true,
+      },
+    ],
+    chart: monthChart(stats.rideHoursOverTime),
+    statsHref: `${STATS_ROUTE}${statsPeriodSearch(period)}`,
+  };
 }

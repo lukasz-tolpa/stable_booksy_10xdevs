@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { composeSideColumn, composeWeek } from "@/lib/stable-panel/panel";
+import { composeLastMonth, composeSideColumn, composeWeek, lastMonthPeriod } from "@/lib/stable-panel/panel";
 import type { StatsBooking, StatsScheduleDay } from "@/lib/stats/stats";
 
 // Piątek 20 listopada 2026 — „dziś” we wszystkich przypadkach.
@@ -230,6 +230,103 @@ describe("composeSideColumn", () => {
       "/osrodek/instruktorzy",
       "/osrodek/statystyki",
     ]);
+  });
+});
+
+describe("composeLastMonth", () => {
+  // Południe w Warszawie (UTC+1 w listopadzie): wszystkie dni przed dziś są w całości miniony.
+  const NOW = new Date("2026-11-20T11:00:00Z");
+  const horses = [
+    { id: 1, name: "Bella" },
+    { id: 2, name: "Kasztan" },
+  ];
+  const input = (days: StatsScheduleDay[], bookings: StatsBooking[]) => ({
+    today: TODAY,
+    days,
+    bookings,
+    riders: [],
+    horses,
+  });
+
+  it("obejmuje ostatnie 30 dni: od dziś-29 do dziś", () => {
+    expect(lastMonthPeriod(TODAY)).toEqual({ from: "2026-10-22", to: "2026-11-20" });
+  });
+
+  it("kafelki: godziny jazd z liczbą jazd, obłożenie grafiku, odwołania, najbardziej obciążony koń z godzinami", () => {
+    const day = "2026-11-10";
+    const view = composeLastMonth(
+      input(
+        [scheduleDay(day, [2, 2])],
+        [
+          booking(day, { horseId: 1 }),
+          booking(day, { horseId: 1, hour: 11 }),
+          booking(day, { horseId: 2, hour: 11, riderId: "r2" }),
+          booking(day, { status: "cancelled", horseId: null, cancelledBy: "stable", riderId: "r3" }),
+          // Dzień przed okresem nie liczy się do niczego.
+          booking("2026-10-21", { horseId: 2 }),
+        ],
+      ),
+      NOW,
+    );
+
+    expect(view.isEmpty).toBe(false);
+    expect(view.tiles.map((tile) => [tile.label, tile.value, tile.note])).toEqual([
+      ["Godziny jazd", "3 h", "3 jazdy"],
+      ["Obłożenie grafiku", "75%", "miejsc, na których była jazda"],
+      ["Odwołania", "1", "jeźdźców i ośrodka"],
+      ["Najbardziej obciążony koń", "Bella", "2 h"],
+    ]);
+  });
+
+  it("gdy żaden koń nie ma godzin jazd, najbardziej obciążony koń to „—” — konie dnia stały, a jazda była bez konia", () => {
+    const day = "2026-11-10";
+    const view = composeLastMonth(input([scheduleDay(day, [1])], [booking(day, { horseId: null })]), NOW);
+
+    expect(view.tiles[3]).toMatchObject({ value: "—", note: "brak jazd z koniem" });
+    expect(view.tiles[0]).toMatchObject({ value: "1 h", note: "1 jazda" });
+  });
+
+  it("bez wystawionych miejsc w minionych slotach obłożenie to „—”, a okres z odwołaniem nie jest pusty", () => {
+    // Odwołanie zapisu, którego slot zniknął z grafiku: jest w okresie, ale miejsc nie ma.
+    const view = composeLastMonth(
+      input([], [booking("2026-11-10", { status: "cancelled", horseId: null, cancelledBy: "rider" })]),
+      NOW,
+    );
+
+    expect(view.isEmpty).toBe(false);
+    expect(view.tiles[1]).toMatchObject({ value: "—" });
+    expect(view.tiles[2]).toMatchObject({ value: "1" });
+  });
+
+  it("wykres godzin jazd dzień po dniu: 30 słupków od dziś-29, z etykietą dnia i godzinami", () => {
+    const view = composeLastMonth(
+      input([scheduleDay("2026-11-10", [2, 2])], [booking("2026-11-10"), booking("2026-11-10", { hour: 11 })]),
+      NOW,
+    );
+    const { bars } = view.chart;
+
+    expect(view.chart).toMatchObject({ title: "Godziny jazd dzień po dniu", labelHeader: "Dzień" });
+    expect(bars).toHaveLength(30);
+    expect(bars[0]).toEqual({ label: "22.10", longLabel: "22 października 2026", value: 0, valueText: "0 h" });
+    expect(bars.find((bar) => bar.label === "10.11")).toMatchObject({ value: 2, valueText: "2 h" });
+    expect(bars[29]?.label).toBe("20.11");
+  });
+
+  it("„Pełne statystyki” otwierają Statystyki z tym samym okresem", () => {
+    expect(composeLastMonth(input([], []), NOW).statsHref).toBe("/osrodek/statystyki?od=2026-10-22&do=2026-11-20");
+  });
+
+  it("okres bez jazd i miejsc jest pusty — także gdy grafik był dzień przed okresem albo dopiero dziś później", () => {
+    expect(composeLastMonth(input([], []), NOW).isEmpty).toBe(true);
+    // Dziś 12:00 — slot o 15:00 jeszcze nie minął; dziś-30 leży przed okresem.
+    const view = composeLastMonth(
+      input(
+        [scheduleDay("2026-10-21", [2]), { ...scheduleDay(TODAY, [2]), openHour: 15, slots: [{ hour: 15, seats: 2 }] }],
+        [],
+      ),
+      NOW,
+    );
+    expect(view.isEmpty).toBe(true);
   });
 });
 

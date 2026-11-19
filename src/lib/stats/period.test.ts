@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultStatsPeriod, resolveStatsPeriod } from "@/lib/stats/period";
+import { defaultStatsPeriod, resolveStatsPeriod, statsPeriodSearch } from "@/lib/stats/period";
 
 const TODAY = "2026-11-10";
 const DEFAULT = { from: "2026-11-01", to: "2026-11-10" };
@@ -46,5 +46,16 @@ describe("resolveStatsPeriod", () => {
       period: { from: "2026-11-09", to: "2026-11-03" },
       reversed: true,
     });
+  });
+});
+
+describe("statsPeriodSearch", () => {
+  it("zapisuje okres w parametrach, które strona Statystyk odczytuje z powrotem jako ten sam okres", () => {
+    const period = { from: "2026-10-12", to: "2026-11-10" };
+    const search = statsPeriodSearch(period);
+    const params = new URLSearchParams(search);
+
+    expect(search).toBe("?od=2026-10-12&do=2026-11-10");
+    expect(resolveStatsPeriod(params.get("od"), params.get("do"), TODAY)).toEqual({ period, reversed: false });
   });
 });

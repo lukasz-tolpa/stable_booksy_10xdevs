@@ -1,37 +1,52 @@
 ---
 import Layout from "@/layouts/Layout.astro";
 import Topbar from "@/components/Topbar.astro";
+import PanelLastMonth from "@/components/stable-panel/PanelLastMonth.astro";
 import PanelSide from "@/components/stable-panel/PanelSide.astro";
 import PanelWeek from "@/components/stable-panel/PanelWeek.astro";
 import { listInstructorAccounts, listStableInstructors } from "@/lib/instructors/queries";
 import { logError } from "@/lib/log";
 import { todayIso } from "@/lib/schedule/dates";
-import { composeSideColumn, composeWeek, weekPeriod, type WeekView } from "@/lib/stable-panel/panel";
+import {
+  composeLastMonth,
+  composeSideColumn,
+  composeWeek,
+  lastMonthPeriod,
+  weekPeriod,
+  type LastMonthView,
+  type WeekView,
+} from "@/lib/stable-panel/panel";
 import { PANEL_TEXTS } from "@/lib/stable-panel/texts";
 import { getOwnedStable, listStableHorses, type OwnedStable } from "@/lib/stables/queries";
 import { getStatsRows } from "@/lib/stats/queries";
 import { createClient } from "@/lib/supabase";
 
 // Panel ośrodka (spec #83). Dostęp pilnuje middleware (mapa tras w @/lib/auth/roles) — strona
-// nie powtarza sprawdzenia roli. Każda część (tydzień, boczna kolumna) wczytuje się osobno:
+// nie powtarza sprawdzenia roli. Każda część (tydzień, 30 dni, boczna kolumna) wczytuje się osobno:
 // awaria jednej daje jej `FailureState`, reszta się wyświetla. Liczy `@/lib/stable-panel/panel`;
 // tu tylko odczyt i render. Kolejna część dochodzi jako następne zadanie w `Promise.allSettled`
 // i następny komponent w kolumnie `.main`.
 const { profile } = Astro.locals;
 const supabase = createClient(Astro.request.headers, Astro.cookies);
-const today = todayIso();
+const now = new Date();
+const today = todayIso(now);
 const SCOPE = "page:osrodek";
 
 let stable: OwnedStable | null = null;
 let week: WeekView | null = null;
+let lastMonth: LastMonthView | null = null;
 let sideData: Awaited<ReturnType<typeof loadSideData>> | null = null;
 
-function loadSideData(client: NonNullable<typeof supabase>, stableId: number) {
-  return Promise.all([
-    listStableHorses(client, stableId),
-    listStableInstructors(client, stableId),
-    listInstructorAccounts(client),
-  ]);
+type Client = NonNullable<typeof supabase>;
+type Horses = ReturnType<typeof listStableHorses>;
+
+function loadSideData(client: Client, stableId: number, horses: Horses) {
+  return Promise.all([horses, listStableInstructors(client, stableId), listInstructorAccounts(client)]);
+}
+
+async function loadLastMonth(client: Client, stableId: number, horses: Horses) {
+  const [rows, stableHorses] = await Promise.all([getStatsRows(client, stableId, lastMonthPeriod(today)), horses]);
+  return composeLastMonth({ today, ...rows, horses: stableHorses }, now);
 }
 
 if (supabase && profile) {
@@ -47,15 +62,23 @@ if (supabase && profile) {
 
   if (stable) {
     const stableId = stable.id;
-    const [weekResult, sideResult] = await Promise.allSettled([
+    // Stado czytają dwie części (liczba aktywnych koni, nazwy koni w 30 dniach) — jeden odczyt.
+    const horses = listStableHorses(supabase, stableId);
+    const [weekResult, lastMonthResult, sideResult] = await Promise.allSettled([
       getStatsRows(supabase, stableId, weekPeriod(today)).then((rows) => composeWeek({ today, ...rows })),
-      loadSideData(supabase, stableId),
+      loadLastMonth(supabase, stableId, horses),
+      loadSideData(supabase, stableId, horses),
     ]);
 
     if (weekResult.status === "fulfilled") {
       week = weekResult.value;
     } else {
       logError(SCOPE, weekResult.reason);
+    }
+    if (lastMonthResult.status === "fulfilled") {
+      lastMonth = lastMonthResult.value;
+    } else {
+      logError(SCOPE, lastMonthResult.reason);
     }
     if (sideResult.status === "fulfilled") {
       sideData = sideResult.value;
@@ -86,6 +109,7 @@ const sideLinks = composeSideColumn({ today, week, horses, instructors, accounts
           )
         }
         <PanelWeek week={week} />
+        <PanelLastMonth month={lastMonth} />
       </div>
       <PanelSide links={sideLinks} failed={sideData === null} />
     </div>

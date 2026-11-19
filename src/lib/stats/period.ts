@@ -40,3 +40,11 @@ export function resolveStatsPeriod(
 
   return { period: { from, to }, reversed: from > to };
 }
+
+/**
+ * Okres w parametrach adresu strony Statystyk (`?od=…&do=…`) — odwrotność `resolveStatsPeriod`,
+ * dla linków otwierających Statystyki z gotowym okresem (np. „Pełne statystyki” na panelu).
+ */
+export function statsPeriodSearch(period: StatsPeriod): string {
+  return `?od=${period.from}&do=${period.to}`;
+}
