@@ -56,6 +56,24 @@ export function formatLongDateWithYear(iso: string): string {
   });
 }
 
+const SHORT_WEEKDAY = new Intl.DateTimeFormat("pl-PL", { weekday: "short", timeZone: "UTC" });
+const SHORT_DAY_MONTH = new Intl.DateTimeFormat("pl-PL", { day: "numeric", month: "short", timeZone: "UTC" });
+
+/** Skrót dnia tygodnia dnia grafiku (`RRRR-MM-DD`), np. `pt.` — data kalendarzowa, więc w UTC. */
+export function formatShortWeekday(iso: string): string {
+  return SHORT_WEEKDAY.format(new Date(`${iso}T00:00:00Z`));
+}
+
+/** Dzień i skrót miesiąca dnia grafiku (`RRRR-MM-DD`), np. `20 lis` — data kalendarzowa, więc w UTC. */
+export function formatShortDate(iso: string): string {
+  return SHORT_DAY_MONTH.format(new Date(`${iso}T00:00:00Z`));
+}
+
+/** Godziny pracy dnia `[open, close)`, np. `10:00–16:00` — od pierwszego slotu do końca ostatniego. */
+export function formatHourRange(openHour: number, closeHour: number): string {
+  return `${formatClockHour(openHour)}–${formatClockHour(closeHour)}`;
+}
+
 const DAY_MONTH = new Intl.DateTimeFormat("pl-PL", { day: "numeric", month: "long", timeZone: SCHEDULE_TIME_ZONE });
 
 /** Dzień i miesiąc chwili w strefie ośrodka, np. `21 maja` — do terminów typu „ważne do …”. */
@@ -67,3 +85,36 @@ export function formatDayMonth(at: Date): string {
 export function formatHours(hours: number): string {
   return `${formatNumber(hours)} ${HOURS_UNIT}`;
 }
+
+/** Trzy formy polskiego rzeczownika po liczebniku: `1 zapis`, `2 zapisy`, `5 zapisów`. */
+export interface PluralForms {
+  one: string;
+  few: string;
+  many: string;
+}
+
+/**
+ * Forma rzeczownika po liczbie: dokładnie 1 — `one`; końcówka 2–4 poza nastkami 12–14 — `few`;
+ * reszta (0, 5+, 11–14, 21, 25…) — `many`.
+ */
+export function pluralForm(count: number, forms: PluralForms): string {
+  const abs = Math.abs(count);
+  const lastTwo = abs % 100;
+  const last = abs % 10;
+
+  if (abs === 1) {
+    return forms.one;
+  }
+  if (last >= 2 && last <= 4 && (lastTwo < 12 || lastTwo > 14)) {
+    return forms.few;
+  }
+  return forms.many;
+}
+
+/** Liczba z odmienionym rzeczownikiem, np. `5 zapisów`, `1 dzień`. */
+export function formatCount(count: number, forms: PluralForms): string {
+  return `${formatNumber(count)} ${pluralForm(count, forms)}`;
+}
+
+/** Odmiana „zapis” — wspólna dla komunikatów grafiku i panelu ośrodka. */
+export const BOOKING_FORMS: PluralForms = { one: "zapis", few: "zapisy", many: "zapisów" };

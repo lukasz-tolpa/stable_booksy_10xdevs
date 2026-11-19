@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  formatCount,
   formatFreeSeats,
   formatHours,
   formatLongDate,
@@ -51,5 +52,26 @@ describe("formatHours", () => {
   it("dokleja jednostkę godzin do liczby w zapisie polskim", () => {
     expect(formatHours(0)).toBe("0 h");
     expect(formatHours(12345)).toBe("12 345 h");
+  });
+});
+
+describe("formatCount", () => {
+  // Oracle: polska odmiana liczebników (spec #83, US 10) — „1 zapis”, „2 zapisy”, „5 zapisów”.
+  const BOOKING = { one: "zapis", few: "zapisy", many: "zapisów" };
+
+  it("odmienia rzeczownik po liczbie: 1 / 2–4 / 5+", () => {
+    expect(formatCount(1, BOOKING)).toBe("1 zapis");
+    expect(formatCount(2, BOOKING)).toBe("2 zapisy");
+    expect(formatCount(4, BOOKING)).toBe("4 zapisy");
+    expect(formatCount(5, BOOKING)).toBe("5 zapisów");
+    expect(formatCount(0, BOOKING)).toBe("0 zapisów");
+  });
+
+  it("nastki 12–14 idą z formą dopełniaczową, a 22 znowu z formą „kilka”", () => {
+    expect(formatCount(12, BOOKING)).toBe("12 zapisów");
+    expect(formatCount(13, BOOKING)).toBe("13 zapisów");
+    expect(formatCount(14, BOOKING)).toBe("14 zapisów");
+    expect(formatCount(21, BOOKING)).toBe("21 zapisów");
+    expect(formatCount(22, BOOKING)).toBe("22 zapisy");
   });
 });

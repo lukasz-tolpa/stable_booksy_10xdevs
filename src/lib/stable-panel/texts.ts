@@ -1,0 +1,36 @@
+import type { PluralForms } from "@/lib/format";
+
+/**
+ * Teksty panelu ośrodka (`/osrodek`, spec #83). Nagłówek „Panel ośrodka” jest kontraktem e2e
+ * (logowanie w `e2e/auth.setup.ts` na nim czeka) — nie zmieniać.
+ */
+export const PANEL_TEXTS = {
+  heading: "Panel ośrodka",
+  noStable: "Twoje konto nie ma jeszcze przypisanej stadniny.",
+  today: "Dziś",
+  tomorrow: "Jutro",
+  week: {
+    heading: "Najbliższe 7 dni",
+    scheduled: "ułożony",
+    unscheduled: "brak grafiku",
+    arrange: "Ułóż",
+    failure: "Nie udało się wczytać najbliższych dni.",
+  },
+  side: {
+    heading: "Ośrodek",
+    schedule: "Grafik",
+    bookings: "Zapisy",
+    horses: "Konie",
+    instructors: "Instruktorzy",
+    stats: "Statystyki",
+    tomorrowScheduled: "jutro: ułożony",
+    tomorrowUnscheduled: "jutro: brak grafiku",
+    anyPeriod: "dowolny okres",
+    failure: "Nie udało się wczytać liczb przy sekcjach ośrodka.",
+  },
+  retry: "Odśwież stronę za chwilę.",
+} as const;
+
+export const SEAT_FORMS: PluralForms = { one: "miejsce", few: "miejsca", many: "miejsc" };
+export const DAY_FORMS: PluralForms = { one: "dzień", few: "dni", many: "dni" };
+export const ACTIVE_FORMS: PluralForms = { one: "aktywny", few: "aktywne", many: "aktywnych" };

@@ -15,7 +15,7 @@
  */
 
 import { INSUFFICIENT_PRIVILEGE } from "@/lib/db-errors";
-import { formatClockHour } from "@/lib/format";
+import { BOOKING_FORMS, formatClockHour, pluralForm } from "@/lib/format";
 
 /** Zmiana daty dnia, który ma aktywne zapisy (trigger z S-02). */
 export const SCHEDULE_DATE_CONFLICT = "SB001";
@@ -136,28 +136,9 @@ export function parseRefusalDetail(detail: string | undefined): RefusalDetail {
   return result;
 }
 
-/**
- * Polska odmiana rzeczownika „zapis" po liczbie: 1 zapis, 2-4 zapisy, 5+ zapisów,
- * z wyjątkiem nastek (12-14), które zawsze idą z formą dopełniaczową.
- */
+/** Polska odmiana rzeczownika „zapis" po liczbie: 1 zapis, 2-4 zapisy, 5+ i 12-14 zapisów. */
 export function pluralizeBookings(count: number): string {
-  const abs = Math.abs(count);
-  const lastTwo = abs % 100;
-  const last = abs % 10;
-
-  if (abs === 1) {
-    return "zapis";
-  }
-
-  if (lastTwo >= 12 && lastTwo <= 14) {
-    return "zapisów";
-  }
-
-  if (last >= 2 && last <= 4) {
-    return "zapisy";
-  }
-
-  return "zapisów";
+  return pluralForm(count, BOOKING_FORMS);
 }
 
 /** „1 aktywny zapis", „3 aktywne zapisy", „5 aktywnych zapisów" — przymiotnik idzie za rzeczownikiem. */

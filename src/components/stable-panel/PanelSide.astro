@@ -1,0 +1,103 @@
+---
+// Panel ośrodka — boczna kolumna „Ośrodek” (spec #83): pięć sekcji ośrodka z krótką informacją.
+// Renderuje `SideLink[]` z `@/lib/stable-panel/panel`. Linki zostają także przy awarii odczytu
+// (`failed`), żeby nawigacja nie znikała; informacje bez danych są wtedy puste.
+import FailureState from "@/components/ui/FailureState.astro";
+import type { SideLink } from "@/lib/stable-panel/panel";
+import { PANEL_TEXTS } from "@/lib/stable-panel/texts";
+
+interface Props {
+  links: SideLink[];
+  failed: boolean;
+}
+
+const { links, failed } = Astro.props;
+const texts = PANEL_TEXTS.side;
+---
+
+<aside class="side" aria-labelledby="side-heading">
+  <h2 id="side-heading" class="side__title">{texts.heading}</h2>
+  <nav aria-labelledby="side-heading">
+    <ul class="side__list">
+      {
+        links.map((link) => (
+          <li>
+            <a href={link.href}>
+              <span class="side__name">{link.name}</span>
+              {link.fact && <span class:list={["side__fact mono-nums", link.warn && "warn-text"]}>{link.fact}</span>}
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </nav>
+  {
+    failed && (
+      <FailureState class="mt-3">
+        <p>{texts.failure}</p>
+        <p>{PANEL_TEXTS.retry}</p>
+      </FailureState>
+    )
+  }
+</aside>
+
+<style>
+  .side {
+    padding: 18px;
+    border-radius: var(--r-lg);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+  }
+  @media (width >= 1000px) {
+    .side {
+      position: sticky;
+      top: 88px;
+    }
+  }
+  .side__title {
+    margin: 0 0 8px;
+    font-size: 13px;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--primary);
+  }
+  .side__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 4px;
+  }
+  .side__list a {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 52px;
+    padding: 8px 12px;
+    border-radius: 12px;
+    color: var(--fg);
+    transition: background 0.15s;
+  }
+  .side__list a:hover {
+    background: var(--surface);
+  }
+  .side__list a:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+  .side__name {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 16px;
+  }
+  .side__fact {
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .warn-text {
+    color: var(--warn-ink);
+    font-weight: 600;
+  }
+</style>

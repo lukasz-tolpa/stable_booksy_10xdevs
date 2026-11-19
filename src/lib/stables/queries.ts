@@ -68,6 +68,23 @@ export async function getOwnedStableId(client: Client, ownerId: string): Promise
   return data?.id ?? null;
 }
 
+/** Ośrodek właściciela w nagłówku panelu ośrodka. */
+export type OwnedStable = Pick<Stable, "id" | "name" | "city">;
+
+/**
+ * Ośrodek podanego właściciela (identyfikator, nazwa, miasto) albo `null`. Filtr po właścicielu
+ * jest konieczny: polityka odczytu na `stables` pokazuje katalog wszystkim zalogowanym.
+ */
+export async function getOwnedStable(client: Client, ownerId: string): Promise<OwnedStable | null> {
+  const { data, error } = await client.from("stables").select("id, name, city").eq("owner_id", ownerId).maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
 /**
  * Stado stadniny, posortowane: najpierw aktywne, potem wycofane, w obu grupach po imieniu.
  *
