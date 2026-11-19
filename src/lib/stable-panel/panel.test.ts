@@ -47,7 +47,7 @@ describe("composeWeek", () => {
     expect(today).toMatchObject({ scheduled: false, hours: null, href: "/osrodek/grafik?dzien=2026-11-20" });
   });
 
-  it("sumuje limity miejsc dnia, liczy tylko aktywne zapisy, obłożenie w procentach i zapisy bez konia", () => {
+  it("sumuje limity miejsc dnia, liczy tylko aktywne zapisy, zapisy na miejsca w procentach z paskiem i zapisy bez konia", () => {
     const day = "2026-11-21";
     const week = composeWeek({
       today: TODAY,
@@ -65,7 +65,9 @@ describe("composeWeek", () => {
     expect(week.days[1]).toMatchObject({
       seats: 6,
       booked: 3,
-      occupancyPercent: 50,
+      bookedPercent: 50,
+      bookedPercentText: "zajęte w 50%",
+      barPercent: 50,
       withoutHorse: 2,
       countText: "3/6",
       countDescription: "3 zapisy na 6 miejsc",
@@ -73,27 +75,39 @@ describe("composeWeek", () => {
     });
   });
 
-  it("dzień ułożony z samymi limitami zero ma obłożenie 0% i nie dzieli przez zero", () => {
+  it("dzień ułożony z samymi limitami zero ma 0% zajętych miejsc i nie dzieli przez zero", () => {
     const week = composeWeek({ today: TODAY, days: [scheduleDay(TODAY, [0, 0, 0])], bookings: [] });
 
     expect(week.days[0]).toMatchObject({
       scheduled: true,
       seats: 0,
       booked: 0,
-      occupancyPercent: 0,
+      bookedPercent: 0,
+      bookedPercentText: "zajęte w 0%",
+      barPercent: 0,
       countDescription: "0 zapisów na 0 miejsc",
       withoutHorseText: null,
     });
   });
 
-  it("zaokrągla obłożenie do pełnych procent", () => {
+  it("zaokrągla procent zajętych miejsc do pełnych procent", () => {
     const week = composeWeek({
       today: TODAY,
       days: [scheduleDay(TODAY, [1, 1, 1])],
       bookings: [booking(TODAY), booking(TODAY, { hour: 11 })],
     });
 
-    expect(week.days[0]?.occupancyPercent).toBe(67);
+    expect(week.days[0]).toMatchObject({ bookedPercent: 67, bookedPercentText: "zajęte w 67%" });
+  });
+
+  it("dzień z większą liczbą zapisów niż miejsc (limit obniżony po zapisach) podaje prawdziwy procent, a pasek kończy na 100%", () => {
+    const week = composeWeek({
+      today: TODAY,
+      days: [scheduleDay(TODAY, [1, 1])],
+      bookings: [booking(TODAY), booking(TODAY, { riderId: "r2" }), booking(TODAY, { hour: 11 })],
+    });
+
+    expect(week.days[0]).toMatchObject({ bookedPercent: 150, bookedPercentText: "zajęte w 150%", barPercent: 100 });
   });
 
   it("podsumowuje tydzień: zapisy na miejsca i liczbę dni bez grafiku", () => {
@@ -131,13 +145,13 @@ describe("composeWeek", () => {
     expect(week.summary).toBe("0 zapisów na 35 miejsc");
   });
 
-  it("tydzień całkiem bez grafiku: 7 dni bez grafiku i bez podsumowania miejsc", () => {
+  it("tydzień całkiem bez grafiku: obie połowy podsumowania — 0 zapisów na 0 miejsc i 7 dni bez grafiku", () => {
     const week = composeWeek({ today: TODAY, days: [], bookings: [] });
 
     expect(week.days.every((day) => !day.scheduled)).toBe(true);
     expect(week.unscheduledDays).toBe(7);
     expect(week.unscheduledText).toBe("7 dni bez grafiku");
-    expect(week.summary).toBeNull();
+    expect(week.summary).toBe("0 zapisów na 0 miejsc");
   });
 
   it("pomija dni grafiku i zapisy spoza tygodnia", () => {

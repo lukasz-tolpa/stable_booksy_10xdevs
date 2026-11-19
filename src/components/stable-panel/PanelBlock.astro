@@ -1,0 +1,39 @@
+---
+// Panel ośrodka — wspólna rama części w kolumnie głównej (spec #83): `<section>` z nagłówkiem h2,
+// po którym region ma nazwę, i miejscem obok nagłówka (slot `head`: podsumowanie, link). Treść
+// części idzie w domyślny slot. Style zakresowe Astro nie sięgają do tego, co część wkłada w sloty,
+// więc ich wygląd zostaje w samej części.
+interface Props {
+  /** Identyfikator nagłówka — nazwa regionu (`aria-labelledby`). */
+  id: string;
+  heading: string;
+}
+
+const { id, heading } = Astro.props;
+---
+
+<section class="block" aria-labelledby={id}>
+  <div class="block__head">
+    <h2 id={id}>{heading}</h2>
+    <slot name="head" />
+  </div>
+  <slot />
+</section>
+
+<style>
+  .block {
+    margin-top: 28px;
+  }
+  .block__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 4px 14px;
+    margin-bottom: 12px;
+  }
+  h2 {
+    margin: 0;
+    font-size: 22px;
+  }
+</style>

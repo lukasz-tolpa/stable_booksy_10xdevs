@@ -18,11 +18,12 @@ test.use({ storageState: STABLE_STATE });
 const DEMO_HINT = "Brak minionej historii demo — uruchom: npm run db:demo";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-test("panel ośrodka pokazuje najbliższe 7 dni, ostatnie 30 dni i prowadzi do pięciu sekcji ośrodka", async ({
-  page,
-}) => {
+test.beforeEach(async ({ page }) => {
   await page.goto("/osrodek");
   await expect(page.getByRole("heading", { level: 1, name: "Panel ośrodka" })).toBeVisible();
+});
+
+test("panel ośrodka pokazuje ośrodek i najbliższe 7 dni od dziś", async ({ page }) => {
   await expect(page.getByText(STABLE_NAME, { exact: true })).toBeVisible();
 
   const week = page.getByRole("region", { name: "Najbliższe 7 dni" });
@@ -49,18 +50,23 @@ test("panel ośrodka pokazuje najbliższe 7 dni, ostatnie 30 dni i prowadzi do p
   });
 
   await test.step("dzień bez grafiku ma „Ułóż” i otwiera Grafik na ten dzień", async () => {
-    const unscheduled = week.getByRole("link", { name: /brak grafiku/ }).first();
+    const unscheduled = week
+      .getByRole("link")
+      .filter({ has: page.getByText("brak grafiku", { exact: true }) })
+      .first();
     await expect(unscheduled).toContainText("Ułóż");
     const href = await unscheduled.getAttribute("href");
     expect(href).toMatch(/^\/osrodek\/grafik\?dzien=\d{4}-\d{2}-\d{2}$/);
     await unscheduled.click();
     await page.waitForURL(`**${href ?? ""}`);
     await expect(page.getByRole("heading", { level: 1, name: "Grafik dnia" })).toBeVisible();
-    await page.goBack();
   });
+});
 
-  await test.step("ostatnie 30 dni: kafelki z historii demo, wykres i „Pełne statystyki” z tym samym okresem", async () => {
-    const month = page.getByRole("region", { name: "Ostatnie 30 dni" });
+test("panel ośrodka pokazuje liczby z ostatnich 30 dni zgodne ze Statystykami tego okresu", async ({ page }) => {
+  const month = page.getByRole("region", { name: "Ostatnie 30 dni" });
+
+  await test.step("kafelki z historii demo i wykres godzin jazd dzień po dniu", async () => {
     await expect(month.getByRole("term")).toHaveText([
       "Godziny jazd",
       "Obłożenie grafiku",
@@ -74,8 +80,12 @@ test("panel ośrodka pokazuje najbliższe 7 dni, ostatnie 30 dni i prowadzi do p
     // Historia demo ma jazdy na Belli, Kasztanie i Iskrze — któryś z nich jest najbardziej obciążony.
     await expect(tiles.nth(3)).toContainText(/(Bella|Kasztan|Iskra)\s*[1-9]\d* h/);
     await expect(month.getByRole("figure", { name: "Godziny jazd dzień po dniu" })).toBeVisible();
+  });
 
-    const ridesText = /(\d+) jazd/.exec(await tiles.nth(0).innerText());
+  await test.step("„Pełne statystyki” otwierają Statystyki z tym samym okresem i tą samą liczbą jazd", async () => {
+    const ridesTile = month.getByRole("definition").first();
+    await expect(ridesTile, DEMO_HINT).toContainText(/\d+ jazd/);
+    const ridesText = /(\d+) jazd/.exec(await ridesTile.innerText());
     expect(ridesText, "kafelek godzin jazd podaje liczbę jazd").not.toBeNull();
     const rides = Number(ridesText?.[1]);
 
@@ -94,10 +104,11 @@ test("panel ośrodka pokazuje najbliższe 7 dni, ostatnie 30 dni i prowadzi do p
     // Te same liczby: Statystyki tego okresu mają tyle samo jazd co kafelek panelu.
     const summary = page.getByRole("region", { name: "Podsumowanie okresu" });
     await expect(summary.getByRole("definition").first()).toHaveText(String(rides));
-    await page.goBack();
   });
+});
 
-  await test.step("boczna kolumna „Ośrodek” prowadzi do pięciu sekcji, każda z krótką informacją", async () => {
+test("boczna kolumna „Ośrodek” prowadzi do pięciu sekcji ośrodka, każda z krótką informacją", async ({ page }) => {
+  await test.step("pięć linków z informacją i adresem sekcji", async () => {
     const side = page.getByRole("navigation", { name: "Ośrodek" });
     const links = side.getByRole("link");
     await expect(links).toHaveCount(5);
@@ -119,7 +130,6 @@ test("panel ośrodka pokazuje najbliższe 7 dni, ostatnie 30 dni i prowadzi do p
 
 test("panel ośrodka mieści się w telefonie bez poziomego przewijania", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/osrodek");
   await expect(page.getByRole("region", { name: "Najbliższe 7 dni" })).toBeVisible();
 
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

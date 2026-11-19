@@ -44,6 +44,15 @@ function loadSideData(client: Client, stableId: number, horses: Horses) {
   return Promise.all([horses, listStableInstructors(client, stableId), listInstructorAccounts(client)]);
 }
 
+/** Wartość udanej części albo `null` — awaria jednej części trafia do logu, reszta się wyświetla. */
+function settledValue<T>(result: PromiseSettledResult<T>): T | null {
+  if (result.status === "fulfilled") {
+    return result.value;
+  }
+  logError(SCOPE, result.reason);
+  return null;
+}
+
 async function loadLastMonth(client: Client, stableId: number, horses: Horses) {
   const [rows, stableHorses] = await Promise.all([getStatsRows(client, stableId, lastMonthPeriod(today)), horses]);
   return composeLastMonth({ today, ...rows, horses: stableHorses }, now);
@@ -70,21 +79,9 @@ if (supabase && profile) {
       loadSideData(supabase, stableId, horses),
     ]);
 
-    if (weekResult.status === "fulfilled") {
-      week = weekResult.value;
-    } else {
-      logError(SCOPE, weekResult.reason);
-    }
-    if (lastMonthResult.status === "fulfilled") {
-      lastMonth = lastMonthResult.value;
-    } else {
-      logError(SCOPE, lastMonthResult.reason);
-    }
-    if (sideResult.status === "fulfilled") {
-      sideData = sideResult.value;
-    } else {
-      logError(SCOPE, sideResult.reason);
-    }
+    week = settledValue(weekResult);
+    lastMonth = settledValue(lastMonthResult);
+    sideData = settledValue(sideResult);
   }
 }
 
@@ -105,7 +102,7 @@ const sideLinks = composeSideColumn({ today, week, horses, instructors, accounts
               <span class="stable__city"> &middot; {stable.city}</span>
             </p>
           ) : (
-            <p class="stable">{PANEL_TEXTS.noStable}</p>
+            <p class="stable stable--failed">{PANEL_TEXTS.stableFailure}</p>
           )
         }
         <PanelWeek week={week} />
@@ -141,6 +138,10 @@ const sideLinks = composeSideColumn({ today, week, horses, instructors, accounts
     margin: 6px 0 0;
     font-size: 15px;
     color: var(--muted);
+  }
+  .stable--failed {
+    font-weight: 600;
+    color: var(--warn-ink);
   }
   .stable__name {
     font-weight: 600;

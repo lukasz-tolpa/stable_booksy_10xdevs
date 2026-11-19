@@ -7,11 +7,13 @@ import {
   formatHourRange,
   formatHours,
   formatNumber,
+  formatPercent,
   formatShortDate,
   formatShortWeekday,
 } from "@/lib/format";
 import { addDays } from "@/lib/schedule/dates";
 import { ACTIVE_FORMS, DAY_FORMS, PANEL_TEXTS, RIDE_FORMS, SEAT_FORMS } from "@/lib/stable-panel/texts";
+import { rideHoursBars, type BarChartItem } from "@/lib/stats/chart-items";
 import { statsPeriodSearch } from "@/lib/stats/period";
 import type { StatsRider } from "@/lib/stats/riders";
 import {
@@ -22,7 +24,7 @@ import {
   type StatsScheduleDay,
 } from "@/lib/stats/stats";
 import type { RideHoursSeries } from "@/lib/stats/time-series";
-import { bucketLabels, GRANULARITY_NAMES } from "@/lib/stats/time-series-labels";
+import { GRANULARITY_NAMES } from "@/lib/stats/time-series-labels";
 
 /**
  * Panel ośrodka (`/osrodek`, spec #83): model widoku każdej części strony. Strona wczytuje
@@ -75,8 +77,16 @@ export interface WeekDay {
   seats: number;
   /** Aktywne zapisy dnia. */
   booked: number;
-  /** Zapisy wobec miejsc, 0–100; dzień bez miejsc ma 0. */
-  occupancyPercent: number;
+  /**
+   * Aktywne zapisy wobec miejsc w procentach (nie „Obłożenie grafiku” — to liczy miejsca, na
+   * których odbyła się jazda); dzień bez miejsc ma 0. Może przekroczyć 100, gdy limit obniżono
+   * po zapisach.
+   */
+  bookedPercent: number;
+  /** Np. `zajęte w 50%`. */
+  bookedPercentText: string;
+  /** Wypełnienie paska, `bookedPercent` przycięte do 0–100. */
+  barPercent: number;
   /** Aktywne zapisy bez przydziału konia. */
   withoutHorse: number;
   /** Zwięźle, np. `3/6`. */
@@ -94,14 +104,14 @@ export interface WeekView {
   booked: number;
   seats: number;
   unscheduledDays: number;
-  /** Np. `12 zapisów na 40 miejsc`; `null`, gdy tydzień nie ma żadnego miejsca. */
-  summary: string | null;
+  /** Np. `12 zapisów na 40 miejsc`; także tydzień bez grafiku: `0 zapisów na 0 miejsc`. */
+  summary: string;
   /** Np. `6 dni bez grafiku`; `null`, gdy każdy dzień ma grafik. */
   unscheduledText: string | null;
 }
 
 function bookedOnSeats(booked: number, seats: number): string {
-  return `${formatCount(booked, BOOKING_FORMS)} na ${formatCount(seats, SEAT_FORMS)}`;
+  return `${formatCount(booked, BOOKING_FORMS)} ${PANEL_TEXTS.week.on} ${formatCount(seats, SEAT_FORMS)}`;
 }
 
 function dayLabel(day: string, today: string): string {
@@ -122,6 +132,7 @@ export function composeWeek(input: WeekInput): WeekView {
     const seats = schedule?.slots.reduce((sum, slot) => sum + slot.seats, 0) ?? 0;
     const booked = active.length;
     const withoutHorse = active.filter((entry) => entry.horseId === null).length;
+    const bookedPercent = seats === 0 ? 0 : Math.round((booked / seats) * 100);
 
     return {
       day,
@@ -132,11 +143,13 @@ export function composeWeek(input: WeekInput): WeekView {
       hours: schedule ? formatHourRange(schedule.openHour, schedule.closeHour) : null,
       seats,
       booked,
-      occupancyPercent: seats === 0 ? 0 : Math.round((booked / seats) * 100),
+      bookedPercent,
+      bookedPercentText: `${PANEL_TEXTS.week.bookedPercent} ${formatPercent(bookedPercent)}`,
+      barPercent: Math.min(100, bookedPercent),
       withoutHorse,
       countText: `${formatNumber(booked)}/${formatNumber(seats)}`,
       countDescription: bookedOnSeats(booked, seats),
-      withoutHorseText: withoutHorse > 0 ? `${formatNumber(withoutHorse)} bez konia` : null,
+      withoutHorseText: withoutHorse > 0 ? `${formatNumber(withoutHorse)} ${PANEL_TEXTS.week.withoutHorse}` : null,
       href: dayHref(schedule ? STABLE_DAY_BOOKINGS_ROUTE : OWNER_SCHEDULE_ROUTE, day),
     };
   });
@@ -150,8 +163,9 @@ export function composeWeek(input: WeekInput): WeekView {
     booked,
     seats,
     unscheduledDays,
-    summary: seats > 0 ? bookedOnSeats(booked, seats) : null,
-    unscheduledText: unscheduledDays > 0 ? `${formatCount(unscheduledDays, DAY_FORMS)} bez grafiku` : null,
+    summary: bookedOnSeats(booked, seats),
+    unscheduledText:
+      unscheduledDays > 0 ? `${formatCount(unscheduledDays, DAY_FORMS)} ${PANEL_TEXTS.week.withoutSchedule}` : null,
   };
 }
 
@@ -193,7 +207,8 @@ function instructorsFact(input: SideColumnInput): string | null {
   const withAccount = new Set(input.accounts.map((entry) => entry.instructor_id));
   const active = input.instructors.filter((entry) => entry.active);
   const activeWithAccount = active.filter((entry) => withAccount.has(entry.id)).length;
-  return `${formatNumber(activeWithAccount)} z ${formatNumber(active.length)} z kontem`;
+  const texts = PANEL_TEXTS.side;
+  return `${formatNumber(activeWithAccount)} ${texts.of} ${formatNumber(active.length)} ${texts.withAccount}`;
 }
 
 /**
@@ -210,7 +225,7 @@ export function composeSideColumn(input: SideColumnInput): SideLink[] {
     {
       name: texts.bookings,
       href: dayHref(STABLE_DAY_BOOKINGS_ROUTE, input.today),
-      fact: today ? `dziś: ${formatNumber(today.booked)}` : null,
+      fact: today ? `${texts.todayPrefix} ${formatNumber(today.booked)}` : null,
       warn: false,
     },
     {
@@ -251,23 +266,12 @@ export interface MonthTile {
   isName: boolean;
 }
 
-/** Słupek wykresu; kształt `BarChartItem` z `@/components/ui/BarChart.astro`. */
-export interface MonthChartBar {
-  /** Np. `9.11` — pod słupkiem. */
-  label: string;
-  /** Np. `9 listopada 2026` — w tabeli z danymi wykresu. */
-  longLabel: string;
-  value: number;
-  /** Np. `3 h`. */
-  valueText: string;
-}
-
 export interface MonthChart {
   /** Nagłówek wykresu i jego nazwa dla czytników ekranu, np. `Godziny jazd dzień po dniu`. */
   title: string;
   /** Nagłówek kolumny przedziałów w tabeli z danymi, np. `Dzień`. */
   labelHeader: string;
-  bars: MonthChartBar[];
+  bars: BarChartItem[];
 }
 
 export interface LastMonthView {
@@ -288,15 +292,7 @@ function monthChart(series: RideHoursSeries): MonthChart {
   return {
     title: `${PANEL_TEXTS.lastMonth.rideHours} ${names.phrase}`,
     labelHeader: names.bucket,
-    bars: series.buckets.map((bucket) => {
-      const labels = bucketLabels(bucket, series.granularity);
-      return {
-        label: labels.short,
-        longLabel: labels.long,
-        value: bucket.rideHours,
-        valueText: formatHours(bucket.rideHours),
-      };
-    }),
+    bars: rideHoursBars(series),
   };
 }
 
@@ -326,7 +322,7 @@ export function composeLastMonth(input: LastMonthInput, now: Date = new Date()):
       },
       {
         label: texts.occupancy,
-        value: summary.occupancyPercent === null ? texts.none : `${formatNumber(summary.occupancyPercent)}%`,
+        value: summary.occupancyPercent === null ? texts.none : formatPercent(summary.occupancyPercent),
         note: texts.occupancyNote,
         isName: false,
       },

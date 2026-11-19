@@ -24,7 +24,16 @@ const texts = PANEL_TEXTS.side;
           <li>
             <a href={link.href}>
               <span class="side__name">{link.name}</span>
-              {link.fact && <span class:list={["side__fact mono-nums", link.warn && "warn-text"]}>{link.fact}</span>}
+              {link.fact && (
+                <span
+                  class:list={[
+                    "side__fact mono-nums",
+                    link.warn ? "text-warn-ink font-semibold" : "text-muted-foreground",
+                  ]}
+                >
+                  {link.fact}
+                </span>
+              )}
             </a>
           </li>
         ))
@@ -92,12 +101,8 @@ const texts = PANEL_TEXTS.side;
     font-weight: 700;
     font-size: 16px;
   }
+  /* Kolor informacji z klas Tailwind (zwykła albo ostrzeżenie) — reguła zakresowa by je przykryła. */
   .side__fact {
     font-size: 13px;
-    color: var(--muted);
-  }
-  .warn-text {
-    color: var(--warn-ink);
-    font-weight: 600;
   }
 </style>

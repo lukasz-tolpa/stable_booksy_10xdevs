@@ -2,8 +2,9 @@
 // Panel ośrodka — część „Najbliższe 7 dni” (spec #83). Renderuje `WeekView` z
 // `@/lib/stable-panel/panel`; niczego nie liczy. `week === null` — nie udało się wczytać.
 import { ArrowRight } from "lucide-react";
+import PanelBlock from "@/components/stable-panel/PanelBlock.astro";
 import FailureState from "@/components/ui/FailureState.astro";
-import { formatNumber } from "@/lib/format";
+import Tag from "@/components/ui/Tag.astro";
 import type { WeekView } from "@/lib/stable-panel/panel";
 import { PANEL_TEXTS } from "@/lib/stable-panel/texts";
 
@@ -15,19 +16,20 @@ const { week } = Astro.props;
 const texts = PANEL_TEXTS.week;
 ---
 
-<section class="block" aria-labelledby="week-heading">
-  <div class="block__head">
-    <h2 id="week-heading">{texts.heading}</h2>
-    {
-      week && (week.summary !== null || week.unscheduledText !== null) && (
-        <p class="block__lead mono-nums">
-          {week.summary}
-          {week.summary && week.unscheduledText && " · "}
-          {week.unscheduledText && <span class="warn-text">{week.unscheduledText}</span>}
-        </p>
-      )
-    }
-  </div>
+<PanelBlock id="week-heading" heading={texts.heading}>
+  {
+    week && (
+      <p slot="head" class="lead mono-nums">
+        {week.summary}
+        {week.unscheduledText && (
+          <>
+            {" · "}
+            <span class="text-warn-ink font-semibold">{week.unscheduledText}</span>
+          </>
+        )}
+      </p>
+    )
+  }
   {
     week ? (
       <ol class="week">
@@ -43,15 +45,19 @@ const texts = PANEL_TEXTS.week;
                   <span class="day__status">
                     {texts.scheduled} <span class="day__hours mono-nums">{day.hours}</span>
                   </span>
-                  <span class="day__bar" aria-hidden="true">
-                    <span style={`height:${String(Math.min(100, day.occupancyPercent))}%`} />
+                  <span class="day__bar" aria-hidden="true" style={`--fill:${String(day.barPercent)}%`}>
+                    <span />
                   </span>
                   <span class="day__count mono-nums">
                     <span aria-hidden="true">{day.countText}</span>
                     <span class="sr-only">{day.countDescription}</span>
-                    <span class="day__pct">{formatNumber(day.occupancyPercent)}%</span>
+                    <span class="day__pct">{day.bookedPercentText}</span>
                   </span>
-                  {day.withoutHorseText && <span class="day__flag mono-nums">{day.withoutHorseText}</span>}
+                  {day.withoutHorseText && (
+                    <span class="day__flag">
+                      <Tag variant="warn">{day.withoutHorseText}</Tag>
+                    </span>
+                  )}
                 </>
               ) : (
                 <>
@@ -72,35 +78,17 @@ const texts = PANEL_TEXTS.week;
       </FailureState>
     )
   }
-</section>
+</PanelBlock>
 
 <style>
-  .block {
-    margin-top: 28px;
-  }
-  .block__head {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 4px 14px;
-    margin-bottom: 12px;
-  }
-  h2 {
-    margin: 0;
-    font-size: 22px;
-  }
-  .block__lead {
+  .lead {
     margin: 0;
     font-size: 14px;
     color: var(--muted);
   }
-  .warn-text {
-    color: var(--warn-ink);
-    font-weight: 600;
-  }
 
-  /* Tydzień: na telefonie lista wierszy, od 700 px siedem kolumn. */
+  /* Tydzień: na telefonie lista wierszy z cienkim poziomym paskiem, od 700 px siedem kolumn
+     z pionowym. Wypełnienie paska to `--fill` z modelu widoku (już przycięte do 0–100%). */
   .week {
     list-style: none;
     margin: 0;
@@ -113,6 +101,7 @@ const texts = PANEL_TEXTS.week;
     grid-template-columns: 84px minmax(0, 1fr) auto;
     grid-template-areas:
       "when status count"
+      "when bar count"
       "when flag count";
     align-items: center;
     gap: 2px 12px;
@@ -176,7 +165,19 @@ const texts = PANEL_TEXTS.week;
     white-space: nowrap;
   }
   .day__bar {
-    display: none;
+    grid-area: bar;
+    position: relative;
+    width: 100%;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--surface-3);
+    overflow: hidden;
+  }
+  .day__bar span {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: var(--fill);
+    background: var(--primary);
   }
   .day__count {
     grid-area: count;
@@ -186,6 +187,7 @@ const texts = PANEL_TEXTS.week;
   }
   .day__pct {
     display: block;
+    white-space: nowrap;
     font-size: 12px;
     font-weight: 500;
     color: var(--muted);
@@ -193,12 +195,6 @@ const texts = PANEL_TEXTS.week;
   .day__flag {
     grid-area: flag;
     justify-self: start;
-    padding: 2px 8px;
-    border-radius: 999px;
-    background: var(--warn-soft);
-    color: var(--warn-ink);
-    font-size: 12px;
-    font-weight: 600;
   }
   .day__cta {
     grid-area: count;
@@ -224,6 +220,7 @@ const texts = PANEL_TEXTS.week;
     }
     .day__when,
     .day__status,
+    .day__bar,
     .day__count,
     .day__flag,
     .day__cta {
@@ -234,22 +231,13 @@ const texts = PANEL_TEXTS.week;
       display: block;
     }
     .day__bar {
-      display: block;
-      position: relative;
-      width: 100%;
       height: 64px;
       border-radius: 8px;
-      background: var(--surface-3);
-      overflow: hidden;
     }
     .day__bar span {
-      position: absolute;
       inset: auto 0 0;
-      background: var(--primary);
-    }
-    .day__flag {
-      padding: 2px 6px;
-      font-size: 11.5px;
+      width: auto;
+      height: var(--fill);
     }
   }
 </style>

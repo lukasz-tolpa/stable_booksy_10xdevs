@@ -10,10 +10,11 @@ import HorseStatsTable from "@/components/stats/HorseStatsTable.astro";
 import "@/components/stats/stats.css";
 import { formatHours, formatNumber, HOURS_UNIT } from "@/lib/format";
 import { logError } from "@/lib/log";
+import { rideHoursBars } from "@/lib/stats/chart-items";
 import { resolveStatsPeriod } from "@/lib/stats/period";
 import { getStatsRows } from "@/lib/stats/queries";
 import { computeStableStats, type StatsView } from "@/lib/stats/stats";
-import { bucketLabels, GRANULARITY_NAMES } from "@/lib/stats/time-series-labels";
+import { GRANULARITY_NAMES } from "@/lib/stats/time-series-labels";
 import { getOwnedStableId, listStableHorses } from "@/lib/stables/queries";
 import { createClient } from "@/lib/supabase";
 
@@ -76,17 +77,7 @@ const view = stats && !stats.isEmpty ? stats : null;
 // --- Wykres godzin jazd w czasie (#34) ---
 const timeSeries = view?.rideHoursOverTime ?? null;
 const timeNames = timeSeries && GRANULARITY_NAMES[timeSeries.granularity];
-const timeItems = timeSeries
-  ? timeSeries.buckets.map((bucket) => {
-      const labels = bucketLabels(bucket, timeSeries.granularity);
-      return {
-        label: labels.short,
-        longLabel: labels.long,
-        value: bucket.rideHours,
-        valueText: formatHours(bucket.rideHours),
-      };
-    })
-  : [];
+const timeItems = timeSeries ? rideHoursBars(timeSeries) : [];
 
 // --- Wykresy rankingowe (#35) ---
 const topRiderItems = (view?.topRiders ?? []).map((point) => ({

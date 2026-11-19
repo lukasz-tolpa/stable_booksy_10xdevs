@@ -86,6 +86,11 @@ export function formatHours(hours: number): string {
   return `${formatNumber(hours)} ${HOURS_UNIT}`;
 }
 
+/** Procent jako jeden tekst, np. `67%` — w panelu ośrodka i na kafelkach statystyk. */
+export function formatPercent(percent: number): string {
+  return `${formatNumber(percent)}%`;
+}
+
 /** Trzy formy polskiego rzeczownika po liczebniku: `1 zapis`, `2 zapisy`, `5 zapisów`. */
 export interface PluralForms {
   one: string;

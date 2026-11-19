@@ -6,7 +6,7 @@ import type { PluralForms } from "@/lib/format";
  */
 export const PANEL_TEXTS = {
   heading: "Panel ośrodka",
-  noStable: "Twoje konto nie ma jeszcze przypisanej stadniny.",
+  stableFailure: "Nie udało się wczytać danych ośrodka.",
   today: "Dziś",
   tomorrow: "Jutro",
   week: {
@@ -14,6 +14,14 @@ export const PANEL_TEXTS = {
     scheduled: "ułożony",
     unscheduled: "brak grafiku",
     arrange: "Ułóż",
+    /** `3 zapisy na 6 miejsc`. */
+    on: "na",
+    /** `zajęte w 50%` — zapisy wobec miejsc; nie „obłożenie grafiku” (GLOSSARY). */
+    bookedPercent: "zajęte w",
+    /** `2 bez konia`. */
+    withoutHorse: "bez konia",
+    /** `6 dni bez grafiku`. */
+    withoutSchedule: "bez grafiku",
     failure: "Nie udało się wczytać najbliższych dni.",
   },
   lastMonth: {
@@ -40,6 +48,11 @@ export const PANEL_TEXTS = {
     tomorrowScheduled: "jutro: ułożony",
     tomorrowUnscheduled: "jutro: brak grafiku",
     anyPeriod: "dowolny okres",
+    /** `dziś: 3` — zapisy dziś. */
+    todayPrefix: "dziś:",
+    /** `2 z 3 z kontem` — aktywni instruktorzy z kontem. */
+    of: "z",
+    withAccount: "z kontem",
     failure: "Nie udało się wczytać liczb przy sekcjach ośrodka.",
   },
   retry: "Odśwież stronę za chwilę.",

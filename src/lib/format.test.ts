@@ -6,6 +6,7 @@ import {
   formatLongDate,
   formatLongDateWithYear,
   formatNumber,
+  formatPercent,
   formatTakenSeats,
 } from "@/lib/format";
 
@@ -73,5 +74,14 @@ describe("formatCount", () => {
     expect(formatCount(14, BOOKING)).toBe("14 zapisów");
     expect(formatCount(21, BOOKING)).toBe("21 zapisów");
     expect(formatCount(22, BOOKING)).toBe("22 zapisy");
+  });
+});
+
+describe("formatPercent", () => {
+  // Oracle: zapis procentów w panelu ośrodka i na Statystykach — liczba po polsku z „%” bez spacji.
+  it("zapisuje procent po polsku", () => {
+    expect(formatPercent(0)).toBe("0%");
+    expect(formatPercent(67)).toBe("67%");
+    expect(formatPercent(150)).toBe("150%");
   });
 });

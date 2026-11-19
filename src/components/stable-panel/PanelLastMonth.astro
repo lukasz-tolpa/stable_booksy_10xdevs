@@ -3,6 +3,7 @@
 // i link „Pełne statystyki”. Renderuje `LastMonthView` z `@/lib/stable-panel/panel`; niczego nie
 // liczy. `month === null` — nie udało się wczytać.
 import { ArrowRight } from "lucide-react";
+import PanelBlock from "@/components/stable-panel/PanelBlock.astro";
 import BarChart from "@/components/ui/BarChart.astro";
 import Card from "@/components/ui/Card.astro";
 import EmptyState from "@/components/ui/EmptyState.astro";
@@ -18,17 +19,14 @@ const { month } = Astro.props;
 const texts = PANEL_TEXTS.lastMonth;
 ---
 
-<section class="block" aria-labelledby="month-heading">
-  <div class="block__head">
-    <h2 id="month-heading">{texts.heading}</h2>
-    {
-      month && (
-        <a class="link" href={month.statsHref}>
-          {texts.fullStats} <ArrowRight className="size-4" aria-hidden="true" />
-        </a>
-      )
-    }
-  </div>
+<PanelBlock id="month-heading" heading={texts.heading}>
+  {
+    month && (
+      <a slot="head" class="link" href={month.statsHref}>
+        {texts.fullStats} <ArrowRight className="size-4" aria-hidden="true" />
+      </a>
+    )
+  }
   {
     month === null ? (
       <FailureState>
@@ -66,24 +64,9 @@ const texts = PANEL_TEXTS.lastMonth;
       </>
     )
   }
-</section>
+</PanelBlock>
 
 <style>
-  .block {
-    margin-top: 28px;
-  }
-  .block__head {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 4px 14px;
-    margin-bottom: 12px;
-  }
-  h2 {
-    margin: 0;
-    font-size: 22px;
-  }
   .link {
     display: inline-flex;
     align-items: center;
