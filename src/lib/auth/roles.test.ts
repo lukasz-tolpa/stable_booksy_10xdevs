@@ -334,15 +334,19 @@ describe("instruktor z uprawnieniem do układania grafiku", () => {
 });
 
 describe("instructorTabs", () => {
-  it("instruktor z uprawnieniem ma zakładki „Moje sloty” i „Grafik”", () => {
+  it("instruktor z uprawnieniem ma zakładki „Moje sloty”, „Grafik” i „Podsumowanie miesiąca”", () => {
     expect(instructorTabs("arranging-instructor")).toEqual([
       { href: "/instruktor", label: "Moje sloty" },
       { href: "/instruktor/grafik", label: "Grafik" },
+      { href: "/instruktor/podsumowanie", label: "Podsumowanie miesiąca" },
     ]);
   });
 
-  it("instruktor bez uprawnienia nie ma zakładki „Grafik” (ani paska zakładek)", () => {
-    expect(instructorTabs("instructor")).toEqual([]);
+  it("instruktor bez uprawnienia ma zakładki „Moje sloty” i „Podsumowanie miesiąca”, bez „Grafik”", () => {
+    expect(instructorTabs("instructor")).toEqual([
+      { href: "/instruktor", label: "Moje sloty" },
+      { href: "/instruktor/podsumowanie", label: "Podsumowanie miesiąca" },
+    ]);
   });
 
   it("pozostałe stany nie mają zakładek instruktora", () => {
@@ -350,6 +354,23 @@ describe("instructorTabs", () => {
     expect(instructorTabs("inactive")).toEqual([]);
     expect(instructorTabs("none")).toEqual([]);
     expect(instructorTabs(null)).toEqual([]);
+  });
+});
+
+describe("instructorRedirect — Podsumowanie miesiąca instruktora", () => {
+  it("wpuszcza instruktora z kontem, z uprawnieniem i bez", () => {
+    expect(instructorRedirect("/instruktor/podsumowanie", "instructor")).toBeNull();
+    expect(instructorRedirect("/instruktor/podsumowanie", "arranging-instructor")).toBeNull();
+  });
+
+  it("właściciela przenosi do przestrzeni ośrodka, zdezaktywowanego — na ekran nieaktywnego konta", () => {
+    expect(instructorRedirect("/instruktor/podsumowanie", "owner")).toBe("/osrodek");
+    expect(instructorRedirect("/instruktor/podsumowanie", "inactive")).toBe("/instruktor/konto-nieaktywne");
+    expect(instructorRedirect("/instruktor/podsumowanie", "none")).toBe("/osrodek/nowa-stadnina");
+  });
+
+  it("strona wymaga konta instruktora — jeźdźca strażnik tras przenosi do jego przestrzeni", () => {
+    expect(routeGuardFor("/instruktor/podsumowanie")).toEqual({ prefix: "/instruktor", role: "instructor" });
   });
 });
 

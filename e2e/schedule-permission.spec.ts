@@ -60,9 +60,13 @@ async function setActive(page: Page, active: boolean): Promise<void> {
   ).toBeVisible();
 }
 
-/** Pasek zakładek przestrzeni instruktora — jest tylko u instruktora z uprawnieniem. */
+/** Pasek zakładek przestrzeni instruktora — „Grafik” jest w nim tylko u instruktora z uprawnieniem. */
 function instructorTabs(page: Page) {
   return page.getByRole("navigation", { name: "Przestrzeń instruktora", exact: true });
+}
+
+function scheduleTab(page: Page) {
+  return instructorTabs(page).getByRole("link", { name: "Grafik", exact: true });
 }
 
 function seatsInput(page: Page, hour: number = SEATS_HOUR) {
@@ -100,7 +104,7 @@ test("instruktorka z uprawnieniem układa grafik w zakładce „Grafik”, po od
   try {
     await test.step("bez uprawnienia Joanna nie ma zakładki „Grafik”, a jej adres przenosi do „Moje sloty”", async () => {
       await signIn(joanna, INSTRUCTOR_EMAIL, "/instruktor");
-      await expect(instructorTabs(joanna)).toHaveCount(0);
+      await expect(scheduleTab(joanna)).toHaveCount(0);
       await joanna.goto(INSTRUCTOR_SCHEDULE);
       await expect(joanna).toHaveURL((url) => url.pathname === "/instruktor");
     });
@@ -116,7 +120,7 @@ test("instruktorka z uprawnieniem układa grafik w zakładce „Grafik”, po od
         "aria-current",
         "page",
       );
-      await instructorTabs(joanna).getByRole("link", { name: "Grafik", exact: true }).click();
+      await scheduleTab(joanna).click();
       await expect(joanna).toHaveURL((url) => url.pathname === INSTRUCTOR_SCHEDULE);
       await expect(joanna.getByRole("heading", { level: 1, name: "Grafik dnia" })).toBeVisible();
     });
@@ -163,7 +167,7 @@ test("instruktorka z uprawnieniem układa grafik w zakładce „Grafik”, po od
     await test.step("zakładka „Grafik” znika, a jej adres przenosi do „Moje sloty”", async () => {
       await joanna.goto("/instruktor");
       await expect(joanna.getByRole("heading", { level: 1, name: "Moje sloty" })).toBeVisible();
-      await expect(instructorTabs(joanna)).toHaveCount(0);
+      await expect(scheduleTab(joanna)).toHaveCount(0);
       await joanna.goto(INSTRUCTOR_SCHEDULE);
       await expect(joanna).toHaveURL((url) => url.pathname === "/instruktor");
     });
