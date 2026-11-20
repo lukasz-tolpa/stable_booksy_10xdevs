@@ -1,13 +1,12 @@
 ---
 // Lista jeźdźców Podsumowania miesiąca: suma „N jazd · M jeźdźców”, potem jeździec z liczbą jazd
-// i rozwijaną (natywne <details>, bez JavaScriptu) listą jazd — data (link, gdy widok go podaje),
-// godzina, instruktor (poza widokiem instruktora) i koń albo „bez konia”. Wiersz „Usunięci jeźdźcy”
+// i rozwijaną (natywne <details>, bez JavaScriptu) listą jazd (`RideList`). Wiersz „Usunięci jeźdźcy”
 // ma samą liczbę (ADR-0001). Renderuje `SummaryList` z `@/lib/month-summary/summary` — kolejność
-// i liczby są już policzone. Wspólna dla wszystkich ról (u jeźdźca — raz na ośrodek).
+// i liczby są już policzone. Wspólna dla właściciela i instruktora (jeździec ma `StableRides`).
 //
 // KONTRAKT e2e: lista jazd jeźdźca to `list` o nazwie „Jazdy — {jeździec}”, jedna pozycja na jazdę.
+import RideList from "@/components/month-summary/RideList.astro";
 import Card from "@/components/ui/Card.astro";
-import Tag from "@/components/ui/Tag.astro";
 import type { SummaryList } from "@/lib/month-summary/summary";
 import { MONTH_SUMMARY_TEXTS } from "@/lib/month-summary/texts";
 
@@ -38,26 +37,9 @@ const texts = MONTH_SUMMARY_TEXTS;
                 <span class="rider__name">{row.name}</span>
                 <span class="rider__count mono-nums">{row.ridesText}</span>
               </summary>
-              <ul class="rides" aria-label={`${texts.ridesOf} — ${row.name}`}>
-                {row.list.map((ride) => (
-                  <li class="ride">
-                    <span class="ride__when">
-                      {ride.dayHref ? (
-                        <a class="ride__date mono-nums" href={ride.dayHref}>
-                          {ride.date}
-                        </a>
-                      ) : (
-                        <span class="ride__date mono-nums">{ride.date}</span>
-                      )}
-                      <span class="ride__hour mono-nums">{ride.hour}</span>
-                    </span>
-                    <span class="ride__meta">
-                      {ride.instructorName && <span>{ride.instructorName}</span>}
-                      {ride.withoutHorse ? <Tag variant="warn">{ride.horseName}</Tag> : <span>{ride.horseName}</span>}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              <div class="rides">
+                <RideList rides={row.list} label={`${texts.ridesOf} — ${row.name}`} />
+              </div>
             </details>
           </li>
         ),
@@ -131,52 +113,6 @@ const texts = MONTH_SUMMARY_TEXTS;
   }
 
   .rides {
-    list-style: none;
-    margin: 0;
     padding: 0 16px 10px 33px;
-    display: grid;
-    gap: 2px;
-  }
-  /* Dwie kolumny także na telefonie: termin w stałej szerokości (mono), obok instruktor i koń —
-     wiersze się nie rozjeżdżają, a długie nazwy łamią się w swojej kolumnie. */
-  .ride {
-    display: grid;
-    grid-template-columns: 10.5rem minmax(0, 1fr);
-    align-items: center;
-    column-gap: 12px;
-    font-size: 14px;
-  }
-  .ride__when {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .ride__date {
-    display: inline-flex;
-    align-items: center;
-    min-height: 44px;
-    font-weight: 600;
-  }
-  a.ride__date {
-    color: var(--primary);
-  }
-  a.ride__date:hover {
-    color: var(--primary-strong);
-  }
-  a.ride__date:focus-visible {
-    outline: 2px solid var(--primary);
-    outline-offset: 2px;
-    border-radius: 6px;
-  }
-  .ride__hour {
-    color: var(--muted);
-  }
-  .ride__meta {
-    display: inline-flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 4px 12px;
-    min-width: 0;
-    color: var(--muted);
   }
 </style>

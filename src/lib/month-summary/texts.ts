@@ -29,4 +29,9 @@ export const MONTH_SUMMARY_TEXTS = {
     statsLink: "Podsumowanie miesiąca",
     statsLinkNote: "liczba jazd każdego jeźdźca w miesiącu, z datami",
   },
+  rider: {
+    lead: "Twoje jazdy w wybranym miesiącu, osobno w każdym ośrodku.",
+    /** Link powrotu, jak w „Moje zapisy”. */
+    back: "Wróć do listy ośrodków",
+  },
 } as const;
