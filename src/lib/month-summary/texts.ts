@@ -31,6 +31,14 @@ export const MONTH_SUMMARY_TEXTS = {
     /** Link na stronie Statystyk. */
     statsLink: "Podsumowanie miesiąca",
     statsLinkNote: "liczba jazd każdego jeźdźca w miesiącu, z datami",
+    /** Filtr instruktora (#89): formularz GET nad listą jeźdźców. */
+    filter: {
+      /** Nazwa formularza dla czytników ekranu. */
+      name: "Filtr instruktora",
+      label: "Instruktor",
+      all: "Wszyscy instruktorzy",
+      submit: "Pokaż",
+    },
   },
   rider: {
     lead: "Twoje jazdy w wybranym miesiącu, osobno w każdym ośrodku.",

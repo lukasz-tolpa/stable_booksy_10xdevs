@@ -7,6 +7,8 @@ import { STABLE_STATE } from "./helpers";
  * historia liczy się od dnia załadowania: liczba jazd na panelu równa się sumie strony, liczba jazd
  * jeźdźca — długości listy jego dat, a data jazdy prowadzi do Zapisów dnia, na których ten jeździec jest.
  *
+ * Filtr instruktora (#89): sumy zawężone do każdego instruktora z listy składają się na sumę miesiąca.
+ *
  * Historia sięga 24 dni wstecz, więc pierwszego dnia miesiąca bieżący miesiąc nie ma jeszcze jazd —
  * scenariusz rozlicza wtedy poprzedni miesiąc.
  */
@@ -26,7 +28,7 @@ function shiftMonth(month: string, offset: number): string {
   return new Date(Date.UTC(year, monthNumber - 1 + offset, 1)).toISOString().slice(0, 7);
 }
 
-test("właściciel rozlicza miesiąc: liczba jazd jeźdźca równa się liście dat, data prowadzi do Zapisów dnia, ‹ zmienia miesiąc", async ({
+test("właściciel rozlicza miesiąc: liczba jazd jeźdźca równa się liście dat, data prowadzi do Zapisów dnia, filtr instruktora zawęża listę, ‹ zmienia miesiąc", async ({
   page,
 }) => {
   const total = page.getByText(TOTAL);
@@ -85,6 +87,51 @@ test("właściciel rozlicza miesiąc: liczba jazd jeźdźca równa się liście 
     await expect(page.getByRole("region", { name: "Aktywne" }).getByText(riderName).first()).toBeVisible();
     await page.goBack();
     await expect(total).toBeVisible();
+  });
+
+  await test.step("filtr instruktora zawęża sumę i listę do jego slotów, a strzałki miesiąca go zachowują", async () => {
+    const filter = page.getByRole("form", { name: "Filtr instruktora" });
+    const select = filter.getByLabel("Instruktor");
+    const show = filter.getByRole("button", { name: "Pokaż" });
+    const allRides = Number(TOTAL.exec(await total.innerText())?.[1]);
+    const instructors = await select
+      .getByRole("option")
+      .evaluateAll((options) =>
+        options.map((option) => ({ id: (option as HTMLOptionElement).value, name: option.textContent.trim() })),
+      );
+    expect(instructors[0]).toEqual({ id: "", name: "Wszyscy instruktorzy" });
+    expect(instructors.length, "miesiąc z jazdami ma w filtrze co najmniej jednego instruktora").toBeGreaterThan(1);
+
+    // Każda jazda ma jednego instruktora, więc sumy zawężone do każdego z nich dają sumę miesiąca.
+    let narrowedRides = 0;
+    for (const { id, name } of instructors.slice(1)) {
+      await select.selectOption(id);
+      await show.click();
+      await page.waitForURL(new RegExp(`\\?miesiac=\\d{4}-\\d{2}&instruktor=${id}$`));
+      await expect(select).toHaveValue(id);
+      const rides = Number(TOTAL.exec(await total.innerText())?.[1]);
+      expect(rides, `${name}: zawężona suma`).toBeGreaterThan(0);
+      narrowedRides += rides;
+
+      // Każda jazda na rozwijanych listach jeźdźców jest na slocie wybranego instruktora.
+      const rideTexts = await page
+        .getByRole("list", { name: /^Jazdy — /, includeHidden: true })
+        .getByRole("listitem", { includeHidden: true })
+        .allTextContents();
+      for (const text of rideTexts) {
+        expect(text, `jazda na liście „${name}”`).toContain(name);
+      }
+      await expect(monthNav(page).getByRole("link", { name: "Poprzedni" })).toHaveAttribute(
+        "href",
+        new RegExp(`&instruktor=${id}$`),
+      );
+    }
+    expect(narrowedRides).toBe(allRides);
+
+    await select.selectOption({ label: "Wszyscy instruktorzy" });
+    await show.click();
+    await page.waitForURL(/instruktor=$/);
+    await expect(total).toHaveText(new RegExp(`^${String(allRides)} jazd`));
   });
 
   await test.step("‹ przechodzi na poprzedni miesiąc: zmienia adres, etykietę i listę", async () => {

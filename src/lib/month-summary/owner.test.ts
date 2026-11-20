@@ -115,3 +115,79 @@ describe("composeOwnerMonthSummary — podsumowanie miesiąca u właściciela", 
     expect(view).toMatchObject({ isEmpty: true, emptyText: "W październiku 2026 nie było jazd." });
   });
 });
+
+describe("composeOwnerMonthSummary — filtr instruktora", () => {
+  const OWNER = 3;
+  const RETIRED = 4;
+  const IDLE = 5;
+
+  const instructors = [
+    { id: JOANNA, name: "Joanna Wrona" },
+    { id: KAROL, name: "Karol Jasny" },
+    { id: OWNER, name: "Marek Dębowski" },
+    { id: RETIRED, name: "Adam Zdezaktywowany" },
+    { id: IDLE, name: "Bogna Bez Jazd" },
+  ];
+
+  const bookings = [
+    booking("2026-11-03", 10, { instructorId: JOANNA }),
+    booking("2026-11-04", 10, { instructorId: JOANNA, riderId: "bez-nazwy" }),
+    booking("2026-11-05", 12, { instructorId: OWNER }),
+    booking("2026-11-06", 9, { instructorId: RETIRED, riderId: null }),
+    // Bez jazd w miesiącu: odwołanie, slot jeszcze trwający, zapis z innego miesiąca.
+    booking("2026-11-07", 10, { instructorId: IDLE, status: "cancelled", cancelledBy: "rider" }),
+    booking("2026-11-20", 14, { instructorId: KAROL }),
+    booking("2026-10-30", 10, { instructorId: IDLE }),
+  ];
+
+  it("lista to „Wszyscy instruktorzy” i każdy instruktor z jazdami w miesiącu — także zdezaktywowany i właściciel — alfabetycznie", () => {
+    const view = composeOwnerMonthSummary(input({ bookings, instructors }), NOW);
+
+    expect(view.filter.options).toEqual([
+      { value: "", label: "Wszyscy instruktorzy", selected: true },
+      { value: String(RETIRED), label: "Adam Zdezaktywowany", selected: false },
+      { value: String(JOANNA), label: "Joanna Wrona", selected: false },
+      { value: String(OWNER), label: "Marek Dębowski", selected: false },
+    ]);
+    expect(view.list.totalText).toBe("4 jazdy · 2 jeźdźców");
+  });
+
+  it("wybrany instruktor zawęża sumę, jeźdźców i ich jazdy do swoich slotów, a strzałki miesiąca go zachowują", () => {
+    const view = composeOwnerMonthSummary(
+      input({ bookings, instructors, month: resolveSummaryMonth("2026-11", TODAY), instructorParam: String(JOANNA) }),
+      NOW,
+    );
+
+    expect(view.filter.options.filter((option) => option.selected)).toEqual([
+      { value: String(JOANNA), label: "Joanna Wrona", selected: true },
+    ]);
+    expect(view.list.totalText).toBe("2 jazdy · 2 jeźdźców");
+    expect(view.list.rows.map((row) => [row.name, row.list.map((ride) => ride.instructorName)])).toEqual([
+      ["(bez nazwiska)", ["Joanna Wrona"]],
+      ["Anna Kowalska", ["Joanna Wrona"]],
+    ]);
+    expect(view.nav.previousHref).toBe("/osrodek/podsumowanie?miesiac=2026-10&instruktor=1");
+  });
+
+  it("nieznany instruktor w adresie, instruktor bez jazd w miesiącu i śmieci dają „Wszyscy instruktorzy”", () => {
+    for (const instructorParam of ["99", String(IDLE), String(KAROL), "1abc", "", null]) {
+      const view = composeOwnerMonthSummary(input({ bookings, instructors, instructorParam }), NOW);
+
+      expect(view.filter.options.find((option) => option.selected)?.label, String(instructorParam)).toBe(
+        "Wszyscy instruktorzy",
+      );
+      expect(view.list.totalText).toBe("4 jazdy · 2 jeźdźców");
+      expect(view.nav.previousHref).toBe("/osrodek/podsumowanie?miesiac=2026-10");
+    }
+  });
+
+  it("miesiąc bez jazd ma w filtrze tylko „Wszyscy instruktorzy”", () => {
+    const view = composeOwnerMonthSummary(
+      input({ bookings, instructors, month: resolveSummaryMonth("2026-08", TODAY), instructorParam: String(JOANNA) }),
+      NOW,
+    );
+
+    expect(view.filter.options).toEqual([{ value: "", label: "Wszyscy instruktorzy", selected: true }]);
+    expect(view).toMatchObject({ isEmpty: true, emptyText: "W sierpniu 2026 nie było jazd." });
+  });
+});
