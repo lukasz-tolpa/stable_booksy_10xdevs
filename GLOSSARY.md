@@ -69,6 +69,10 @@ _Avoid_: lekcja, zajęcia, trening
 Dowolny zakres dat wybrany przez ośrodek, dla którego liczone są statystyki.
 _Avoid_: miesiąc rozliczeniowy
 
+**Podsumowanie miesiąca**:
+Jazdy każdego jeźdźca w ośrodku w jednym miesiącu kalendarzowym: ich liczba i daty. Właściciel widzi wszystkich jeźdźców ośrodka, instruktor z kontem — jeźdźców ze swoich slotów, jeździec — tylko siebie. W bieżącym miesiącu liczą się jazdy do teraz; nadchodzące zapisy i odwołania nie wchodzą. Jeźdźcy zanonimizowani występują łącznie, z samą liczbą jazd, bez dat.
+_Avoid_: raport miesięczny, zestawienie treningów
+
 ## Statystyki
 
 **Godziny jazd**:
