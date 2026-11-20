@@ -1,0 +1,130 @@
+---
+// Panel ośrodka — część „Ostatnie 30 dni” (spec #83): kafelki, wykres godzin jazd dzień po dniu
+// i link „Pełne statystyki”. Renderuje `LastMonthView` z `@/lib/stable-panel/panel`; niczego nie
+// liczy. `month === null` — nie udało się wczytać.
+import { ArrowRight } from "lucide-react";
+import PanelBlock from "@/components/stable-panel/PanelBlock.astro";
+import BarChart from "@/components/ui/BarChart.astro";
+import Card from "@/components/ui/Card.astro";
+import EmptyState from "@/components/ui/EmptyState.astro";
+import FailureState from "@/components/ui/FailureState.astro";
+import type { LastMonthView } from "@/lib/stable-panel/panel";
+import { PANEL_TEXTS } from "@/lib/stable-panel/texts";
+
+interface Props {
+  month: LastMonthView | null;
+}
+
+const { month } = Astro.props;
+const texts = PANEL_TEXTS.lastMonth;
+---
+
+<PanelBlock id="month-heading" heading={texts.heading}>
+  {
+    month && (
+      <a slot="head" class="link" href={month.statsHref}>
+        {texts.fullStats} <ArrowRight className="size-4" aria-hidden="true" />
+      </a>
+    )
+  }
+  {
+    month === null ? (
+      <FailureState>
+        <p>{texts.failure}</p>
+        <p>{PANEL_TEXTS.retry}</p>
+      </FailureState>
+    ) : month.isEmpty ? (
+      <Card>
+        <EmptyState>
+          <p>{texts.empty}</p>
+        </EmptyState>
+      </Card>
+    ) : (
+      <>
+        <dl class="tiles">
+          {month.tiles.map((tile) => (
+            <Card padding={16} class="flex min-w-0 flex-col gap-1">
+              <dt class="tile__label">{tile.label}</dt>
+              <dd class="tile__body">
+                <span class:list={["tile__value", tile.isName ? "tile__value--name" : "mono-nums"]}>{tile.value}</span>
+                <span class="tile__note mono-nums">{tile.note}</span>
+              </dd>
+            </Card>
+          ))}
+        </dl>
+        <Card class="mt-3.5">
+          <h3 class="chart-title">{month.chart.title}</h3>
+          <BarChart
+            title={month.chart.title}
+            items={month.chart.bars}
+            labelHeader={month.chart.labelHeader}
+            valueHeader={texts.rideHours}
+          />
+        </Card>
+      </>
+    )
+  }
+</PanelBlock>
+
+<style>
+  .link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+    font-weight: 600;
+    color: var(--primary);
+  }
+  .link:hover {
+    color: var(--primary-strong);
+  }
+  .link:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  /* Kafelki: na telefonie dwa w rzędzie, od 860 px cztery. */
+  .tiles {
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  @media (width >= 860px) {
+    .tiles {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+  .tile__label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .tile__body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 0;
+    min-width: 0;
+  }
+  .tile__value {
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+  }
+  .tile__value--name {
+    font-size: 22px;
+    overflow-wrap: anywhere;
+  }
+  .tile__note {
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  .chart-title {
+    margin: 0 0 10px;
+    font-size: 16px;
+  }
+</style>

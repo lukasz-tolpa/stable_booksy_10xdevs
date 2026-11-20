@@ -59,13 +59,24 @@ export async function getStableById(client: Client, id: number): Promise<StableL
  * i tak muszą ją odczytać, żeby wiedzieć, do czego przypiąć konia.
  */
 export async function getOwnedStableId(client: Client, ownerId: string): Promise<number | null> {
-  const { data, error } = await client.from("stables").select("id").eq("owner_id", ownerId).maybeSingle();
+  return (await getOwnedStable(client, ownerId))?.id ?? null;
+}
+
+/** Ośrodek właściciela w nagłówku panelu ośrodka. */
+export type OwnedStable = Pick<Stable, "id" | "name" | "city">;
+
+/**
+ * Ośrodek podanego właściciela (identyfikator, nazwa, miasto) albo `null`. Filtr po właścicielu
+ * jest konieczny: polityka odczytu na `stables` pokazuje katalog wszystkim zalogowanym.
+ */
+export async function getOwnedStable(client: Client, ownerId: string): Promise<OwnedStable | null> {
+  const { data, error } = await client.from("stables").select("id, name, city").eq("owner_id", ownerId).maybeSingle();
 
   if (error) {
     throw error;
   }
 
-  return data?.id ?? null;
+  return data;
 }
 
 /**

@@ -86,10 +86,14 @@ obrysem niczego innego i nie stoi na jasnym tle.
 - Kontener treści `max-width: 880px` (`container-narrow`), gutter 24 px;
   górny pasek landingu `max-width: 1200px` (połowy landingu sięgają krawędzi
   okna, §6).
-- Topbar sticky 68 px, białe tło z `backdrop-filter: blur(14px)`, hairline
+- Topbar sticky 68 px, białe tło `--glass` z `backdrop-filter: blur(14px)`, hairline
   na dole. Po lewej logo (niżej), link do strony głównej. Gość ma po
   prawej cichy link „Zaloguj się" i jedyną wypełnioną pigułkę paska „Załóż
   konto" (`--primary`, biały tekst 600) — bez napisu o stanie sesji.
+- Dolny pasek sekcji ośrodka (właściciel, poniżej 1000 px): przyklejony do dołu, tło `--glass`
+  z rozmyciem, hairline na górze; pięć sekcji (ikona nad etykietą 11 px 600, `--muted`), bieżąca
+  w `--primary-strong` z ikoną na pigułce `--primary-soft`. Od 1000 px jego rolę pełni boczna
+  kolumna panelu.
 - **Logo** to nazwa produktu „getona.horse" z żywego tekstu w kroju display —
   jeden komponent `src/components/Logo.astro`, jeden układ na dwóch tłach;
   pisownię trzyma `src/lib/brand.ts`. Bez pliku graficznego; ikoną zostaje

@@ -1,0 +1,107 @@
+---
+import { BarChart3, CalendarDays, ClipboardList, LayoutDashboard, Users } from "lucide-react";
+import { HorseHead } from "@/components/ui/HorseHead";
+import { currentSection, stableTabBarSections } from "@/lib/auth/roles";
+
+// Dolny pasek sekcji ośrodka na telefonie (spec #83): panel, Grafik, Zapisy, Konie, Instruktorzy
+// i Statystyki pod ręką na każdej stronie ośrodka, bez przewijania do bocznej kolumny panelu. Tylko
+// właściciel i tylko w przestrzeni ośrodka (na stronie głównej paska nie ma) — decyduje
+// @/lib/auth/roles, nie strona. Od 1000 px pasek znika: panel ma wtedy boczną kolumnę obok treści.
+const sections = stableTabBarSections(Astro.locals.instructorStanding, Astro.url.pathname);
+const current = currentSection(Astro.url.pathname, sections);
+// Ikony w kolejności `stableSections`; konie mają własną głowę konia (lucide nie ma nic końskiego).
+const ICONS = [LayoutDashboard, CalendarDays, ClipboardList, HorseHead, Users, BarChart3];
+---
+
+{
+  sections.length > 0 && (
+    <nav class="tab-bar" aria-label="Sekcje ośrodka">
+      <ul>
+        {sections.map((section, index) => {
+          const Icon = ICONS[index];
+          return (
+            <li>
+              <a href={section.href} aria-current={section.href === current ? "page" : undefined}>
+                <span class="icon">
+                  <Icon className="size-5" />
+                </span>
+                <span class="label">{section.label}</span>
+              </a>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  )
+}
+
+<style>
+  .tab-bar {
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 50;
+    padding-bottom: env(safe-area-inset-bottom);
+    background: var(--glass);
+    backdrop-filter: saturate(140%) blur(14px);
+    -webkit-backdrop-filter: saturate(140%) blur(14px);
+    border-top: 1px solid var(--border);
+  }
+  ul {
+    list-style: none;
+    margin: 0 auto;
+    padding: 0 2px;
+    max-width: 600px;
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+  a {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-height: 56px;
+    padding: 6px 0;
+    border-radius: 12px;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--muted);
+    transition: color 0.15s;
+  }
+  .label {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  a:hover,
+  a[aria-current="page"] {
+    color: var(--primary-strong);
+  }
+  .icon {
+    display: inline-flex;
+    padding: 2px 12px;
+    border-radius: 999px;
+    transition: background 0.15s;
+  }
+  a[aria-current="page"] .icon {
+    background: var(--primary-soft);
+  }
+  a:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: -2px;
+  }
+  /* Treść nie chowa się pod paskiem: ciało strony dostaje dolny odstęp na jego wysokość. */
+  :global(body:has(.tab-bar)) {
+    padding-bottom: calc(57px + env(safe-area-inset-bottom));
+  }
+  @media (width >= 1000px) {
+    .tab-bar {
+      display: none;
+    }
+    :global(body:has(.tab-bar)) {
+      padding-bottom: 0;
+    }
+  }
+</style>

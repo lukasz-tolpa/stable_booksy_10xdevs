@@ -5,18 +5,11 @@
 // (`@/lib/stats/stats`) i rysuje ją. Część graficzna jest ukryta przed czytnikami
 // ekranu, a te same dane są dostępne dla wszystkich jako tabela w <details>.
 
-export interface BarChartItem {
-  /** Krótka etykieta przy słupku (np. `9.11`, nazwa konia). */
-  label: string;
-  /** Pełna etykieta do tabeli i podpowiedzi; domyślnie `label`. */
-  longLabel?: string;
-  /** Wartość nieujemna — wyznacza długość słupka. */
-  value: number;
-  /** Wartość do odczytu (np. `3 h`); domyślnie liczba w zapisie polskim. */
-  valueText?: string;
-}
-
 import { formatNumber } from "@/lib/format";
+import type { BarChartItem } from "@/lib/stats/chart-items";
+
+// Typ słupka żyje w `@/lib/stats/chart-items`, żeby modele widoku mogły go zwracać.
+export type { BarChartItem };
 
 interface Props {
   /** Nazwa wykresu dla czytników ekranu i podpis tabeli z danymi. */

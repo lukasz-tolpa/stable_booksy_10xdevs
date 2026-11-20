@@ -1,49 +1,115 @@
 ---
 import Layout from "@/layouts/Layout.astro";
 import Topbar from "@/components/Topbar.astro";
-import Card from "@/components/ui/Card.astro";
+import PanelLastMonth from "@/components/stable-panel/PanelLastMonth.astro";
+import PanelSide from "@/components/stable-panel/PanelSide.astro";
+import PanelWeek from "@/components/stable-panel/PanelWeek.astro";
+import { listInstructorAccounts, listStableInstructors } from "@/lib/instructors/queries";
+import { logError } from "@/lib/log";
+import { todayIso } from "@/lib/schedule/dates";
+import {
+  composeLastMonth,
+  composeSideColumn,
+  composeWeek,
+  lastMonthPeriod,
+  weekPeriod,
+  type LastMonthView,
+  type WeekView,
+} from "@/lib/stable-panel/panel";
+import { PANEL_TEXTS } from "@/lib/stable-panel/texts";
+import { getOwnedStable, listStableHorses, type OwnedStable } from "@/lib/stables/queries";
+import { getStatsRows } from "@/lib/stats/queries";
 import { createClient } from "@/lib/supabase";
 
-// Dostęp pilnuje middleware (mapa tras w @/lib/auth/roles) - strona nie powtarza
-// sprawdzenia roli. Treść merytoryczną grafiku dołoży S-02.
+// Panel ośrodka (spec #83). Dostęp pilnuje middleware (mapa tras w @/lib/auth/roles) — strona
+// nie powtarza sprawdzenia roli. Każda część (tydzień, 30 dni, boczna kolumna) wczytuje się osobno:
+// awaria jednej daje jej `FailureState`, reszta się wyświetla. Liczy `@/lib/stable-panel/panel`;
+// tu tylko odczyt i render. Kolejna część dochodzi jako następne zadanie w `Promise.allSettled`
+// i następny komponent w kolumnie `.main`.
 const { profile } = Astro.locals;
-
 const supabase = createClient(Astro.request.headers, Astro.cookies);
-// Filtr po właścicielu jest konieczny: polityka odczytu na `stables` pokazuje katalog
-// wszystkim zalogowanym, więc bez niego zapytanie zwróciłoby także cudze stadniny.
-const { data: stable } = supabase
-  ? await supabase
-      .from("stables")
-      .select("name, city")
-      .eq("owner_id", profile?.id ?? "")
-      .maybeSingle()
-  : { data: null };
+const now = new Date();
+const today = todayIso(now);
+const SCOPE = "page:osrodek";
+
+let stable: OwnedStable | null = null;
+let week: WeekView | null = null;
+let lastMonth: LastMonthView | null = null;
+let sideData: Awaited<ReturnType<typeof loadSideData>> | null = null;
+
+type Client = NonNullable<typeof supabase>;
+type Horses = ReturnType<typeof listStableHorses>;
+
+function loadSideData(client: Client, stableId: number, horses: Horses) {
+  return Promise.all([horses, listStableInstructors(client, stableId), listInstructorAccounts(client)]);
+}
+
+/** Wartość udanej części albo `null` — awaria jednej części trafia do logu, reszta się wyświetla. */
+function settledValue<T>(result: PromiseSettledResult<T>): T | null {
+  if (result.status === "fulfilled") {
+    return result.value;
+  }
+  logError(SCOPE, result.reason);
+  return null;
+}
+
+async function loadLastMonth(client: Client, stableId: number, horses: Horses) {
+  const [rows, stableHorses] = await Promise.all([getStatsRows(client, stableId, lastMonthPeriod(today)), horses]);
+  return composeLastMonth({ today, ...rows, horses: stableHorses }, now);
+}
+
+if (supabase && profile) {
+  try {
+    stable = await getOwnedStable(supabase, profile.id);
+    if (stable === null) {
+      // Middleware nie wpuszcza tu właściciela bez stadniny; jej brak to awaria odczytu.
+      logError(SCOPE, new Error("Brak stadniny dla konta właściciela"));
+    }
+  } catch (error) {
+    logError(SCOPE, error);
+  }
+
+  if (stable) {
+    const stableId = stable.id;
+    // Stado czytają dwie części (liczba aktywnych koni, nazwy koni w 30 dniach) — jeden odczyt.
+    const horses = listStableHorses(supabase, stableId);
+    const [weekResult, lastMonthResult, sideResult] = await Promise.allSettled([
+      getStatsRows(supabase, stableId, weekPeriod(today)).then((rows) => composeWeek({ today, ...rows })),
+      loadLastMonth(supabase, stableId, horses),
+      loadSideData(supabase, stableId, horses),
+    ]);
+
+    week = settledValue(weekResult);
+    lastMonth = settledValue(lastMonthResult);
+    sideData = settledValue(sideResult);
+  }
+}
+
+const [horses, instructors, accounts] = sideData ?? [null, null, null];
+const sideLinks = composeSideColumn({ today, week, horses, instructors, accounts });
 ---
 
-<Layout title="Panel ośrodka">
-  <Topbar />
-  <main class="container-narrow page">
-    <Card>
-      <h1>Panel ośrodka</h1>
-      {
-        stable ? (
-          <p class="stable">
-            <span class="stable__name">{stable.name}</span>
-            <span class="stable__city"> &middot; {stable.city}</span>
-          </p>
-        ) : (
-          <p class="stable">Twoje konto nie ma jeszcze przypisanej stadniny.</p>
-        )
-      }
-
-      <nav class="links">
-        <a href="/osrodek/grafik">Grafik dnia</a>
-        <a href="/osrodek/konie">Konie</a>
-        <a href="/osrodek/instruktorzy">Instruktorzy</a>
-        <a href="/osrodek/zapisy">Zapisy</a>
-        <a href="/osrodek/statystyki">Statystyki</a>
-      </nav>
-    </Card>
+<Layout title={PANEL_TEXTS.heading}>
+  <Topbar container="page" />
+  <main class="container-page page">
+    <div class="layout">
+      <div class="main">
+        <h1>{PANEL_TEXTS.heading}</h1>
+        {
+          stable ? (
+            <p class="stable">
+              <span class="stable__name">{stable.name}</span>
+              <span class="stable__city"> &middot; {stable.city}</span>
+            </p>
+          ) : (
+            <p class="stable stable--failed">{PANEL_TEXTS.stableFailure}</p>
+          )
+        }
+        <PanelWeek week={week} />
+        <PanelLastMonth month={lastMonth} />
+      </div>
+      <PanelSide links={sideLinks} failed={sideData === null} />
+    </div>
   </main>
 </Layout>
 
@@ -51,53 +117,34 @@ const { data: stable } = supabase
   .page {
     padding-block: 24px 56px;
   }
+  .layout {
+    display: grid;
+    gap: 28px;
+  }
+  @media (width >= 1000px) {
+    .layout {
+      grid-template-columns: minmax(0, 1fr) 260px;
+      align-items: start;
+    }
+  }
+  .main {
+    min-width: 0;
+  }
   h1 {
     font-size: 30px;
     margin: 0;
   }
   .stable {
-    margin: 10px 0 0;
-    font-size: 15.5px;
+    margin: 6px 0 0;
+    font-size: 15px;
     color: var(--muted);
+  }
+  .stable--failed {
+    font-weight: 600;
+    color: var(--warn-ink);
   }
   .stable__name {
     font-weight: 600;
     color: var(--fg);
-  }
-
-  .links {
-    margin-top: 22px;
-    padding-top: 18px;
-    border-top: 1px solid var(--border);
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-  .links a {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 44px;
-    padding: 11px 18px;
-    border-radius: 999px;
-    border: 1px solid var(--border-2);
-    background: var(--surface);
-    font-family: var(--font-display);
-    font-size: 15px;
-    font-weight: 600;
-    line-height: 1;
-    color: var(--fg);
-    transition:
-      background 0.15s,
-      border-color 0.15s;
-  }
-  .links a:hover {
-    background: var(--primary-soft);
-    border-color: var(--primary);
-    color: var(--primary-strong);
-  }
-  .links a:focus-visible {
-    outline: 2px solid var(--primary);
-    outline-offset: 2px;
   }
 </style>

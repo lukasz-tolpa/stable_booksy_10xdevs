@@ -1,0 +1,243 @@
+---
+// Panel ośrodka — część „Najbliższe 7 dni” (spec #83). Renderuje `WeekView` z
+// `@/lib/stable-panel/panel`; niczego nie liczy. `week === null` — nie udało się wczytać.
+import { ArrowRight } from "lucide-react";
+import PanelBlock from "@/components/stable-panel/PanelBlock.astro";
+import FailureState from "@/components/ui/FailureState.astro";
+import Tag from "@/components/ui/Tag.astro";
+import type { WeekView } from "@/lib/stable-panel/panel";
+import { PANEL_TEXTS } from "@/lib/stable-panel/texts";
+
+interface Props {
+  week: WeekView | null;
+}
+
+const { week } = Astro.props;
+const texts = PANEL_TEXTS.week;
+---
+
+<PanelBlock id="week-heading" heading={texts.heading}>
+  {
+    week && (
+      <p slot="head" class="lead mono-nums">
+        {week.summary}
+        {week.unscheduledText && (
+          <>
+            {" · "}
+            <span class="text-warn-ink font-semibold">{week.unscheduledText}</span>
+          </>
+        )}
+      </p>
+    )
+  }
+  {
+    week ? (
+      <ol class="week">
+        {week.days.map((day) => (
+          <li>
+            <a class:list={["day", !day.scheduled && "day--missing", day.isToday && "day--today"]} href={day.href}>
+              <span class="day__when">
+                <span class="day__label">{day.label}</span>
+                <span class="day__date mono-nums">{day.date}</span>
+              </span>
+              {day.scheduled ? (
+                <>
+                  <span class="day__status">
+                    {texts.scheduled} <span class="day__hours mono-nums">{day.hours}</span>
+                  </span>
+                  <span class="day__bar" aria-hidden="true" style={`--fill:${String(day.barPercent)}%`}>
+                    <span />
+                  </span>
+                  <span class="day__count mono-nums">
+                    <span aria-hidden="true">{day.countText}</span>
+                    <span class="sr-only">{day.countDescription}</span>
+                    <span class="day__pct">{day.bookedPercentText}</span>
+                  </span>
+                  {day.withoutHorseText && (
+                    <span class="day__flag">
+                      <Tag variant="warn">{day.withoutHorseText}</Tag>
+                    </span>
+                  )}
+                </>
+              ) : (
+                <>
+                  <span class="day__status day__status--missing">{texts.unscheduled}</span>
+                  <span class="day__cta">
+                    {texts.arrange} <ArrowRight className="size-4" aria-hidden="true" />
+                  </span>
+                </>
+              )}
+            </a>
+          </li>
+        ))}
+      </ol>
+    ) : (
+      <FailureState>
+        <p>{texts.failure}</p>
+        <p>{PANEL_TEXTS.retry}</p>
+      </FailureState>
+    )
+  }
+</PanelBlock>
+
+<style>
+  .lead {
+    margin: 0;
+    font-size: 14px;
+    color: var(--muted);
+  }
+
+  /* Tydzień: na telefonie lista wierszy z cienkim poziomym paskiem, od 700 px siedem kolumn
+     z pionowym. Wypełnienie paska to `--fill` z modelu widoku (już przycięte do 0–100%). */
+  .week {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 8px;
+  }
+  .day {
+    display: grid;
+    grid-template-columns: 84px minmax(0, 1fr) auto;
+    grid-template-areas:
+      "when status count"
+      "when bar count"
+      "when flag count";
+    align-items: center;
+    gap: 2px 12px;
+    min-height: 56px;
+    padding: 10px 14px;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--fg);
+    transition:
+      background 0.15s,
+      border-color 0.15s;
+  }
+  .day:hover {
+    background: var(--primary-soft);
+    border-color: var(--primary-tint);
+  }
+  .day:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+  .day--today {
+    border-color: var(--primary);
+    box-shadow: inset 0 0 0 1px var(--primary);
+  }
+  .day--missing {
+    background: var(--warn-soft);
+    border-style: dashed;
+    border-color: var(--warn);
+  }
+  .day--missing:hover {
+    background: var(--warn-soft);
+    border-color: var(--warn-ink);
+  }
+  .day__when {
+    grid-area: when;
+    display: flex;
+    flex-direction: column;
+  }
+  .day__label {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 16px;
+    text-transform: capitalize;
+  }
+  .day__date {
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .day__status {
+    grid-area: status;
+    min-width: 0;
+    font-size: 13.5px;
+    color: var(--muted);
+  }
+  .day__status--missing {
+    color: var(--warn-ink);
+    font-weight: 600;
+  }
+  .day__hours {
+    white-space: nowrap;
+  }
+  .day__bar {
+    grid-area: bar;
+    position: relative;
+    width: 100%;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--surface-3);
+    overflow: hidden;
+  }
+  .day__bar span {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: var(--fill);
+    background: var(--primary);
+  }
+  .day__count {
+    grid-area: count;
+    font-weight: 700;
+    font-size: 15px;
+    text-align: right;
+  }
+  .day__pct {
+    display: block;
+    white-space: nowrap;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+  }
+  .day__flag {
+    grid-area: flag;
+    justify-self: start;
+  }
+  .day__cta {
+    grid-area: count;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-family: var(--font-display);
+    font-weight: 700;
+    color: var(--warn-ink);
+  }
+  @media (width >= 700px) {
+    .week {
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+    }
+    .day {
+      height: 100%;
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-areas: none;
+      align-content: start;
+      justify-items: start;
+      gap: 6px;
+      padding: 12px 10px;
+    }
+    .day__when,
+    .day__status,
+    .day__bar,
+    .day__count,
+    .day__flag,
+    .day__cta {
+      grid-area: auto;
+      text-align: left;
+    }
+    .day__hours {
+      display: block;
+    }
+    .day__bar {
+      height: 64px;
+      border-radius: 8px;
+    }
+    .day__bar span {
+      inset: auto 0 0;
+      width: auto;
+      height: var(--fill);
+    }
+  }
+</style>

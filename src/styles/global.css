@@ -26,6 +26,8 @@
   --surface: oklch(100% 0 0);
   --surface-2: oklch(96.5% 0.012 155);
   --surface-3: oklch(93.5% 0.016 158);
+  /* Półprzezroczysta biel pasków przyklejonych do krawędzi ekranu (górny pasek, dolny pasek sekcji). */
+  --glass: oklch(100% 0 0 / 0.82);
   --fg: oklch(24% 0.03 160);
   --muted: oklch(50% 0.02 160);
   --faint: oklch(64% 0.018 160);
