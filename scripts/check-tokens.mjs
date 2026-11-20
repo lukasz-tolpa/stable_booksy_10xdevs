@@ -22,7 +22,6 @@ const EXTENSIONS = new Set([".astro", ".css", ".tsx"]);
 
 /** Dozwolona liczba linii z literalem koloru na plik (stan z 2026-11-11). */
 const COLOUR_BASELINE = new Map([
-  ["src/components/Topbar.astro", 1],
   ["src/components/ui/Card.astro", 1],
   ["src/pages/jezdziec/zapisy.astro", 1],
 ]);

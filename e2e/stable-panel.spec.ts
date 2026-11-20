@@ -128,10 +128,50 @@ test("boczna kolumna „Ośrodek” prowadzi do pięciu sekcji ośrodka, każda 
   });
 });
 
-test("panel ośrodka mieści się w telefonie bez poziomego przewijania", async ({ page }) => {
+test("na telefonie panel i sekcje ośrodka są pod ręką w dolnym pasku, a panel mieści się bez poziomego przewijania", async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload();
   await expect(page.getByRole("region", { name: "Najbliższe 7 dni" })).toBeVisible();
 
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow, "strona jest szersza niż ekran 390 px").toBeLessThanOrEqual(0);
+
+  const tabBar = page.getByRole("navigation", { name: "Sekcje ośrodka" });
+  await test.step("dolny pasek ma panel i pięć sekcji, jest widoczny bez przewijania i zaznacza panel", async () => {
+    await expect(tabBar.getByRole("link")).toHaveText([
+      "Panel",
+      "Grafik",
+      "Zapisy",
+      "Konie",
+      "Instruktorzy",
+      "Statystyki",
+    ]);
+    await expect(tabBar.getByRole("link", { name: "Panel", exact: true })).toHaveAttribute("aria-current", "page");
+    await expect(tabBar).toBeInViewport();
+    await expect(page.getByRole("navigation", { name: "Ośrodek" })).toBeHidden();
+  });
+
+  await test.step("pasek zostaje na stronie sekcji i zaznacza ją jako bieżącą", async () => {
+    await tabBar.getByRole("link", { name: "Konie", exact: true }).click();
+    await page.waitForURL("**/osrodek/konie");
+    await expect(tabBar).toBeInViewport();
+    await expect(tabBar.getByRole("link", { name: "Konie", exact: true })).toHaveAttribute("aria-current", "page");
+  });
+
+  await test.step("„Panel” w dolnym pasku wraca na panel, a menu konta nie powtarza „Mój panel”", async () => {
+    await page.getByLabel("Menu konta").click();
+    await expect(page.getByRole("banner").getByRole("link", { name: "Mój panel", exact: true })).toBeHidden();
+    await tabBar.getByRole("link", { name: "Panel", exact: true }).click();
+    await page.waitForURL("**/osrodek");
+    await expect(page.getByRole("heading", { level: 1, name: "Panel ośrodka" })).toBeVisible();
+  });
+
+  await test.step("na stronie głównej dolnego paska nie ma, a „Mój panel” wraca do menu konta", async () => {
+    await page.goto("/");
+    await expect(tabBar).toHaveCount(0);
+    await page.getByLabel("Menu konta").click();
+    await expect(page.getByRole("banner").getByRole("link", { name: "Mój panel", exact: true })).toBeVisible();
+  });
 });

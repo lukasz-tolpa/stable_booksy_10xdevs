@@ -1,7 +1,8 @@
 ---
 // Panel ośrodka — boczna kolumna „Ośrodek” (spec #83): pięć sekcji ośrodka z krótką informacją.
 // Renderuje `SideLink[]` z `@/lib/stable-panel/panel`. Linki zostają także przy awarii odczytu
-// (`failed`), żeby nawigacja nie znikała; informacje bez danych są wtedy puste.
+// (`failed`), żeby nawigacja nie znikała; informacje bez danych są wtedy puste. Tylko od 1000 px —
+// na telefonie te same sekcje (bez informacji) są w dolnym pasku `StableTabBar`.
 import FailureState from "@/components/ui/FailureState.astro";
 import type { SideLink } from "@/lib/stable-panel/panel";
 import { PANEL_TEXTS } from "@/lib/stable-panel/texts";
@@ -56,6 +57,12 @@ const texts = PANEL_TEXTS.side;
     border-radius: var(--r-lg);
     background: var(--surface-2);
     border: 1px solid var(--border);
+  }
+  /* Poniżej 1000 px sekcje ośrodka są w dolnym pasku (`StableTabBar`), więc kolumna znika. */
+  @media (width < 1000px) {
+    .side {
+      display: none;
+    }
   }
   @media (width >= 1000px) {
     .side {

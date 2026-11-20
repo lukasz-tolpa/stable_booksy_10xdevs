@@ -3,7 +3,8 @@
    atrybut dokłada przeglądarka po kliknięciu, więc nie ma go w statycznym markupie */
 import Logo from "@/components/Logo.astro";
 import RoleBadge from "@/components/ui/RoleBadge.astro";
-import { homeRouteForAccount, isUserRole, roleBadgeLabel } from "@/lib/auth/roles";
+import StableTabBar from "@/components/stable-panel/StableTabBar.astro";
+import { homeRouteForAccount, isUserRole, roleBadgeLabel, stableTabBarSections } from "@/lib/auth/roles";
 
 interface Props {
   /** Szerokość kontenera: landing ma 1200 px, ekrany aplikacji 880 px (DESIGN.md §4). */
@@ -19,6 +20,9 @@ const role = isUserRole(profile?.role) ? profile.role : null;
 // Konto instruktora prowadzi do przestrzeni ośrodka (właściciel) albo do „Moje sloty” (instruktor).
 const homeRoute = role ? homeRouteForAccount(role, instructorStanding) : null;
 const roleLabel = role ? roleBadgeLabel(role, instructorStanding) : null;
+// Właściciel ma panel w dolnym pasku sekcji (`StableTabBar`) — tam, gdzie pasek jest widoczny,
+// „Mój panel” nie powtarza się w menu.
+const homeInTabBar = stableTabBarSections(instructorStanding, Astro.url.pathname).length > 0;
 ---
 
 {
@@ -55,7 +59,11 @@ const roleLabel = role ? roleBadgeLabel(role, instructorStanding) : null;
               {role && <RoleBadge role={role} label={roleLabel ?? undefined} />}
             </span>
             <div class="nav-links">
-              {homeRoute && <a href={homeRoute}>Mój panel</a>}
+              {homeRoute && (
+                <a href={homeRoute} data-in-tab-bar={homeInTabBar ? "" : undefined}>
+                  Mój panel
+                </a>
+              )}
               <form method="POST" action="/api/auth/signout">
                 <button type="submit">Wyloguj się</button>
               </form>
@@ -78,6 +86,7 @@ const roleLabel = role ? roleBadgeLabel(role, instructorStanding) : null;
     }
   </div>
 </header>
+<StableTabBar />
 
 <style>
   /* DESIGN.md §4: sticky 68 px, białe tło z rozmyciem, hairline na dole. */
@@ -88,7 +97,7 @@ const roleLabel = role ? roleBadgeLabel(role, instructorStanding) : null;
     min-height: var(--nav-h);
     display: flex;
     align-items: center;
-    background: oklch(100% 0 0 / 0.82);
+    background: var(--glass);
     backdrop-filter: saturate(140%) blur(14px);
     -webkit-backdrop-filter: saturate(140%) blur(14px);
     border-bottom: 1px solid var(--border);
@@ -336,6 +345,13 @@ const roleLabel = role ? roleBadgeLabel(role, instructorStanding) : null;
     }
     .nav-links {
       order: 0;
+    }
+  }
+  /* Poniżej 1000 px właściciel ma panel w dolnym pasku sekcji (próg jak w `StableTabBar`).
+     Selektor mocniejszy od reguł linków menu, które ustawiają `display`. */
+  @media (width < 1000px) {
+    .nav-links a[data-in-tab-bar] {
+      display: none;
     }
   }
 </style>

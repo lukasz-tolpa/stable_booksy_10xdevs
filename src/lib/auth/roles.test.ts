@@ -5,11 +5,14 @@ import {
   instructorRedirect,
   instructorStandingOf,
   instructorTabs,
+  currentSection,
   isLegacyHomeRoute,
   isStableSetupPath,
   isUserRole,
   roleBadgeLabel,
   scheduleCallerFor,
+  stableSections,
+  stableTabBarSections,
   scheduleRouteFor,
   routeGuardFor,
   signupRoleFromParam,
@@ -375,5 +378,65 @@ describe("scheduleCallerFor", () => {
     expect(scheduleCallerFor("owner")).toBe("owner");
     expect(scheduleCallerFor("none")).toBe("owner");
     expect(scheduleCallerFor(null)).toBe("owner");
+  });
+});
+
+describe("stableSections", () => {
+  it("właściciel ma panel i pięć sekcji ośrodka w kolejności nawigacji", () => {
+    expect(stableSections("owner")).toEqual([
+      { href: "/osrodek", label: "Panel" },
+      { href: "/osrodek/grafik", label: "Grafik" },
+      { href: "/osrodek/zapisy", label: "Zapisy" },
+      { href: "/osrodek/konie", label: "Konie" },
+      { href: "/osrodek/instruktorzy", label: "Instruktorzy" },
+      { href: "/osrodek/statystyki", label: "Statystyki" },
+    ]);
+  });
+
+  it("pozostałe konta nie mają sekcji ośrodka", () => {
+    expect(stableSections("arranging-instructor")).toEqual([]);
+    expect(stableSections("instructor")).toEqual([]);
+    expect(stableSections("inactive")).toEqual([]);
+    expect(stableSections("none")).toEqual([]);
+    expect(stableSections(null)).toEqual([]);
+  });
+});
+
+describe("currentSection", () => {
+  const sections = stableSections("owner");
+
+  it("na stronie sekcji bieżąca jest ta sekcja, także z ukośnikiem na końcu", () => {
+    expect(currentSection("/osrodek/zapisy", sections)).toBe("/osrodek/zapisy");
+    expect(currentSection("/osrodek/zapisy/", sections)).toBe("/osrodek/zapisy");
+  });
+
+  it("na panelu bieżący jest panel, a nie sekcja leżąca pod nim", () => {
+    expect(currentSection("/osrodek", sections)).toBe("/osrodek");
+    expect(currentSection("/osrodek/", sections)).toBe("/osrodek");
+  });
+
+  it("adres tylko podobny do sekcji zaznacza panel, nie sekcję", () => {
+    expect(currentSection("/osrodek/zapisyx", sections)).toBe("/osrodek");
+  });
+
+  it("strona spoza sekcji nie zaznacza niczego", () => {
+    expect(currentSection("/", sections)).toBeNull();
+  });
+});
+
+describe("stableTabBarSections", () => {
+  it("właściciel ma dolny pasek na panelu i stronach sekcji ośrodka", () => {
+    expect(stableTabBarSections("owner", "/osrodek")).toHaveLength(6);
+    expect(stableTabBarSections("owner", "/osrodek/konie")).toHaveLength(6);
+  });
+
+  it("na stronie głównej i innych stronach spoza ośrodka pasek się nie pokazuje", () => {
+    expect(stableTabBarSections("owner", "/")).toEqual([]);
+    expect(stableTabBarSections("owner", "/stadniny")).toEqual([]);
+  });
+
+  it("inne konta nie mają dolnego paska także w przestrzeni ośrodka", () => {
+    expect(stableTabBarSections("instructor", "/osrodek")).toEqual([]);
+    expect(stableTabBarSections(null, "/osrodek")).toEqual([]);
   });
 });

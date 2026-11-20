@@ -1,4 +1,6 @@
 import { INSTRUCTOR_LABEL, ROLE_LABELS, STABLE_LABEL, USER_ROLES } from "@/lib/auth/constants";
+import { STABLE_DAY_BOOKINGS_ROUTE } from "@/lib/bookings/stable-redirect";
+import { INSTRUCTORS_ROUTE } from "@/lib/instructors/redirect";
 import type { ScheduleCaller } from "@/lib/schedule/errors";
 import type { UserRole } from "@/types";
 
@@ -76,11 +78,24 @@ export interface InstructorLink {
   arrangesSchedule: boolean;
 }
 
-/** Zakładka w przestrzeni instruktora. */
+/** Zakładka w przestrzeni instruktora albo sekcja przestrzeni ośrodka. */
 export interface InstructorTab {
   href: string;
   label: string;
 }
+
+/**
+ * Sekcje przestrzeni ośrodka właściciela — dolny pasek nawigacji na telefonie (spec #83), żeby
+ * panel, Grafik, Zapisy, Konie, Instruktorzy i Statystyki były pod ręką na każdej stronie ośrodka.
+ */
+const STABLE_SECTIONS: readonly InstructorTab[] = [
+  { href: ROLE_HOME.instructor, label: "Panel" },
+  { href: OWNER_SCHEDULE_ROUTE, label: "Grafik" },
+  { href: STABLE_DAY_BOOKINGS_ROUTE, label: "Zapisy" },
+  { href: `${ROLE_HOME.instructor}/konie`, label: "Konie" },
+  { href: INSTRUCTORS_ROUTE, label: "Instruktorzy" },
+  { href: `${ROLE_HOME.instructor}/statystyki`, label: "Statystyki" },
+];
 
 /**
  * Wszystko, co zależy od tego, kim konto `instructor` jest w ośrodku — w jednym miejscu:
@@ -102,6 +117,7 @@ const STANDINGS: Record<
     schedule: string | null;
     scheduleCaller: ScheduleCaller;
     tabs: readonly InstructorTab[];
+    sections: readonly InstructorTab[];
   }
 > = {
   none: {
@@ -111,6 +127,7 @@ const STANDINGS: Record<
     schedule: null,
     scheduleCaller: "owner",
     tabs: [],
+    sections: [],
   },
   owner: {
     home: ROLE_HOME.instructor,
@@ -119,6 +136,7 @@ const STANDINGS: Record<
     schedule: OWNER_SCHEDULE_ROUTE,
     scheduleCaller: "owner",
     tabs: [],
+    sections: STABLE_SECTIONS,
   },
   instructor: {
     home: INSTRUCTOR_HOME_ROUTE,
@@ -128,6 +146,7 @@ const STANDINGS: Record<
     scheduleCaller: "instructor",
     // Jedna zakładka to nie nawigacja — bez uprawnienia pasek zakładek się nie pokazuje.
     tabs: [],
+    sections: [],
   },
   "arranging-instructor": {
     home: INSTRUCTOR_HOME_ROUTE,
@@ -139,6 +158,7 @@ const STANDINGS: Record<
       { href: INSTRUCTOR_HOME_ROUTE, label: "Moje sloty" },
       { href: INSTRUCTOR_SCHEDULE_ROUTE, label: "Grafik" },
     ],
+    sections: [],
   },
   inactive: {
     home: INACTIVE_INSTRUCTOR_ROUTE,
@@ -147,6 +167,7 @@ const STANDINGS: Record<
     schedule: null,
     scheduleCaller: "instructor",
     tabs: [],
+    sections: [],
   },
 };
 
@@ -230,6 +251,35 @@ export function scheduleCallerFor(standing: InstructorStanding | null): Schedule
 /** Zakładki przestrzeni instruktora — pusta lista, gdy konto ich nie ma (pasek się nie pokazuje). */
 export function instructorTabs(standing: InstructorStanding | null): readonly InstructorTab[] {
   return standing === null ? [] : STANDINGS[standing].tabs;
+}
+
+/** Sekcje przestrzeni ośrodka — tylko u właściciela; pusta lista, gdy konto ich nie ma (pasek się nie pokazuje). */
+export function stableSections(standing: InstructorStanding | null): readonly InstructorTab[] {
+  return standing === null ? [] : STANDINGS[standing].sections;
+}
+
+/**
+ * Adres bieżącej sekcji dla `pathname` (dolny pasek ją zaznacza): najdłuższy pasujący adres, więc
+ * na stronie sekcji wygrywa sekcja, a nie panel, pod którym leży. `null` — strona spoza sekcji.
+ */
+export function currentSection(pathname: string, sections: readonly InstructorTab[]): string | null {
+  const path = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
+  let current: string | null = null;
+  for (const section of sections) {
+    if (matchesPrefix(path, section.href) && section.href.length > (current?.length ?? 0)) {
+      current = section.href;
+    }
+  }
+  return current;
+}
+
+/**
+ * Sekcje dolnego paska na stronie `pathname`: tylko u właściciela i tylko w przestrzeni ośrodka
+ * (na stronie głównej i innych stronach spoza sekcji pasek się nie pokazuje). Pusta lista — bez paska.
+ */
+export function stableTabBarSections(standing: InstructorStanding | null, pathname: string): readonly InstructorTab[] {
+  const sections = stableSections(standing);
+  return currentSection(pathname, sections) === null ? [] : sections;
 }
 
 /** Etykieta pigułki roli w górnym pasku: instruktor bez praw właściciela to „Instruktor”, nie „Ośrodek”. */
