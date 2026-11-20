@@ -23,6 +23,9 @@ export const MONTH_SUMMARY_TEXTS = {
   ridersHeading: "Jeźdźcy",
   /** Podpis rozwijanej listy jazd jeźdźca. */
   ridesOf: "Jazdy",
+  instructor: {
+    lead: "Jazdy jeźdźców na Twoich slotach w wybranym miesiącu. Rozwiń jeźdźca, żeby zobaczyć daty jazd.",
+  },
   owner: {
     lead: "Jazdy każdego jeźdźca ośrodka w wybranym miesiącu. Rozwiń jeźdźca, żeby zobaczyć daty jazd.",
     /** Link na stronie Statystyk. */

@@ -1,0 +1,105 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import Topbar from "@/components/Topbar.astro";
+import InstructorTabs from "@/components/instructors/InstructorTabs.astro";
+import MonthNav from "@/components/month-summary/MonthNav.astro";
+import RiderRides from "@/components/month-summary/RiderRides.astro";
+import Card from "@/components/ui/Card.astro";
+import EmptyState from "@/components/ui/EmptyState.astro";
+import FailureState from "@/components/ui/FailureState.astro";
+import { getOwnInstructor } from "@/lib/instructors/queries";
+import { logError } from "@/lib/log";
+import { composeInstructorMonthSummary, instructorMonthHref } from "@/lib/month-summary/instructor";
+import { MONTH_PARAM, resolveSummaryMonth } from "@/lib/month-summary/month";
+import { composeMonthNav, type MonthSummaryView } from "@/lib/month-summary/summary";
+import { MONTH_SUMMARY_TEXTS } from "@/lib/month-summary/texts";
+import { getMyMonthBookings } from "@/lib/my-slots/queries";
+import { todayIso } from "@/lib/schedule/dates";
+import { createClient } from "@/lib/supabase";
+
+// Podsumowanie miesiąca instruktora z kontem (#90): jazdy wyłącznie z jego slotów. Dostęp pilnuje
+// middleware (mapa stanów konta w @/lib/auth/roles): właściciela przenosi do przestrzeni ośrodka,
+// zdezaktywowanego — na ekran nieaktywnego konta. Liczy `@/lib/month-summary/instructor`; tu tylko
+// odczyt i render. Miesiąc żyje w adresie (`?miesiac=RRRR-MM`), więc odświeżenie go nie gubi.
+const { profile } = Astro.locals;
+const SCOPE = "page:instruktor/podsumowanie";
+const texts = MONTH_SUMMARY_TEXTS;
+const now = new Date();
+const month = resolveSummaryMonth(Astro.url.searchParams.get(MONTH_PARAM), todayIso(now));
+
+const supabase = createClient(Astro.request.headers, Astro.cookies);
+
+let view: MonthSummaryView | null = null;
+
+if (supabase && profile) {
+  try {
+    const { instructor, error } = await getOwnInstructor(supabase);
+    if (error) {
+      throw error;
+    }
+    if (instructor === null) {
+      // Middleware wpuszcza tu tylko konto z instruktorem; jego brak to awaria odczytu, nie pusty miesiąc.
+      logError(SCOPE, new Error("Brak instruktora dla konta instruktora"));
+    } else {
+      const bookings = await getMyMonthBookings(supabase, month.from, month.to);
+      view = composeInstructorMonthSummary({ month, instructor, bookings }, now);
+    }
+  } catch (error) {
+    logError(SCOPE, error);
+  }
+}
+
+// Przełącznik miesięcy zostaje także przy awarii odczytu — da się przejść do innego miesiąca.
+const nav = view?.nav ?? composeMonthNav(month, instructorMonthHref);
+---
+
+<Layout title={texts.heading}>
+  <Topbar />
+  <main class="container-narrow page">
+    <InstructorTabs />
+    <h1>{texts.heading}</h1>
+    <p class="page-lead">{texts.instructor.lead}</p>
+
+    <MonthNav nav={nav} />
+
+    {
+      !view ? (
+        <FailureState>
+          <p>{texts.failure}</p>
+          <p>{texts.retry}</p>
+        </FailureState>
+      ) : view.isEmpty ? (
+        <Card>
+          <EmptyState>
+            <p>{view.emptyText}</p>
+            <p>{texts.emptyHint}</p>
+          </EmptyState>
+        </Card>
+      ) : (
+        <section aria-labelledby="riders-heading">
+          <h2 id="riders-heading">{texts.ridersHeading}</h2>
+          <RiderRides list={view.list} labelledby="riders-heading" />
+        </section>
+      )
+    }
+  </main>
+</Layout>
+
+<style>
+  .page {
+    padding-block: 24px 56px;
+  }
+  h1 {
+    font-size: 32px;
+  }
+  h2 {
+    margin: 0 0 8px;
+    font-size: 20px;
+  }
+  .page-lead {
+    margin: 10px 0 0;
+    font-size: 15.5px;
+    color: var(--muted);
+    max-width: 62ch;
+  }
+</style>

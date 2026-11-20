@@ -439,6 +439,17 @@ export type Database = {
         Args: { p_city: string; p_instructor_name: string; p_name: string };
         Returns: number;
       };
+      get_my_month_bookings: {
+        Args: { p_from: string; p_to: string };
+        Returns: {
+          anonymised: boolean;
+          day: string;
+          horse_name: string;
+          hour: number;
+          rider_key: string;
+          rider_name: string;
+        }[];
+      };
       get_my_slot_bookings: {
         Args: { p_from: string };
         Returns: {
