@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { composeLastMonth, composeSideColumn, composeWeek, lastMonthPeriod } from "@/lib/stable-panel/panel";
+import {
+  composeLastMonth,
+  composeSideColumn,
+  composeWeek,
+  historyPeriod,
+  lastMonthPeriod,
+} from "@/lib/stable-panel/panel";
 import type { StatsBooking, StatsScheduleDay } from "@/lib/stats/stats";
 
 // Piątek 20 listopada 2026 — „dziś” we wszystkich przypadkach.
@@ -16,7 +22,16 @@ function scheduleDay(day: string, seats: number[], hours: [number, number] = [10
 }
 
 function booking(day: string, overrides: Partial<StatsBooking> = {}): StatsBooking {
-  return { day, hour: 10, horseId: 1, status: "active", riderId: "r1", cancelledBy: null, ...overrides };
+  return {
+    day,
+    hour: 10,
+    instructorId: 1,
+    horseId: 1,
+    status: "active",
+    riderId: "r1",
+    cancelledBy: null,
+    ...overrides,
+  };
 }
 
 describe("composeWeek", () => {
@@ -168,6 +183,8 @@ describe("composeWeek", () => {
 });
 
 describe("composeSideColumn", () => {
+  // Dziś 14:30 w Warszawie — godzina 13 już się skończyła, 14 trwa.
+  const NOW = new Date("2026-11-20T13:30:00Z");
   const week = composeWeek({
     today: TODAY,
     days: [scheduleDay(TODAY, [3])],
@@ -183,33 +200,62 @@ describe("composeSideColumn", () => {
   // Konto ma też instruktor nieaktywny (4) — nie liczy się, bo nie jest aktywny.
   const accounts = [{ instructor_id: 1 }, { instructor_id: 3 }, { instructor_id: 4 }];
 
-  it("prowadzi do pięciu sekcji ośrodka: Grafik na jutro, Zapisy na dziś, Konie, Instruktorzy, Statystyki", () => {
-    const links = composeSideColumn({ today: TODAY, week, horses, instructors, accounts });
+  it("prowadzi do sekcji ośrodka: Grafik na jutro, Zapisy na dziś, Konie, Instruktorzy, Podsumowanie miesiąca, Statystyki", () => {
+    const links = composeSideColumn({ today: TODAY, week, horses, instructors, accounts, monthBookings: [] }, NOW);
 
     expect(links.map((link) => [link.name, link.href])).toEqual([
       ["Grafik", "/osrodek/grafik?dzien=2026-11-21"],
       ["Zapisy", "/osrodek/zapisy?dzien=2026-11-20"],
       ["Konie", "/osrodek/konie"],
       ["Instruktorzy", "/osrodek/instruktorzy"],
+      ["Podsumowanie miesiąca", "/osrodek/podsumowanie"],
       ["Statystyki", "/osrodek/statystyki"],
     ]);
   });
 
   it("przy każdym linku krótka informacja: jutro bez grafiku, aktywne zapisy dziś, aktywne konie, instruktorzy z kontem spośród aktywnych", () => {
-    const links = composeSideColumn({ today: TODAY, week, horses, instructors, accounts });
+    const links = composeSideColumn({ today: TODAY, week, horses, instructors, accounts, monthBookings: [] }, NOW);
 
     expect(links.map((link) => [link.fact, link.warn])).toEqual([
       ["jutro: brak grafiku", true],
       ["dziś: 2", false],
       ["2 aktywne", false],
       ["2 z 3 z kontem", false],
+      ["listopad: 0 jazd", false],
       ["dowolny okres", false],
     ]);
   });
 
+  it("Podsumowanie miesiąca podaje jazdy bieżącego miesiąca do teraz — bez odwołań, nadchodzących i poprzedniego miesiąca", () => {
+    const links = composeSideColumn(
+      {
+        today: TODAY,
+        week,
+        horses,
+        instructors,
+        accounts,
+        monthBookings: [
+          booking("2026-10-31"),
+          booking("2026-11-02"),
+          booking("2026-11-19", { hour: 15 }),
+          booking(TODAY, { hour: 13 }),
+          booking(TODAY, { hour: 14 }),
+          booking("2026-11-21"),
+          booking("2026-11-05", { status: "cancelled", horseId: null, cancelledBy: "rider" }),
+        ],
+      },
+      NOW,
+    );
+
+    expect(links.find((link) => link.name === "Podsumowanie miesiąca")?.fact).toBe("listopad: 3 jazdy");
+  });
+
   it("jutro z grafikiem to „jutro: ułożony” bez ostrzeżenia", () => {
     const scheduledTomorrow = composeWeek({ today: TODAY, days: [scheduleDay("2026-11-21", [1])], bookings: [] });
-    const [schedule] = composeSideColumn({ today: TODAY, week: scheduledTomorrow, horses, instructors, accounts });
+    const [schedule] = composeSideColumn(
+      { today: TODAY, week: scheduledTomorrow, horses, instructors, accounts, monthBookings: [] },
+      NOW,
+    );
 
     expect(schedule).toMatchObject({ fact: "jutro: ułożony", warn: false });
   });
@@ -222,6 +268,7 @@ describe("composeSideColumn", () => {
         horses: Array.from({ length: count }, () => ({ active: true })),
         instructors,
         accounts,
+        monthBookings: [],
       })[2]?.fact;
 
     expect([factFor(1), factFor(4), factFor(5), factFor(12), factFor(22)]).toEqual([
@@ -234,14 +281,18 @@ describe("composeSideColumn", () => {
   });
 
   it("część, której nie udało się wczytać, zostawia link bez informacji", () => {
-    const links = composeSideColumn({ today: TODAY, week: null, horses: null, instructors, accounts: null });
+    const links = composeSideColumn(
+      { today: TODAY, week: null, horses: null, instructors, accounts: null, monthBookings: null },
+      NOW,
+    );
 
-    expect(links.map((link) => link.fact)).toEqual([null, null, null, null, "dowolny okres"]);
+    expect(links.map((link) => link.fact)).toEqual([null, null, null, null, null, "dowolny okres"]);
     expect(links.map((link) => link.href)).toEqual([
       "/osrodek/grafik?dzien=2026-11-21",
       "/osrodek/zapisy?dzien=2026-11-20",
       "/osrodek/konie",
       "/osrodek/instruktorzy",
+      "/osrodek/podsumowanie",
       "/osrodek/statystyki",
     ]);
   });
@@ -347,3 +398,11 @@ describe("composeLastMonth", () => {
 function week7(): string[] {
   return ["2026-11-20", "2026-11-21", "2026-11-22", "2026-11-23", "2026-11-24", "2026-11-25", "2026-11-26"];
 }
+
+describe("historyPeriod", () => {
+  it("jednym odczytem obejmuje ostatnie 30 dni i bieżący miesiąc", () => {
+    expect(historyPeriod(TODAY)).toEqual({ from: "2026-10-22", to: TODAY });
+    // 31. dnia miesiąc zaczyna się wcześniej niż 30 dni temu.
+    expect(historyPeriod("2026-12-31")).toEqual({ from: "2026-12-01", to: "2026-12-31" });
+  });
+});

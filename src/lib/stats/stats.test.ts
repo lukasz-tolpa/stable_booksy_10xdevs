@@ -28,7 +28,16 @@ function day(iso: string, overrides: Partial<StatsScheduleDay> = {}): StatsSched
 function booking(iso: string, hour: number, overrides: Partial<StatsBooking> = {}): StatsBooking {
   // Odwołanie bez wskazanej strony to odwołanie jeźdźca — jak w bazie, gdzie odwołany zapis zawsze ją ma.
   const cancelledBy = overrides.status === "cancelled" ? "rider" : null;
-  return { day: iso, horseId: BELLA, hour, status: "active", riderId: "rider-anna", cancelledBy, ...overrides };
+  return {
+    day: iso,
+    horseId: BELLA,
+    hour,
+    instructorId: 1,
+    status: "active",
+    riderId: "rider-anna",
+    cancelledBy,
+    ...overrides,
+  };
 }
 
 function input(overrides: Partial<StatsInput> = {}): StatsInput {

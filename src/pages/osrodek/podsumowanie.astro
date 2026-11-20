@@ -1,0 +1,105 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import Topbar from "@/components/Topbar.astro";
+import MonthNav from "@/components/month-summary/MonthNav.astro";
+import RiderRides from "@/components/month-summary/RiderRides.astro";
+import Card from "@/components/ui/Card.astro";
+import EmptyState from "@/components/ui/EmptyState.astro";
+import FailureState from "@/components/ui/FailureState.astro";
+import { listStableInstructors } from "@/lib/instructors/queries";
+import { logError } from "@/lib/log";
+import { MONTH_PARAM, resolveSummaryMonth } from "@/lib/month-summary/month";
+import { composeOwnerMonthSummary, ownerMonthHref, type OwnerMonthSummaryView } from "@/lib/month-summary/owner";
+import { composeMonthNav } from "@/lib/month-summary/summary";
+import { MONTH_SUMMARY_TEXTS } from "@/lib/month-summary/texts";
+import { todayIso } from "@/lib/schedule/dates";
+import { getOwnedStableId, listStableHorses } from "@/lib/stables/queries";
+import { getStatsRows } from "@/lib/stats/queries";
+import { createClient } from "@/lib/supabase";
+
+// Podsumowanie miesiąca właściciela (#88). Dostęp pilnuje middleware (mapa tras w @/lib/auth/roles):
+// przestrzeń ośrodka jest tylko dla właściciela. Liczy `@/lib/month-summary/owner`; tu tylko odczyt
+// i render. Miesiąc żyje w adresie (`?miesiac=RRRR-MM`), więc odświeżenie go nie gubi.
+const { profile } = Astro.locals;
+const SCOPE = "page:osrodek/podsumowanie";
+const texts = MONTH_SUMMARY_TEXTS;
+const now = new Date();
+const month = resolveSummaryMonth(Astro.url.searchParams.get(MONTH_PARAM), todayIso(now));
+
+const supabase = createClient(Astro.request.headers, Astro.cookies);
+
+let view: OwnerMonthSummaryView | null = null;
+
+if (supabase && profile) {
+  try {
+    const stableId = await getOwnedStableId(supabase, profile.id);
+    if (stableId === null) {
+      // Middleware nie wpuszcza tu właściciela bez stadniny; jej brak to awaria odczytu, nie pusty miesiąc.
+      logError(SCOPE, new Error("Brak stadniny dla konta właściciela"));
+    } else {
+      // Stado i instruktorzy obejmują zdezaktywowanych — jedyne źródło nazw przy minionych jazdach.
+      const [rows, horses, instructors] = await Promise.all([
+        getStatsRows(supabase, stableId, { from: month.from, to: month.to }),
+        listStableHorses(supabase, stableId),
+        listStableInstructors(supabase, stableId),
+      ]);
+      view = composeOwnerMonthSummary({ month, ...rows, horses, instructors }, now);
+    }
+  } catch (error) {
+    logError(SCOPE, error);
+  }
+}
+
+// Przełącznik miesięcy zostaje także przy awarii odczytu — da się przejść do innego miesiąca.
+const nav = view?.nav ?? composeMonthNav(month, ownerMonthHref);
+---
+
+<Layout title={texts.heading}>
+  <Topbar />
+  <main class="container-narrow page">
+    <h1>{texts.heading}</h1>
+    <p class="page-lead">{texts.owner.lead}</p>
+
+    <MonthNav nav={nav} />
+
+    {
+      !view ? (
+        <FailureState>
+          <p>{texts.failure}</p>
+          <p>{texts.retry}</p>
+        </FailureState>
+      ) : view.isEmpty ? (
+        <Card>
+          <EmptyState>
+            <p>{view.emptyText}</p>
+            <p>{texts.emptyHint}</p>
+          </EmptyState>
+        </Card>
+      ) : (
+        <section aria-labelledby="riders-heading">
+          <h2 id="riders-heading">{texts.ridersHeading}</h2>
+          <RiderRides list={view.list} labelledby="riders-heading" />
+        </section>
+      )
+    }
+  </main>
+</Layout>
+
+<style>
+  .page {
+    padding-block: 24px 56px;
+  }
+  h1 {
+    font-size: 32px;
+  }
+  h2 {
+    margin: 0 0 8px;
+    font-size: 20px;
+  }
+  .page-lead {
+    margin: 10px 0 0;
+    font-size: 15.5px;
+    color: var(--muted);
+    max-width: 62ch;
+  }
+</style>

@@ -1,0 +1,37 @@
+---
+// Przełącznik miesięcy Podsumowania miesiąca: „‹ Poprzedni”, miesiąc w mono, „Następny ›” — geometria
+// `DayNav`. W bieżącym miesiącu „Następny” jest nieaktywny (`<span class="off">`, nie wyłączony link).
+// Renderuje `MonthNav` z `@/lib/month-summary/summary`; wspólny dla wszystkich ról.
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import DayNav from "@/components/ui/DayNav.astro";
+import type { MonthNav } from "@/lib/month-summary/summary";
+import { MONTH_SUMMARY_TEXTS } from "@/lib/month-summary/texts";
+
+interface Props {
+  nav: MonthNav;
+}
+
+const { nav } = Astro.props;
+const texts = MONTH_SUMMARY_TEXTS;
+---
+
+<DayNav label={texts.navLabel}>
+  <a slot="prev" href={nav.previousHref}>
+    <ChevronLeft className="size-4" />
+    {texts.previous}
+  </a>
+  <Fragment slot="date">{nav.label}</Fragment>
+  {
+    nav.nextHref ? (
+      <a slot="next" href={nav.nextHref}>
+        {texts.next}
+        <ChevronRight className="size-4" />
+      </a>
+    ) : (
+      <span slot="next" class="off" aria-disabled="true">
+        {texts.next}
+        <ChevronRight className="size-4" />
+      </span>
+    )
+  }
+</DayNav>

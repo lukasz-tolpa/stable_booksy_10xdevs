@@ -107,17 +107,18 @@ test("panel ośrodka pokazuje liczby z ostatnich 30 dni zgodne ze Statystykami t
   });
 });
 
-test("boczna kolumna „Ośrodek” prowadzi do pięciu sekcji ośrodka, każda z krótką informacją", async ({ page }) => {
-  await test.step("pięć linków z informacją i adresem sekcji", async () => {
+test("boczna kolumna „Ośrodek” prowadzi do sekcji ośrodka, każda z krótką informacją", async ({ page }) => {
+  await test.step("sześć linków z informacją i adresem sekcji", async () => {
     const side = page.getByRole("navigation", { name: "Ośrodek" });
     const links = side.getByRole("link");
-    await expect(links).toHaveCount(5);
+    await expect(links).toHaveCount(6);
 
     const expected: [RegExp, string][] = [
       [/^Grafik jutro: ułożony$/, `/osrodek/grafik?dzien=${seedDay()}`],
       [/^Zapisy dziś: \d+$/, "/osrodek/zapisy?dzien="],
       [/^Konie \d+ aktywn\S+$/, "/osrodek/konie"],
       [/^Instruktorzy \d+ z \d+ z kontem$/, "/osrodek/instruktorzy"],
+      [/^Podsumowanie miesiąca \S+: \d+ jazd\S*$/, "/osrodek/podsumowanie"],
       [/^Statystyki dowolny okres$/, "/osrodek/statystyki"],
     ];
     for (const [name, href] of expected) {

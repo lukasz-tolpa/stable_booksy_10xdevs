@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  RIDE_FORMS,
+  RIDER_FORMS,
   formatCount,
+  formatMonthName,
+  formatMonthYear,
+  formatMonthYearLocative,
+  formatShortDateWithWeekday,
   formatFreeSeats,
   formatHours,
   formatLongDate,
@@ -83,5 +89,36 @@ describe("formatPercent", () => {
     expect(formatPercent(0)).toBe("0%");
     expect(formatPercent(67)).toBe("67%");
     expect(formatPercent(150)).toBe("150%");
+  });
+});
+
+describe("miesiąc kalendarzowy (`RRRR-MM`)", () => {
+  it("nazwa miesiąca w mianowniku, z rokiem i bez", () => {
+    expect(formatMonthName("2026-11")).toBe("listopad");
+    expect(formatMonthYear("2026-11")).toBe("listopad 2026");
+    expect(formatMonthYear("2027-01")).toBe("styczeń 2027");
+  });
+
+  it("miesiąc z rokiem w miejscowniku — do zdań „W październiku 2026 …”", () => {
+    expect(formatMonthYearLocative("2026-10")).toBe("październiku 2026");
+    expect(formatMonthYearLocative("2026-11")).toBe("listopadzie 2026");
+    expect(formatMonthYearLocative("2027-02")).toBe("lutym 2027");
+  });
+});
+
+describe("formatShortDateWithWeekday", () => {
+  it("skraca dzień tygodnia i miesiąc, np. przy jeździe w Podsumowaniu miesiąca", () => {
+    expect(formatShortDateWithWeekday("2026-11-06")).toBe("pt., 6 lis");
+  });
+});
+
+describe("odmiana „jazda” i „jeździec”", () => {
+  it("1 jazda, 2 jazdy, 5 jazd; 1 jeździec, 2 jeźdźców, 5 jeźdźców", () => {
+    expect([1, 2, 5].map((count) => formatCount(count, RIDE_FORMS))).toEqual(["1 jazda", "2 jazdy", "5 jazd"]);
+    expect([1, 2, 5].map((count) => formatCount(count, RIDER_FORMS))).toEqual([
+      "1 jeździec",
+      "2 jeźdźców",
+      "5 jeźdźców",
+    ]);
   });
 });

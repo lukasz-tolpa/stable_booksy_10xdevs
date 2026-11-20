@@ -44,6 +44,7 @@ export const PANEL_TEXTS = {
     bookings: "Zapisy",
     horses: "Konie",
     instructors: "Instruktorzy",
+    monthSummary: "Podsumowanie miesiąca",
     stats: "Statystyki",
     tomorrowScheduled: "jutro: ułożony",
     tomorrowUnscheduled: "jutro: brak grafiku",
@@ -61,4 +62,3 @@ export const PANEL_TEXTS = {
 export const SEAT_FORMS: PluralForms = { one: "miejsce", few: "miejsca", many: "miejsc" };
 export const DAY_FORMS: PluralForms = { one: "dzień", few: "dni", many: "dni" };
 export const ACTIVE_FORMS: PluralForms = { one: "aktywny", few: "aktywne", many: "aktywnych" };
-export const RIDE_FORMS: PluralForms = { one: "jazda", few: "jazdy", many: "jazd" };

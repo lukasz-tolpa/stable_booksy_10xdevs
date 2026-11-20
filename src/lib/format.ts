@@ -69,6 +69,73 @@ export function formatShortDate(iso: string): string {
   return SHORT_DAY_MONTH.format(new Date(`${iso}T00:00:00Z`));
 }
 
+const SHORT_WEEKDAY_DATE = new Intl.DateTimeFormat("pl-PL", {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+  timeZone: "UTC",
+});
+
+/**
+ * Skrót dnia tygodnia z dniem i skrótem miesiąca (`RRRR-MM-DD`), np. `pt., 6 lis` — data jazdy
+ * w Podsumowaniu miesiąca. Data kalendarzowa, więc w UTC.
+ */
+export function formatShortDateWithWeekday(iso: string): string {
+  return SHORT_WEEKDAY_DATE.format(new Date(`${iso}T00:00:00Z`));
+}
+
+/** Nazwy miesięcy w mianowniku — `Intl` daje w polskim dopełniacz („listopada”), a miejscownika wcale. */
+const MONTH_NAMES = [
+  "styczeń",
+  "luty",
+  "marzec",
+  "kwiecień",
+  "maj",
+  "czerwiec",
+  "lipiec",
+  "sierpień",
+  "wrzesień",
+  "październik",
+  "listopad",
+  "grudzień",
+] as const;
+
+/** Nazwy miesięcy w miejscowniku: „w styczniu”, „w październiku”. */
+const MONTH_NAMES_LOCATIVE = [
+  "styczniu",
+  "lutym",
+  "marcu",
+  "kwietniu",
+  "maju",
+  "czerwcu",
+  "lipcu",
+  "sierpniu",
+  "wrześniu",
+  "październiku",
+  "listopadzie",
+  "grudniu",
+] as const;
+
+function monthParts(month: string): { year: string; index: number } {
+  return { year: month.slice(0, 4), index: Number(month.slice(5, 7)) - 1 };
+}
+
+/** Nazwa miesiąca kalendarzowego (`RRRR-MM`) bez roku, np. `listopad`. */
+export function formatMonthName(month: string): string {
+  return MONTH_NAMES[monthParts(month).index] ?? month;
+}
+
+/** Miesiąc kalendarzowy (`RRRR-MM`) z rokiem, np. `listopad 2026` — etykieta przełącznika miesięcy. */
+export function formatMonthYear(month: string): string {
+  return `${formatMonthName(month)} ${monthParts(month).year}`;
+}
+
+/** Miesiąc kalendarzowy (`RRRR-MM`) z rokiem w miejscowniku, np. `październiku 2026` (po „W”). */
+export function formatMonthYearLocative(month: string): string {
+  const { year, index } = monthParts(month);
+  return `${MONTH_NAMES_LOCATIVE[index] ?? month} ${year}`;
+}
+
 /** Godziny pracy dnia `[open, close)`, np. `10:00–16:00` — od pierwszego slotu do końca ostatniego. */
 export function formatHourRange(openHour: number, closeHour: number): string {
   return `${formatClockHour(openHour)}–${formatClockHour(closeHour)}`;
@@ -123,3 +190,8 @@ export function formatCount(count: number, forms: PluralForms): string {
 
 /** Odmiana „zapis” — wspólna dla komunikatów grafiku i panelu ośrodka. */
 export const BOOKING_FORMS: PluralForms = { one: "zapis", few: "zapisy", many: "zapisów" };
+
+/** Odmiana „jazda” — panel ośrodka i Podsumowanie miesiąca. */
+export const RIDE_FORMS: PluralForms = { one: "jazda", few: "jazdy", many: "jazd" };
+/** Odmiana „jeździec” po liczebniku: `1 jeździec`, `2 jeźdźców`, `5 jeźdźców`. */
+export const RIDER_FORMS: PluralForms = { one: "jeździec", few: "jeźdźców", many: "jeźdźców" };

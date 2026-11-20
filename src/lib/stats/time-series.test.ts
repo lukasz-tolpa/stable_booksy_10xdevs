@@ -6,7 +6,16 @@ const NOW = new Date("2026-11-10T13:30:00Z");
 
 function booking(iso: string, hour: number, overrides: Partial<StatsBooking> = {}): StatsBooking {
   const cancelledBy = overrides.status === "cancelled" ? "rider" : null;
-  return { day: iso, horseId: 1, hour, status: "active", riderId: "rider-1", cancelledBy, ...overrides };
+  return {
+    day: iso,
+    horseId: 1,
+    hour,
+    instructorId: 1,
+    status: "active",
+    riderId: "rider-1",
+    cancelledBy,
+    ...overrides,
+  };
 }
 
 function input(overrides: Partial<StatsInput> = {}): StatsInput {

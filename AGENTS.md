@@ -41,6 +41,7 @@ getona.horse is a booking system for horse-riding stables (account roles: `instr
 ## Conventions the config does not show
 
 - Statistics are computed in one place: `computeStableStats` in `src/lib/stats/stats.ts` returns the page's view model; the page and components only render it.
+- A ride (GLOSSARY „Jazda”) is defined once: `isRide` / `slotEndedAt` in `src/lib/bookings/rides.ts`, read by the statistics and the month summary. The month summary (GLOSSARY „Podsumowanie miesiąca”) is computed in `src/lib/month-summary/` (`summary.ts` core on the shared `SummaryBooking` shape, one file per role, e.g. `owner.ts`); its pages only load rows and render.
 - Charts use `src/components/ui/BarChart.astro` (server-rendered, no client JavaScript); extend it rather than adding a chart dependency.
 - Time and "today" are injected as defaulted parameters (`todayIso(now)`, `currentWarsawHour(now)`), so tests need no mocks or fake timers. Vitest files sit next to their module with Polish `it()` descriptions.
 - The Claude Code hook `.claude/hooks/post-edit.mjs` runs Prettier on every Write/Edit and related Vitest tests in risk areas; its failure comes back as stderr. ESLint runs at commit (lint-staged) and in CI.

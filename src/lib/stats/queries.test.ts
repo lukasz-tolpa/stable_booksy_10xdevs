@@ -26,6 +26,7 @@ function rawBooking(overrides: Partial<RawStatsBooking>): RawStatsBooking {
   const cancelled_by = overrides.status === "cancelled" ? "rider" : null;
   return {
     hour: 10,
+    instructor_id: 7,
     status: "active",
     horse_id: 1,
     rider_id: "rider-anna",
@@ -95,11 +96,20 @@ describe("collectStatsRows", () => {
         },
       ],
       bookings: [
-        { day: "2026-11-05", horseId: 1, hour: 10, status: "active", riderId: "rider-anna", cancelledBy: null },
+        {
+          day: "2026-11-05",
+          horseId: 1,
+          hour: 10,
+          instructorId: 7,
+          status: "active",
+          riderId: "rider-anna",
+          cancelledBy: null,
+        },
         {
           day: "2026-11-05",
           horseId: null,
           hour: 10,
+          instructorId: 7,
           status: "cancelled",
           riderId: "rider-piotr",
           cancelledBy: "stable",
@@ -119,7 +129,15 @@ describe("collectStatsRows", () => {
     const rows = await collectStatsRows(loader);
 
     expect(rows.bookings).toEqual([
-      { day: "2026-11-05", horseId: null, hour: 10, status: "active", riderId: "rider-anna", cancelledBy: null },
+      {
+        day: "2026-11-05",
+        horseId: null,
+        hour: 10,
+        instructorId: 7,
+        status: "active",
+        riderId: "rider-anna",
+        cancelledBy: null,
+      },
     ]);
   });
 
@@ -187,9 +205,25 @@ describe("collectStatsRows", () => {
     const rows = await collectStatsRows(loader);
 
     expect(rows.bookings).toEqual([
-      { day: "2026-11-05", horseId: 1, hour: 10, status: "active", riderId: null, cancelledBy: null },
-      { day: "2026-11-05", horseId: null, hour: 11, status: "cancelled", riderId: null, cancelledBy: "rider" },
-      { day: "2026-11-05", horseId: 1, hour: 12, status: "active", riderId: "rider-anna", cancelledBy: null },
+      { day: "2026-11-05", horseId: 1, hour: 10, instructorId: 7, status: "active", riderId: null, cancelledBy: null },
+      {
+        day: "2026-11-05",
+        horseId: null,
+        hour: 11,
+        instructorId: 7,
+        status: "cancelled",
+        riderId: null,
+        cancelledBy: "rider",
+      },
+      {
+        day: "2026-11-05",
+        horseId: 1,
+        hour: 12,
+        instructorId: 7,
+        status: "active",
+        riderId: "rider-anna",
+        cancelledBy: null,
+      },
     ]);
     expect(rows.riders).toEqual([{ id: "rider-anna", name: "Anna Kowalska" }]);
   });
