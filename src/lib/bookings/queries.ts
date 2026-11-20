@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/db/database.types";
 import type { MySlot, SlotOccupancy } from "@/lib/bookings/slots";
 import { toBookingStatus, toCancelledBy } from "@/lib/bookings/status";
+import type { DateRange } from "@/lib/schedule/dates";
 import type { BookingStatus, CancelledBy } from "@/types";
 
 type Client = SupabaseClient<Database>;
@@ -123,11 +124,7 @@ export interface RiderBooking {
  * `schedule_day_horses` (zapis bez konia daje `null`). Filtr po `rider_id` jest jawny
  * (lekcja S-04): polityka SELECT jest szersza niż intencja tej funkcji.
  */
-export async function getRiderBookings(
-  client: Client,
-  riderId: string,
-  days?: { from: string; to: string },
-): Promise<RiderBooking[]> {
+export async function getRiderBookings(client: Client, riderId: string, days?: DateRange): Promise<RiderBooking[]> {
   // `!inner` pozwala zawęzić zapisy po dniu grafiku; jeździec czyta cały katalog (dni grafiku
   // każdego ośrodka), więc bez zakresu wynik jest ten sam co przy zwykłym złączeniu.
   let query = client

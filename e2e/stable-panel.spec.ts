@@ -127,6 +127,10 @@ test("boczna kolumna „Ośrodek” prowadzi do sekcji ośrodka, każda z krótk
       expect(await link.getAttribute("href")).toContain(href);
     }
   });
+
+  await test.step("obok bocznej kolumny kolumna główna nie powtarza linku do Podsumowania miesiąca", async () => {
+    await expect(page.getByRole("link", { name: /^Podsumowanie miesiąca · / })).toBeHidden();
+  });
 });
 
 test("na telefonie panel i sekcje ośrodka są pod ręką w dolnym pasku, a panel mieści się bez poziomego przewijania", async ({
@@ -152,6 +156,16 @@ test("na telefonie panel i sekcje ośrodka są pod ręką w dolnym pasku, a pane
     await expect(tabBar.getByRole("link", { name: "Panel", exact: true })).toHaveAttribute("aria-current", "page");
     await expect(tabBar).toBeInViewport();
     await expect(page.getByRole("navigation", { name: "Ośrodek" })).toBeHidden();
+  });
+
+  await test.step("Podsumowanie miesiąca, którego nie ma w dolnym pasku, otwiera się z kolumny głównej panelu", async () => {
+    const link = page.getByRole("link", { name: /^Podsumowanie miesiąca · \S+: \d+ jazd\S*$/ });
+    await expect(link).toBeVisible();
+    await link.click();
+    await page.waitForURL("**/osrodek/podsumowanie");
+    await expect(page.getByRole("heading", { level: 1, name: "Podsumowanie miesiąca" })).toBeVisible();
+    await page.goBack();
+    await expect(page.getByRole("heading", { level: 1, name: "Panel ośrodka" })).toBeVisible();
   });
 
   await test.step("pasek zostaje na stronie sekcji i zaznacza ją jako bieżącą", async () => {

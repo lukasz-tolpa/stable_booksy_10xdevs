@@ -2,11 +2,8 @@
 import { ArrowLeft } from "lucide-react";
 import Layout from "@/layouts/Layout.astro";
 import Topbar from "@/components/Topbar.astro";
-import MonthNav from "@/components/month-summary/MonthNav.astro";
+import MonthSummaryBody from "@/components/month-summary/MonthSummaryBody.astro";
 import StableRides from "@/components/month-summary/StableRides.astro";
-import Card from "@/components/ui/Card.astro";
-import EmptyState from "@/components/ui/EmptyState.astro";
-import FailureState from "@/components/ui/FailureState.astro";
 import { ROLE_HOME } from "@/lib/auth/roles";
 import { getRiderBookings } from "@/lib/bookings/queries";
 import { logError } from "@/lib/log";
@@ -32,7 +29,7 @@ let view: RiderMonthSummaryView | null = null;
 
 if (supabase && user) {
   try {
-    const bookings = await getRiderBookings(supabase, user.id, { from: month.from, to: month.to });
+    const bookings = await getRiderBookings(supabase, user.id, month);
     view = composeRiderMonthSummary({ month, bookings }, now);
   } catch (error) {
     logError(SCOPE, error);
@@ -54,32 +51,11 @@ const nav = view?.nav ?? composeMonthNav(month, riderMonthHref);
       {texts.rider.back}
     </a>
 
-    <h1>{texts.heading}</h1>
-    <p class="page-lead">{texts.rider.lead}</p>
-
-    <MonthNav nav={nav} />
-
-    {
-      !view ? (
-        <FailureState>
-          <p>{texts.failure}</p>
-          <p>{texts.retry}</p>
-        </FailureState>
-      ) : view.isEmpty ? (
-        <Card>
-          <EmptyState>
-            <p>{view.emptyText}</p>
-            <p>{texts.emptyHint}</p>
-          </EmptyState>
-        </Card>
-      ) : (
-        <div class="stables">
-          {view.stables.map((stable) => (
-            <StableRides stable={stable} />
-          ))}
-        </div>
-      )
-    }
+    <MonthSummaryBody lead={texts.rider.lead} nav={nav} view={view}>
+      <div class="stables">
+        {view?.stables.map((stable) => <StableRides stable={stable} />)}
+      </div>
+    </MonthSummaryBody>
   </main>
 </Layout>
 
@@ -106,17 +82,8 @@ const nav = view?.nav ?? composeMonthNav(month, riderMonthHref);
     outline-offset: 3px;
     border-radius: 8px;
   }
-  h1 {
-    font-size: 32px;
-  }
   .stables {
     display: grid;
     gap: 22px;
-  }
-  .page-lead {
-    margin: 10px 0 0;
-    font-size: 15.5px;
-    color: var(--muted);
-    max-width: 62ch;
   }
 </style>

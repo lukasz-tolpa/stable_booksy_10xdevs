@@ -7,7 +7,8 @@
  * Klocki dla ról:
  * - `composeMonthSummary` — cały widok jednej listy jeźdźców (właściciel, instruktor);
  * - `monthRides` — same jazdy miesiąca (np. lista instruktorów do filtra, liczba na panelu);
- * - `composeSummaryList` — lista jeźdźców z sumą z gotowych jazd (np. osobno dla każdego ośrodka);
+ * - `composeSummaryList` — lista jeźdźców z sumą z gotowych jazd;
+ * - `composeRideRows` — same wiersze jazd z gotowych jazd (jeździec: osobno w każdym ośrodku);
  * - `composeMonthNav`, `emptyMonthText` — przełącznik miesięcy i tekst stanu pustego.
  */
 
@@ -16,8 +17,8 @@ import { NO_HORSE, UNNAMED_RIDER } from "@/lib/bookings/rows";
 import {
   formatClockHour,
   formatCount,
+  formatInMonthYear,
   formatMonthYear,
-  formatMonthYearLocative,
   formatShortDateWithWeekday,
   RIDE_FORMS,
   RIDER_FORMS,
@@ -31,11 +32,6 @@ import type { BookingStatus } from "@/types";
 export type SummaryViewer = "owner" | "instructor" | "rider";
 
 export interface SummaryInstructor {
-  id: number;
-  name: string;
-}
-
-export interface SummaryStable {
   id: number;
   name: string;
 }
@@ -60,9 +56,10 @@ export interface SummaryBooking {
   instructor: SummaryInstructor;
   /** Przydzielony koń; `null` — jazda bez konia. */
   horseName: string | null;
-  /** Ośrodek zapisu — tylko w podsumowaniu jeźdźca, który jeździ w kilku ośrodkach. */
-  stable?: SummaryStable;
 }
+
+/** Pola jazdy, z których powstaje jej wiersz na liście — bez jeźdźca. */
+export type SummaryRideSource = Pick<SummaryBooking, "day" | "hour" | "instructor" | "horseName">;
 
 /** Jedna jazda na rozwiniętej liście jeźdźca. */
 export interface SummaryRideRow {
@@ -91,7 +88,7 @@ export interface SummaryRiderRow {
   list: SummaryRideRow[];
 }
 
-/** Lista jeźdźców z sumą — u jeźdźca jedna na każdy ośrodek. */
+/** Lista jeźdźców z sumą. */
 export interface SummaryList {
   /** Jazdy razem, także jeźdźców zanonimizowanych. */
   rides: number;
@@ -145,7 +142,7 @@ export function monthRides<T extends RideCandidate>(bookings: T[], month: Summar
     .sort((a, b) => a.day.localeCompare(b.day) || a.hour - b.hour);
 }
 
-function rideRow(ride: SummaryBooking, options: SummaryListOptions): SummaryRideRow {
+function rideRow(ride: SummaryRideSource, options: SummaryListOptions): SummaryRideRow {
   return {
     day: ride.day,
     date: formatShortDateWithWeekday(ride.day),
@@ -155,6 +152,11 @@ function rideRow(ride: SummaryBooking, options: SummaryListOptions): SummaryRide
     horseName: ride.horseName ?? NO_HORSE,
     withoutHorse: ride.horseName === null,
   };
+}
+
+/** Wiersze jazd z gotowych jazd (`monthRides`), w kolejności podanej. */
+export function composeRideRows(rides: SummaryRideSource[], options: SummaryListOptions): SummaryRideRow[] {
+  return rides.map((ride) => rideRow(ride, options));
 }
 
 /**
@@ -186,7 +188,7 @@ export function composeSummaryList(rides: SummaryBooking[], options: SummaryList
         name: riderRides[0]?.riderName ?? UNNAMED_RIDER,
         rides: riderRides.length,
         ridesText: formatCount(riderRides.length, RIDE_FORMS),
-        list: riderRides.map((ride) => rideRow(ride, options)),
+        list: composeRideRows(riderRides, options),
       }),
     )
     .sort((a, b) => a.name.localeCompare(b.name, "pl") || (a.riderKey ?? "").localeCompare(b.riderKey ?? ""));
@@ -219,10 +221,10 @@ export function composeMonthNav(month: SummaryMonth, monthHref: (month: string) 
   };
 }
 
-/** Tekst stanu pustego roli, np. `W październiku 2026 nie było jazd.` */
+/** Tekst stanu pustego roli, np. `W październiku 2026 nie było jazd.`, `We wrześniu 2026 nie jeździłeś.` */
 export function emptyMonthText(month: SummaryMonth, viewer: SummaryViewer): string {
-  const texts = MONTH_SUMMARY_TEXTS;
-  return `${texts.emptyPrefix} ${formatMonthYearLocative(month.month)} ${texts.empty[viewer]}`;
+  const inMonth = formatInMonthYear(month.month);
+  return `${inMonth.charAt(0).toUpperCase()}${inMonth.slice(1)} ${MONTH_SUMMARY_TEXTS.empty[viewer]}`;
 }
 
 /** Widok podsumowania jednej listy jeźdźców (właściciel, instruktor). `now` jak w statystykach. */

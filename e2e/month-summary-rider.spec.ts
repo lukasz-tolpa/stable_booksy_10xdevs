@@ -21,7 +21,7 @@ test("jeździec otwiera Podsumowanie miesiąca z linku obok „Moje zapisy” i 
   browser,
 }) => {
   const monthNav = page.getByRole("navigation", { name: "Wybór miesiąca" });
-  const empty = page.getByText(/^W .+ nie jeździłeś\.$/);
+  const empty = page.getByText(/^We? .+ nie jeździłeś\.$/);
   const stable = page.getByRole("region", { name: STABLE_NAME });
   const rides = stable.getByRole("list", { name: `Jazdy — ${STABLE_NAME}` });
   let riderRides = 0;

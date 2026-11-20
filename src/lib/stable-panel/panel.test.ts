@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   composeLastMonth,
+  composeMonthSummaryLink,
   composeSideColumn,
   composeWeek,
   historyPeriod,
@@ -295,6 +296,40 @@ describe("composeSideColumn", () => {
       "/osrodek/podsumowanie",
       "/osrodek/statystyki",
     ]);
+  });
+});
+
+describe("composeMonthSummaryLink — wejście do Podsumowania miesiąca w głównej kolumnie (telefon)", () => {
+  const NOW = new Date("2026-11-20T13:30:00Z");
+
+  it("prowadzi do Podsumowania miesiąca z liczbą jazd bieżącego miesiąca do teraz", () => {
+    const link = composeMonthSummaryLink(
+      {
+        today: TODAY,
+        monthBookings: [
+          booking("2026-10-31"),
+          booking("2026-11-02"),
+          booking(TODAY, { hour: 13 }),
+          booking(TODAY, { hour: 14 }),
+          booking("2026-11-05", { status: "cancelled", horseId: null, cancelledBy: "rider" }),
+        ],
+      },
+      NOW,
+    );
+
+    expect(link).toEqual({
+      name: "Podsumowanie miesiąca",
+      href: "/osrodek/podsumowanie",
+      fact: "listopad: 2 jazdy",
+      warn: false,
+    });
+  });
+
+  it("bez wczytanych zapisów link zostaje, bez liczby jazd", () => {
+    expect(composeMonthSummaryLink({ today: TODAY, monthBookings: null }, NOW)).toMatchObject({
+      href: "/osrodek/podsumowanie",
+      fact: null,
+    });
   });
 });
 

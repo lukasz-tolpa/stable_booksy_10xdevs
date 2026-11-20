@@ -182,6 +182,11 @@ describe("composeMonthSummary — miesiąc i stan pusty", () => {
     expect(summary([], { month, viewer: "rider" }).emptyText).toBe("W październiku 2026 nie jeździłeś.");
   });
 
+  it("we wrześniu stan pusty zaczyna się od „We”", () => {
+    const month = resolveSummaryMonth("2026-09", TODAY);
+    expect(summary([], { month }).emptyText).toBe("We wrześniu 2026 nie było jazd.");
+  });
+
   it("miesiąc z jazdą nie jest pusty", () => {
     expect(summary([booking("2026-11-02", 10)]).isEmpty).toBe(false);
   });

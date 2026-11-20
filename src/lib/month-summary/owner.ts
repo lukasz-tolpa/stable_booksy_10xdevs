@@ -4,6 +4,7 @@
  * stado i instruktorzy ośrodka; tu są mapowane na wspólny kształt `SummaryBooking`.
  */
 
+import { OWNER_MONTH_SUMMARY_ROUTE } from "@/lib/auth/roles";
 import { unknownHorseName } from "@/lib/bookings/rows";
 import { unknownInstructorName } from "@/lib/bookings/slots";
 import { STABLE_DAY_BOOKINGS_ROUTE } from "@/lib/bookings/stable-redirect";
@@ -16,11 +17,9 @@ import {
   type SummaryInstructor,
 } from "@/lib/month-summary/summary";
 import { MONTH_SUMMARY_TEXTS } from "@/lib/month-summary/texts";
+import { dayHref } from "@/lib/stable-panel/panel";
 import type { StatsRider } from "@/lib/stats/riders";
 import type { StatsBooking, StatsHorse } from "@/lib/stats/stats";
-
-/** Strona Podsumowania miesiąca właściciela (miesiąc w `?miesiac=RRRR-MM`). */
-export const OWNER_MONTH_SUMMARY_ROUTE = "/osrodek/podsumowanie";
 
 /** Parametr adresu z filtrem instruktora (`?instruktor=<id>`); brak albo pusty — wszyscy instruktorzy. */
 export const INSTRUCTOR_PARAM = "instruktor";
@@ -34,7 +33,7 @@ export interface OwnerMonthSummaryInput {
   /** Wszystkie konie stadniny, także zdezaktywowane (`listStableHorses`) — źródło nazw. */
   horses: StatsHorse[];
   /** Wszyscy instruktorzy ośrodka, także zdezaktywowani (`listStableInstructors`) — źródło nazw. */
-  instructors: { id: number; name: string }[];
+  instructors: SummaryInstructor[];
   /** Surowa wartość `?instruktor=` — nieznany instruktor albo bez jazd w miesiącu daje wszystkich. */
   instructorParam?: string | null;
 }
@@ -53,7 +52,8 @@ export interface InstructorFilter {
 
 /** Widok właściciela: podsumowanie (zawężone filtrem) i filtr instruktora. */
 export interface OwnerMonthSummaryView extends MonthSummaryView {
-  filter: InstructorFilter;
+  /** `null` — miesiąc bez jazd: nie ma z kogo wybierać, więc strona filtra nie pokazuje. */
+  filter: InstructorFilter | null;
 }
 
 /** Zapisy ośrodka we wspólnym kształcie podsumowania: nazwy jeźdźca, instruktora i konia rozwiązane. */
@@ -84,8 +84,8 @@ export function ownerMonthHref(month: string, instructorId: number | null = null
 
 /**
  * Widok właściciela: data jazdy prowadzi do Zapisów tego dnia. Filtr instruktora zawęża zapisy przed
- * podsumowaniem, a listę wyboru buduje z jazd całego miesiąca. Wybrany instruktor zostaje w adresach
- * strzałek miesiąca. `now` jak w statystykach.
+ * podsumowaniem, a listę wyboru buduje z jazd całego miesiąca (miesiąc bez jazd — bez filtra).
+ * Wybrany instruktor zostaje w adresach strzałek miesiąca. `now` jak w statystykach.
  */
 export function composeOwnerMonthSummary(input: OwnerMonthSummaryInput, now: Date = new Date()): OwnerMonthSummaryView {
   const bookings = ownerSummaryBookings(input);
@@ -97,11 +97,12 @@ export function composeOwnerMonthSummary(input: OwnerMonthSummaryInput, now: Dat
       bookings: selected === null ? bookings : bookings.filter((booking) => booking.instructor.id === selected),
       viewer: "owner",
       monthHref: (month) => ownerMonthHref(month, selected),
-      dayHref: (day) => `${STABLE_DAY_BOOKINGS_ROUTE}?dzien=${day}`,
+      dayHref: (day) => dayHref(STABLE_DAY_BOOKINGS_ROUTE, day),
     },
     now,
   );
-  return { ...summary, filter: { options: filterOptions(instructors, selected) } };
+  const filter = instructors.length === 0 ? null : { options: filterOptions(instructors, selected) };
+  return { ...summary, filter };
 }
 
 /** Id z adresu, jeśli to instruktor z jazdami w miesiącu; inaczej `null` — wszyscy instruktorzy. */

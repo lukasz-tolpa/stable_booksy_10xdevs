@@ -5,16 +5,14 @@
 
 import { isRide, SLOT_DURATION_HOURS, slotEndedAt, type SlotEnded } from "@/lib/bookings/rides";
 import { unknownHorseName } from "@/lib/bookings/rows";
+import type { DateRange } from "@/lib/schedule/dates";
 import { buildTopRidersSeries, type TopRiderPoint } from "@/lib/stats/rankings";
 import { computeRiderRows, type StatsRider, type StatsRiderRow } from "@/lib/stats/riders";
 import { buildRideHoursSeries, type RideHoursSeries } from "@/lib/stats/time-series";
 import type { BookingStatus, CancelledBy } from "@/types";
 
 /** Okres statystyk: zakres dat `RRRR-MM-DD`, oba krańce włącznie. */
-export interface StatsPeriod {
-  from: string;
-  to: string;
-}
+export type StatsPeriod = DateRange;
 
 /** Slot dnia w zakresie potrzebnym statystykom: godzina i limit miejsc instruktora. */
 export interface StatsSlot {

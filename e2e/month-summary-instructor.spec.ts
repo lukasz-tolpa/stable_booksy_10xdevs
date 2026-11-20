@@ -33,7 +33,7 @@ test("instruktorka z kontem widzi w zakładce „Podsumowanie miesiąca” tylko
   browser,
 }) => {
   const total = page.getByText(TOTAL);
-  const empty = page.getByText(/^W .+ nie było jazd na Twoich slotach\.$/);
+  const empty = page.getByText(/^We? .+ nie było jazd na Twoich slotach\.$/);
   let month = "";
 
   await test.step("zakładka „Podsumowanie miesiąca” obok „Moje sloty” prowadzi do podsumowania", async () => {

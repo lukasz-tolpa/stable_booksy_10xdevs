@@ -8,9 +8,7 @@ export const MONTH_SUMMARY_TEXTS = {
   navLabel: "Wybór miesiąca",
   previous: "Poprzedni",
   next: "Następny",
-  /** „W październiku 2026 nie było jazd.” — przed miesiącem w miejscowniku. */
-  emptyPrefix: "W",
-  /** Dokończenie zdania stanu pustego, osobno dla każdej roli. */
+  /** Dokończenie zdania stanu pustego po „W październiku 2026” (`formatInMonthYear`), osobno dla każdej roli. */
   empty: {
     owner: "nie było jazd.",
     instructor: "nie było jazd na Twoich slotach.",

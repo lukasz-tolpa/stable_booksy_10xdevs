@@ -5,7 +5,7 @@ import {
   formatCount,
   formatMonthName,
   formatMonthYear,
-  formatMonthYearLocative,
+  formatInMonthYear,
   formatShortDateWithWeekday,
   formatFreeSeats,
   formatHours,
@@ -99,10 +99,24 @@ describe("miesiąc kalendarzowy (`RRRR-MM`)", () => {
     expect(formatMonthYear("2027-01")).toBe("styczeń 2027");
   });
 
-  it("miesiąc z rokiem w miejscowniku — do zdań „W październiku 2026 …”", () => {
-    expect(formatMonthYearLocative("2026-10")).toBe("październiku 2026");
-    expect(formatMonthYearLocative("2026-11")).toBe("listopadzie 2026");
-    expect(formatMonthYearLocative("2027-02")).toBe("lutym 2027");
+  it("„w” z miesiącem w miejscowniku, a przed „wrześniu” — „we”", () => {
+    const months = Array.from({ length: 12 }, (_, index) =>
+      formatInMonthYear(`2026-${String(index + 1).padStart(2, "0")}`),
+    );
+    expect(months).toEqual([
+      "w styczniu 2026",
+      "w lutym 2026",
+      "w marcu 2026",
+      "w kwietniu 2026",
+      "w maju 2026",
+      "w czerwcu 2026",
+      "w lipcu 2026",
+      "w sierpniu 2026",
+      "we wrześniu 2026",
+      "w październiku 2026",
+      "w listopadzie 2026",
+      "w grudniu 2026",
+    ]);
   });
 });
 

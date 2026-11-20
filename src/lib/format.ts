@@ -130,10 +130,15 @@ export function formatMonthYear(month: string): string {
   return `${formatMonthName(month)} ${monthParts(month).year}`;
 }
 
-/** Miesiąc kalendarzowy (`RRRR-MM`) z rokiem w miejscowniku, np. `październiku 2026` (po „W”). */
-export function formatMonthYearLocative(month: string): string {
+/**
+ * Miesiąc kalendarzowy (`RRRR-MM`) z rokiem w miejscowniku, z przyimkiem: `w październiku 2026`,
+ * a przed „w”/„f” ze spółgłoską — `we wrześniu 2026` (zasada wymowy, jak „we Wrocławiu”).
+ */
+export function formatInMonthYear(month: string): string {
   const { year, index } = monthParts(month);
-  return `${MONTH_NAMES_LOCATIVE[index] ?? month} ${year}`;
+  const name = MONTH_NAMES_LOCATIVE[index] ?? month;
+  const preposition = /^[wf][^aąeęioóuy]/.test(name) ? "we" : "w";
+  return `${preposition} ${name} ${year}`;
 }
 
 /** Godziny pracy dnia `[open, close)`, np. `10:00–16:00` — od pierwszego slotu do końca ostatniego. */

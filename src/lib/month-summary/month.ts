@@ -1,4 +1,4 @@
-import { addDays, isValidIsoDate, todayIso } from "@/lib/schedule/dates";
+import { addDays, isValidIsoDate, todayIso, type DateRange } from "@/lib/schedule/dates";
 
 /**
  * Miesiąc Podsumowania miesiąca (GLOSSARY.md): miesiąc kalendarzowy w strefie ośrodka, od 1. do
@@ -11,7 +11,8 @@ export const MONTH_PARAM = "miesiac";
 
 const MONTH = /^\d{4}-\d{2}$/;
 
-export interface SummaryMonth {
+/** Miesiąc jako zakres dni (`DateRange`) — wprost do odczytów wierszy z zakresem. */
+export interface SummaryMonth extends DateRange {
   /** Miesiąc `RRRR-MM`. */
   month: string;
   /** Pierwszy dzień miesiąca `RRRR-MM-DD`. */

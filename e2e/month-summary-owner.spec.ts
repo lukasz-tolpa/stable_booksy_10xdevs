@@ -32,7 +32,7 @@ test("właściciel rozlicza miesiąc: liczba jazd jeźdźca równa się liście 
   page,
 }) => {
   const total = page.getByText(TOTAL);
-  const empty = page.getByText(/^W .+ nie było jazd\.$/);
+  const empty = page.getByText(/^We? .+ nie było jazd\.$/);
 
   await test.step("wejście z bocznej kolumny panelu, gdzie liczba jazd miesiąca równa się sumie podsumowania", async () => {
     await page.goto("/osrodek");
@@ -78,13 +78,21 @@ test("właściciel rozlicza miesiąc: liczba jazd jeźdźca równa się liście 
   });
 
   await test.step("data jazdy prowadzi do Zapisów tego dnia, na których jest ten jeździec", async () => {
-    const date = rides.getByRole("link").first();
+    const ride = rides.getByRole("listitem").first();
+    const date = ride.getByRole("link");
+    const hour = (await ride.getByText(/^\d{1,2}:00$/).innerText()).trim();
     const href = (await date.getAttribute("href")) ?? "";
     expect(href).toMatch(/^\/osrodek\/zapisy\?dzien=\d{4}-\d{2}-\d{2}$/);
     await date.click();
     await page.waitForURL(`**${href}`);
     await expect(page.getByRole("heading", { level: 1, name: "Zapisy dnia" })).toBeVisible();
-    await expect(page.getByRole("region", { name: "Aktywne" }).getByText(riderName).first()).toBeVisible();
+    // Jeździec ma o jednej godzinie najwyżej jeden aktywny zapis, więc godzina i nazwa wskazują jeden wiersz.
+    const booking = page
+      .getByRole("region", { name: "Aktywne", exact: true })
+      .getByRole("listitem")
+      .filter({ has: page.getByText(hour, { exact: true }) })
+      .filter({ has: page.getByText(riderName, { exact: true }) });
+    await expect(booking).toHaveCount(1);
     await page.goBack();
     await expect(total).toBeVisible();
   });

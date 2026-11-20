@@ -7,6 +7,7 @@
 
 import { INSTRUCTOR_MONTH_SUMMARY_ROUTE } from "@/lib/auth/roles";
 import { monthSearch, type SummaryMonth } from "@/lib/month-summary/month";
+import type { InstructorSummaryRow } from "@/lib/my-slots/queries";
 import {
   composeMonthSummary,
   type MonthSummaryView,
@@ -14,26 +15,11 @@ import {
   type SummaryInstructor,
 } from "@/lib/month-summary/summary";
 
-/** Wiersz funkcji `get_my_month_bookings` — aktywny zapis na slot zalogowanego instruktora. */
-export interface InstructorSummaryRow {
-  /** Dzień grafiku `RRRR-MM-DD`. */
-  day: string;
-  hour: number;
-  /** Klucz jeźdźca z funkcji; `null` — jeździec zanonimizowany. */
-  riderKey: string | null;
-  /** Nazwa z profilu; `null` — bez nazwy albo zanonimizowany. */
-  riderName: string | null;
-  /** Przydzielony koń; `null` — jazda bez konia. */
-  horseName: string | null;
-  /** Jeździec zanonimizowany (ADR-0001) — jazda trafia do wiersza „Usunięci jeźdźcy”. */
-  anonymised: boolean;
-}
-
 export interface InstructorMonthSummaryInput {
   month: SummaryMonth;
   /** Instruktor konta (`getOwnInstructor`) — wspólny kształt go wymaga, widok go nie pokazuje. */
   instructor: SummaryInstructor;
-  /** Zapisy na sloty instruktora z dni miesiąca — liczą się tylko jazdy. */
+  /** Zapisy na sloty instruktora z dni miesiąca (`getMyMonthBookings`) — liczą się tylko jazdy. */
   bookings: InstructorSummaryRow[];
 }
 

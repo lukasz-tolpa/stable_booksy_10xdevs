@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
-import {
-  composeInstructorMonthSummary,
-  type InstructorMonthSummaryInput,
-  type InstructorSummaryRow,
-} from "@/lib/month-summary/instructor";
+import { composeInstructorMonthSummary, type InstructorMonthSummaryInput } from "@/lib/month-summary/instructor";
 import { resolveSummaryMonth } from "@/lib/month-summary/month";
+import type { InstructorSummaryRow } from "@/lib/my-slots/queries";
 
 /** 20 listopada 2026, 14:30 w Warszawie. */
 const NOW = new Date("2026-11-20T13:30:00Z");

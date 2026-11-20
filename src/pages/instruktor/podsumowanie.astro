@@ -2,11 +2,7 @@
 import Layout from "@/layouts/Layout.astro";
 import Topbar from "@/components/Topbar.astro";
 import InstructorTabs from "@/components/instructors/InstructorTabs.astro";
-import MonthNav from "@/components/month-summary/MonthNav.astro";
-import RiderRides from "@/components/month-summary/RiderRides.astro";
-import Card from "@/components/ui/Card.astro";
-import EmptyState from "@/components/ui/EmptyState.astro";
-import FailureState from "@/components/ui/FailureState.astro";
+import MonthSummaryBody from "@/components/month-summary/MonthSummaryBody.astro";
 import { getOwnInstructor } from "@/lib/instructors/queries";
 import { logError } from "@/lib/log";
 import { composeInstructorMonthSummary, instructorMonthHref } from "@/lib/month-summary/instructor";
@@ -41,12 +37,15 @@ if (supabase && profile) {
       // Middleware wpuszcza tu tylko konto z instruktorem; jego brak to awaria odczytu, nie pusty miesiąc.
       logError(SCOPE, new Error("Brak instruktora dla konta instruktora"));
     } else {
-      const bookings = await getMyMonthBookings(supabase, month.from, month.to);
+      const bookings = await getMyMonthBookings(supabase, month);
       view = composeInstructorMonthSummary({ month, instructor, bookings }, now);
     }
   } catch (error) {
     logError(SCOPE, error);
   }
+} else {
+  // Brak klienta Supabase lub profilu to awaria konfiguracji, nie pusty miesiąc.
+  logError(SCOPE, new Error("Brak klienta Supabase albo profilu instruktora"));
 }
 
 // Przełącznik miesięcy zostaje także przy awarii odczytu — da się przejść do innego miesiąca.
@@ -57,49 +56,12 @@ const nav = view?.nav ?? composeMonthNav(month, instructorMonthHref);
   <Topbar />
   <main class="container-narrow page">
     <InstructorTabs />
-    <h1>{texts.heading}</h1>
-    <p class="page-lead">{texts.instructor.lead}</p>
-
-    <MonthNav nav={nav} />
-
-    {
-      !view ? (
-        <FailureState>
-          <p>{texts.failure}</p>
-          <p>{texts.retry}</p>
-        </FailureState>
-      ) : view.isEmpty ? (
-        <Card>
-          <EmptyState>
-            <p>{view.emptyText}</p>
-            <p>{texts.emptyHint}</p>
-          </EmptyState>
-        </Card>
-      ) : (
-        <section aria-labelledby="riders-heading">
-          <h2 id="riders-heading">{texts.ridersHeading}</h2>
-          <RiderRides list={view.list} labelledby="riders-heading" />
-        </section>
-      )
-    }
+    <MonthSummaryBody lead={texts.instructor.lead} nav={nav} view={view} list={view?.list} />
   </main>
 </Layout>
 
 <style>
   .page {
     padding-block: 24px 56px;
-  }
-  h1 {
-    font-size: 32px;
-  }
-  h2 {
-    margin: 0 0 8px;
-    font-size: 20px;
-  }
-  .page-lead {
-    margin: 10px 0 0;
-    font-size: 15.5px;
-    color: var(--muted);
-    max-width: 62ch;
   }
 </style>

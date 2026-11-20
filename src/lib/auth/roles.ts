@@ -57,10 +57,19 @@ export const OWNER_SCHEDULE_ROUTE = `${ROLE_HOME.instructor}/grafik`;
 export const INSTRUCTOR_SCHEDULE_ROUTE = `${INSTRUCTOR_HOME_ROUTE}/grafik`;
 
 /**
+ * Podsumowanie miesiąca (spec #87) — jedna strona w przestrzeni każdej roli, miesiąc w `?miesiac=RRRR-MM`.
+ * Właściciel: wszyscy jeźdźcy ośrodka (#88), wejście z panelu i ze Statystyk.
+ */
+export const OWNER_MONTH_SUMMARY_ROUTE = `${ROLE_HOME.instructor}/podsumowanie`;
+
+/**
  * Zakładka „Podsumowanie miesiąca” instruktora z kontem (#90): jazdy z jego slotów. Ma ją każdy
  * aktywny instruktor, który nie jest właścicielem — z uprawnieniem do układania grafiku i bez.
  */
 export const INSTRUCTOR_MONTH_SUMMARY_ROUTE = `${INSTRUCTOR_HOME_ROUTE}/podsumowanie`;
+
+/** Podsumowanie miesiąca jeźdźca (#91): własne jazdy, osobno w każdym ośrodku. */
+export const RIDER_MONTH_SUMMARY_ROUTE = `${ROLE_HOME.rider}/podsumowanie`;
 
 /**
  * Kim jest konto `instructor` w ośrodku — wynika z danych w bazie, nie z roli konta (ADR-0004):

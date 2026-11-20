@@ -1,28 +1,24 @@
 /**
  * Podsumowanie miesiąca jeźdźca (`/jezdziec/podsumowanie`, #91): własne jazdy, osobno w każdym
- * ośrodku. Dane to zapisy jeźdźca z „Moje zapisy” (`getRiderBookings` zawężone do miesiąca), tu
- * mapowane na wspólny kształt `SummaryBooking`; jazdy odsiewa i składa rdzeń (`summary.ts`).
+ * ośrodku. Dane to zapisy jeźdźca z „Moje zapisy” (`getRiderBookings` zawężone do miesiąca); jazdy
+ * odsiewa (`monthRides`) i ich wiersze składa (`composeRideRows`) rdzeń (`summary.ts`). Jeździec jest
+ * jeden, więc lista jeźdźców i jej klucz nie są potrzebne.
  */
 
+import { RIDER_MONTH_SUMMARY_ROUTE } from "@/lib/auth/roles";
 import type { RiderBooking } from "@/lib/bookings/queries";
 import { unknownInstructorName } from "@/lib/bookings/slots";
 import { formatCount, RIDE_FORMS } from "@/lib/format";
 import { monthSearch, type SummaryMonth } from "@/lib/month-summary/month";
 import {
   composeMonthNav,
-  composeSummaryList,
+  composeRideRows,
   emptyMonthText,
   monthRides,
   type MonthNav,
-  type SummaryBooking,
   type SummaryRideRow,
+  type SummaryRideSource,
 } from "@/lib/month-summary/summary";
-
-/** Strona Podsumowania miesiąca jeźdźca (miesiąc w `?miesiac=RRRR-MM`). */
-export const RIDER_MONTH_SUMMARY_ROUTE = "/jezdziec/podsumowanie";
-
-/** Klucz jeźdźca we wspólnym kształcie — wszystkie zapisy są jego własne, więc jeden dla wszystkich. */
-const OWN_RIDER_KEY = "ja";
 
 export interface RiderMonthSummaryInput {
   month: SummaryMonth;
@@ -56,32 +52,28 @@ export function riderMonthHref(month: string): string {
   return `${RIDER_MONTH_SUMMARY_ROUTE}${monthSearch(month)}`;
 }
 
-function summaryBooking(booking: RiderBooking): SummaryBooking {
+function rideSource(booking: RiderBooking): SummaryRideSource {
   return {
     day: booking.day,
     hour: booking.hour,
-    status: booking.status,
-    riderKey: OWN_RIDER_KEY,
-    riderName: null,
     instructor: {
       id: booking.instructorId,
       name: booking.instructorName ?? unknownInstructorName(booking.instructorId),
     },
     horseName: booking.horseName,
-    stable: { id: booking.stableId, name: booking.stableName },
   };
 }
 
 /** Widok jeźdźca: ośrodek po ośrodku, ośrodki bez jazd pominięte. `now` jak w statystykach. */
 export function composeRiderMonthSummary(input: RiderMonthSummaryInput, now: Date = new Date()): RiderMonthSummaryView {
   // Grupy po ośrodku (po identyfikatorze, nie po nazwie).
-  const byStable = new Map<number, { name: string; bookings: SummaryBooking[] }>();
+  const byStable = new Map<number, { name: string; bookings: RiderBooking[] }>();
   for (const booking of input.bookings) {
     const group = byStable.get(booking.stableId);
     if (group) {
-      group.bookings.push(summaryBooking(booking));
+      group.bookings.push(booking);
     } else {
-      byStable.set(booking.stableId, { name: booking.stableName, bookings: [summaryBooking(booking)] });
+      byStable.set(booking.stableId, { name: booking.stableName, bookings: [booking] });
     }
   }
 
@@ -92,14 +84,12 @@ export function composeRiderMonthSummary(input: RiderMonthSummaryInput, now: Dat
     if (rides.length === 0) {
       continue;
     }
-    // Jeden jeździec, więc lista rdzenia ma jeden wiersz — jego jazdy w tym ośrodku, chronologicznie.
-    const list = composeSummaryList(rides, { viewer: "rider", dayHref: null });
     stables.push({
       stableId,
       name: group.name,
-      rides: list.rides,
-      ridesText: formatCount(list.rides, RIDE_FORMS),
-      list: list.rows.flatMap((row) => row.list),
+      rides: rides.length,
+      ridesText: formatCount(rides.length, RIDE_FORMS),
+      list: composeRideRows(rides.map(rideSource), { viewer: "rider", dayHref: null }),
     });
   }
   stables.sort((a, b) => a.name.localeCompare(b.name, "pl") || a.stableId - b.stableId);

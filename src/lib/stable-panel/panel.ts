@@ -1,4 +1,4 @@
-import { OWNER_SCHEDULE_ROUTE } from "@/lib/auth/roles";
+import { OWNER_MONTH_SUMMARY_ROUTE, OWNER_SCHEDULE_ROUTE } from "@/lib/auth/roles";
 import { STABLE_DAY_BOOKINGS_ROUTE } from "@/lib/bookings/stable-redirect";
 import { INSTRUCTORS_ROUTE } from "@/lib/instructors/redirect";
 import {
@@ -14,7 +14,6 @@ import {
   RIDE_FORMS,
 } from "@/lib/format";
 import { resolveSummaryMonth } from "@/lib/month-summary/month";
-import { OWNER_MONTH_SUMMARY_ROUTE } from "@/lib/month-summary/owner";
 import { monthRides } from "@/lib/month-summary/summary";
 import { addDays } from "@/lib/schedule/dates";
 import { ACTIVE_FORMS, DAY_FORMS, PANEL_TEXTS, SEAT_FORMS } from "@/lib/stable-panel/texts";
@@ -221,14 +220,22 @@ function instructorsFact(input: SideColumnInput): string | null {
   return `${formatNumber(activeWithAccount)} ${texts.of} ${formatNumber(active.length)} ${texts.withAccount}`;
 }
 
-/** Jazdy bieżącego miesiąca do teraz, np. `listopad: 12 jazd` — ta sama reguła co w Podsumowaniu miesiąca. */
-function monthFact(input: SideColumnInput, now: Date): string | null {
-  if (input.monthBookings === null) {
-    return null;
+/**
+ * Link „Podsumowanie miesiąca” z jazdami bieżącego miesiąca do teraz, np. `listopad: 12 jazd` — ta sama
+ * reguła co w Podsumowaniu miesiąca. Ten sam link jest w bocznej kolumnie i — poniżej 1000 px, gdzie
+ * kolumny nie ma, a dolny pasek go nie mieści — w kolumnie głównej panelu.
+ */
+export function composeMonthSummaryLink(
+  input: Pick<SideColumnInput, "today" | "monthBookings">,
+  now: Date = new Date(),
+): SideLink {
+  let fact: string | null = null;
+  if (input.monthBookings !== null) {
+    const month = resolveSummaryMonth(null, input.today);
+    const rides = monthRides(input.monthBookings, month, now).length;
+    fact = `${formatMonthName(month.month)}: ${formatCount(rides, RIDE_FORMS)}`;
   }
-  const month = resolveSummaryMonth(null, input.today);
-  const rides = monthRides(input.monthBookings, month, now).length;
-  return `${formatMonthName(month.month)}: ${formatCount(rides, RIDE_FORMS)}`;
+  return { name: PANEL_TEXTS.side.monthSummary, href: OWNER_MONTH_SUMMARY_ROUTE, fact, warn: false };
 }
 
 /**
@@ -256,7 +263,7 @@ export function composeSideColumn(input: SideColumnInput, now: Date = new Date()
       warn: false,
     },
     { name: texts.instructors, href: INSTRUCTORS_ROUTE, fact: instructorsFact(input), warn: false },
-    { name: texts.monthSummary, href: OWNER_MONTH_SUMMARY_ROUTE, fact: monthFact(input, now), warn: false },
+    composeMonthSummaryLink(input, now),
     { name: texts.stats, href: STATS_ROUTE, fact: texts.anyPeriod, warn: false },
   ];
 }

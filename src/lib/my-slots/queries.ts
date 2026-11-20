@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/db/database.types";
-import type { InstructorSummaryRow } from "@/lib/month-summary/instructor";
 import type { MySlotBookingInput, MySlotHorseOptionInput, MySlotInput } from "@/lib/my-slots/compose";
+import type { DateRange } from "@/lib/schedule/dates";
 
 type Client = SupabaseClient<Database>;
 
@@ -57,13 +57,28 @@ export async function getMySlotBookings(client: Client, from: string): Promise<M
   }));
 }
 
+/** Wiersz funkcji `get_my_month_bookings` — aktywny zapis na slot zalogowanego instruktora. */
+export interface InstructorSummaryRow {
+  /** Dzień grafiku `RRRR-MM-DD`. */
+  day: string;
+  hour: number;
+  /** Klucz jeźdźca z funkcji; `null` — jeździec zanonimizowany. */
+  riderKey: string | null;
+  /** Nazwa z profilu; `null` — bez nazwy albo zanonimizowany. */
+  riderName: string | null;
+  /** Przydzielony koń; `null` — jazda bez konia. */
+  horseName: string | null;
+  /** Jeździec zanonimizowany (ADR-0001) — jazda trafia do wiersza „Usunięci jeźdźcy”. */
+  anonymised: boolean;
+}
+
 /**
- * Aktywne zapisy na sloty zalogowanego instruktora w dniach `from`..`to` (włącznie), z kluczem
+ * Aktywne zapisy na sloty zalogowanego instruktora w dniach `days` (oba krańce włącznie), z kluczem
  * jeźdźca — dla Podsumowania miesiąca (#90), przez RPC `get_my_month_bookings` (instruktor z sesji,
  * jak w `get_my_slot_bookings`). Co jest jazdą, decyduje `composeInstructorMonthSummary`.
  */
-export async function getMyMonthBookings(client: Client, from: string, to: string): Promise<InstructorSummaryRow[]> {
-  const { data, error } = await client.rpc("get_my_month_bookings", { p_from: from, p_to: to });
+export async function getMyMonthBookings(client: Client, days: DateRange): Promise<InstructorSummaryRow[]> {
+  const { data, error } = await client.rpc("get_my_month_bookings", { p_from: days.from, p_to: days.to });
 
   if (error) {
     throw error;

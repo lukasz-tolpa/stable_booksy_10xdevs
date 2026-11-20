@@ -143,7 +143,7 @@ describe("composeOwnerMonthSummary — filtr instruktora", () => {
   it("lista to „Wszyscy instruktorzy” i każdy instruktor z jazdami w miesiącu — także zdezaktywowany i właściciel — alfabetycznie", () => {
     const view = composeOwnerMonthSummary(input({ bookings, instructors }), NOW);
 
-    expect(view.filter.options).toEqual([
+    expect(view.filter?.options).toEqual([
       { value: "", label: "Wszyscy instruktorzy", selected: true },
       { value: String(RETIRED), label: "Adam Zdezaktywowany", selected: false },
       { value: String(JOANNA), label: "Joanna Wrona", selected: false },
@@ -158,7 +158,7 @@ describe("composeOwnerMonthSummary — filtr instruktora", () => {
       NOW,
     );
 
-    expect(view.filter.options.filter((option) => option.selected)).toEqual([
+    expect(view.filter?.options.filter((option) => option.selected)).toEqual([
       { value: String(JOANNA), label: "Joanna Wrona", selected: true },
     ]);
     expect(view.list.totalText).toBe("2 jazdy · 2 jeźdźców");
@@ -173,7 +173,7 @@ describe("composeOwnerMonthSummary — filtr instruktora", () => {
     for (const instructorParam of ["99", String(IDLE), String(KAROL), "1abc", "", null]) {
       const view = composeOwnerMonthSummary(input({ bookings, instructors, instructorParam }), NOW);
 
-      expect(view.filter.options.find((option) => option.selected)?.label, String(instructorParam)).toBe(
+      expect(view.filter?.options.find((option) => option.selected)?.label, String(instructorParam)).toBe(
         "Wszyscy instruktorzy",
       );
       expect(view.list.totalText).toBe("4 jazdy · 2 jeźdźców");
@@ -181,13 +181,13 @@ describe("composeOwnerMonthSummary — filtr instruktora", () => {
     }
   });
 
-  it("miesiąc bez jazd ma w filtrze tylko „Wszyscy instruktorzy”", () => {
+  it("miesiąc bez jazd nie ma filtra — byłby w nim sam „Wszyscy instruktorzy”", () => {
     const view = composeOwnerMonthSummary(
       input({ bookings, instructors, month: resolveSummaryMonth("2026-08", TODAY), instructorParam: String(JOANNA) }),
       NOW,
     );
 
-    expect(view.filter.options).toEqual([{ value: "", label: "Wszyscy instruktorzy", selected: true }]);
+    expect(view.filter).toBeNull();
     expect(view).toMatchObject({ isEmpty: true, emptyText: "W sierpniu 2026 nie było jazd." });
   });
 });
