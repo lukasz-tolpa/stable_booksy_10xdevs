@@ -20,7 +20,7 @@ getona.horse is a booking system for horse-riding stables (account roles: `instr
   - `npm test` (Vitest) — pure logic under `src/lib/**` only.
   - `npm run test:db` — database guarantees. Run after ANY change to migrations or RLS. Needs a seed loaded today and untouched: `npx supabase db reset` first.
   - `npm run test:e2e` (Playwright) — the only layer that exercises SSR pages, forms, redirects and cookies. Run after any change to `src/pages/**`, RLS on `bookings`, or the seed.
-- The seed schedules only tomorrow. Past history for the statistics page is `supabase/demo/history.sql`, loaded by `npm run db:demo` and by the e2e setup. Once loaded, `npm run test:db` needs a fresh `npx supabase db reset`.
+- The seed schedules only tomorrow. Past history for the statistics page is `supabase/demo/history.sql`, loaded by `npm run db:demo` and by the e2e setup. Once loaded, `npm run test:db` needs a fresh `npx supabase db reset`. `npm run db:demo:more` adds `supabase/demo/more.sql` (more riders, horses, months, future days) for manual clicking only — not loaded by e2e; reset before any test gate.
 - The built worker reads secrets from the `.dev.vars` snapshot taken at `astro build`, never from the process environment. `.dev.vars*` hold secrets.
 - `npm run lint` is ESLint plus `scripts/check-tokens.mjs`, which rejects colour and font literals outside `src/styles/global.css`.
 - A new migration is named `YYYYMMDDHHmmss_short_description.sql` and enables RLS on every table it creates.

@@ -101,6 +101,11 @@ Po `npx supabase db reset`, hasło dla wszystkich: `sekret123`
 Dane z seeda układają grafik na **jutro**, więc po dobie bez `db reset` ekran slotów
 będzie pusty. Skrypty testowe wykrywają to i podpowiadają ponowne załadowanie.
 
+Więcej danych do przeklikania Stadniny Pod Dębem: `npm run db:demo:more`. Dochodzi
+8 jeźdźców (np. `zofia.mazur@example.com`, hasło to samo), nowi konie i instruktorzy,
+grafik od 4 miesięcy wstecz do 3 tygodni naprzód. Potem `npm run test:db` i
+`npm run test:e2e` wymagają ponownego `npx supabase db reset`.
+
 ## Testy
 
 Trzy warstwy, każda odpowiada na inne pytanie.

@@ -2,6 +2,8 @@
  * Laduje miniona historie demo (`supabase/demo/history.sql`) do LOKALNEJ bazy.
  *
  *   npm run db:demo
+ *   npm run db:demo:more   (najpierw historia, potem `supabase/demo/more.sql` - wiecej
+ *                           jezdzcow, koni i miesiecy; do przeklikania, nie dla testow)
  *
  * Cel jest zaszyty na lokalny stack Supabase i nie da sie go zmienic zmienna
  * srodowiskowa - skrypt pisze jako superuser. Bez `psql` na hoscie idzie przez
@@ -48,22 +50,31 @@ export function runLocalSql(sql, extraFlags = []) {
 }
 
 /**
- * @returns {string} wyjscie psql (podsumowanie zaladowanej historii)
+ * @param {string} file plik w `supabase/demo/`
+ * @returns {string} wyjscie psql (podsumowanie zaladowanych danych)
  */
-export function loadDemoHistory() {
-  const sql = readFileSync(path.join(ROOT, "supabase", "demo", "history.sql"), "utf8");
+function loadDemoFile(file) {
+  const sql = readFileSync(path.join(ROOT, "supabase", "demo", file), "utf8");
   const result = runLocalSql(sql);
   if (result.status !== 0) {
     throw new Error(
-      `Nie udalo sie zaladowac historii demo. Czy lokalny stack dziala (npx supabase start)?\n${result.stderr}`,
+      `Nie udalo sie zaladowac ${file}. Czy lokalny stack dziala (npx supabase start)?\n${result.stderr}`,
     );
   }
   return `${result.stderr}${result.stdout}`.trim();
 }
 
+/**
+ * @returns {string} wyjscie psql (podsumowanie zaladowanej historii)
+ */
+export function loadDemoHistory() {
+  return loadDemoFile("history.sql");
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
     process.stdout.write(`${loadDemoHistory()}\n`);
+    if (process.argv.includes("--more")) process.stdout.write(`${loadDemoFile("more.sql")}\n`);
   } catch (error) {
     process.stderr.write(`BLAD: ${error instanceof Error ? error.message : String(error)}\n`);
     process.exit(1);
