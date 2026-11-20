@@ -57,6 +57,21 @@ export const OWNER_SCHEDULE_ROUTE = `${ROLE_HOME.instructor}/grafik`;
 export const INSTRUCTOR_SCHEDULE_ROUTE = `${INSTRUCTOR_HOME_ROUTE}/grafik`;
 
 /**
+ * Podsumowanie miesiąca (spec #87) — jedna strona w przestrzeni każdej roli, miesiąc w `?miesiac=RRRR-MM`.
+ * Właściciel: wszyscy jeźdźcy ośrodka (#88), wejście z panelu i ze Statystyk.
+ */
+export const OWNER_MONTH_SUMMARY_ROUTE = `${ROLE_HOME.instructor}/podsumowanie`;
+
+/**
+ * Zakładka „Podsumowanie miesiąca” instruktora z kontem (#90): jazdy z jego slotów. Ma ją każdy
+ * aktywny instruktor, który nie jest właścicielem — z uprawnieniem do układania grafiku i bez.
+ */
+export const INSTRUCTOR_MONTH_SUMMARY_ROUTE = `${INSTRUCTOR_HOME_ROUTE}/podsumowanie`;
+
+/** Podsumowanie miesiąca jeźdźca (#91): własne jazdy, osobno w każdym ośrodku. */
+export const RIDER_MONTH_SUMMARY_ROUTE = `${ROLE_HOME.rider}/podsumowanie`;
+
+/**
  * Kim jest konto `instructor` w ośrodku — wynika z danych w bazie, nie z roli konta (ADR-0004):
  * `none` — konto bez instruktora (rejestracja „Ośrodek”, ośrodek jeszcze niezałożony),
  * `owner` — instruktor właściciel ośrodka, `instructor` — instruktor z kontem bez praw właściciela,
@@ -83,6 +98,10 @@ export interface InstructorTab {
   href: string;
   label: string;
 }
+
+/** Zakładki przestrzeni instruktora wspólne dla stanów z uprawnieniem do grafiku i bez. */
+const MY_SLOTS_TAB: InstructorTab = { href: INSTRUCTOR_HOME_ROUTE, label: "Moje sloty" };
+const MONTH_SUMMARY_TAB: InstructorTab = { href: INSTRUCTOR_MONTH_SUMMARY_ROUTE, label: "Podsumowanie miesiąca" };
 
 /**
  * Sekcje przestrzeni ośrodka właściciela — dolny pasek nawigacji na telefonie (spec #83), żeby
@@ -144,8 +163,7 @@ const STANDINGS: Record<
     badgeLabel: INSTRUCTOR_LABEL,
     schedule: null,
     scheduleCaller: "instructor",
-    // Jedna zakładka to nie nawigacja — bez uprawnienia pasek zakładek się nie pokazuje.
-    tabs: [],
+    tabs: [MY_SLOTS_TAB, MONTH_SUMMARY_TAB],
     sections: [],
   },
   "arranging-instructor": {
@@ -154,10 +172,7 @@ const STANDINGS: Record<
     badgeLabel: INSTRUCTOR_LABEL,
     schedule: INSTRUCTOR_SCHEDULE_ROUTE,
     scheduleCaller: "instructor",
-    tabs: [
-      { href: INSTRUCTOR_HOME_ROUTE, label: "Moje sloty" },
-      { href: INSTRUCTOR_SCHEDULE_ROUTE, label: "Grafik" },
-    ],
+    tabs: [MY_SLOTS_TAB, { href: INSTRUCTOR_SCHEDULE_ROUTE, label: "Grafik" }, MONTH_SUMMARY_TAB],
     sections: [],
   },
   inactive: {

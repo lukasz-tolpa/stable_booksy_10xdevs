@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/db/database.types";
 import type { MySlot, SlotOccupancy } from "@/lib/bookings/slots";
 import { toBookingStatus, toCancelledBy } from "@/lib/bookings/status";
+import type { DateRange } from "@/lib/schedule/dates";
 import type { BookingStatus, CancelledBy } from "@/types";
 
 type Client = SupabaseClient<Database>;
@@ -104,6 +105,7 @@ export interface RiderBooking {
   id: number;
   hour: number;
   day: string;
+  stableId: number;
   stableName: string;
   instructorId: number;
   instructorName: string | null;
@@ -114,20 +116,27 @@ export interface RiderBooking {
 }
 
 /**
- * Wszystkie zapisy jeźdźca (każdy status) z dniem, ośrodkiem, instruktorem i koniem.
+ * Zapisy jeźdźca (każdy status) z dniem, ośrodkiem, instruktorem i koniem — wszystkie albo, z `days`,
+ * tylko z dni grafiku `from…to` włącznie (Podsumowanie miesiąca).
  *
  * Dzień i ośrodek idą przez FK `bookings → schedule_days → stables`, instruktor przez
  * `instructor_id`, koń przez złożony FK `bookings_assigned_horse_fkey` do
  * `schedule_day_horses` (zapis bez konia daje `null`). Filtr po `rider_id` jest jawny
  * (lekcja S-04): polityka SELECT jest szersza niż intencja tej funkcji.
  */
-export async function getRiderBookings(client: Client, riderId: string): Promise<RiderBooking[]> {
-  const { data, error } = await client
+export async function getRiderBookings(client: Client, riderId: string, days?: DateRange): Promise<RiderBooking[]> {
+  // `!inner` pozwala zawęzić zapisy po dniu grafiku; jeździec czyta cały katalog (dni grafiku
+  // każdego ośrodka), więc bez zakresu wynik jest ten sam co przy zwykłym złączeniu.
+  let query = client
     .from("bookings")
     .select(
-      "id, hour, status, cancelled_by, instructor_id, schedule_days(day, stables(name)), instructors(name), schedule_day_horses!bookings_assigned_horse_fkey(horses(name))",
+      "id, hour, status, cancelled_by, instructor_id, schedule_days!inner(day, stable_id, stables(name)), instructors(name), schedule_day_horses!bookings_assigned_horse_fkey(horses(name))",
     )
     .eq("rider_id", riderId);
+  if (days) {
+    query = query.gte("schedule_days.day", days.from).lte("schedule_days.day", days.to);
+  }
+  const { data, error } = await query;
 
   if (error) {
     throw error;
@@ -143,6 +152,8 @@ export async function getRiderBookings(client: Client, riderId: string): Promise
     // ukryć wiersz pośredni - ochrona zostaje, jak w getDayBookings.
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     day: row.schedule_days?.day ?? "",
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    stableId: row.schedule_days?.stable_id ?? 0,
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     stableName: row.schedule_days?.stables?.name ?? "(ośrodek)",
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition

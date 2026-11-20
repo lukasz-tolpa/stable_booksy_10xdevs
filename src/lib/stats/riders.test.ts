@@ -17,7 +17,7 @@ function booking(
 ): StatsBooking {
   // Odwołanie bez wskazanej strony to odwołanie własne jeźdźca.
   const cancelledBy = overrides.status === "cancelled" ? "rider" : null;
-  return { day: iso, horseId: BELLA, hour, status: "active", riderId, cancelledBy, ...overrides };
+  return { day: iso, horseId: BELLA, hour, instructorId: 1, status: "active", riderId, cancelledBy, ...overrides };
 }
 
 function input(overrides: Partial<StatsInput> = {}): StatsInput {

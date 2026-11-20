@@ -1,0 +1,54 @@
+---
+// Jazdy jeźdźca w jednym ośrodku (Podsumowanie miesiąca jeźdźca, #91): nazwa ośrodka jako nagłówek
+// sekcji, liczba jazd, potem karta z listą jazd (`RideList`). Renderuje `RiderStableSummary`
+// z `@/lib/month-summary/rider` — liczba i kolejność są już policzone.
+//
+// KONTRAKT e2e: sekcja to `region` o nazwie ośrodka, lista jazd — `list` „Jazdy — {ośrodek}”.
+import RideList from "@/components/month-summary/RideList.astro";
+import Card from "@/components/ui/Card.astro";
+import type { RiderStableSummary } from "@/lib/month-summary/rider";
+import { MONTH_SUMMARY_TEXTS } from "@/lib/month-summary/texts";
+
+interface Props {
+  stable: RiderStableSummary;
+}
+
+const { stable } = Astro.props;
+const headingId = `stable-${String(stable.stableId)}`;
+---
+
+<section class="stable" aria-labelledby={headingId}>
+  <div class="stable__head">
+    <h2 id={headingId}>{stable.name}</h2>
+    <span class="stable__count mono-nums">{stable.ridesText}</span>
+  </div>
+  <Card padding={0}>
+    <div class="stable__rides">
+      <RideList rides={stable.list} label={`${MONTH_SUMMARY_TEXTS.ridesOf} — ${stable.name}`} />
+    </div>
+  </Card>
+</section>
+
+<style>
+  .stable__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 4px 12px;
+    margin-bottom: 10px;
+  }
+  h2 {
+    margin: 0;
+    min-width: 0;
+    font-size: 20px;
+    overflow-wrap: anywhere;
+  }
+  .stable__count {
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .stable__rides {
+    padding: 4px 16px;
+  }
+</style>

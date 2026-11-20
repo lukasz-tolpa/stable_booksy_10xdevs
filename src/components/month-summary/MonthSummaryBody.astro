@@ -1,0 +1,72 @@
+---
+// Treść strony Podsumowania miesiąca, wspólna dla właściciela, instruktora i jeźdźca: nagłówek, opis
+// roli, przełącznik miesięcy, potem stan — awaria odczytu (`view === null`), pusty miesiąc albo lista.
+// Lista jeźdźców (`list`, właściciel i instruktor) renderuje się tu; inna lista (jeździec: ośrodek po
+// ośrodku) idzie w domyślny slot. Slot `filter` — formularz między przełącznikiem a listą (właściciel).
+// Przełącznik zostaje także przy awarii — da się przejść do innego miesiąca.
+import MonthNav from "@/components/month-summary/MonthNav.astro";
+import RiderRides from "@/components/month-summary/RiderRides.astro";
+import Card from "@/components/ui/Card.astro";
+import EmptyState from "@/components/ui/EmptyState.astro";
+import FailureState from "@/components/ui/FailureState.astro";
+import type { MonthNav as MonthNavView, SummaryList } from "@/lib/month-summary/summary";
+import { MONTH_SUMMARY_TEXTS } from "@/lib/month-summary/texts";
+
+interface Props {
+  lead: string;
+  nav: MonthNavView;
+  /** `null` — nie udało się wczytać. */
+  view: { isEmpty: boolean; emptyText: string } | null;
+  /** Lista jeźdźców; bez niej niepusty miesiąc renderuje domyślny slot. */
+  list?: SummaryList;
+}
+
+const { lead, nav, view, list } = Astro.props;
+const texts = MONTH_SUMMARY_TEXTS;
+---
+
+<h1>{texts.heading}</h1>
+<p class="lead">{lead}</p>
+
+<MonthNav nav={nav} />
+
+<slot name="filter" />
+
+{
+  !view ? (
+    <FailureState>
+      <p>{texts.failure}</p>
+      <p>{texts.retry}</p>
+    </FailureState>
+  ) : view.isEmpty ? (
+    <Card>
+      <EmptyState>
+        <p>{view.emptyText}</p>
+        <p>{texts.emptyHint}</p>
+      </EmptyState>
+    </Card>
+  ) : list ? (
+    <section aria-labelledby="riders-heading">
+      <h2 id="riders-heading">{texts.ridersHeading}</h2>
+      <RiderRides list={list} labelledby="riders-heading" />
+    </section>
+  ) : (
+    <slot />
+  )
+}
+
+<style>
+  h1 {
+    font-size: 32px;
+  }
+  h2 {
+    margin: 0 0 8px;
+    font-size: 20px;
+  }
+  .lead {
+    margin: 10px 0 0;
+    font-size: 15.5px;
+    color: var(--muted);
+    max-width: 62ch;
+  }
+</style>

@@ -3,19 +3,16 @@
  * wyłącznie renderuje zwrócony model widoku (słownictwo: GLOSSARY.md).
  */
 
-import { currentWarsawHour } from "@/lib/bookings/slots";
+import { isRide, SLOT_DURATION_HOURS, slotEndedAt, type SlotEnded } from "@/lib/bookings/rides";
 import { unknownHorseName } from "@/lib/bookings/rows";
+import type { DateRange } from "@/lib/schedule/dates";
 import { buildTopRidersSeries, type TopRiderPoint } from "@/lib/stats/rankings";
 import { computeRiderRows, type StatsRider, type StatsRiderRow } from "@/lib/stats/riders";
-import { todayIso } from "@/lib/schedule/dates";
 import { buildRideHoursSeries, type RideHoursSeries } from "@/lib/stats/time-series";
 import type { BookingStatus, CancelledBy } from "@/types";
 
 /** Okres statystyk: zakres dat `RRRR-MM-DD`, oba krańce włącznie. */
-export interface StatsPeriod {
-  from: string;
-  to: string;
-}
+export type StatsPeriod = DateRange;
 
 /** Slot dnia w zakresie potrzebnym statystykom: godzina i limit miejsc instruktora. */
 export interface StatsSlot {
@@ -41,6 +38,8 @@ export interface StatsBooking {
   /** Przydzielony koń; `null` — zapis bez konia (koń przy zapisie jest opcjonalny, ADR-0002). */
   horseId: number | null;
   hour: number;
+  /** Instruktor slotu, na który jest zapis — Podsumowanie miesiąca pokazuje go przy jeździe. */
+  instructorId: number;
   status: BookingStatus;
   /** Konto jeźdźca, który złożył zapis; `null`, gdy konto usunięto (jeździec zanonimizowany). */
   riderId: string | null;
@@ -116,26 +115,9 @@ export interface StatsView {
   topRiders: TopRiderPoint[];
 }
 
-/**
- * Czas trwania slotu w godzinach. Dziś każdy slot trwa godzinę; wartość jest jawna,
- * żeby zmiana definicji slotu (FR-010) nie zmieniła znaczenia „godzin jazd".
- */
-export const SLOT_DURATION_HOURS = 1;
-
 /** Czy dzień leży w okresie — porównanie leksykograficzne dat `RRRR-MM-DD`. */
 function inPeriod(day: string, period: StatsPeriod): boolean {
   return day >= period.from && day <= period.to;
-}
-
-/**
- * Predykat „godzina slotu już się skończyła" względem `now` w strefie ośrodka.
- * Godzina trwająca nie jest zakończona; kończąca się dokładnie teraz — jest.
- */
-function slotEndedAt(now: Date): (day: string, hour: number) => boolean {
-  const today = todayIso(now);
-  const currentHour = currentWarsawHour(now);
-
-  return (day, hour) => day < today || (day === today && hour + SLOT_DURATION_HOURS <= currentHour);
 }
 
 /**
@@ -152,7 +134,8 @@ export function computeStableStats(input: StatsInput, now: Date = new Date()): S
     (booking) => inPeriod(booking.day, input.period) && ended(booking.day, booking.hour),
   );
 
-  const rideBookings = pastBookings.filter((booking) => booking.status === "active");
+  // Jazda — wspólna definicja z `@/lib/bookings/rides` (ta sama co w Podsumowaniu miesiąca).
+  const rideBookings = pastBookings.filter((booking) => isRide(booking, ended));
   // Odwołanie liczy się według terminu zapisu, bez względu na to, kiedy je kliknięto.
   const cancelledBookings = pastBookings.filter((booking) => booking.status === "cancelled");
   const rides = rideBookings.length;
@@ -208,11 +191,7 @@ export function computeStableStats(input: StatsInput, now: Date = new Date()): S
  * Aktywność konia nie ma znaczenia — zdezaktywowany po okresie zostaje w historii.
  * Kolejność: godziny jazd malejąco, potem liczba jazd, potem nazwa.
  */
-function computeHorseRows(
-  input: StatsInput,
-  ended: (day: string, hour: number) => boolean,
-  rideBookings: StatsBooking[],
-): StatsHorseRow[] {
+function computeHorseRows(input: StatsInput, ended: SlotEnded, rideBookings: StatsBooking[]): StatsHorseRow[] {
   const ridesByHorse = new Map<number, number>();
 
   for (const day of input.days) {

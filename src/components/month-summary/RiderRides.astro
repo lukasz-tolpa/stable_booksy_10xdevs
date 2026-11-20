@@ -1,0 +1,118 @@
+---
+// Lista jeźdźców Podsumowania miesiąca: suma „N jazd · M jeźdźców”, potem jeździec z liczbą jazd
+// i rozwijaną (natywne <details>, bez JavaScriptu) listą jazd (`RideList`). Wiersz „Usunięci jeźdźcy”
+// ma samą liczbę (ADR-0001). Renderuje `SummaryList` z `@/lib/month-summary/summary` — kolejność
+// i liczby są już policzone. Wspólna dla właściciela i instruktora (jeździec ma `StableRides`).
+//
+// KONTRAKT e2e: lista jazd jeźdźca to `list` o nazwie „Jazdy — {jeździec}”, jedna pozycja na jazdę.
+import RideList from "@/components/month-summary/RideList.astro";
+import Card from "@/components/ui/Card.astro";
+import type { SummaryList } from "@/lib/month-summary/summary";
+import { MONTH_SUMMARY_TEXTS } from "@/lib/month-summary/texts";
+
+interface Props {
+  list: SummaryList;
+  /** `id` nagłówka sekcji, który nazywa listę jeźdźców dla czytników ekranu. */
+  labelledby: string;
+}
+
+const { list, labelledby } = Astro.props;
+const texts = MONTH_SUMMARY_TEXTS;
+---
+
+<p class="total mono-nums">{list.totalText}</p>
+<Card padding={0}>
+  <ul class="riders" aria-labelledby={labelledby}>
+    {
+      list.rows.map((row) =>
+        row.riderKey === null ? (
+          <li class="rider rider--pooled">
+            <span class="rider__name">{row.name}</span>
+            <span class="rider__count mono-nums">{row.ridesText}</span>
+          </li>
+        ) : (
+          <li class="rider">
+            <details>
+              <summary>
+                <span class="rider__name">{row.name}</span>
+                <span class="rider__count mono-nums">{row.ridesText}</span>
+              </summary>
+              <div class="rides">
+                <RideList rides={row.list} label={`${texts.ridesOf} — ${row.name}`} />
+              </div>
+            </details>
+          </li>
+        ),
+      )
+    }
+  </ul>
+</Card>
+
+<style>
+  .total {
+    margin: 0 0 10px;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .riders {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .rider + .rider {
+    border-top: 1px solid var(--border);
+  }
+  .rider--pooled,
+  summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    /* 44 px to minimalny cel dotykowy — cały wiersz jeźdźca rozwija listę. */
+    min-height: 52px;
+    padding: 8px 16px;
+  }
+  .rider--pooled {
+    color: var(--muted);
+  }
+  summary {
+    cursor: pointer;
+    list-style: none;
+  }
+  summary::-webkit-details-marker {
+    display: none;
+  }
+  summary::before {
+    content: "";
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border-right: 2px solid var(--primary);
+    border-bottom: 2px solid var(--primary);
+    transform: rotate(-45deg);
+    transition: transform 0.15s;
+  }
+  /* `open` ustawia przeglądarka, nie szablon — stąd :global dla samego atrybutu. */
+  .riders :global(details[open]) > summary::before {
+    transform: rotate(45deg);
+  }
+  summary:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: -2px;
+    border-radius: var(--r);
+  }
+  .rider__name {
+    flex: 1;
+    min-width: 0;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+  .rider__count {
+    flex: none;
+    font-size: 14px;
+    color: var(--muted);
+  }
+
+  .rides {
+    padding: 0 16px 10px 33px;
+  }
+</style>

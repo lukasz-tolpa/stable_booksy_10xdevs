@@ -1,0 +1,144 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import Topbar from "@/components/Topbar.astro";
+import MonthSummaryBody from "@/components/month-summary/MonthSummaryBody.astro";
+import GhostButton from "@/components/ui/GhostButton.astro";
+import { OWNER_MONTH_SUMMARY_ROUTE } from "@/lib/auth/roles";
+import { listStableInstructors } from "@/lib/instructors/queries";
+import { logError } from "@/lib/log";
+import { MONTH_PARAM, resolveSummaryMonth } from "@/lib/month-summary/month";
+import {
+  composeOwnerMonthSummary,
+  INSTRUCTOR_PARAM,
+  ownerMonthHref,
+  type OwnerMonthSummaryView,
+} from "@/lib/month-summary/owner";
+import { composeMonthNav } from "@/lib/month-summary/summary";
+import { MONTH_SUMMARY_TEXTS } from "@/lib/month-summary/texts";
+import { todayIso } from "@/lib/schedule/dates";
+import { getOwnedStableId, listStableHorses } from "@/lib/stables/queries";
+import { getStatsRows } from "@/lib/stats/queries";
+import { createClient } from "@/lib/supabase";
+
+// Podsumowanie miesiąca właściciela (#88). Dostęp pilnuje middleware (mapa tras w @/lib/auth/roles):
+// przestrzeń ośrodka jest tylko dla właściciela. Liczy `@/lib/month-summary/owner`; tu tylko odczyt
+// i render. Miesiąc i filtr instruktora żyją w adresie (`?miesiac=RRRR-MM&instruktor=<id>`), więc
+// odświeżenie ich nie gubi; filtr to formularz GET, działa bez JavaScriptu (#89).
+const { profile } = Astro.locals;
+const SCOPE = "page:osrodek/podsumowanie";
+const texts = MONTH_SUMMARY_TEXTS;
+const now = new Date();
+const month = resolveSummaryMonth(Astro.url.searchParams.get(MONTH_PARAM), todayIso(now));
+
+const supabase = createClient(Astro.request.headers, Astro.cookies);
+
+let view: OwnerMonthSummaryView | null = null;
+
+if (supabase && profile) {
+  try {
+    const stableId = await getOwnedStableId(supabase, profile.id);
+    if (stableId === null) {
+      // Middleware nie wpuszcza tu właściciela bez stadniny; jej brak to awaria odczytu, nie pusty miesiąc.
+      logError(SCOPE, new Error("Brak stadniny dla konta właściciela"));
+    } else {
+      // Stado i instruktorzy obejmują zdezaktywowanych — jedyne źródło nazw przy minionych jazdach.
+      const [rows, horses, instructors] = await Promise.all([
+        getStatsRows(supabase, stableId, month),
+        listStableHorses(supabase, stableId),
+        listStableInstructors(supabase, stableId),
+      ]);
+      view = composeOwnerMonthSummary(
+        { month, ...rows, horses, instructors, instructorParam: Astro.url.searchParams.get(INSTRUCTOR_PARAM) },
+        now,
+      );
+    }
+  } catch (error) {
+    logError(SCOPE, error);
+  }
+} else {
+  // Brak klienta Supabase lub profilu to awaria konfiguracji, nie pusty miesiąc.
+  logError(SCOPE, new Error("Brak klienta Supabase albo profilu właściciela"));
+}
+
+// Przełącznik miesięcy zostaje także przy awarii odczytu — da się przejść do innego miesiąca.
+const nav = view?.nav ?? composeMonthNav(month, ownerMonthHref);
+const filter = view?.filter ?? null;
+---
+
+<Layout title={texts.heading}>
+  <Topbar />
+  <main class="container-narrow page">
+    <MonthSummaryBody lead={texts.owner.lead} nav={nav} view={view} list={view?.list}>
+      {
+        filter && (
+          <form
+            slot="filter"
+            method="get"
+            action={OWNER_MONTH_SUMMARY_ROUTE}
+            class="filter"
+            aria-label={texts.owner.filter.name}
+          >
+            <input type="hidden" name={MONTH_PARAM} value={month.month} />
+            <label for="instruktor">{texts.owner.filter.label}</label>
+            <select id="instruktor" name={INSTRUCTOR_PARAM}>
+              {filter.options.map((option) => (
+                <option value={option.value} selected={option.selected}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <GhostButton>{texts.owner.filter.submit}</GhostButton>
+          </form>
+        )
+      }
+    </MonthSummaryBody>
+  </main>
+</Layout>
+
+<style>
+  .page {
+    padding-block: 24px 56px;
+  }
+
+  /* Filtr instruktora: etykieta nad listą wyboru i przyciskiem na telefonie, w jednym rzędzie od `sm`.
+     Lista ma cel dotyku 44 px, jak przycisk `GhostButton` (DESIGN.md). */
+  .filter {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 6px 10px;
+    margin: 0 0 18px;
+  }
+  .filter label {
+    grid-column: 1 / -1;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .filter select {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    padding: 8px 12px;
+    border: 1px solid var(--border-2);
+    border-radius: var(--r);
+    background: var(--surface);
+    color: var(--fg);
+    font: inherit;
+    font-size: 15px;
+  }
+  .filter select:focus-visible {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-soft);
+  }
+  @media (width >= 640px) {
+    .filter {
+      grid-template-columns: auto minmax(0, 320px) auto;
+      justify-content: start;
+    }
+    .filter label {
+      grid-column: auto;
+    }
+  }
+</style>

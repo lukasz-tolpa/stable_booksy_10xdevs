@@ -1,0 +1,67 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import Topbar from "@/components/Topbar.astro";
+import InstructorTabs from "@/components/instructors/InstructorTabs.astro";
+import MonthSummaryBody from "@/components/month-summary/MonthSummaryBody.astro";
+import { getOwnInstructor } from "@/lib/instructors/queries";
+import { logError } from "@/lib/log";
+import { composeInstructorMonthSummary, instructorMonthHref } from "@/lib/month-summary/instructor";
+import { MONTH_PARAM, resolveSummaryMonth } from "@/lib/month-summary/month";
+import { composeMonthNav, type MonthSummaryView } from "@/lib/month-summary/summary";
+import { MONTH_SUMMARY_TEXTS } from "@/lib/month-summary/texts";
+import { getMyMonthBookings } from "@/lib/my-slots/queries";
+import { todayIso } from "@/lib/schedule/dates";
+import { createClient } from "@/lib/supabase";
+
+// Podsumowanie miesiąca instruktora z kontem (#90): jazdy wyłącznie z jego slotów. Dostęp pilnuje
+// middleware (mapa stanów konta w @/lib/auth/roles): właściciela przenosi do przestrzeni ośrodka,
+// zdezaktywowanego — na ekran nieaktywnego konta. Liczy `@/lib/month-summary/instructor`; tu tylko
+// odczyt i render. Miesiąc żyje w adresie (`?miesiac=RRRR-MM`), więc odświeżenie go nie gubi.
+const { profile } = Astro.locals;
+const SCOPE = "page:instruktor/podsumowanie";
+const texts = MONTH_SUMMARY_TEXTS;
+const now = new Date();
+const month = resolveSummaryMonth(Astro.url.searchParams.get(MONTH_PARAM), todayIso(now));
+
+const supabase = createClient(Astro.request.headers, Astro.cookies);
+
+let view: MonthSummaryView | null = null;
+
+if (supabase && profile) {
+  try {
+    const { instructor, error } = await getOwnInstructor(supabase);
+    if (error) {
+      throw error;
+    }
+    if (instructor === null) {
+      // Middleware wpuszcza tu tylko konto z instruktorem; jego brak to awaria odczytu, nie pusty miesiąc.
+      logError(SCOPE, new Error("Brak instruktora dla konta instruktora"));
+    } else {
+      const bookings = await getMyMonthBookings(supabase, month);
+      view = composeInstructorMonthSummary({ month, instructor, bookings }, now);
+    }
+  } catch (error) {
+    logError(SCOPE, error);
+  }
+} else {
+  // Brak klienta Supabase lub profilu to awaria konfiguracji, nie pusty miesiąc.
+  logError(SCOPE, new Error("Brak klienta Supabase albo profilu instruktora"));
+}
+
+// Przełącznik miesięcy zostaje także przy awarii odczytu — da się przejść do innego miesiąca.
+const nav = view?.nav ?? composeMonthNav(month, instructorMonthHref);
+---
+
+<Layout title={texts.heading}>
+  <Topbar />
+  <main class="container-narrow page">
+    <InstructorTabs />
+    <MonthSummaryBody lead={texts.instructor.lead} nav={nav} view={view} list={view?.list} />
+  </main>
+</Layout>
+
+<style>
+  .page {
+    padding-block: 24px 56px;
+  }
+</style>

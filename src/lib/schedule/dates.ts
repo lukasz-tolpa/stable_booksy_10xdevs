@@ -16,6 +16,12 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 /** Strefa, w której ośrodek myśli o dobie. Jedyne miejsce, gdzie to założenie żyje. */
 export const SCHEDULE_TIME_ZONE = "Europe/Warsaw";
 
+/** Zakres dni `RRRR-MM-DD`, oba krańce włącznie (okres statystyk, miesiąc podsumowania). */
+export interface DateRange {
+  from: string;
+  to: string;
+}
+
 /**
  * Data w formacie `RRRR-MM-DD` odczytana w podanej strefie.
  *

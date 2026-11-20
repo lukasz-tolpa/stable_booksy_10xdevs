@@ -11,6 +11,7 @@ function booking(overrides: Partial<RiderBooking>): RiderBooking {
     id: 1,
     hour: 15,
     day: "2026-08-21",
+    stableId: 1,
     stableName: "Stadnina Pod Dębem",
     instructorId: 1,
     instructorName: "Joanna Wrona",

@@ -17,6 +17,7 @@ export interface StatsRows {
 /** Zapis w kształcie PostgREST: przydzielony koń, konto jeźdźca i jego profil (nazwa) przez FK `rider_id`. */
 export interface RawStatsBooking {
   hour: number;
+  instructor_id: number;
   /** `null` — zapis bez przydzielonego konia (ADR-0002). */
   horse_id: number | null;
   /** Kolumna `text` z check constraint — zawężana do `BookingStatus` w `toBookingStatus`. */
@@ -87,6 +88,7 @@ export async function collectStatsRows(loadPage: StatsPageLoader, pageSize: numb
           day: day.day,
           horseId: booking.horse_id,
           hour: booking.hour,
+          instructorId: booking.instructor_id,
           status: toBookingStatus(booking.status),
           riderId: booking.rider_id,
           cancelledBy: toCancelledBy(booking.cancelled_by),
@@ -130,7 +132,7 @@ export function getStatsRows(client: Client, stableId: number, period: StatsPeri
     client
       .from("schedule_days")
       .select(
-        "day, open_hour, close_hour, schedule_day_horses(horse_id), schedule_day_instructors(schedule_slots(hour, seats)), bookings(hour, status, cancelled_by, horse_id, rider_id, profiles(full_name))",
+        "day, open_hour, close_hour, schedule_day_horses(horse_id), schedule_day_instructors(schedule_slots(hour, seats)), bookings(hour, instructor_id, status, cancelled_by, horse_id, rider_id, profiles(full_name))",
       )
       .eq("stable_id", stableId)
       .gte("day", period.from)

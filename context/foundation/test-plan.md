@@ -329,7 +329,14 @@ się nie zapisał.`); the inactive-account screen (`/instruktor/konto-nieaktywne
   radios and a read-only „Adres e-mail”; a refused link is a NoticeCard with the `h1`
   `Link zaproszenia nie działa`; the statistics summary is the
   region "Podsumowanie okresu" with four `<dd>` tiles in the order rides,
-  ride hours, occupancy, cancellations. The landing page (`landing.spec.ts`,
+  ride hours, occupancy, cancellations; the month summary (`/osrodek/podsumowanie`,
+  `month-summary-owner.spec.ts`) has the month switcher `navigation` „Wybór miesiąca” (links
+  `Poprzedni` / `Następny`, the latter a plain span in the current month), the riders `list`
+  „Jeźdźcy” (one `listitem` per rider: name and `"{n} jazd…"`, „Usunięci jeźdźcy” last) and,
+  inside an expanded rider, the `list` „Jazdy — {rider}” with one `listitem` per ride; the instructor's
+  (`/instruktor/podsumowanie`, `month-summary-instructor.spec.ts`) is the same without instructor names and
+  with dates as plain text, behind the tab „Podsumowanie miesiąca” in the `navigation` „Przestrzeń instruktora”
+  (now shown to every instructor with an account; „Grafik” only with the schedule permission). The landing page (`landing.spec.ts`,
   guest, no storage state) repeats link names: "Załóż konto jeźdźca" and
   "Załóż konto ośrodka" (and "Mój panel" when signed in) stand twice, once in
   a half and once in the closing of the "Jeden dzień" section, and the top bar

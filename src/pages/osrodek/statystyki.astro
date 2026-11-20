@@ -8,8 +8,10 @@ import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
 import HorseStatsTable from "@/components/stats/HorseStatsTable.astro";
 import "@/components/stats/stats.css";
+import { OWNER_MONTH_SUMMARY_ROUTE } from "@/lib/auth/roles";
 import { formatHours, formatNumber, HOURS_UNIT } from "@/lib/format";
 import { logError } from "@/lib/log";
+import { MONTH_SUMMARY_TEXTS } from "@/lib/month-summary/texts";
 import { rideHoursBars } from "@/lib/stats/chart-items";
 import { resolveStatsPeriod } from "@/lib/stats/period";
 import { getStatsRows } from "@/lib/stats/queries";
@@ -98,6 +100,10 @@ const horseWorkloadItems = (view?.horses ?? []).map((row) => ({
   <main class="container-narrow page">
     <h1>Statystyki</h1>
     <p class="page-lead">Jazdy, godziny jazd, obłożenie grafiku i odwołania w wybranym okresie.</p>
+    <p class="summary-link">
+      <a href={OWNER_MONTH_SUMMARY_ROUTE}>{MONTH_SUMMARY_TEXTS.owner.statsLink}</a>
+      <span> — {MONTH_SUMMARY_TEXTS.owner.statsLinkNote}</span>
+    </p>
 
     <form method="GET" action="/osrodek/statystyki" class="period">
       <div class="period__field">
@@ -246,6 +252,23 @@ const horseWorkloadItems = (view?.horses ?? []).map((row) => ({
     font-size: 15.5px;
     color: var(--muted);
     max-width: 62ch;
+  }
+
+  .summary-link {
+    margin: 8px 0 0;
+    font-size: 14.5px;
+    color: var(--muted);
+  }
+  .summary-link a {
+    display: inline-flex;
+    align-items: center;
+    /* 44 px to minimalny cel dotykowy. */
+    min-height: 44px;
+    font-weight: 600;
+    color: var(--primary);
+  }
+  .summary-link a:hover {
+    color: var(--primary-strong);
   }
 
   /* Wybór okresu: dwa pola dat obok siebie także na telefonie, przycisk w pełnej

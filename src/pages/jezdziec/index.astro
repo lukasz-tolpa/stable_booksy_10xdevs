@@ -7,7 +7,8 @@ import StableFilter from "@/components/stables/StableFilter.astro";
 import Card from "@/components/ui/Card.astro";
 import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
-import { ROLE_HOME } from "@/lib/auth/roles";
+import { RIDER_MONTH_SUMMARY_ROUTE, ROLE_HOME } from "@/lib/auth/roles";
+import { MONTH_SUMMARY_TEXTS } from "@/lib/month-summary/texts";
 import { listStables, type StableListItem } from "@/lib/stables/queries";
 import { prepareSearchTerm } from "@/lib/stables/search";
 import { createClient } from "@/lib/supabase";
@@ -44,7 +45,10 @@ const isEmpty = stables.length === 0;
   <main class="container-narrow page">
     <div class="page-head">
       <h1>Ośrodki</h1>
-      <GhostButton href="/jezdziec/zapisy">Moje zapisy</GhostButton>
+      <div class="page-head__links">
+        <GhostButton href="/jezdziec/zapisy">Moje zapisy</GhostButton>
+        <GhostButton href={RIDER_MONTH_SUMMARY_ROUTE}>{MONTH_SUMMARY_TEXTS.heading}</GhostButton>
+      </div>
     </div>
     <p class="page-lead">Wybierz ośrodek, w którym chcesz się zapisać na jazdę.</p>
 
@@ -95,6 +99,11 @@ const isEmpty = stables.length === 0;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
+  }
+  .page-head__links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
   }
   .page-head h1 {
     font-size: 32px;

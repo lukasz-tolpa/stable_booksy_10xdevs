@@ -1,0 +1,89 @@
+---
+import { ArrowLeft } from "lucide-react";
+import Layout from "@/layouts/Layout.astro";
+import Topbar from "@/components/Topbar.astro";
+import MonthSummaryBody from "@/components/month-summary/MonthSummaryBody.astro";
+import StableRides from "@/components/month-summary/StableRides.astro";
+import { ROLE_HOME } from "@/lib/auth/roles";
+import { getRiderBookings } from "@/lib/bookings/queries";
+import { logError } from "@/lib/log";
+import { MONTH_PARAM, resolveSummaryMonth } from "@/lib/month-summary/month";
+import { composeRiderMonthSummary, riderMonthHref, type RiderMonthSummaryView } from "@/lib/month-summary/rider";
+import { composeMonthNav } from "@/lib/month-summary/summary";
+import { MONTH_SUMMARY_TEXTS } from "@/lib/month-summary/texts";
+import { todayIso } from "@/lib/schedule/dates";
+import { createClient } from "@/lib/supabase";
+
+// Podsumowanie miesiąca jeźdźca (#91). Dostęp pilnuje middleware (mapa tras w @/lib/auth/roles):
+// przestrzeń jeźdźca jest tylko dla jeźdźca. Liczy `@/lib/month-summary/rider`; tu tylko odczyt
+// i render. Odczyt to zapisy z „Moje zapisy” z jawnym filtrem po `rider_id`, zawężone do miesiąca.
+const { user } = Astro.locals;
+const SCOPE = "page:jezdziec/podsumowanie";
+const texts = MONTH_SUMMARY_TEXTS;
+const now = new Date();
+const month = resolveSummaryMonth(Astro.url.searchParams.get(MONTH_PARAM), todayIso(now));
+
+const supabase = createClient(Astro.request.headers, Astro.cookies);
+
+let view: RiderMonthSummaryView | null = null;
+
+if (supabase && user) {
+  try {
+    const bookings = await getRiderBookings(supabase, user.id, month);
+    view = composeRiderMonthSummary({ month, bookings }, now);
+  } catch (error) {
+    logError(SCOPE, error);
+  }
+} else {
+  // Brak klienta Supabase lub sesji to awaria konfiguracji, nie pusty miesiąc.
+  logError(SCOPE, new Error("Brak klienta Supabase albo sesji jeźdźca"));
+}
+
+// Przełącznik miesięcy zostaje także przy awarii odczytu — da się przejść do innego miesiąca.
+const nav = view?.nav ?? composeMonthNav(month, riderMonthHref);
+---
+
+<Layout title={texts.heading}>
+  <Topbar />
+  <main class="container-narrow page">
+    <a href={ROLE_HOME.rider} class="back">
+      <ArrowLeft className="size-4" />
+      {texts.rider.back}
+    </a>
+
+    <MonthSummaryBody lead={texts.rider.lead} nav={nav} view={view}>
+      <div class="stables">
+        {view?.stables.map((stable) => <StableRides stable={stable} />)}
+      </div>
+    </MonthSummaryBody>
+  </main>
+</Layout>
+
+<style>
+  .page {
+    padding-block: 24px 56px;
+  }
+  .back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+    margin-bottom: 12px;
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--primary);
+  }
+  .back:hover {
+    color: var(--primary-strong);
+    text-decoration: underline;
+  }
+  .back:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
+    border-radius: 8px;
+  }
+  .stables {
+    display: grid;
+    gap: 22px;
+  }
+</style>

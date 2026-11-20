@@ -1,0 +1,92 @@
+---
+// Lista jazd Podsumowania miesiąca: data (link, gdy widok go podaje), godzina, instruktor (poza
+// widokiem instruktora) i koń albo „bez konia”. Renderuje gotowe `SummaryRideRow` — u właściciela
+// i instruktora pod rozwiniętym jeźdźcem (`RiderRides`), u jeźdźca pod ośrodkiem (`StableRides`).
+//
+// KONTRAKT e2e: `list` o nazwie `label` (np. „Jazdy — Anna Kowalska”), jedna pozycja na jazdę.
+import Tag from "@/components/ui/Tag.astro";
+import type { SummaryRideRow } from "@/lib/month-summary/summary";
+
+interface Props {
+  rides: SummaryRideRow[];
+  /** Nazwa listy dla czytników ekranu. */
+  label: string;
+}
+
+const { rides, label } = Astro.props;
+---
+
+<ul class="rides" aria-label={label}>
+  {
+    rides.map((ride) => (
+      <li class="ride">
+        <span class="ride__when">
+          {ride.dayHref ? (
+            <a class="ride__date mono-nums" href={ride.dayHref}>
+              {ride.date}
+            </a>
+          ) : (
+            <span class="ride__date mono-nums">{ride.date}</span>
+          )}
+          <span class="ride__hour mono-nums">{ride.hour}</span>
+        </span>
+        <span class="ride__meta">
+          {ride.instructorName && <span>{ride.instructorName}</span>}
+          {ride.withoutHorse ? <Tag variant="warn">{ride.horseName}</Tag> : <span>{ride.horseName}</span>}
+        </span>
+      </li>
+    ))
+  }
+</ul>
+
+<style>
+  .rides {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 2px;
+  }
+  /* Dwie kolumny także na telefonie: termin w stałej szerokości (mono), obok instruktor i koń —
+     wiersze się nie rozjeżdżają, a długie nazwy łamią się w swojej kolumnie. */
+  .ride {
+    display: grid;
+    grid-template-columns: 10.5rem minmax(0, 1fr);
+    align-items: center;
+    column-gap: 12px;
+    font-size: 14px;
+  }
+  .ride__when {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .ride__date {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    font-weight: 600;
+  }
+  a.ride__date {
+    color: var(--primary);
+  }
+  a.ride__date:hover {
+    color: var(--primary-strong);
+  }
+  a.ride__date:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  .ride__hour {
+    color: var(--muted);
+  }
+  .ride__meta {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 12px;
+    min-width: 0;
+    color: var(--muted);
+  }
+</style>

@@ -1,4 +1,4 @@
-import { OWNER_SCHEDULE_ROUTE } from "@/lib/auth/roles";
+import { OWNER_MONTH_SUMMARY_ROUTE, OWNER_SCHEDULE_ROUTE } from "@/lib/auth/roles";
 import { STABLE_DAY_BOOKINGS_ROUTE } from "@/lib/bookings/stable-redirect";
 import { INSTRUCTORS_ROUTE } from "@/lib/instructors/redirect";
 import {
@@ -6,13 +6,17 @@ import {
   formatCount,
   formatHourRange,
   formatHours,
+  formatMonthName,
   formatNumber,
   formatPercent,
   formatShortDate,
   formatShortWeekday,
+  RIDE_FORMS,
 } from "@/lib/format";
+import { resolveSummaryMonth } from "@/lib/month-summary/month";
+import { monthRides } from "@/lib/month-summary/summary";
 import { addDays } from "@/lib/schedule/dates";
-import { ACTIVE_FORMS, DAY_FORMS, PANEL_TEXTS, RIDE_FORMS, SEAT_FORMS } from "@/lib/stable-panel/texts";
+import { ACTIVE_FORMS, DAY_FORMS, PANEL_TEXTS, SEAT_FORMS } from "@/lib/stable-panel/texts";
 import { rideHoursBars, type BarChartItem } from "@/lib/stats/chart-items";
 import { statsPeriodSearch } from "@/lib/stats/period";
 import type { StatsRider } from "@/lib/stats/riders";
@@ -179,6 +183,11 @@ export interface SideColumnInput {
   instructors: { id: number; active: boolean }[] | null;
   /** Instruktorzy z kontem (`listInstructorAccounts`); `null` — nie wczytano. */
   accounts: { instructor_id: number }[] | null;
+  /**
+   * Zapisy ośrodka obejmujące bieżący miesiąc do dziś (`getStatsRows` dla `historyPeriod(today)`);
+   * zapisy spoza miesiąca są pomijane. `null` — nie wczytano.
+   */
+  monthBookings: StatsBooking[] | null;
 }
 
 export interface SideLink {
@@ -212,10 +221,29 @@ function instructorsFact(input: SideColumnInput): string | null {
 }
 
 /**
- * Boczna kolumna „Ośrodek”: pięć sekcji ośrodka, każda z krótką informacją. Link zostaje także
- * wtedy, gdy jego informacji nie udało się wczytać — nawigacja nie znika z awarią odczytu.
+ * Link „Podsumowanie miesiąca” z jazdami bieżącego miesiąca do teraz, np. `listopad: 12 jazd` — ta sama
+ * reguła co w Podsumowaniu miesiąca. Ten sam link jest w bocznej kolumnie i — poniżej 1000 px, gdzie
+ * kolumny nie ma, a dolny pasek go nie mieści — w kolumnie głównej panelu.
  */
-export function composeSideColumn(input: SideColumnInput): SideLink[] {
+export function composeMonthSummaryLink(
+  input: Pick<SideColumnInput, "today" | "monthBookings">,
+  now: Date = new Date(),
+): SideLink {
+  let fact: string | null = null;
+  if (input.monthBookings !== null) {
+    const month = resolveSummaryMonth(null, input.today);
+    const rides = monthRides(input.monthBookings, month, now).length;
+    fact = `${formatMonthName(month.month)}: ${formatCount(rides, RIDE_FORMS)}`;
+  }
+  return { name: PANEL_TEXTS.side.monthSummary, href: OWNER_MONTH_SUMMARY_ROUTE, fact, warn: false };
+}
+
+/**
+ * Boczna kolumna „Ośrodek”: sekcje ośrodka, każda z krótką informacją. Link zostaje także
+ * wtedy, gdy jego informacji nie udało się wczytać — nawigacja nie znika z awarią odczytu.
+ * `now` wstrzykiwane jak w statystykach — jazdy miesiąca liczą się do teraz.
+ */
+export function composeSideColumn(input: SideColumnInput, now: Date = new Date()): SideLink[] {
   const texts = PANEL_TEXTS.side;
   const today = input.week?.days[0];
   const activeHorses = input.horses?.filter((horse) => horse.active).length ?? null;
@@ -235,6 +263,7 @@ export function composeSideColumn(input: SideColumnInput): SideLink[] {
       warn: false,
     },
     { name: texts.instructors, href: INSTRUCTORS_ROUTE, fact: instructorsFact(input), warn: false },
+    composeMonthSummaryLink(input, now),
     { name: texts.stats, href: STATS_ROUTE, fact: texts.anyPeriod, warn: false },
   ];
 }
@@ -244,6 +273,16 @@ export function composeSideColumn(input: SideColumnInput): SideLink[] {
 /** Ostatnie 30 dni jako okres statystyk: dziś-29…dziś. */
 export function lastMonthPeriod(today: string): StatsPeriod {
   return { from: addDays(today, -(LAST_MONTH_LENGTH - 1)), to: today };
+}
+
+/**
+ * Okres jednego odczytu minionych wierszy panelu: ostatnie 30 dni i bieżący miesiąc razem (31. dnia
+ * miesiąc sięga dalej wstecz niż 30 dni). Każda część pomija wiersze spoza swojego okresu.
+ */
+export function historyPeriod(today: string): StatsPeriod {
+  const lastMonth = lastMonthPeriod(today);
+  const monthStart = resolveSummaryMonth(null, today).from;
+  return { from: monthStart < lastMonth.from ? monthStart : lastMonth.from, to: today };
 }
 
 export interface LastMonthInput {

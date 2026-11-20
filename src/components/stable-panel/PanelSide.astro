@@ -1,8 +1,10 @@
 ---
-// Panel ośrodka — boczna kolumna „Ośrodek” (spec #83): pięć sekcji ośrodka z krótką informacją.
+// Panel ośrodka — boczna kolumna „Ośrodek” (spec #83): sekcje ośrodka z krótką informacją
+// (od #88 także „Podsumowanie miesiąca” — nie ma go w dolnym pasku, na telefonie jest w kolumnie
+// głównej panelu, `PanelMonthSummaryLink`).
 // Renderuje `SideLink[]` z `@/lib/stable-panel/panel`. Linki zostają także przy awarii odczytu
 // (`failed`), żeby nawigacja nie znikała; informacje bez danych są wtedy puste. Tylko od 1000 px —
-// na telefonie te same sekcje (bez informacji) są w dolnym pasku `StableTabBar`.
+// na telefonie sekcje (bez informacji) są w dolnym pasku `StableTabBar`.
 import FailureState from "@/components/ui/FailureState.astro";
 import type { SideLink } from "@/lib/stable-panel/panel";
 import { PANEL_TEXTS } from "@/lib/stable-panel/texts";
