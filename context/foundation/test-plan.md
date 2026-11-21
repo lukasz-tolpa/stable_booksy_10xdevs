@@ -340,9 +340,13 @@ się nie zapisał.`); the inactive-account screen (`/instruktor/konto-nieaktywne
   `settlements-owner.spec.ts`) has the region „Stawka ośrodka” (field „Nowa stawka (zł)”, radios `Od tego miesiąca (…)` /
   `Od następnego miesiąca (…)` — take them by role `radio`, a `^`-anchored `getByLabel` misses the wrapped label —, buttons
   `Zapisz stawkę` and `Usuń zaplanowaną zmianę`), the same month switcher and the `list` „Rozliczenia jeźdźców” (name, `"{n} jazd…"`,
-  amount) with `Razem: …` under it; amounts carry non-breaking spaces, match them with `\s`. The spec deletes the stable's rates as
+  the rate-source tag `stawka ośrodka` / `stawka indywidualna`, amount — tag and amount only once the stable has a stable rate)
+  with `Razem: …` under it; amounts carry non-breaking spaces, match them with `\s`. The spec deletes the stable's rates as
   superuser before and after (`session_replication_role = replica`, since `SB027` binds `postgres` too) — the database is left
-  without rates. `settlements-costs.spec.ts` (#96) adds, corrects and deletes extra costs on the rider settlement (`list`
+  without rates. The settlements specs share their steps from `e2e/helpers.ts` (`clearStableRates`, `clearStableRatesAndCosts`,
+  `setStableRate`, `runSql`, `grosze`, `settlementRiders` / `settlementRows` / `pricedSettlementRows`, `settlementCard`,
+  `emptySettlementsMonth`, `RIDER_SETTLEMENT_URL`); crafted-form checks post with `page.request.post` and an `Origin` header
+  (Astro's origin check) and `maxRedirects: 0`, reading `error=` from the `Location`. `settlements-costs.spec.ts` (#96) adds, corrects and deletes extra costs on the rider settlement (`list`
   „Koszty dodatkowe — {rider}”, `form` „Dopisz koszt” / „Popraw koszt {name}”, „Popraw” is a `<summary>` — click it by text) and on
   the list page (region „Dopisz koszt”, select „Jeździec”); „Do zapłaty” is read from its `paragraph`, because cost amounts are
   amount-only elements too; it deletes the stable's rates and extra costs as superuser before and after. The landing page (`landing.spec.ts`,
