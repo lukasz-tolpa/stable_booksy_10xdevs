@@ -29,6 +29,8 @@ export const MONTH_SUMMARY_TEXTS = {
     /** Link na stronie Statystyk. */
     statsLink: "Podsumowanie miesiąca",
     statsLinkNote: "liczba jazd każdego jeźdźca w miesiącu, z datami",
+    /** Link do Rozliczeń wybranego miesiąca (#98), pod opisem strony. */
+    settlementsLink: "Rozliczenia za ten miesiąc",
     /** Filtr instruktora (#89): formularz GET nad listą jeźdźców. */
     filter: {
       /** Nazwa formularza dla czytników ekranu. */

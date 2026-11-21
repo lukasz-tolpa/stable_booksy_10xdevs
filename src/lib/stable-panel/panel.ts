@@ -1,4 +1,4 @@
-import { OWNER_MONTH_SUMMARY_ROUTE, OWNER_SCHEDULE_ROUTE } from "@/lib/auth/roles";
+import { OWNER_MONTH_SUMMARY_ROUTE, OWNER_SCHEDULE_ROUTE, OWNER_SETTLEMENTS_ROUTE } from "@/lib/auth/roles";
 import { STABLE_DAY_BOOKINGS_ROUTE } from "@/lib/bookings/stable-redirect";
 import { INSTRUCTORS_ROUTE } from "@/lib/instructors/redirect";
 import {
@@ -6,6 +6,7 @@ import {
   formatCount,
   formatHourRange,
   formatHours,
+  formatMoney,
   formatMonthName,
   formatNumber,
   formatPercent,
@@ -16,6 +17,7 @@ import {
 import { resolveSummaryMonth } from "@/lib/month-summary/month";
 import { monthRides } from "@/lib/month-summary/summary";
 import { addDays } from "@/lib/schedule/dates";
+import type { SettlementList } from "@/lib/settlements/settlements";
 import { ACTIVE_FORMS, DAY_FORMS, PANEL_TEXTS, SEAT_FORMS } from "@/lib/stable-panel/texts";
 import { rideHoursBars, type BarChartItem } from "@/lib/stats/chart-items";
 import { statsPeriodSearch } from "@/lib/stats/period";
@@ -34,7 +36,8 @@ import { GRANULARITY_NAMES } from "@/lib/stats/time-series-labels";
  * Panel ośrodka (`/osrodek`, spec #83): model widoku każdej części strony. Strona wczytuje
  * części osobno (awaria jednej nie zabiera reszty), każdą składa tu osobna funkcja, a markup
  * tylko renderuje wynik. Części: najbliższe 7 dni (`composeWeek`), ostatnie 30 dni
- * (`composeLastMonth`) i boczna kolumna „Ośrodek” (`composeSideColumn`).
+ * (`composeLastMonth`) i boczna kolumna „Ośrodek” (`composeSideColumn`). Linki bocznej kolumny, których
+ * nie ma w dolnym pasku (Podsumowanie miesiąca, Rozliczenia), są poniżej 1000 px w kolumnie głównej.
  */
 
 /** Stado ośrodka (`/osrodek/konie`). */
@@ -188,6 +191,11 @@ export interface SideColumnInput {
    * zapisy spoza miesiąca są pomijane. `null` — nie wczytano.
    */
   monthBookings: StatsBooking[] | null;
+  /**
+   * Lista rozliczeń bieżącego miesiąca (`composeSettlementList` — ta sama co na stronie „Rozliczenia”);
+   * panel czyta z niej tylko sumę. `null` — nie wczytano.
+   */
+  settlement: Pick<SettlementList, "total" | "needsRate"> | null;
 }
 
 export interface SideLink {
@@ -195,7 +203,7 @@ export interface SideLink {
   href: string;
   /** Krótka informacja przy linku; `null`, gdy jej danych nie udało się wczytać. */
   fact: string | null;
-  /** Informacja wymaga uwagi (jutro bez grafiku). */
+  /** Informacja wymaga uwagi (jutro bez grafiku, ośrodek bez stawki). */
   warn: boolean;
 }
 
@@ -239,6 +247,26 @@ export function composeMonthSummaryLink(
 }
 
 /**
+ * Link „Rozliczenia” z sumą bieżącego miesiąca, np. `listopad: 12 340,00 zł`, albo prośbą „Ustaw stawkę”.
+ * Sumy nie liczy — bierze `total` z listy rozliczeń, więc obejmuje wszystko, co lista wlicza do „do
+ * zapłaty” (także koszty dodatkowe). Jak Podsumowanie miesiąca: w bocznej kolumnie i poniżej 1000 px
+ * w kolumnie głównej.
+ */
+export function composeSettlementsLink(input: Pick<SideColumnInput, "today" | "settlement">): SideLink {
+  const texts = PANEL_TEXTS.side;
+  const link = { name: texts.settlements, href: OWNER_SETTLEMENTS_ROUTE };
+  const { settlement } = input;
+  if (settlement === null) {
+    return { ...link, fact: null, warn: false };
+  }
+  if (settlement.needsRate || settlement.total === null) {
+    return { ...link, fact: texts.setRate, warn: true };
+  }
+  const month = resolveSummaryMonth(null, input.today).month;
+  return { ...link, fact: `${formatMonthName(month)}: ${formatMoney(settlement.total)}`, warn: false };
+}
+
+/**
  * Boczna kolumna „Ośrodek”: sekcje ośrodka, każda z krótką informacją. Link zostaje także
  * wtedy, gdy jego informacji nie udało się wczytać — nawigacja nie znika z awarią odczytu.
  * `now` wstrzykiwane jak w statystykach — jazdy miesiąca liczą się do teraz.
@@ -264,6 +292,7 @@ export function composeSideColumn(input: SideColumnInput, now: Date = new Date()
     },
     { name: texts.instructors, href: INSTRUCTORS_ROUTE, fact: instructorsFact(input), warn: false },
     composeMonthSummaryLink(input, now),
+    composeSettlementsLink(input),
     { name: texts.stats, href: STATS_ROUTE, fact: texts.anyPeriod, warn: false },
   ];
 }
