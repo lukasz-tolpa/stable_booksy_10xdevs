@@ -1,6 +1,17 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { STABLE_NAME, STABLE_STATE } from "./helpers";
-import { runLocalSql } from "../scripts/db-demo.mjs";
+import {
+  clearStableRatesAndCosts,
+  DEMO_HINT,
+  emptySettlementsMonth,
+  grosze,
+  pricedSettlementRows,
+  RIDER_SETTLEMENT_URL,
+  settlementCard,
+  settlementRiders,
+  SETTLEMENTS_ROUTE,
+  setStableRate,
+  STABLE_STATE,
+} from "./helpers";
 
 /**
  * Koszty dodatkowe (#96, spec #93) na minionej historii demo, którą ładuje setup: właściciel dopisuje,
@@ -18,75 +29,20 @@ import { runLocalSql } from "../scripts/db-demo.mjs";
  */
 test.use({ storageState: STABLE_STATE });
 
-const ROUTE = "/osrodek/rozliczenia";
-const DEMO_HINT = "Brak minionej historii demo — uruchom: npm run db:demo";
 const RATE = 12345;
-
-function runSql(sql: string, what: string): void {
-  const result = runLocalSql(sql);
-  if (result.status !== 0) {
-    throw new Error(`Nie udało się ${what}:\n${result.stderr}`);
-  }
-}
-
-function clearRatesAndCosts(): void {
-  runSql(
-    `
-    begin;
-    set local session_replication_role = replica;
-    delete from public.rates r using public.stables s where s.id = r.stable_id and s.name = '${STABLE_NAME}';
-    delete from public.extra_costs c using public.stables s where s.id = c.stable_id and s.name = '${STABLE_NAME}';
-    commit;
-  `,
-    "usunąć stawek i kosztów dodatkowych ośrodka",
-  );
-}
-
-function setStableRate(grosze: number): void {
-  runSql(
-    `
-    insert into public.rates (stable_id, rider_id, from_month, amount)
-    select s.id, null, private.warsaw_month_start(), ${String(grosze)} from public.stables s where s.name = '${STABLE_NAME}';
-  `,
-    "ustawić stawki ośrodka",
-  );
-}
-
-/** Kwota z tekstu, np. `1 234,50 zł` (twarde spacje), w groszach. */
-function grosze(text: string): number {
-  const match = /(\d[\d\s]*),(\d{2})\s*zł/.exec(text);
-  if (!match) throw new Error(`Brak kwoty w „${text}”`);
-  return Number(match[1].replace(/\s/g, "")) * 100 + Number(match[2]);
-}
-
-function riders(page: Page) {
-  return page.getByRole("list", { name: "Rozliczenia jeźdźców" }).getByRole("listitem");
-}
-
-async function rows(page: Page): Promise<{ text: string; rides: number; amount: number }[]> {
-  return (await riders(page).allInnerTexts()).map((text) => ({
-    text,
-    rides: Number(/(\d+) jazd/.exec(text)?.[1] ?? Number.NaN),
-    amount: grosze(text),
-  }));
-}
 
 /**
  * Lista ze stawką: bieżący miesiąc, a gdy jeszcze pusty — poprzedni. Zwraca miesiąc z adresu (`null` —
  * bieżący, bez parametru).
  */
 async function openSettlementsWithRides(page: Page): Promise<string | null> {
-  await page.goto(ROUTE);
-  if (await page.getByText(/^We? .+ nie ma nic do rozliczenia\.$/).isVisible()) {
+  await page.goto(SETTLEMENTS_ROUTE);
+  if (await emptySettlementsMonth(page).isVisible()) {
     await page.getByRole("navigation", { name: "Wybór miesiąca" }).getByRole("link", { name: "Poprzedni" }).click();
     await page.waitForURL(/miesiac=\d{4}-\d{2}$/);
   }
-  await expect(riders(page).first(), DEMO_HINT).toBeVisible();
+  await expect(settlementRiders(page).first(), DEMO_HINT).toBeVisible();
   return new URL(page.url()).searchParams.get("miesiac");
-}
-
-function settlementCard(page: Page) {
-  return page.getByRole("region", { name: /^Rozliczenie za / });
 }
 
 /** „Do zapłaty” i kwota (pogrubiona) to osobne elementy jednego akapitu. */
@@ -98,18 +54,18 @@ async function due(card: Locator): Promise<number> {
 
 test.describe("Koszty dodatkowe", () => {
   test.beforeAll(() => {
-    clearRatesAndCosts();
+    clearStableRatesAndCosts();
     setStableRate(RATE);
   });
-  test.afterAll(clearRatesAndCosts);
+  test.afterAll(clearStableRatesAndCosts);
 
   test("właściciel dopisuje, poprawia i usuwa koszt w rozliczeniu jeźdźca: „Do zapłaty” = jazdy + koszty", async ({
     page,
   }) => {
     await openSettlementsWithRides(page);
-    const [first] = await rows(page);
-    await riders(page).first().getByRole("link").click();
-    await page.waitForURL(/\/osrodek\/rozliczenia\/[0-9a-f-]{36}\?miesiac=\d{4}-\d{2}$/);
+    const [first] = await pricedSettlementRows(page);
+    await settlementRiders(page).first().getByRole("link").click();
+    await page.waitForURL(RIDER_SETTLEMENT_URL);
     const riderUrl = page.url();
     // Wiersz listy prowadzi do rozliczenia z miesiącem w adresie.
     const month = new URL(riderUrl).searchParams.get("miesiac");
@@ -172,7 +128,7 @@ test.describe("Koszty dodatkowe", () => {
     await test.step("wiersz listy pokazuje kwotę z kosztem", async () => {
       await page.getByRole("link", { name: "Wróć do rozliczeń" }).click();
       await page.waitForURL(/\/osrodek\/rozliczenia\?miesiac=/);
-      const row = (await rows(page)).find((item) => item.text.startsWith(name));
+      const row = (await pricedSettlementRows(page)).find((item) => item.text.startsWith(name));
       expect(row?.amount, `wiersz „${name}”`).toBe(ridesAmount + 75050);
       await page.goto(riderUrl);
     });
@@ -191,7 +147,7 @@ test.describe("Koszty dodatkowe", () => {
     page,
   }) => {
     const month = await openSettlementsWithRides(page);
-    const before = await rows(page);
+    const before = await pricedSettlementRows(page);
     const region = page.getByRole("region", { name: "Dopisz koszt" });
     const select = region.getByLabel("Jeździec");
     const options = (await select.getByRole("option").allInnerTexts())
@@ -215,7 +171,7 @@ test.describe("Koszty dodatkowe", () => {
     });
 
     await test.step("wiersz jeźdźca: jazdy × stawka + koszt, „Razem” = suma wierszy", async () => {
-      const after = await rows(page);
+      const after = await pricedSettlementRows(page);
       const row = after.find((item) => item.text.startsWith(rider));
       expect(row, `wiersz „${rider}” na liście`).toBeDefined();
       if (previous === undefined) {

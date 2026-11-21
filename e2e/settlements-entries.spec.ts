@@ -1,6 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
-import { STABLE_NAME, STABLE_STATE } from "./helpers";
-import { runLocalSql } from "../scripts/db-demo.mjs";
+import {
+  clearStableRates,
+  emptySettlementsMonth,
+  grosze,
+  SETTLEMENTS_ROUTE,
+  setStableRate,
+  STABLE_STATE,
+} from "./helpers";
 
 /**
  * Wejścia do Rozliczeń (#98, spec #93): boczna kolumna panelu ośrodka z sumą bieżącego miesiąca albo
@@ -15,44 +21,7 @@ import { runLocalSql } from "../scripts/db-demo.mjs";
  */
 test.use({ storageState: STABLE_STATE });
 
-const SETTLEMENTS_ROUTE = "/osrodek/rozliczenia";
 const SUMMARY_ROUTE = "/osrodek/podsumowanie";
-
-function runSql(sql: string, what: string): void {
-  const result = runLocalSql(sql);
-  if (result.status !== 0) {
-    throw new Error(`Nie udało się ${what}:\n${result.stderr}`);
-  }
-}
-
-function clearStableRates(): void {
-  runSql(
-    `
-    begin;
-    set local session_replication_role = replica;
-    delete from public.rates r using public.stables s where s.id = r.stable_id and s.name = '${STABLE_NAME}';
-    commit;
-  `,
-    "usunąć stawek ośrodka",
-  );
-}
-
-function setStableRate(grosze: number): void {
-  runSql(
-    `
-    insert into public.rates (stable_id, rider_id, from_month, amount)
-    select s.id, null, private.warsaw_month_start(), ${String(grosze)} from public.stables s where s.name = '${STABLE_NAME}';
-  `,
-    "ustawić stawki ośrodka",
-  );
-}
-
-/** Kwota z tekstu, np. `1 234,50 zł` (twarde spacje), w groszach. */
-function grosze(text: string): number {
-  const match = /(\d[\d\s]*),(\d{2})\s*zł/.exec(text);
-  if (!match) throw new Error(`Brak kwoty w „${text}”`);
-  return Number(match[1].replace(/\s/g, "")) * 100 + Number(match[2]);
-}
 
 function sideLink(page: Page) {
   return page.getByRole("navigation", { name: "Ośrodek" }).getByRole("link", { name: /^Rozliczenia / });
@@ -93,7 +62,7 @@ test.describe("Wejścia do Rozliczeń", () => {
       await page.waitForURL(`**${SETTLEMENTS_ROUTE}`);
       await expect(page.getByRole("heading", { level: 1, name: "Rozliczenia" })).toBeVisible();
       await expect(monthNav(page)).toContainText(monthName);
-      const empty = page.getByText(/^We? .+ nie ma nic do rozliczenia\.$/);
+      const empty = emptySettlementsMonth(page);
       if (await empty.isVisible()) {
         expect(sideTotal, "miesiąc bez jazd ma sumę zero").toBe(0);
       } else {

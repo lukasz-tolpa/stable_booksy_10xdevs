@@ -1,6 +1,19 @@
 import { expect, test, type Page } from "@playwright/test";
-import { STABLE_NAME, STABLE_STATE } from "./helpers";
-import { runLocalSql } from "../scripts/db-demo.mjs";
+import {
+  clearStableRates,
+  DEMO_HINT,
+  emptySettlementsMonth,
+  grosze,
+  pricedSettlementRows,
+  RIDER_SETTLEMENT_URL,
+  runSql,
+  settlementCard,
+  settlementRiders,
+  SETTLEMENTS_ROUTE,
+  setStableRate,
+  STABLE_NAME,
+  STABLE_STATE,
+} from "./helpers";
 
 /**
  * Stawka indywidualna jeźdźca (#97, spec #93) na minionej historii demo, którą ładuje setup. Wyrocznią jest
@@ -17,68 +30,37 @@ import { runLocalSql } from "../scripts/db-demo.mjs";
  */
 test.use({ storageState: STABLE_STATE });
 
-const DEMO_HINT = "Brak minionej historii demo — uruchom: npm run db:demo";
-const ROUTE = "/osrodek/rozliczenia";
 const NO_RIDES_YET = "Bieżący miesiąc nie ma jeszcze jazd (pierwszy dzień miesiąca)";
 const STABLE_RATE = 12345;
 const INDIVIDUAL_RATE = 8000;
 
-function runSql(sql: string, what: string): void {
-  const result = runLocalSql(sql);
-  if (result.status !== 0) {
-    throw new Error(`Nie udało się ${what}:\n${result.stderr}`);
-  }
-}
-
-function clearStableRates(): void {
-  runSql(
-    `
-    begin;
-    set local session_replication_role = replica;
-    delete from public.rates r using public.stables s where s.id = r.stable_id and s.name = '${STABLE_NAME}';
-    commit;
-  `,
-    "usunąć stawek ośrodka",
-  );
-}
-
-function setStableRate(grosze: number): void {
-  runSql(
+/** Zaplanowana zmiana stawki od następnego miesiąca bazy, wstawiona jako superuser; zwraca jej `id`. */
+function planRate(rider: string | null, amount: number): number {
+  const riderId =
+    rider === null ? "null" : `(select id from public.profiles where full_name = '${rider}' and role = 'rider')`;
+  const out = runSql(
     `
     insert into public.rates (stable_id, rider_id, from_month, amount)
-    select s.id, null, private.warsaw_month_start(), ${String(grosze)} from public.stables s where s.name = '${STABLE_NAME}';
+    select s.id, ${riderId}, (private.warsaw_month_start() + interval '1 month')::date, ${String(amount)}
+    from public.stables s where s.name = '${STABLE_NAME}'
+    returning id;
   `,
-    "ustawić stawki ośrodka",
+    "zaplanować zmiany stawki",
+    ["-At"],
+  );
+  return Number(out.trim().split(/\s+/)[0]);
+}
+
+function rateExists(id: number): boolean {
+  return (
+    runSql(`select count(*) from public.rates where id = ${String(id)};`, "odczytać stawki", ["-At"]).trim() === "1"
   );
 }
 
-/** Kwota z tekstu, np. `1 234,50 zł` (twarde spacje), w groszach. */
-function grosze(text: string): number {
-  const match = /(\d[\d\s]*),(\d{2})\s*zł/.exec(text);
-  if (!match) throw new Error(`Brak kwoty w „${text}”`);
-  return Number(match[1].replace(/\s/g, "")) * 100 + Number(match[2]);
-}
-
-function riders(page: Page) {
-  return page.getByRole("list", { name: "Rozliczenia jeźdźców" }).getByRole("listitem");
-}
-
-function emptyMonth(page: Page) {
-  return page.getByText(/^We? .+ nie ma nic do rozliczenia\.$/);
-}
-
-/** Wiersze listy: tekst, liczba jazd i kwota. */
-async function rows(page: Page): Promise<{ text: string; rides: number; amount: number }[]> {
-  return (await riders(page).allInnerTexts()).map((text) => ({
-    text,
-    rides: Number(/(\d+) jazd/.exec(text)?.[1] ?? Number.NaN),
-    amount: grosze(text),
-  }));
-}
-
-/** Karta rozliczenia jeźdźca: region „Rozliczenie za {miesiąc}”. */
-function settlementCard(page: Page) {
-  return page.getByRole("region", { name: /^Rozliczenie za / });
+function riderKey(name: string): string {
+  return runSql(`select id from public.profiles where full_name = '${name}' and role = 'rider';`, "odczytać jeźdźca", [
+    "-At",
+  ]).trim();
 }
 
 /** Wiersz „Jazdy: N × stawka = kwota”, dopisek źródła i „Do zapłaty” zgadzają się z jazdami i stawką. */
@@ -104,12 +86,12 @@ test.describe("Stawka indywidualna jeźdźca", () => {
   test("właściciel ustawia jeźdźcowi stawkę indywidualną od tego miesiąca: jego kwota liczy się po niej, innych bez zmian", async ({
     page,
   }) => {
-    await page.goto(ROUTE);
-    test.skip(await emptyMonth(page).isVisible(), NO_RIDES_YET);
-    await expect(riders(page).first(), DEMO_HINT).toBeVisible();
+    await page.goto(SETTLEMENTS_ROUTE);
+    test.skip(await emptySettlementsMonth(page).isVisible(), NO_RIDES_YET);
+    await expect(settlementRiders(page).first(), DEMO_HINT).toBeVisible();
     const listUrl = page.url();
 
-    const before = await rows(page);
+    const before = await pricedSettlementRows(page);
     for (const row of before) {
       expect(row.amount, `kwota w „${row.text}” po stawce ośrodka`).toBe(row.rides * STABLE_RATE);
     }
@@ -119,8 +101,8 @@ test.describe("Stawka indywidualna jeźdźca", () => {
     let riderUrl = "";
 
     await test.step("rozliczenie jeźdźca: bez stawki indywidualnej obowiązuje stawka ośrodka", async () => {
-      await riders(page).first().getByRole("link").click();
-      await page.waitForURL(/\/osrodek\/rozliczenia\/[0-9a-f-]{36}\?miesiac=\d{4}-\d{2}$/);
+      await settlementRiders(page).first().getByRole("link").click();
+      await page.waitForURL(RIDER_SETTLEMENT_URL);
       riderUrl = page.url();
       const name = (await page.getByRole("heading", { level: 1 }).innerText()).trim();
       expect(target.text.startsWith(name), `wiersz listy „${target.text}” to jeździec „${name}”`).toBe(true);
@@ -148,13 +130,14 @@ test.describe("Stawka indywidualna jeźdźca", () => {
 
     await test.step("lista: jeździec po stawce indywidualnej z dopiskiem, inni bez zmian, „Razem” = suma wierszy", async () => {
       await page.goto(listUrl);
-      const after = await rows(page);
+      const after = await pricedSettlementRows(page);
       expect(after.map((row) => row.rides)).toEqual(before.map((row) => row.rides));
       expect(after[0]?.amount).toBe(target.rides * INDIVIDUAL_RATE);
       expect(after[0]?.text).toContain("stawka indywidualna");
       for (const row of after.slice(1)) {
         expect(row.amount, `kwota w „${row.text}” bez zmian`).toBe(row.rides * STABLE_RATE);
         expect(row.text).not.toContain("stawka indywidualna");
+        expect(row.text, "dopisek źródła stawki przy każdym wierszu").toContain("stawka ośrodka");
       }
       const sum = after.reduce((acc, row) => acc + row.amount, 0);
       expect(grosze(await page.getByText(/^Razem: /).innerText())).toBe(sum);
@@ -188,9 +171,9 @@ test.describe("Stawka indywidualna jeźdźca", () => {
   });
 
   test("kwota z trzema miejscami po przecinku wraca na rozliczenie jeźdźca z polskim komunikatem", async ({ page }) => {
-    await page.goto(ROUTE);
-    test.skip(await emptyMonth(page).isVisible(), NO_RIDES_YET);
-    await riders(page).first().getByRole("link").click();
+    await page.goto(SETTLEMENTS_ROUTE);
+    test.skip(await emptySettlementsMonth(page).isVisible(), NO_RIDES_YET);
+    await settlementRiders(page).first().getByRole("link").click();
     await page.waitForURL(/\/osrodek\/rozliczenia\/[0-9a-f-]{36}\?miesiac=/);
     const path = new URL(page.url()).pathname;
     const form = page.getByRole("form", { name: "Nowa stawka indywidualna" });
@@ -200,5 +183,49 @@ test.describe("Stawka indywidualna jeźdźca", () => {
     expect(new URL(page.url()).pathname).toBe(path);
     await expect(page.getByRole("alert")).toHaveText("Kwota może mieć najwyżej dwa miejsca po przecinku");
     await expect(settlementCard(page).getByText("stawka ośrodka", { exact: true })).toBeVisible();
+  });
+
+  // Review #93: formularz usunięcia zaplanowanej zmiany niesie tylko `rateId`, więc endpoint sam pilnuje
+  // rodzaju stawki — spreparowany formularz nie usunie zmiany z drugiej ścieżki.
+  test("usunięcie zaplanowanej zmiany stawki ośrodka nie usuwa zmiany stawki jeźdźca i odwrotnie", async ({
+    page,
+    baseURL,
+  }) => {
+    const rider = "Anna Kowalska";
+    const stablePlanned = planRate(null, 15000);
+    const riderPlanned = planRate(rider, 9000);
+    const post = async (path: string, form: Record<string, string>) => {
+      const response = await page.request.post(path, {
+        form,
+        headers: { Origin: baseURL ?? "" },
+        maxRedirects: 0,
+      });
+      expect(response.status(), `${path} odpowiada przekierowaniem`).toBe(302);
+      return new URL(response.headers().location, baseURL).searchParams.get("error");
+    };
+
+    await test.step("formularz stawki ośrodka z identyfikatorem zmiany jeźdźca nic nie usuwa", async () => {
+      const error = await post("/api/settlements/rate-delete", { rateId: String(riderPlanned) });
+      expect(error).toBe("Nie ma już takiej zaplanowanej zmiany stawki.");
+      expect(rateExists(riderPlanned), "zmiana stawki jeźdźca zostaje").toBe(true);
+    });
+
+    await test.step("formularz stawki jeźdźca z identyfikatorem zmiany ośrodka nic nie usuwa", async () => {
+      const error = await post("/api/settlements/rider-rate-delete", {
+        jezdziec: riderKey(rider),
+        rateId: String(stablePlanned),
+      });
+      expect(error).toBe("Nie ma już takiej zaplanowanej zmiany stawki.");
+      expect(rateExists(stablePlanned), "zmiana stawki ośrodka zostaje").toBe(true);
+    });
+
+    await test.step("każdy formularz usuwa zmianę ze swojej ścieżki", async () => {
+      expect(await post("/api/settlements/rate-delete", { rateId: String(stablePlanned) })).toBeNull();
+      expect(rateExists(stablePlanned)).toBe(false);
+      expect(
+        await post("/api/settlements/rider-rate-delete", { jezdziec: riderKey(rider), rateId: String(riderPlanned) }),
+      ).toBeNull();
+      expect(rateExists(riderPlanned)).toBe(false);
+    });
   });
 });

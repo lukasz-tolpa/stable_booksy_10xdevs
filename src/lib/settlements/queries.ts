@@ -87,11 +87,12 @@ export function saveRate(client: Client, rate: RateWrite) {
 }
 
 /**
- * Usunięcie zaplanowanej zmiany stawki ośrodka. Obowiązującej baza nie usunie (SB027). Zwraca usunięte
- * wiersze — pusta lista: zmiany nie ma albo nie należy do ośrodka.
+ * Usunięcie zaplanowanej zmiany stawki ośrodka — tylko zmiany stawki ośrodka (`rider_id` pusty), więc
+ * spreparowany formularz „Rozliczeń” nie usunie zmiany stawki jeźdźca. Obowiązującej baza nie usunie
+ * (SB027). Zwraca usunięte wiersze — pusta lista: zmiany nie ma, nie należy do ośrodka albo jest zmianą jeźdźca.
  */
 export function deleteRate(client: Client, stableId: number, rateId: number) {
-  return client.from("rates").delete().eq("id", rateId).eq("stable_id", stableId).select("id");
+  return client.from("rates").delete().eq("id", rateId).eq("stable_id", stableId).is("rider_id", null).select("id");
 }
 
 /**

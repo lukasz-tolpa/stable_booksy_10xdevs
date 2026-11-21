@@ -1,4 +1,5 @@
 import { expect, type Locator, type Page } from "@playwright/test";
+import { runLocalSql } from "../scripts/db-demo.mjs";
 
 /**
  * Wspólne lokatory i kroki scenariuszy e2e. Wyłącznie role / etykiety / tekst —
@@ -197,4 +198,95 @@ export async function signUpOwnerWithStable(page: Page, fullName: string, email:
   await page.getByLabel("Miejscowość").fill("Testowo");
   await page.getByRole("button", { name: "Załóż stadninę" }).click();
   await page.waitForURL("**/osrodek");
+}
+
+// ---------------------------------------------------------------------------
+// Rozliczenia (spec #93): `settlements-*.spec.ts`
+// ---------------------------------------------------------------------------
+
+export const SETTLEMENTS_ROUTE = "/osrodek/rozliczenia";
+/** Adres rozliczenia jeźdźca po kliknięciu wiersza listy: konto w ścieżce, miesiąc w adresie. */
+export const RIDER_SETTLEMENT_URL = /\/osrodek\/rozliczenia\/[0-9a-f-]{36}\?miesiac=\d{4}-\d{2}$/;
+export const DEMO_HINT = "Brak minionej historii demo — uruchom: npm run db:demo";
+
+/** SQL jako superuser na lokalnej bazie; `what` dokańcza komunikat „Nie udało się …”. Zwraca wyjście psql. */
+export function runSql(sql: string, what: string, extraFlags: string[] = []): string {
+  const result = runLocalSql(sql, extraFlags);
+  if (result.status !== 0) {
+    throw new Error(`Nie udało się ${what}:\n${result.stderr}`);
+  }
+  return result.stdout;
+}
+
+/**
+ * Usuwa stawki ośrodka z seeda (także indywidualne), a z `costs` — również koszty dodatkowe ośrodka. Obowiązującej
+ * zmiany stawki nie usunie nikt poza superuserem z wyłączonymi wyzwalaczami (`session_replication_role =
+ * replica`), bo reguła czasu SB027 dotyczy także jego. Specyfikacje biegną po kolei — każda zostawia bazę bez nich.
+ */
+function clearSettlementData(costs: boolean): void {
+  runSql(
+    `
+    begin;
+    set local session_replication_role = replica;
+    delete from public.rates r using public.stables s where s.id = r.stable_id and s.name = '${STABLE_NAME}';
+    ${costs ? `delete from public.extra_costs c using public.stables s where s.id = c.stable_id and s.name = '${STABLE_NAME}';` : ""}
+    commit;
+  `,
+    costs ? "usunąć stawek i kosztów dodatkowych ośrodka" : "usunąć stawek ośrodka",
+  );
+}
+
+export function clearStableRates(): void {
+  clearSettlementData(false);
+}
+
+export function clearStableRatesAndCosts(): void {
+  clearSettlementData(true);
+}
+
+/** Stawka ośrodka z seeda od bieżącego miesiąca bazy (`private.warsaw_month_start()` — ten sam co aplikacji). */
+export function setStableRate(amount: number): void {
+  runSql(
+    `
+    insert into public.rates (stable_id, rider_id, from_month, amount)
+    select s.id, null, private.warsaw_month_start(), ${String(amount)} from public.stables s where s.name = '${STABLE_NAME}';
+  `,
+    "ustawić stawki ośrodka",
+  );
+}
+
+/** Kwota z tekstu, np. `1 234,50 zł` (twarde spacje), w groszach. */
+export function grosze(text: string): number {
+  const match = /(\d[\d\s]*),(\d{2})\s*zł/.exec(text);
+  if (!match) throw new Error(`Brak kwoty w „${text}”`);
+  return Number(match[1].replace(/\s/g, "")) * 100 + Number(match[2]);
+}
+
+/** Wiersze listy „Rozliczenia jeźdźców” — jeden `listitem` na jeźdźca. */
+export function settlementRiders(page: Page): Locator {
+  return page.getByRole("list", { name: "Rozliczenia jeźdźców" }).getByRole("listitem");
+}
+
+/** Wiersze listy: tekst, liczba jazd i kwota (`null` — bez kwoty, ośrodek bez stawki). */
+export async function settlementRows(page: Page): Promise<{ text: string; rides: number; amount: number | null }[]> {
+  return (await settlementRiders(page).allInnerTexts()).map((text) => ({
+    text,
+    rides: Number(/(\d+) jazd/.exec(text)?.[1] ?? Number.NaN),
+    amount: text.includes("zł") ? grosze(text) : null,
+  }));
+}
+
+/** Wiersze listy ośrodka ze stawką — każdy musi mieć kwotę. */
+export async function pricedSettlementRows(page: Page): Promise<{ text: string; rides: number; amount: number }[]> {
+  return (await settlementRows(page)).map((row) => ({ ...row, amount: grosze(row.text) }));
+}
+
+/** Stan pusty listy: „W październiku 2026 nie ma nic do rozliczenia.” */
+export function emptySettlementsMonth(page: Page): Locator {
+  return page.getByText(/^We? .+ nie ma nic do rozliczenia\.$/);
+}
+
+/** Karta rozliczenia jeźdźca: region „Rozliczenie za {miesiąc}”. */
+export function settlementCard(page: Page): Locator {
+  return page.getByRole("region", { name: /^Rozliczenie za / });
 }

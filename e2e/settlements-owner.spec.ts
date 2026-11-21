@@ -1,6 +1,19 @@
-import { expect, test, type Page } from "@playwright/test";
-import { INSTRUCTOR_EMAIL, RIDER_A_STATE, STABLE_NAME, STABLE_STATE, signIn } from "./helpers";
-import { runLocalSql } from "../scripts/db-demo.mjs";
+import { expect, test } from "@playwright/test";
+import {
+  clearStableRates,
+  DEMO_HINT,
+  emptySettlementsMonth,
+  grosze,
+  INSTRUCTOR_EMAIL,
+  RIDER_A_STATE,
+  RIDER_SETTLEMENT_URL,
+  settlementCard,
+  settlementRiders,
+  settlementRows,
+  SETTLEMENTS_ROUTE,
+  signIn,
+  STABLE_STATE,
+} from "./helpers";
 
 /**
  * Rozliczenia właściciela (`/osrodek/rozliczenia`, #94) na minionej historii demo, którą ładuje setup.
@@ -17,46 +30,6 @@ import { runLocalSql } from "../scripts/db-demo.mjs";
  * Rozliczenie jeźdźca (#95): wiersz listy prowadzi do rozliczenia tego samego miesiąca; liczba jazd
  * zgadza się z listą jazd i z wierszem listy, kwota = N × stawka, „Do zapłaty” = kwota za jazdy.
  */
-const DEMO_HINT = "Brak minionej historii demo — uruchom: npm run db:demo";
-const ROUTE = "/osrodek/rozliczenia";
-
-function clearStableRates(): void {
-  const result = runLocalSql(`
-    begin;
-    set local session_replication_role = replica;
-    delete from public.rates r using public.stables s where s.id = r.stable_id and s.name = '${STABLE_NAME}';
-    commit;
-  `);
-  if (result.status !== 0) {
-    throw new Error(`Nie udało się usunąć stawek ośrodka:\n${result.stderr}`);
-  }
-}
-
-/** Kwota z tekstu, np. `1 234,50 zł` (twarde spacje), w groszach. */
-function grosze(text: string): number {
-  const match = /(\d[\d\s]*),(\d{2})\s*zł/.exec(text);
-  if (!match) throw new Error(`Brak kwoty w „${text}”`);
-  return Number(match[1].replace(/\s/g, "")) * 100 + Number(match[2]);
-}
-
-function riders(page: Page) {
-  return page.getByRole("list", { name: "Rozliczenia jeźdźców" }).getByRole("listitem");
-}
-
-/** Karta rozliczenia jeźdźca: region „Rozliczenie za {miesiąc}”. */
-function settlementCard(page: Page) {
-  return page.getByRole("region", { name: /^Rozliczenie za / });
-}
-
-/** Wiersze listy: liczba jazd i kwota (`null` — bez kwoty, ośrodek bez stawki). */
-async function rows(page: Page): Promise<{ text: string; rides: number; amount: number | null }[]> {
-  return (await riders(page).allInnerTexts()).map((text) => ({
-    text,
-    rides: Number(/(\d+) jazd/.exec(text)?.[1] ?? Number.NaN),
-    amount: text.includes("zł") ? grosze(text) : null,
-  }));
-}
-
 test.describe("Rozliczenia właściciela", () => {
   test.use({ storageState: STABLE_STATE });
   test.beforeAll(clearStableRates);
@@ -65,28 +38,28 @@ test.describe("Rozliczenia właściciela", () => {
   test("właściciel ustawia stawkę ośrodka: kwota jeźdźca = liczba jazd × stawka, „Razem” = suma wierszy", async ({
     page,
   }) => {
-    const empty = page.getByText(/^We? .+ nie ma nic do rozliczenia\.$/);
+    const empty = emptySettlementsMonth(page);
     const total = page.getByText(/^Razem: /);
     const rateRegion = page.getByRole("region", { name: "Stawka ośrodka" });
 
     await test.step("przed pierwszą stawką strona prosi o nią, a lista nie ma kwot", async () => {
-      await page.goto(ROUTE);
+      await page.goto(SETTLEMENTS_ROUTE);
       await expect(page.getByRole("heading", { level: 1, name: "Rozliczenia" })).toBeVisible();
       await expect(rateRegion.getByText("Ustaw stawkę ośrodka", { exact: true })).toBeVisible();
       if (await empty.isVisible()) {
         await page.getByRole("navigation", { name: "Wybór miesiąca" }).getByRole("link", { name: "Poprzedni" }).click();
         await page.waitForURL(/miesiac=\d{4}-\d{2}$/);
       }
-      await expect(riders(page).first(), DEMO_HINT).toBeVisible();
+      await expect(settlementRiders(page).first(), DEMO_HINT).toBeVisible();
       await expect(page.getByText("Kwoty pojawią się po ustawieniu stawki ośrodka.")).toBeVisible();
       await expect(total).toHaveCount(0);
-      expect((await rows(page)).every((row) => row.amount === null)).toBe(true);
+      expect((await settlementRows(page)).every((row) => row.amount === null)).toBe(true);
     });
 
     await test.step("rozliczenie jeźdźca przed pierwszą stawką prosi o nią zamiast kwot", async () => {
       const listUrl = page.url();
-      await riders(page).first().getByRole("link").click();
-      await page.waitForURL(/\/osrodek\/rozliczenia\/[0-9a-f-]{36}\?miesiac=\d{4}-\d{2}$/);
+      await settlementRiders(page).first().getByRole("link").click();
+      await page.waitForURL(RIDER_SETTLEMENT_URL);
       const card = settlementCard(page);
       await expect(card.getByRole("link", { name: "Ustaw stawkę ośrodka", exact: true })).toBeVisible();
       await expect(card.getByText("Do zapłaty")).toHaveCount(0);
@@ -115,7 +88,7 @@ test.describe("Rozliczenia właściciela", () => {
       await expect(rateRegion.getByText("Obowiązuje teraz:")).toBeVisible();
       await expect(rateRegion.getByText(/^123,45\szł$/)).toBeVisible();
 
-      const list = await rows(page);
+      const list = await settlementRows(page);
       expect(list.length, DEMO_HINT).toBeGreaterThan(0);
       for (const row of list) {
         expect(row.rides, `liczba jazd w „${row.text}”`).toBeGreaterThan(0);
@@ -127,9 +100,9 @@ test.describe("Rozliczenia właściciela", () => {
 
     await test.step("rozliczenie jeźdźca: jazdy z listy jazd = wiersz listy, kwota = N × stawka = „Do zapłaty”", async () => {
       const listUrl = page.url();
-      const [first] = await rows(page);
-      await riders(page).first().getByRole("link").click();
-      await page.waitForURL(/\/osrodek\/rozliczenia\/[0-9a-f-]{36}\?miesiac=\d{4}-\d{2}$/);
+      const [first] = await settlementRows(page);
+      await settlementRiders(page).first().getByRole("link").click();
+      await page.waitForURL(RIDER_SETTLEMENT_URL);
       if (month !== null) {
         expect(new URL(page.url()).searchParams.get("miesiac"), "ten sam miesiąc co lista").toBe(month);
       }
@@ -178,7 +151,7 @@ test.describe("Rozliczenia właściciela", () => {
 
   test("nieznany jeździec w adresie to spokojny stan „Nie ma takiego jeźdźca.”", async ({ page }) => {
     for (const rider of ["00000000-0000-4000-8000-000000000000", "anna"]) {
-      await page.goto(`${ROUTE}/${rider}`);
+      await page.goto(`${SETTLEMENTS_ROUTE}/${rider}`);
       await expect(page.getByText("Nie ma takiego jeźdźca.", { exact: true })).toBeVisible();
       await expect(page.getByRole("alert")).toHaveCount(0);
     }
@@ -186,7 +159,7 @@ test.describe("Rozliczenia właściciela", () => {
 
   test("Rozliczenia mieszczą się w telefonie bez poziomego przewijania", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto(ROUTE);
+    await page.goto(SETTLEMENTS_ROUTE);
     await expect(page.getByRole("heading", { level: 1, name: "Rozliczenia" })).toBeVisible();
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow, "strona jest szersza niż ekran 390 px").toBeLessThanOrEqual(0);
@@ -197,14 +170,14 @@ test.describe("Rozliczenia tylko dla właściciela", () => {
   test.use({ storageState: RIDER_A_STATE });
 
   test("jeździec nie wchodzi na stronę „Rozliczenia”", async ({ page }) => {
-    await page.goto(ROUTE);
-    await expect(page).not.toHaveURL(new RegExp(ROUTE));
+    await page.goto(SETTLEMENTS_ROUTE);
+    await expect(page).not.toHaveURL(new RegExp(SETTLEMENTS_ROUTE));
     await expect(page.getByRole("heading", { level: 1, name: "Rozliczenia" })).toHaveCount(0);
   });
 
   test("jeździec nie wchodzi do rozliczenia jeźdźca", async ({ page }) => {
-    await page.goto(`${ROUTE}/00000000-0000-4000-8000-000000000000`);
-    await expect(page).not.toHaveURL(new RegExp(ROUTE));
+    await page.goto(`${SETTLEMENTS_ROUTE}/00000000-0000-4000-8000-000000000000`);
+    await expect(page).not.toHaveURL(new RegExp(SETTLEMENTS_ROUTE));
     await expect(page.getByText("Nie ma takiego jeźdźca.")).toHaveCount(0);
   });
 
@@ -213,7 +186,7 @@ test.describe("Rozliczenia tylko dla właściciela", () => {
     const page = await context.newPage();
     try {
       await signIn(page, INSTRUCTOR_EMAIL, "/instruktor");
-      await page.goto(ROUTE);
+      await page.goto(SETTLEMENTS_ROUTE);
       await page.waitForURL("**/instruktor");
       await expect(page.getByRole("heading", { level: 1, name: "Rozliczenia" })).toHaveCount(0);
     } finally {
