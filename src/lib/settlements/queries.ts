@@ -1,10 +1,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/db/database.types";
+import { listStableInstructors } from "@/lib/instructors/queries";
 import type { SummaryMonth } from "@/lib/month-summary/month";
+import { ownerSummaryBookings } from "@/lib/month-summary/owner";
 import type { ExtraCost } from "@/lib/settlements/costs";
 import type { RateChange } from "@/lib/settlements/rates";
-import type { SettlementRider } from "@/lib/settlements/rider";
-import { settlementBookings, type SettlementsInput } from "@/lib/settlements/settlements";
+import type { RiderSettlementInput, SettlementRider } from "@/lib/settlements/rider";
+import { settlementBookings, type SettlementIngredients, type SettlementsInput } from "@/lib/settlements/settlements";
+import { listStableHorses } from "@/lib/stables/queries";
 import { getStatsRows } from "@/lib/stats/queries";
 import type { Rate } from "@/types";
 
@@ -38,22 +41,51 @@ export async function listRates(client: Client, stableId: number): Promise<RateC
 }
 
 /**
- * Wszystko, czego lista rozliczeń miesiąca potrzebuje (`composeSettlementList`): zapisy ośrodka z dni
- * miesiąca — ten sam odczyt co Podsumowanie miesiąca właściciela —, zmiany stawki i koszty dodatkowe
- * miesiąca. Panel ośrodka bierze stąd sumę bieżącego miesiąca, strona „Rozliczenia” — listę; nowe
- * składniki rozliczenia dochodzą tutaj, więc panel ich nie zna. Rzuca przy błędzie zapytania.
+ * Jedyny odczyt danych rozliczeń miesiąca: zapisy ośrodka z dni miesiąca — ten sam odczyt co
+ * Podsumowanie miesiąca właściciela — i składniki rozliczenia (zmiany stawki, koszty dodatkowe
+ * miesiąca). Nowy składnik dochodzi tutaj i w `SettlementIngredients`; lista, panel i rozliczenie
+ * jeźdźca dostają go bez zmian u siebie.
+ */
+async function loadSettlementParts(client: Client, stableId: number, month: SummaryMonth) {
+  const [rows, rates, costs] = await Promise.all([
+    getStatsRows(client, stableId, month),
+    listRates(client, stableId),
+    listMonthCosts(client, stableId, month.month),
+  ]);
+  const ingredients: SettlementIngredients = { rates, costs };
+  return { rows, ingredients };
+}
+
+/**
+ * Wszystko, czego lista rozliczeń miesiąca potrzebuje (`composeSettlementList`). Panel ośrodka bierze
+ * stąd sumę bieżącego miesiąca, strona „Rozliczenia” — listę. Rzuca przy błędzie zapytania.
  */
 export async function loadSettlementsInput(
   client: Client,
   stableId: number,
   month: SummaryMonth,
 ): Promise<SettlementsInput> {
-  const [rows, rates, costs] = await Promise.all([
-    getStatsRows(client, stableId, month),
-    listRates(client, stableId),
-    listMonthCosts(client, stableId, month.month),
+  const { rows, ingredients } = await loadSettlementParts(client, stableId, month);
+  return { month, bookings: settlementBookings(rows), ...ingredients };
+}
+
+/**
+ * Wszystko, czego rozliczenie jeźdźca potrzebuje (`composeRiderSettlement`) poza adresami strony: te same
+ * dane co lista, a zapisy z nazwami instruktorów i koni — stado i instruktorzy obejmują zdezaktywowanych,
+ * jedyne źródło nazw przy minionych jazdach. Rzuca przy błędzie zapytania.
+ */
+export async function loadRiderSettlementInput(
+  client: Client,
+  stableId: number,
+  month: SummaryMonth,
+  rider: SettlementRider,
+): Promise<Omit<RiderSettlementInput, "dayHref">> {
+  const [{ rows, ingredients }, horses, instructors] = await Promise.all([
+    loadSettlementParts(client, stableId, month),
+    listStableHorses(client, stableId),
+    listStableInstructors(client, stableId),
   ]);
-  return { month, bookings: settlementBookings(rows), rates, costs };
+  return { month, rider, bookings: ownerSummaryBookings({ month, ...rows, horses, instructors }), ...ingredients };
 }
 
 export interface RateWrite {

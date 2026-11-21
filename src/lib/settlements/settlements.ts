@@ -90,14 +90,21 @@ export interface SettlementList {
   totalText: string | null;
 }
 
-export interface SettlementsInput {
-  month: SummaryMonth;
-  /** Zapisy ośrodka z dni miesiąca, także odwołane — liczą się tylko jazdy. */
-  bookings: SettlementBooking[];
+/**
+ * Składniki rozliczenia poza zapisami — wspólne dla listy i rozliczenia jeźdźca (`rider.ts`). Wczytuje je
+ * jedno miejsce w `queries.ts`, więc nowy składnik dochodzi tu i tam, a obie strony go dostają.
+ */
+export interface SettlementIngredients {
   /** Wszystkie zmiany stawki ośrodka (`listRates`). */
   rates: RateChange[];
   /** Koszty dodatkowe ośrodka w miesiącu (`listMonthCosts`, #96). */
   costs: ExtraCost[];
+}
+
+export interface SettlementsInput extends SettlementIngredients {
+  month: SummaryMonth;
+  /** Zapisy ośrodka z dni miesiąca, także odwołane — liczą się tylko jazdy. */
+  bookings: SettlementBooking[];
 }
 
 /**

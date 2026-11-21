@@ -20,9 +20,8 @@ import {
   type SummaryBooking,
   type SummaryRideRow,
 } from "@/lib/month-summary/summary";
-import { extraCostRows, riderCosts, type ExtraCost, type ExtraCostRow } from "@/lib/settlements/costs";
-import type { RateChange } from "@/lib/settlements/rates";
-import { riderAmounts, type RiderAmounts } from "@/lib/settlements/settlements";
+import { extraCostRows, riderCosts, type ExtraCostRow } from "@/lib/settlements/costs";
+import { riderAmounts, type RiderAmounts, type SettlementIngredients } from "@/lib/settlements/settlements";
 import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
 
 /** Jeździec rozliczenia: konto i nazwa z profilu (`null` — „(bez nazwiska)”). */
@@ -31,7 +30,8 @@ export interface SettlementRider {
   name: string | null;
 }
 
-export interface RiderSettlementInput {
+/** Koszty dodatkowe (`costs`) są całego ośrodka w miesiącu — liczą się tylko koszty tego jeźdźca. */
+export interface RiderSettlementInput extends SettlementIngredients {
   month: SummaryMonth;
   rider: SettlementRider;
   /**
@@ -39,10 +39,6 @@ export interface RiderSettlementInput {
    * się tylko jazdy tego jeźdźca.
    */
   bookings: SummaryBooking[];
-  /** Wszystkie zmiany stawki ośrodka (`listRates`). */
-  rates: RateChange[];
-  /** Koszty dodatkowe ośrodka w miesiącu (`listMonthCosts`, #96) — liczą się tylko koszty tego jeźdźca. */
-  costs: ExtraCost[];
   /** Adres dnia przy dacie jazdy; `null` — daty bez linków (np. PDF). */
   dayHref: ((day: string) => string) | null;
 }
