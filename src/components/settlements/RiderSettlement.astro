@@ -35,13 +35,7 @@ const headingId = "settlement-heading";
     <h2 id={headingId}>{`${texts.forMonth} ${settlement.monthLabel}`}</h2>
 
     <div class="rides-head">
-      {
-        settlement.ridesLine ? (
-          <p class="line mono-nums">{settlement.ridesLine}</p>
-        ) : (
-          <p class="line mono-nums">{`${texts.rides} ${settlement.ridesText}`}</p>
-        )
-      }
+      <p class="line mono-nums">{settlement.ridesLine}</p>
       {settlement.rateSourceText && <Tag>{settlement.rateSourceText}</Tag>}
     </div>
 

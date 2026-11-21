@@ -58,8 +58,8 @@ export interface RiderSettlement extends RiderAmounts {
   rides: number;
   /** Np. `8 jazd`. */
   ridesText: string;
-  /** Np. `Jazdy: 8 × 120,00 zł = 960,00 zł`; `null` — ośrodek bez stawki. */
-  ridesLine: string | null;
+  /** Np. `Jazdy: 8 × 120,00 zł = 960,00 zł`; bez stawki ośrodka sama liczba jazd: `Jazdy: 8 jazd`. */
+  ridesLine: string;
   /** Jazdy chronologicznie: data, godzina, instruktor, koń albo „bez konia”. */
   rideRows: SummaryRideRow[];
   /** Koszty dodatkowe jeźdźca w miesiącu (#96), od najwcześniej dopisanego; suma w `costsAmount`. */
@@ -78,6 +78,7 @@ export function composeRiderSettlement(input: RiderSettlementInput, now: Date = 
   const costs = riderCosts(input.costs, input.rider.key);
   const amounts = riderAmounts(rides.length, input.rates, input.month.month, input.rider.key, costs);
   const texts = SETTLEMENT_TEXTS.rider;
+  const ridesText = formatCount(rides.length, RIDE_FORMS);
 
   return {
     riderKey: input.rider.key,
@@ -85,11 +86,11 @@ export function composeRiderSettlement(input: RiderSettlementInput, now: Date = 
     month: input.month.month,
     monthLabel: formatMonthYear(input.month.month),
     rides: rides.length,
-    ridesText: formatCount(rides.length, RIDE_FORMS),
+    ridesText,
     ...amounts,
     ridesLine:
       amounts.rate === null || amounts.ridesAmountText === null
-        ? null
+        ? `${texts.rides} ${ridesText}`
         : `${texts.rides} ${String(rides.length)} × ${formatMoney(amounts.rate.amount)} = ${amounts.ridesAmountText}`,
     rideRows: composeRideRows(rides, { viewer: "owner", dayHref: input.dayHref }),
     costs: extraCostRows(costs),
