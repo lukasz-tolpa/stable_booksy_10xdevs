@@ -30,3 +30,12 @@ export function backToSettlements(context: APIContext, month: string, error?: st
   const outcome = error ? `error=${encodeURIComponent(error)}` : "sukces=1";
   return context.redirect(`${settlementsHref(month)}&${outcome}`);
 }
+
+/** Ukryte pole formularzy rozliczenia jeźdźca z jego kontem (#97) — jak parametr ścieżki strony. */
+export const RIDER_PARAM = "jezdziec";
+
+/** Powrót na rozliczenie jeźdźca tego samego miesiąca: `?error=` z komunikatem albo `?sukces=1`. */
+export function backToRiderSettlement(context: APIContext, riderKey: string, month: string, error?: string) {
+  const outcome = error ? `error=${encodeURIComponent(error)}` : "sukces=1";
+  return context.redirect(`${riderSettlementHref(riderKey, month)}&${outcome}`);
+}

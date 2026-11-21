@@ -40,6 +40,24 @@ export const SETTLEMENT_TEXTS = {
     notFoundHint: "Rozliczenie ma tylko jeździec, który miał zapis w Twoim ośrodku.",
     failure: "Nie udało się wczytać rozliczenia jeźdźca.",
   },
+  /** Stawka jeźdźca w rozliczeniu jeźdźca (#97): stawka indywidualna i powrót do stawki ośrodka. */
+  riderRate: {
+    heading: "Stawka jeźdźca",
+    current: "Obowiązuje teraz:",
+    hint: "Stawka indywidualna zastępuje stawkę ośrodka, np. karnet albo 0,00 zł dla pracownika stajni. Zmiana nie przelicza minionych miesięcy.",
+    planned: "Zaplanowana zmiana",
+    deletePlanned: "Usuń zaplanowaną zmianę",
+    /** Nazwa formularza nowej stawki indywidualnej. */
+    set: "Nowa stawka indywidualna",
+    amountLabel: "Nowa stawka indywidualna (zł)",
+    submit: "Zapisz stawkę indywidualną",
+    /** Nazwa formularza powrotu do stawki ośrodka. */
+    end: "Powrót do stawki ośrodka",
+    endHint: "Od wybranego miesiąca jeździec płaci stawkę ośrodka; minione miesiące się nie zmieniają.",
+    endSubmit: "Usuń stawkę indywidualną",
+    /** Formularz z błędnym jeźdźcem (spreparowany) wraca na listę „Rozliczenia”. */
+    unknownRider: "Nie ma takiego jeźdźca.",
+  },
   rate: {
     heading: "Stawka ośrodka",
     /** Przed `formatInMonthYear`: `Stawka ośrodka w październiku 2026: 120,00 zł`. */

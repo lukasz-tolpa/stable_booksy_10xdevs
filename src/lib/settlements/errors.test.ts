@@ -5,6 +5,7 @@ import {
   RATE_SAVE_FAILED,
   rateDeleteErrorMessage,
   rateSaveErrorMessage,
+  riderRateSaveErrorMessage,
 } from "@/lib/settlements/errors";
 
 // Oracle: test-plan §6.4 — odmowy bazy jako zamknięty polski zestaw; tekst dostawcy nigdy nie przecieka.
@@ -45,5 +46,24 @@ describe("rateDeleteErrorMessage — usunięcie zaplanowanej zmiany", () => {
   it("awaria nie jest odmową z reguł", () => {
     expect(isExpectedRateRefusal(undefined)).toBe(false);
     expect(isExpectedRateRefusal("08006")).toBe(false);
+  });
+});
+
+// Oracle: AC #97 — stawka indywidualna tylko dla jeźdźca ośrodka: odmowa bazy (RLS 42501, konto
+// usunięte 23503) to komunikat o jeźdźcu; reguły czasu i kwoty jak przy stawce ośrodka.
+describe("riderRateSaveErrorMessage — zapis stawki jeźdźca", () => {
+  it.each([
+    ["42501", "Stawkę indywidualną możesz ustawić tylko jeźdźcowi swojego ośrodka."],
+    ["23503", "Stawkę indywidualną możesz ustawić tylko jeźdźcowi swojego ośrodka."],
+    ["SB026", "Stawkę możesz zmienić tylko od tego albo od następnego miesiąca. Odśwież stronę i spróbuj ponownie."],
+    ["23514", "Stawka musi wynosić od 0,00 do 10 000,00 zł."],
+  ])("%s ma własny komunikat", (code, message) => {
+    expect(riderRateSaveErrorMessage(code)).toBe(message);
+    expect(isExpectedRateRefusal(code)).toBe(true);
+  });
+
+  it.each([undefined, "", "PGRST301", "23505", "08006"])("inny kod (%s) to komunikat awarii", (code) => {
+    expect(riderRateSaveErrorMessage(code)).toBe(RATE_SAVE_FAILED);
+    expect(riderRateSaveErrorMessage(code)).not.toMatch(PROVIDER_TEXT);
   });
 });

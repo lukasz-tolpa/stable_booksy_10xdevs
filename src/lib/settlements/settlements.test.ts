@@ -233,3 +233,41 @@ describe("composeSettlementsPage — strona „Rozliczenia”", () => {
     ]);
   });
 });
+
+// Oracle: AC #97 — kwoty jeźdźca ze stawką indywidualną liczą się po niej, kwoty innych jeźdźców
+// po stawce ośrodka; minione miesiące się nie zmieniają; suma miesiąca = suma wierszy.
+describe("composeSettlementList — stawka indywidualna", () => {
+  const ANNA_90: RateChange = { id: 7, riderKey: "anna", fromMonth: "2026-11", amount: 9000 };
+  const bookings = [
+    ride("2026-11-02", "anna", "Anna Kowalska"),
+    ride("2026-11-09", "anna", "Anna Kowalska"),
+    ride("2026-11-03", "piotr", "Piotr Nowak"),
+  ];
+
+  it("jeździec ze stawką indywidualną płaci po niej, inni po stawce ośrodka, suma to suma wierszy", () => {
+    const list = composeSettlementList(input({ month: NOVEMBER, bookings, rates: [STABLE_120, ANNA_90] }), NOW);
+    expect(list.rows.map((row) => [row.name, row.rate?.source, row.dueText])).toEqual([
+      ["Anna Kowalska", "individual", zl("180,00 zł")],
+      ["Piotr Nowak", "stable", zl("120,00 zł")],
+    ]);
+    expect(list.total).toBe(30000);
+  });
+
+  it("stawka indywidualna od listopada nie zmienia października", () => {
+    const list = composeSettlementList(
+      input({ bookings: [ride("2026-10-02", "anna", "Anna Kowalska")], rates: [STABLE_120, ANNA_90] }),
+      NOW,
+    );
+    expect(list.rows[0]?.rate).toEqual({ amount: 12000, source: "stable" });
+    expect(list.total).toBe(12000);
+  });
+
+  it("stawka indywidualna 0,00 zł: jazdy na liście, kwota 0,00 zł", () => {
+    const list = composeSettlementList(
+      input({ month: NOVEMBER, bookings, rates: [STABLE_120, { ...ANNA_90, amount: 0 }] }),
+      NOW,
+    );
+    expect(list.rows[0]).toMatchObject({ name: "Anna Kowalska", rides: 2, due: 0, dueText: zl("0,00 zł") });
+    expect(list.total).toBe(12000);
+  });
+});

@@ -5,8 +5,12 @@
 // Renderuje listę z `SettlementsView` (`@/lib/settlements/settlements`) — kolejność, kwoty i adresy
 // są już policzone.
 //
+// Jeździec ze stawką indywidualną (#97) ma przy liczbie jazd dopisek „stawka indywidualna”; reszta płaci
+// stawkę ośrodka z wiersza nad listą.
+//
 // KONTRAKT e2e: `list` „Rozliczenia jeźdźców”, jedna pozycja na jeźdźca: link z nazwą, „N jazd…”, kwotą.
 import Card from "@/components/ui/Card.astro";
+import Tag from "@/components/ui/Tag.astro";
 import type { SettlementsView } from "@/lib/settlements/settlements";
 import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
 
@@ -29,6 +33,7 @@ const texts = SETTLEMENT_TEXTS;
           <a class="rider__link" href={row.href}>
             <span class="rider__name">{row.name}</span>
             <span class="rider__count mono-nums">{row.ridesText}</span>
+            {row.rate?.source === "individual" && <Tag>{texts.rider.source.individual}</Tag>}
             {row.dueText && <span class="rider__due mono-nums">{row.dueText}</span>}
           </a>
         </li>

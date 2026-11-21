@@ -1,8 +1,10 @@
 ---
 import { ArrowLeft } from "lucide-react";
+import Banner from "@/components/Banner.astro";
 import Layout from "@/layouts/Layout.astro";
 import Topbar from "@/components/Topbar.astro";
 import MonthNav from "@/components/month-summary/MonthNav.astro";
+import RiderRate from "@/components/settlements/RiderRate.astro";
 import RiderSettlement from "@/components/settlements/RiderSettlement.astro";
 import Card from "@/components/ui/Card.astro";
 import EmptyState from "@/components/ui/EmptyState.astro";
@@ -17,6 +19,7 @@ import { todayIso } from "@/lib/schedule/dates";
 import { getSettlementRider, listRates } from "@/lib/settlements/queries";
 import { riderSettlementHref, settlementsHref } from "@/lib/settlements/redirect";
 import { composeRiderSettlementPage, parseRiderKey, type RiderSettlementView } from "@/lib/settlements/rider";
+import { composeRiderRate, type RiderRateView } from "@/lib/settlements/rider-rate";
 import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
 import { dayHref } from "@/lib/stable-panel/panel";
 import { getOwnedStableId, listStableHorses } from "@/lib/stables/queries";
@@ -33,10 +36,14 @@ const texts = SETTLEMENT_TEXTS;
 const now = new Date();
 const month = resolveSummaryMonth(Astro.url.searchParams.get(MONTH_PARAM), todayIso(now));
 const riderKey = parseRiderKey(Astro.params.jezdziec);
+// Formularze stawki jeźdźca (#97) wracają tu z `?sukces=1` albo `?error=`.
+const error = Astro.url.searchParams.get("error");
+const saved = Astro.url.searchParams.get("sukces") === "1";
 
 const supabase = createClient(Astro.request.headers, Astro.cookies);
 
 let view: RiderSettlementView | null = null;
+let riderRate: RiderRateView | null = null;
 let notFound = riderKey === null;
 
 if (riderKey !== null) {
@@ -70,6 +77,7 @@ if (riderKey !== null) {
             },
             now,
           );
+          riderRate = composeRiderRate(rates, rider.key, now);
         }
       }
     } catch (error) {
@@ -100,6 +108,21 @@ const title = view ? `${texts.rider.title} — ${view.settlement.name}` : texts.
     <p class="lead">{texts.rider.lead}</p>
 
     {
+      saved && (
+        <div class="notice">
+          <Banner variant="success">{texts.saved}</Banner>
+        </div>
+      )
+    }
+    {
+      error && (
+        <div class="notice">
+          <Banner variant="error">{error}</Banner>
+        </div>
+      )
+    }
+
+    {
       notFound ? (
         <div class="state">
           <Card>
@@ -111,6 +134,7 @@ const title = view ? `${texts.rider.title} — ${view.settlement.name}` : texts.
         </div>
       ) : (
         <>
+          {riderRate && riderKey && <RiderRate rate={riderRate} riderKey={riderKey} month={month.month} />}
           {nav && (
             <div class="month">
               <MonthNav nav={nav} />
@@ -168,7 +192,8 @@ const title = view ? `${texts.rider.title} — ${view.settlement.name}` : texts.
     max-width: 62ch;
   }
   .month,
-  .state {
+  .state,
+  .notice {
     margin-top: 18px;
   }
 </style>
