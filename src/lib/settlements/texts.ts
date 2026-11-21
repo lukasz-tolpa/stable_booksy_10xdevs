@@ -44,7 +44,7 @@ export const SETTLEMENT_TEXTS = {
   riderRate: {
     heading: "Stawka jeźdźca",
     current: "Obowiązuje teraz:",
-    hint: "Stawka indywidualna zastępuje stawkę ośrodka, np. karnet albo 0,00 zł dla pracownika stajni. Zmiana nie przelicza minionych miesięcy.",
+    hint: "Stawka indywidualna zastępuje stawkę ośrodka, np. karnet albo 0,00 zł dla jeźdźca, który pomaga w ośrodku. Zmiana nie przelicza minionych miesięcy.",
     planned: "Zaplanowana zmiana",
     deletePlanned: "Usuń zaplanowaną zmianę",
     /** Nazwa formularza nowej stawki indywidualnej. */
@@ -68,7 +68,7 @@ export const SETTLEMENT_TEXTS = {
     /** Prośba przed pierwszą stawką ośrodka. */
     missing: "Ustaw stawkę ośrodka",
     missingHint:
-      "To cena jednej jazdy. Pierwsza stawka obowiązuje też we wszystkich wcześniejszych miesiącach, więc od razu rozliczysz miniony miesiąc.",
+      "To kwota za jedną jazdę. Pierwsza stawka obowiązuje też we wszystkich wcześniejszych miesiącach, więc od razu rozliczysz miniony miesiąc.",
     changeHint: "Zmiana nie przelicza minionych miesięcy.",
     amountLabel: "Nowa stawka (zł)",
     fromLegend: "Obowiązuje",
