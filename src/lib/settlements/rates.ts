@@ -48,6 +48,36 @@ export function stableRateFor(changes: readonly RateChange[], month: string): Ef
   return { amount: inForce.amount, source: "stable" };
 }
 
+/** Zmiany stawki indywidualnej jeźdźca (także powroty do stawki ośrodka), od najwcześniejszej. */
+function riderChanges(changes: readonly RateChange[], riderKey: string): RateChange[] {
+  return changes
+    .filter((change) => change.riderKey === riderKey)
+    .sort((a, b) => a.fromMonth.localeCompare(b.fromMonth));
+}
+
+/**
+ * Stawka jazd jeźdźca w miesiącu `RRRR-MM` (#97): najpóźniejsza zmiana jeźdźca z miesiącem „od” ≤ miesiąc
+ * — z kwotą zastępuje stawkę ośrodka, pusta wraca do niej; bez takiej zmiany liczy się stawka ośrodka.
+ * Stawka indywidualna nie działa wstecz. `riderKey` `null` (jeździec zanonimizowany) — stawka ośrodka.
+ * `null` — ani stawki indywidualnej, ani stawki ośrodka.
+ */
+export function effectiveRate(
+  changes: readonly RateChange[],
+  month: string,
+  riderKey: string | null,
+): EffectiveRate | null {
+  const inForce =
+    riderKey === null
+      ? undefined
+      : riderChanges(changes, riderKey)
+          .filter((change) => change.fromMonth <= month)
+          .at(-1);
+  if (inForce !== undefined && inForce.amount !== null) {
+    return { amount: inForce.amount, source: "individual" };
+  }
+  return stableRateFor(changes, month);
+}
+
 /** Zaplanowana zmiana stawki — od miesiąca późniejszego niż bieżący; można ją usunąć. */
 export interface PlannedRate {
   id: number;
@@ -68,6 +98,34 @@ export function stableRateSchedule(changes: readonly RateChange[], currentMonth:
   const planned = stableChanges(changes).find((change) => change.fromMonth > currentMonth);
   return {
     current: stableRateFor(changes, currentMonth)?.amount ?? null,
+    planned: planned ? { id: planned.id, fromMonth: planned.fromMonth, amount: planned.amount } : null,
+  };
+}
+
+/** Zaplanowana zmiana stawki jeźdźca; `amount` `null` — od tego miesiąca wraca stawka ośrodka. */
+export interface PlannedRiderRate {
+  id: number;
+  fromMonth: string;
+  amount: number | null;
+}
+
+/** Stawka jeźdźca w rozliczeniu jeźdźca (#97): obowiązująca dziś i zaplanowana zmiana jeźdźca. */
+export interface RiderRateSchedule {
+  /** Stawka jazd jeźdźca w bieżącym miesiącu (ze źródłem); `null` — ośrodek bez stawki. */
+  current: EffectiveRate | null;
+  /** Zmiana jeźdźca od następnego miesiąca (baza nie przyjmie późniejszej); `null` — brak. */
+  planned: PlannedRiderRate | null;
+}
+
+/** Stawka jeźdźca w bieżącym miesiącu (`RRRR-MM`, strefa ośrodka) i jego zaplanowana zmiana. */
+export function riderRateSchedule(
+  changes: readonly RateChange[],
+  riderKey: string,
+  currentMonth: string,
+): RiderRateSchedule {
+  const planned = riderChanges(changes, riderKey).find((change) => change.fromMonth > currentMonth);
+  return {
+    current: effectiveRate(changes, currentMonth, riderKey),
     planned: planned ? { id: planned.id, fromMonth: planned.fromMonth, amount: planned.amount } : null,
   };
 }

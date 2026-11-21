@@ -9,6 +9,9 @@
 --   * drugi zapis na ten sam miesiac nadpisuje kwote (upsert jak w PostgREST, NULLS NOT DISTINCT),
 --   * granice kwoty 0..1 000 000 groszy, stawka osrodka zawsze z kwota, miesiac od 1. dnia (23514),
 --   * stawka indywidualna tylko dla jezdzca osrodka (42501 dla obcego), pusta kwota dozwolona,
+--   * stawka indywidualna (#97): te same reguly czasu (SB026, SB027), zapis na ten sam miesiac nadpisuje
+--     (takze powrotem do stawki osrodka), konto instruktora to nie jezdziec (42501); wlascicielka innego
+--     osrodka, instruktorka (bez i z uprawnieniem) i jezdziec - odmowa zapisu stawki indywidualnej,
 --   * usuniecie konta jezdzca usuwa jego stawki (takze obowiazujace), stawka osrodka zostaje.
 --
 -- "Biezacy miesiac" liczy baza (private.warsaw_month_start()), nigdy skrypt na sztywno.
@@ -187,6 +190,67 @@ begin
   end;
 end $$;
 
+\echo '=== Wlasciciel: stawka indywidualna - reguly czasu, nadpisanie, powrot do stawki osrodka (#97) ==='
+
+do $$
+declare
+  v_debem bigint := current_setting('app.debem')::bigint;
+  v_current date := current_setting('app.current')::date;
+  v_next date := current_setting('app.next')::date;
+  v_anna uuid := '33333333-3333-3333-3333-333333333333';
+  r record;
+  v int;
+  v_amount int;
+begin
+  for r in
+    select * from (values
+      ('18a stawka indywidualna od minionego miesiaca', current_setting('app.previous')::date),
+      ('18b stawka indywidualna od miesiaca za dwa',    current_setting('app.after_next')::date)
+    ) as t (label, from_month)
+  loop
+    begin
+      insert into public.rates (stable_id, rider_id, from_month, amount) values (v_debem, v_anna, r.from_month, 9000);
+      raise exception 'FAIL %: zapis przeszedl', r.label;
+    exception when sqlstate 'SB026' then
+      raise notice 'PASS %: SB026', r.label;
+    end;
+  end loop;
+
+  begin
+    insert into public.rates (stable_id, rider_id, from_month, amount)
+    values (v_debem, '99999999-9999-9999-9999-999999999999', v_current, 9000);
+    raise exception 'FAIL 19: stawka indywidualna dla konta instruktorki przeszla';
+  exception when insufficient_privilege then
+    raise notice 'PASS 19: konto instruktorki to nie jezdziec osrodka - 42501';
+  end;
+
+  -- Drugi zapis na ten sam miesiac - jak upsert PostgREST; 0,00 zl, potem powrot do stawki osrodka.
+  insert into public.rates (stable_id, rider_id, from_month, amount) values (v_debem, v_anna, v_current, 0)
+  on conflict (stable_id, rider_id, from_month) do update set amount = excluded.amount;
+  insert into public.rates (stable_id, rider_id, from_month, amount) values (v_debem, v_anna, v_current, null)
+  on conflict (stable_id, rider_id, from_month) do update set amount = excluded.amount;
+  select count(*), max(amount) into v, v_amount
+  from public.rates where stable_id = v_debem and rider_id = v_anna and from_month = v_current;
+  if v <> 1 or v_amount is not null then
+    raise exception 'FAIL 20: po nadpisaniu stawki indywidualnej: wierszy=% kwota=%', v, v_amount;
+  end if;
+  raise notice 'PASS 20: zapis na ten sam miesiac nadpisuje stawke indywidualna, takze powrotem do stawki osrodka';
+
+  begin
+    delete from public.rates where stable_id = v_debem and rider_id = v_anna and from_month = v_current;
+    raise exception 'FAIL 21: usuniecie obowiazujacej zmiany jezdzca przeszlo';
+  exception when sqlstate 'SB027' then
+    raise notice 'PASS 21: usuniecie obowiazujacej zmiany jezdzca - SB027';
+  end;
+
+  delete from public.rates where stable_id = v_debem and rider_id = v_anna and from_month = v_next;
+  get diagnostics v = row_count;
+  if v <> 1 then
+    raise exception 'FAIL 22: usuniecie zaplanowanej zmiany jezdzca - % wierszy', v;
+  end if;
+  raise notice 'PASS 22: zaplanowana zmiana jezdzca usunieta';
+end $$;
+
 \echo '=== Wlasciciel innego osrodka: zero wierszy, odmowa zapisu ==='
 
 set local request.jwt.claims = '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}';
@@ -222,6 +286,17 @@ begin
   exception when insufficient_privilege then
     raise notice 'PASS 12-14: wlascicielka innego osrodka nie widzi, nie zmienia i nie dopisuje stawek';
   end;
+end $$;
+
+do $$
+begin
+  -- Anna nie ma zapisu w osrodku Nad Rzeką - wlascicielka nie ustawi jej stawki ani u siebie.
+  insert into public.rates (stable_id, rider_id, from_month, amount)
+  values (current_setting('app.rzeka')::bigint, '33333333-3333-3333-3333-333333333333',
+          current_setting('app.current')::date, 9000);
+  raise exception 'FAIL 23: stawka indywidualna dla jezdzca cudzego osrodka przeszla';
+exception when insufficient_privilege then
+  raise notice 'PASS 23: wlascicielka innego osrodka - stawka indywidualna jezdzca spoza osrodka - 42501';
 end $$;
 
 \echo '=== Instruktor (bez i z uprawnieniem do ukladania grafiku), jezdziec: nic ==='
@@ -323,6 +398,39 @@ begin
   exception when insufficient_privilege then
     raise notice 'PASS 15 jezdziec: zero wierszy, odmowa zapisu';
   end;
+end $$;
+
+\echo '=== Instruktorka (bez i z uprawnieniem), jezdziec: odmowa zapisu stawki indywidualnej (#97) ==='
+
+reset role;
+
+do $$
+declare
+  r record;
+begin
+  for r in
+    select * from (values
+      ('instruktorka bez uprawnienia', '99999999-9999-9999-9999-999999999999', false),
+      ('instruktorka z uprawnieniem',  '99999999-9999-9999-9999-999999999999', true),
+      ('jezdziec (dla siebie)',        '33333333-3333-3333-3333-333333333333', false)
+    ) as t (label, sub, arranges)
+  loop
+    update public.instructors set arranges_schedule = r.arranges
+    where account_id = '99999999-9999-9999-9999-999999999999';
+    perform set_config('request.jwt.claims', json_build_object('sub', r.sub, 'role', 'authenticated')::text, true);
+    set local role authenticated;
+    begin
+      insert into public.rates (stable_id, rider_id, from_month, amount)
+      values (current_setting('app.debem')::bigint, '33333333-3333-3333-3333-333333333333',
+              current_setting('app.next')::date, 1);
+      raise exception 'FAIL 24 %: zapis stawki indywidualnej przeszedl', r.label;
+    exception when insufficient_privilege then
+      raise notice 'PASS 24 %: odmowa zapisu stawki indywidualnej', r.label;
+    end;
+    reset role;
+  end loop;
+  update public.instructors set arranges_schedule = false
+  where account_id = '99999999-9999-9999-9999-999999999999';
 end $$;
 
 \echo '=== anon: brak dostepu ==='

@@ -25,6 +25,7 @@ import { composeMonthNav, monthRides, type MonthNav } from "@/lib/month-summary/
 import { todayIso } from "@/lib/schedule/dates";
 import { costsSum, riderCosts, type ExtraCost } from "@/lib/settlements/costs";
 import {
+  effectiveRate,
   RATE_FROM,
   rateFromMonth,
   stableRateFor,
@@ -123,17 +124,18 @@ function moneyText(grosze: number | null): string | null {
 }
 
 /**
- * Kwoty jeźdźca za miesiąc `RRRR-MM` przy `rides` jazdach i jego kosztach dodatkowych `costs` — jedyne
- * miejsce, które wybiera stawkę jeźdźca i liczy „do zapłaty” (lista i rozliczenie jeźdźca). Stawka
- * indywidualna (#97) dochodzi tutaj.
+ * Kwoty jeźdźca `riderKey` za miesiąc `RRRR-MM` przy `rides` jazdach i jego kosztach dodatkowych `costs`
+ * — jedyne miejsce, które wybiera stawkę jeźdźca (stawka indywidualna albo ośrodka, `effectiveRate`)
+ * i liczy „do zapłaty” = kwota za jazdy + koszty (lista i rozliczenie jeźdźca).
  */
 export function riderAmounts(
   rides: number,
   rates: readonly RateChange[],
   month: string,
+  riderKey: string,
   costs: readonly ExtraCost[],
 ): RiderAmounts {
-  const rate = stableRateFor(rates, month);
+  const rate = effectiveRate(rates, month, riderKey);
   const amount = ridesAmount(rides, rate);
   const costsAmount = costsSum(costs);
   // Bez stawki nie ma kwoty za jazdy, więc i „do zapłaty” czeka na stawkę — koszty widać osobno.
@@ -180,7 +182,7 @@ export function composeSettlementList(input: SettlementsInput, now: Date = new D
         name: entry.name ?? UNNAMED_RIDER,
         rides: entry.rides,
         ridesText: formatCount(entry.rides, RIDE_FORMS),
-        ...riderAmounts(entry.rides, input.rates, input.month.month, riderCosts(input.costs, riderKey)),
+        ...riderAmounts(entry.rides, input.rates, input.month.month, riderKey, riderCosts(input.costs, riderKey)),
       }),
     )
     .sort((a, b) => a.name.localeCompare(b.name, "pl") || a.riderKey.localeCompare(b.riderKey));
@@ -239,22 +241,30 @@ function capitalize(text: string): string {
   return `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
 }
 
-/** Stawka ośrodka dziś, zaplanowana zmiana i wybór „od tego / od następnego miesiąca”. */
-function stableRateView(rates: RateChange[], currentMonth: string): StableRateView {
-  const { current, planned } = stableRateSchedule(rates, currentMonth);
+/**
+ * Wybór „od tego / od następnego miesiąca” z miesiącem w etykiecie względem bieżącego miesiąca
+ * (`RRRR-MM`) — formularze stawki ośrodka i stawki jeźdźca (#97).
+ */
+export function rateChoices(currentMonth: string): RateChoice[] {
   const texts = SETTLEMENT_TEXTS.rate;
   const choice = (value: RateFrom, label: string): RateChoice => ({
     value,
     label: `${label} (${formatMonthYear(rateFromMonth(value, currentMonth))})`,
     checked: value === RATE_FROM.current,
   });
+  return [choice(RATE_FROM.current, texts.fromCurrent), choice(RATE_FROM.next, texts.fromNext)];
+}
+
+/** Stawka ośrodka dziś, zaplanowana zmiana i wybór „od tego / od następnego miesiąca”. */
+function stableRateView(rates: RateChange[], currentMonth: string): StableRateView {
+  const { current, planned } = stableRateSchedule(rates, currentMonth);
   return {
     current,
     currentText: moneyText(current),
     planned: planned
       ? { ...planned, text: `${formatFromMonth(planned.fromMonth)}: ${formatMoney(planned.amount)}` }
       : null,
-    choices: [choice(RATE_FROM.current, texts.fromCurrent), choice(RATE_FROM.next, texts.fromNext)],
+    choices: rateChoices(currentMonth),
   };
 }
 

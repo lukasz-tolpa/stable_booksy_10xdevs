@@ -249,3 +249,53 @@ describe("parseRiderKey — jeździec z adresu", () => {
     },
   );
 });
+
+// Oracle: AC #97 — rozliczenie jeźdźca liczy się po jego stawce indywidualnej z dopiskiem
+// „stawka indywidualna”; powrót do stawki ośrodka od swojego miesiąca.
+describe("composeRiderSettlement — stawka indywidualna", () => {
+  const bookings = [ride("2026-11-02"), ride("2026-11-09")];
+
+  it("jazdy × stawka indywidualna z dopiskiem „stawka indywidualna”", () => {
+    const settlement = composeRiderSettlement(
+      input({
+        month: NOVEMBER,
+        bookings,
+        rates: [STABLE_120, { id: 2, riderKey: "anna", fromMonth: "2026-11", amount: 9050 }],
+      }),
+      NOW,
+    );
+    expect(settlement.ridesLine).toBe(`Jazdy: 2 × ${zl("90,50 zł")} = ${zl("181,00 zł")}`);
+    expect(settlement.rateSourceText).toBe("stawka indywidualna");
+    expect(settlement).toMatchObject({ due: 18100, needsRate: false });
+  });
+
+  it("stawka indywidualna innego jeźdźca nie zmienia rozliczenia", () => {
+    const settlement = composeRiderSettlement(
+      input({
+        month: NOVEMBER,
+        bookings,
+        rates: [STABLE_120, { id: 2, riderKey: "piotr", fromMonth: "2026-11", amount: 0 }],
+      }),
+      NOW,
+    );
+    expect(settlement.rateSourceText).toBe("stawka ośrodka");
+    expect(settlement.due).toBe(24000);
+  });
+
+  it("po usunięciu stawki indywidualnej od listopada jeździec wraca do stawki ośrodka", () => {
+    const settlement = composeRiderSettlement(
+      input({
+        month: NOVEMBER,
+        bookings,
+        rates: [
+          STABLE_120,
+          { id: 2, riderKey: "anna", fromMonth: "2026-10", amount: 0 },
+          { id: 3, riderKey: "anna", fromMonth: "2026-11", amount: null },
+        ],
+      }),
+      NOW,
+    );
+    expect(settlement.rateSourceText).toBe("stawka ośrodka");
+    expect(settlement.due).toBe(24000);
+  });
+});

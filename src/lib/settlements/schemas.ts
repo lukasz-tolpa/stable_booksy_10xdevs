@@ -29,6 +29,24 @@ export const stableRateSchema = z.object({
   from: z.enum([RATE_FROM.current, RATE_FROM.next], { error: RATE_FROM_MESSAGE }),
 });
 
+/** Rodzaj zmiany stawki jeźdźca (#97) — wartość ukrytego pola `kind` formularza. */
+export const RIDER_RATE_KIND = { set: "indywidualna", end: "osrodka" } as const;
+
+const RIDER_RATE_KIND_MESSAGE = "Nieprawidłowa zmiana stawki";
+
+/**
+ * Stawka jeźdźca (#97): stawka indywidualna (kwota jak przy stawce ośrodka, także 0,00 zł) albo
+ * „usuń stawkę indywidualną” — powrót do stawki ośrodka, bez kwoty. Oba „od tego / od następnego miesiąca”.
+ */
+export const riderRateSchema = z.discriminatedUnion(
+  "kind",
+  [
+    stableRateSchema.extend({ kind: z.literal(RIDER_RATE_KIND.set) }),
+    stableRateSchema.pick({ from: true }).extend({ kind: z.literal(RIDER_RATE_KIND.end) }),
+  ],
+  { error: RIDER_RATE_KIND_MESSAGE },
+);
+
 /** Zaplanowana zmiana stawki do usunięcia. */
 export const rateIdSchema = z.object({
   rateId: formInt("Nieprawidłowa zmiana stawki").pipe(z.number().positive({ error: "Nieprawidłowa zmiana stawki" })),
@@ -83,3 +101,4 @@ export const extraCostUpdateSchema = z.object({
 export const costIdSchema = z.object({ costId });
 
 export type ExtraCostInput = z.infer<typeof extraCostSchema>;
+export type RiderRateInput = z.infer<typeof riderRateSchema>;

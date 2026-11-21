@@ -10,7 +10,7 @@
 import CostFields from "@/components/settlements/CostFields.astro";
 import GhostButton from "@/components/ui/GhostButton.astro";
 import { MONTH_PARAM } from "@/lib/month-summary/month";
-import { RETURN_RIDER_FIELD } from "@/lib/settlements/redirect";
+import { RETURN_RIDER_FIELD, RIDER_PARAM } from "@/lib/settlements/redirect";
 import type { RiderSettlement } from "@/lib/settlements/rider";
 import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
 
@@ -70,7 +70,7 @@ const headingId = "costs-heading";
   <form method="post" action="/api/settlements/cost" class="add" aria-label={texts.add}>
     <input type="hidden" name={MONTH_PARAM} value={settlement.month} />
     <input type="hidden" name={RETURN_RIDER_FIELD} value={settlement.riderKey} />
-    <input type="hidden" name="jezdziec" value={settlement.riderKey} />
+    <input type="hidden" name={RIDER_PARAM} value={settlement.riderKey} />
     <CostFields idPrefix="cost-new" />
     <div>
       <GhostButton>{texts.add}</GhostButton>

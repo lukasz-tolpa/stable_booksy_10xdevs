@@ -95,6 +95,15 @@ export function deleteRate(client: Client, stableId: number, rateId: number) {
 }
 
 /**
+ * Usunięcie zaplanowanej zmiany stawki jeźdźca (#97) — tylko zmiany tego jeźdźca, więc spreparowany
+ * formularz rozliczenia jeźdźca nie usunie stawki ośrodka. Obowiązującej baza nie usunie (SB027).
+ * Zwraca usunięte wiersze — pusta lista: zmiany nie ma albo nie należy do jeźdźca lub ośrodka.
+ */
+export function deleteRiderRate(client: Client, stableId: number, riderId: string, rateId: number) {
+  return client.from("rates").delete().eq("id", rateId).eq("stable_id", stableId).eq("rider_id", riderId).select("id");
+}
+
+/**
  * Jeździec rozliczenia z adresu strony: profil konta `rider`, który właściciel widzi — RLS na
  * `profiles` (`is_rider_of_my_stable`) pokazuje tylko jeźdźców z zapisem w jego ośrodku. `null` —
  * jeździec spoza ośrodka, zanonimizowany (profil usunięty) albo nieznany. Rzuca przy błędzie zapytania.

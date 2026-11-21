@@ -10,6 +10,7 @@ import Card from "@/components/ui/Card.astro";
 import GhostButton from "@/components/ui/GhostButton.astro";
 import { MONTH_PARAM } from "@/lib/month-summary/month";
 import type { AddCostView } from "@/lib/settlements/costs";
+import { RIDER_PARAM } from "@/lib/settlements/redirect";
 import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
 
 interface Props {
@@ -31,7 +32,7 @@ const texts = SETTLEMENT_TEXTS.costs;
           <input type="hidden" name={MONTH_PARAM} value={month} />
           <div class="field">
             <label for="cost-rider">{texts.riderLabel}</label>
-            <select id="cost-rider" name="jezdziec" required>
+            <select id="cost-rider" name={RIDER_PARAM} required>
               <option value="" selected>
                 {texts.riderPlaceholder}
               </option>

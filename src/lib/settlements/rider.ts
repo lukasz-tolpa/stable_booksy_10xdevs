@@ -78,7 +78,7 @@ export function composeRiderSettlement(input: RiderSettlementInput, now: Date = 
     now,
   );
   const costs = riderCosts(input.costs, input.rider.key);
-  const amounts = riderAmounts(rides.length, input.rates, input.month.month, costs);
+  const amounts = riderAmounts(rides.length, input.rates, input.month.month, input.rider.key, costs);
   const texts = SETTLEMENT_TEXTS.rider;
 
   return {

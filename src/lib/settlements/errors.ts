@@ -35,6 +35,17 @@ const SAVE_REFUSALS = new Map<string, string>([
   [RATE_FORBIDDEN, "Nie możesz zmieniać stawek tego ośrodka."],
 ]);
 
+/** Konto jeźdźca usunięte, zanim zapis stawki indywidualnej dotarł do bazy (FK `rates.rider_id`). */
+const RATE_RIDER_GONE = "23503";
+const RIDER_NOT_OF_STABLE = "Stawkę indywidualną możesz ustawić tylko jeźdźcowi swojego ośrodka.";
+
+/** Stawka indywidualna (#97): reguły czasu i kwoty jak przy stawce ośrodka, odmowa RLS — o jeźdźcu. */
+const RIDER_SAVE_REFUSALS = new Map<string, string>([
+  ...SAVE_REFUSALS,
+  [RATE_FORBIDDEN, RIDER_NOT_OF_STABLE],
+  [RATE_RIDER_GONE, RIDER_NOT_OF_STABLE],
+]);
+
 const DELETE_REFUSALS = new Map<string, string>([
   [RATE_IN_FORCE, "Ta zmiana stawki już obowiązuje, więc nie można jej usunąć. Możesz ustawić nową stawkę."],
 ]);
@@ -43,13 +54,17 @@ export function rateSaveErrorMessage(code: string | undefined): string {
   return (code === undefined ? undefined : SAVE_REFUSALS.get(code)) ?? RATE_SAVE_FAILED;
 }
 
+export function riderRateSaveErrorMessage(code: string | undefined): string {
+  return (code === undefined ? undefined : RIDER_SAVE_REFUSALS.get(code)) ?? RATE_SAVE_FAILED;
+}
+
 export function rateDeleteErrorMessage(code: string | undefined): string {
   return (code === undefined ? undefined : DELETE_REFUSALS.get(code)) ?? RATE_DELETE_FAILED;
 }
 
 /** Odmowa wynikająca z reguł stawek, nie awaria — endpoint jej nie loguje. */
 export function isExpectedRateRefusal(code: string | undefined): boolean {
-  return code !== undefined && (SAVE_REFUSALS.has(code) || DELETE_REFUSALS.has(code));
+  return code !== undefined && (RIDER_SAVE_REFUSALS.has(code) || DELETE_REFUSALS.has(code));
 }
 
 /** Koszt dodatkowy w przyszłym miesiącu — wyzwalacz `extra_costs_month_rules` (#96). */
