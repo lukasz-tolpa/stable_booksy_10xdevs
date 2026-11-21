@@ -13,6 +13,7 @@
 import type { RideCandidate } from "@/lib/bookings/rides";
 import { UNNAMED_RIDER } from "@/lib/bookings/rows";
 import {
+  capitalize,
   formatCount,
   formatFromMonth,
   formatInMonthYear,
@@ -22,14 +23,14 @@ import {
 } from "@/lib/format";
 import type { SummaryMonth } from "@/lib/month-summary/month";
 import { composeMonthNav, monthRides, type MonthNav } from "@/lib/month-summary/summary";
-import { todayIso } from "@/lib/schedule/dates";
+import { currentMonth } from "@/lib/schedule/dates";
 import { costsSum, riderCosts, type ExtraCost } from "@/lib/settlements/costs";
 import {
   effectiveRate,
   RATE_FROM,
   rateFromMonth,
+  rateSchedule,
   stableRateFor,
-  stableRateSchedule,
   type EffectiveRate,
   type PlannedRate,
   type RateChange,
@@ -249,8 +250,13 @@ export interface SettlementsView {
   emptyText: string;
 }
 
-function capitalize(text: string): string {
-  return `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
+/**
+ * Zaplanowana zmiana stawki jednym tekstem: `od grudnia 2026: 90,00 zł`, a powrót jeźdźca do stawki
+ * ośrodka — `od grudnia 2026: stawka ośrodka` (karta stawki ośrodka i stawki jeźdźca).
+ */
+export function plannedRateText(planned: PlannedRate): string {
+  const amount = planned.amount === null ? SETTLEMENT_TEXTS.rider.source.stable : formatMoney(planned.amount);
+  return `${formatFromMonth(planned.fromMonth)}: ${amount}`;
 }
 
 /**
@@ -269,13 +275,12 @@ export function rateChoices(currentMonth: string): RateChoice[] {
 
 /** Stawka ośrodka dziś, zaplanowana zmiana i wybór „od tego / od następnego miesiąca”. */
 function stableRateView(rates: RateChange[], currentMonth: string): StableRateView {
-  const { current, planned } = stableRateSchedule(rates, currentMonth);
+  const { current, planned } = rateSchedule(rates, null, currentMonth);
+  const amount = current?.amount ?? null;
   return {
-    current,
-    currentText: moneyText(current),
-    planned: planned
-      ? { ...planned, text: `${formatFromMonth(planned.fromMonth)}: ${formatMoney(planned.amount)}` }
-      : null,
+    current: amount,
+    currentText: moneyText(amount),
+    planned: planned ? { ...planned, text: plannedRateText(planned) } : null,
     choices: rateChoices(currentMonth),
   };
 }
@@ -286,7 +291,7 @@ export function composeSettlementsPage(input: SettlementsPageInput, now: Date = 
   const monthRate = stableRateFor(input.rates, input.month.month);
   return {
     nav: composeMonthNav(input.month, input.monthHref),
-    rate: stableRateView(input.rates, todayIso(now).slice(0, 7)),
+    rate: stableRateView(input.rates, currentMonth(now)),
     monthRateText:
       monthRate === null
         ? null

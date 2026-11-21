@@ -78,52 +78,35 @@ export function effectiveRate(
   return stableRateFor(changes, month);
 }
 
-/** Zaplanowana zmiana stawki — od miesiąca późniejszego niż bieżący; można ją usunąć. */
+/**
+ * Zaplanowana zmiana stawki — od miesiąca późniejszego niż bieżący; można ją usunąć. `amount` `null`
+ * tylko przy stawce jeźdźca: od tego miesiąca wraca stawka ośrodka.
+ */
 export interface PlannedRate {
-  id: number;
-  fromMonth: string;
-  amount: number;
-}
-
-/** Stawka ośrodka na górze strony „Rozliczenia”. */
-export interface StableRateSchedule {
-  /** Grosze w bieżącym miesiącu; `null` — ośrodek bez stawki („Ustaw stawkę ośrodka”). */
-  current: number | null;
-  /** Zmiana od następnego miesiąca (baza nie przyjmie późniejszej); `null` — brak. */
-  planned: PlannedRate | null;
-}
-
-/** Stawka ośrodka w bieżącym miesiącu (`RRRR-MM`, strefa ośrodka) i zaplanowana zmiana. */
-export function stableRateSchedule(changes: readonly RateChange[], currentMonth: string): StableRateSchedule {
-  const planned = stableChanges(changes).find((change) => change.fromMonth > currentMonth);
-  return {
-    current: stableRateFor(changes, currentMonth)?.amount ?? null,
-    planned: planned ? { id: planned.id, fromMonth: planned.fromMonth, amount: planned.amount } : null,
-  };
-}
-
-/** Zaplanowana zmiana stawki jeźdźca; `amount` `null` — od tego miesiąca wraca stawka ośrodka. */
-export interface PlannedRiderRate {
   id: number;
   fromMonth: string;
   amount: number | null;
 }
 
-/** Stawka jeźdźca w rozliczeniu jeźdźca (#97): obowiązująca dziś i zaplanowana zmiana jeźdźca. */
-export interface RiderRateSchedule {
-  /** Stawka jazd jeźdźca w bieżącym miesiącu (ze źródłem); `null` — ośrodek bez stawki. */
+/** Stawka dziś i zaplanowana zmiana — karta stawki ośrodka („Rozliczenia”) i stawki jeźdźca (#97). */
+export interface RateSchedule {
+  /** Stawka w bieżącym miesiącu (ze źródłem); `null` — ośrodek bez stawki („Ustaw stawkę ośrodka”). */
   current: EffectiveRate | null;
-  /** Zmiana jeźdźca od następnego miesiąca (baza nie przyjmie późniejszej); `null` — brak. */
-  planned: PlannedRiderRate | null;
+  /** Zmiana od następnego miesiąca (baza nie przyjmie późniejszej); `null` — brak. */
+  planned: PlannedRate | null;
 }
 
-/** Stawka jeźdźca w bieżącym miesiącu (`RRRR-MM`, strefa ośrodka) i jego zaplanowana zmiana. */
-export function riderRateSchedule(
+/**
+ * Stawka w bieżącym miesiącu (`RRRR-MM`, strefa ośrodka) i zaplanowana zmiana: `riderKey` `null` —
+ * stawka ośrodka i jej zmiany; inaczej stawka, po której płaci jeździec, i zmiany tego jeźdźca.
+ */
+export function rateSchedule(
   changes: readonly RateChange[],
-  riderKey: string,
+  riderKey: string | null,
   currentMonth: string,
-): RiderRateSchedule {
-  const planned = riderChanges(changes, riderKey).find((change) => change.fromMonth > currentMonth);
+): RateSchedule {
+  const own = riderKey === null ? stableChanges(changes) : riderChanges(changes, riderKey);
+  const planned = own.find((change) => change.fromMonth > currentMonth);
   return {
     current: effectiveRate(changes, currentMonth, riderKey),
     planned: planned ? { id: planned.id, fromMonth: planned.fromMonth, amount: planned.amount } : null,

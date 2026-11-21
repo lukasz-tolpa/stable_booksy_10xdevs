@@ -3,7 +3,7 @@ import { firstErrorMessage } from "@/lib/auth/schemas";
 import { errorCode } from "@/lib/db-errors";
 import { formValue } from "@/lib/form-data";
 import { logError } from "@/lib/log";
-import { todayIso } from "@/lib/schedule/dates";
+import { currentMonth } from "@/lib/schedule/dates";
 import { isExpectedRateRefusal, RATE_SAVE_FAILED, rateSaveErrorMessage } from "@/lib/settlements/errors";
 import { settlementOwner } from "@/lib/settlements/owner-request";
 import { saveRate } from "@/lib/settlements/queries";
@@ -39,7 +39,7 @@ export const POST: APIRoute = async (context) => {
   const { data, error } = await saveRate(owner.supabase, {
     stableId: owner.stableId,
     riderId: null,
-    fromMonth: rateFromMonth(parsed.data.from, todayIso(now).slice(0, 7)),
+    fromMonth: rateFromMonth(parsed.data.from, currentMonth(now)),
     amount: parsed.data.amount,
   });
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  capitalize,
   RIDE_FORMS,
   RIDER_FORMS,
   formatCount,
@@ -173,5 +174,13 @@ describe("formatFromMonth", () => {
     expect(formatFromMonth("2027-01")).toBe("od stycznia 2027");
     expect(formatFromMonth("2026-12")).toBe("od grudnia 2026");
     expect(formatFromMonth("2026-02")).toBe("od lutego 2026");
+  });
+});
+
+describe("capitalize", () => {
+  it("wielka litera na początku, także polska", () => {
+    expect(capitalize("w październiku 2026")).toBe("W październiku 2026");
+    expect(capitalize("łąka")).toBe("Łąka");
+    expect(capitalize("")).toBe("");
   });
 });

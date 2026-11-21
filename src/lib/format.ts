@@ -246,3 +246,8 @@ export function formatAmountInput(grosze: number): string {
   const abs = Math.abs(Math.trunc(grosze));
   return `${String(Math.floor(abs / 100))},${String(abs % 100).padStart(2, "0")}`;
 }
+
+/** Tekst z wielką literą na początku — np. zdanie zaczynające się od `formatInMonthYear`: `W październiku 2026 …`. */
+export function capitalize(text: string): string {
+  return `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
+}

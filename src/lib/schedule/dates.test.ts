@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   addDays,
+  currentMonth,
   defaultScheduleDate,
   formatIsoDate,
   isPastDate,
@@ -112,5 +113,13 @@ describe("formatIsoDate", () => {
     expect(formatIsoDate(new Date("2026-01-14T23:30:00Z"))).toBe("2026-01-15");
     // Ta sama godzina UTC latem wypada juz po 01:00 czasu polskiego.
     expect(formatIsoDate(new Date("2026-07-14T23:30:00Z"))).toBe("2026-07-15");
+  });
+});
+
+describe("currentMonth", () => {
+  it("bieżący miesiąc w strefie ośrodka, nie UTC", () => {
+    expect(currentMonth(new Date("2026-11-20T13:30:00Z"))).toBe("2026-11");
+    // 30 listopada 23:30 UTC to już 1 grudnia w Warszawie.
+    expect(currentMonth(new Date("2026-11-30T23:30:00Z"))).toBe("2026-12");
   });
 });

@@ -5,10 +5,10 @@
  * Którą stawkę liczyć, rozstrzyga `effectiveRate` w `rates.ts`.
  */
 
-import { formatFromMonth, formatMoney } from "@/lib/format";
-import { todayIso } from "@/lib/schedule/dates";
-import { riderRateSchedule, type RateChange } from "@/lib/settlements/rates";
-import { rateChoices, type RateChoice } from "@/lib/settlements/settlements";
+import { formatMoney } from "@/lib/format";
+import { currentMonth } from "@/lib/schedule/dates";
+import { rateSchedule, type RateChange } from "@/lib/settlements/rates";
+import { plannedRateText, rateChoices, type RateChoice } from "@/lib/settlements/settlements";
 import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
 
 export interface RiderRateView {
@@ -29,20 +29,13 @@ export function composeRiderRate(
   riderKey: string,
   now: Date = new Date(),
 ): RiderRateView {
-  const currentMonth = todayIso(now).slice(0, 7);
-  const { current, planned } = riderRateSchedule(rates, riderKey, currentMonth);
-  const source = SETTLEMENT_TEXTS.rider.source;
+  const month = currentMonth(now);
+  const { current, planned } = rateSchedule(rates, riderKey, month);
   return {
     currentText: current === null ? null : formatMoney(current.amount),
-    sourceText: current === null ? null : source[current.source],
-    planned:
-      planned === null
-        ? null
-        : {
-            id: planned.id,
-            text: `${formatFromMonth(planned.fromMonth)}: ${planned.amount === null ? source.stable : formatMoney(planned.amount)}`,
-          },
+    sourceText: current === null ? null : SETTLEMENT_TEXTS.rider.source[current.source],
+    planned: planned === null ? null : { id: planned.id, text: plannedRateText(planned) },
     canEnd: current?.source === "individual",
-    choices: rateChoices(currentMonth),
+    choices: rateChoices(month),
   };
 }

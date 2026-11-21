@@ -1,11 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  effectiveRate,
-  riderRateSchedule,
-  stableRateFor,
-  stableRateSchedule,
-  type RateChange,
-} from "@/lib/settlements/rates";
+import { effectiveRate, stableRateFor, rateSchedule, type RateChange } from "@/lib/settlements/rates";
 
 let nextId = 1;
 function change(fromMonth: string, amount: number | null, riderKey: string | null = null): RateChange {
@@ -51,9 +45,9 @@ describe("stableRateFor — obowiązująca stawka ośrodka w miesiącu", () => {
   });
 });
 
-describe("stableRateSchedule — stawka ośrodka dziś i zaplanowana zmiana", () => {
+describe("rateSchedule — stawka ośrodka dziś i zaplanowana zmiana", () => {
   it("bez stawki ośrodka nie ma ani bieżącej, ani zaplanowanej", () => {
-    expect(stableRateSchedule([change("2026-12", 9000, "anna")], "2026-11")).toEqual({
+    expect(rateSchedule([change("2026-12", 9000, "anna")], null, "2026-11")).toEqual({
       current: null,
       planned: null,
     });
@@ -61,24 +55,24 @@ describe("stableRateSchedule — stawka ośrodka dziś i zaplanowana zmiana", ()
 
   it("zaplanowana zmiana od następnego miesiąca nie działa w bieżącym", () => {
     const planned = change("2026-12", 14000);
-    const schedule = stableRateSchedule([change("2026-09", 12000), planned], "2026-11");
+    const schedule = rateSchedule([change("2026-09", 12000), planned], null, "2026-11");
     expect(schedule).toEqual({
-      current: 12000,
+      current: { amount: 12000, source: "stable" },
       planned: { id: planned.id, fromMonth: "2026-12", amount: 14000 },
     });
   });
 
   it("zmiana od bieżącego miesiąca jest bieżącą stawką, nie zaplanowaną", () => {
-    expect(stableRateSchedule([change("2026-09", 12000), change("2026-11", 13000)], "2026-11")).toEqual({
-      current: 13000,
+    expect(rateSchedule([change("2026-09", 12000), change("2026-11", 13000)], null, "2026-11")).toEqual({
+      current: { amount: 13000, source: "stable" },
       planned: null,
     });
   });
 
   it("pierwsza stawka zaplanowana od następnego miesiąca obowiązuje wstecz także w bieżącym", () => {
     const planned = change("2026-12", 14000);
-    expect(stableRateSchedule([planned], "2026-11")).toEqual({
-      current: 14000,
+    expect(rateSchedule([planned], null, "2026-11")).toEqual({
+      current: { amount: 14000, source: "stable" },
       planned: { id: planned.id, fromMonth: "2026-12", amount: 14000 },
     });
   });
@@ -139,11 +133,11 @@ describe("effectiveRate — stawka jazd jeźdźca w miesiącu", () => {
   });
 });
 
-describe("riderRateSchedule — stawka jeźdźca dziś i zaplanowana zmiana", () => {
+describe("rateSchedule — stawka jeźdźca dziś i zaplanowana zmiana", () => {
   const STABLE = change("2026-09", 12000);
 
   it("bez zmian jeźdźca: obowiązuje stawka ośrodka, nic nie jest zaplanowane", () => {
-    expect(riderRateSchedule([STABLE, change("2026-12", 9000, "piotr")], "anna", "2026-11")).toEqual({
+    expect(rateSchedule([STABLE, change("2026-12", 9000, "piotr")], "anna", "2026-11")).toEqual({
       current: { amount: 12000, source: "stable" },
       planned: null,
     });
@@ -151,7 +145,7 @@ describe("riderRateSchedule — stawka jeźdźca dziś i zaplanowana zmiana", ()
 
   it("zaplanowana stawka indywidualna od następnego miesiąca nie działa w bieżącym", () => {
     const planned = change("2026-12", 9000, "anna");
-    expect(riderRateSchedule([STABLE, planned], "anna", "2026-11")).toEqual({
+    expect(rateSchedule([STABLE, planned], "anna", "2026-11")).toEqual({
       current: { amount: 12000, source: "stable" },
       planned: { id: planned.id, fromMonth: "2026-12", amount: 9000 },
     });
@@ -159,13 +153,13 @@ describe("riderRateSchedule — stawka jeźdźca dziś i zaplanowana zmiana", ()
 
   it("zaplanowany powrót do stawki ośrodka to zmiana bez kwoty", () => {
     const planned = change("2026-12", null, "anna");
-    expect(riderRateSchedule([STABLE, change("2026-10", 0, "anna"), planned], "anna", "2026-11")).toEqual({
+    expect(rateSchedule([STABLE, change("2026-10", 0, "anna"), planned], "anna", "2026-11")).toEqual({
       current: { amount: 0, source: "individual" },
       planned: { id: planned.id, fromMonth: "2026-12", amount: null },
     });
   });
 
   it("zaplanowana zmiana stawki ośrodka nie jest zmianą jeźdźca", () => {
-    expect(riderRateSchedule([STABLE, change("2026-12", 14000)], "anna", "2026-11").planned).toBeNull();
+    expect(rateSchedule([STABLE, change("2026-12", 14000)], "anna", "2026-11").planned).toBeNull();
   });
 });
