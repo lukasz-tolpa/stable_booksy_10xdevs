@@ -63,6 +63,12 @@ export const INSTRUCTOR_SCHEDULE_ROUTE = `${INSTRUCTOR_HOME_ROUTE}/grafik`;
 export const OWNER_MONTH_SUMMARY_ROUTE = `${ROLE_HOME.instructor}/podsumowanie`;
 
 /**
+ * Rozliczenia (spec #93) — strona właściciela w przestrzeni ośrodka, miesiąc w `?miesiac=RRRR-MM`.
+ * Instruktor i jeździec tu nie wchodzą: przestrzeń ośrodka jest tylko dla właściciela (`STANDINGS`).
+ */
+export const OWNER_SETTLEMENTS_ROUTE = `${ROLE_HOME.instructor}/rozliczenia`;
+
+/**
  * Zakładka „Podsumowanie miesiąca” instruktora z kontem (#90): jazdy z jego slotów. Ma ją każdy
  * aktywny instruktor, który nie jest właścicielem — z uprawnieniem do układania grafiku i bez.
  */

@@ -14,6 +14,8 @@ import {
   formatNumber,
   formatPercent,
   formatTakenSeats,
+  formatMoney,
+  formatFromMonth,
 } from "@/lib/format";
 
 // Polski zapis grupuje tysiące twardą spacją (U+00A0) dopiero od pięciu cyfr.
@@ -134,5 +136,29 @@ describe("odmiana „jazda” i „jeździec”", () => {
       "2 jeźdźców",
       "5 jeźdźców",
     ]);
+  });
+});
+
+// Kwoty rozliczeń (#94): zawsze dwa miejsca po przecinku, tysiące od czterech cyfr oddzielone twardą
+// spacją (jak „1 250,00 zł” w specu, inaczej niż `formatNumber`), twarda spacja przed „zł”.
+describe("formatMoney", () => {
+  it.each([
+    [0, "0,00 zł"],
+    [5, "0,05 zł"],
+    [12050, "120,50 zł"],
+    [125000, "1 250,00 zł"],
+    [1234000, "12 340,00 zł"],
+    [1000000, "10 000,00 zł"],
+    [123456789, "1 234 567,89 zł"],
+  ])("%i groszy to %s", (grosze, text) => {
+    expect(formatMoney(grosze)).toBe(text.replaceAll(" ", "\u00a0"));
+  });
+});
+
+describe("formatFromMonth", () => {
+  it("zapisuje początek obowiązywania z nazwą miesiąca w dopełniaczu", () => {
+    expect(formatFromMonth("2027-01")).toBe("od stycznia 2027");
+    expect(formatFromMonth("2026-12")).toBe("od grudnia 2026");
+    expect(formatFromMonth("2026-02")).toBe("od lutego 2026");
   });
 });

@@ -73,6 +73,20 @@ _Avoid_: miesiąc rozliczeniowy
 Jazdy każdego jeźdźca w ośrodku w jednym miesiącu kalendarzowym: ich liczba i daty. Właściciel widzi wszystkich jeźdźców ośrodka, instruktor z kontem — jeźdźców ze swoich slotów, jeździec — tylko siebie. W bieżącym miesiącu liczą się jazdy do teraz; nadchodzące zapisy i odwołania nie wchodzą. Jeźdźcy zanonimizowani występują łącznie, z samą liczbą jazd, bez dat.
 _Avoid_: raport miesięczny, zestawienie treningów
 
+## Rozliczenia
+
+**Rozliczenie**:
+Kwota, którą jeździec jest winien ośrodkowi za jeden miesiąc kalendarzowy: jego jazdy w tym miesiącu razy stawka plus koszty dodatkowe. Przygotowuje je właściciel. Jeźdźcy zanonimizowani nie mają rozliczenia. Opłacenie rozliczenia nie jest śledzone.
+_Avoid_: faktura, rachunek, miesiąc rozliczeniowy
+
+**Stawka**:
+Cena jednej jazdy w ośrodku. Ośrodek ma stawkę ośrodka; jeździec może mieć stawkę indywidualną, która ją zastępuje. Stawka obowiązuje od wskazanego miesiąca, więc jej zmiana nie przelicza minionych miesięcy; tylko pierwsza stawka ośrodka obowiązuje też we wszystkich wcześniejszych miesiącach, a jeździec bez stawki indywidualnej liczy się po stawce ośrodka. Wszystkie jazdy jeźdźca w jednym miesiącu liczą się po tej samej stawce.
+_Avoid_: cena, cennik, taryfa
+
+**Koszt dodatkowy**:
+Pozycja rozliczenia poza jazdami, z nazwą i kwotą, dopisana przez właściciela jednemu jeźdźcowi na jeden miesiąc — także gdy jeździec nie miał w nim żadnej jazdy.
+_Avoid_: opłata, dopłata
+
 ## Statystyki
 
 **Godziny jazd**:

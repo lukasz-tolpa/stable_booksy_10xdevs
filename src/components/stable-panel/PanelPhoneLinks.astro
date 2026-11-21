@@ -1,0 +1,83 @@
+---
+// Panel ośrodka — wejścia w kolumnie głównej do sekcji, których nie ma w dolnym pasku `StableTabBar`
+// (spec #87: Podsumowanie miesiąca; spec #93: Rozliczenia). Te same `SideLink` co w bocznej kolumnie
+// (`composeMonthSummaryLink`, `composeSettlementsLink`). Tylko poniżej 1000 px — od 1000 px te linki są
+// w bocznej kolumnie.
+import { ArrowRight } from "lucide-react";
+import Card from "@/components/ui/Card.astro";
+import type { SideLink } from "@/lib/stable-panel/panel";
+
+interface Props {
+  links: SideLink[];
+}
+
+const { links } = Astro.props;
+---
+
+<div class="entries">
+  {
+    links.map((link) => (
+      <Card padding={0}>
+        <a href={link.href} class="entry__link">
+          <span class="entry__text">
+            <span class="entry__name">{link.name}</span>
+            {link.fact && (
+              <span
+                class:list={[
+                  "entry__fact mono-nums",
+                  link.warn ? "text-warn-ink font-semibold" : "text-muted-foreground",
+                ]}
+              >
+                {" "}
+                &middot; {link.fact}
+              </span>
+            )}
+          </span>
+          <ArrowRight className="size-4 shrink-0" aria-hidden="true" />
+        </a>
+      </Card>
+    ))
+  }
+</div>
+
+<style>
+  .entries {
+    display: grid;
+    gap: 10px;
+    margin-top: 20px;
+  }
+  @media (width >= 1000px) {
+    .entries {
+      display: none;
+    }
+  }
+  .entry__link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 52px;
+    padding: 12px 18px;
+    border-radius: var(--r-lg);
+    color: var(--fg);
+  }
+  .entry__link:hover .entry__name {
+    color: var(--primary);
+  }
+  .entry__link:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+  .entry__text {
+    min-width: 0;
+  }
+  .entry__name {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 16px;
+  }
+  /* Kolor informacji z klas Tailwind (zwykła albo ostrzeżenie) — reguła zakresowa by je przykryła. */
+  .entry__fact {
+    font-size: 14px;
+  }
+</style>

@@ -336,7 +336,13 @@ się nie zapisał.`); the inactive-account screen (`/instruktor/konto-nieaktywne
   inside an expanded rider, the `list` „Jazdy — {rider}” with one `listitem` per ride; the instructor's
   (`/instruktor/podsumowanie`, `month-summary-instructor.spec.ts`) is the same without instructor names and
   with dates as plain text, behind the tab „Podsumowanie miesiąca” in the `navigation` „Przestrzeń instruktora”
-  (now shown to every instructor with an account; „Grafik” only with the schedule permission). The landing page (`landing.spec.ts`,
+  (now shown to every instructor with an account; „Grafik” only with the schedule permission). The settlements page (`/osrodek/rozliczenia`,
+  `settlements-owner.spec.ts`) has the region „Stawka ośrodka” (field „Nowa stawka (zł)”, radios `Od tego miesiąca (…)` /
+  `Od następnego miesiąca (…)` — take them by role `radio`, a `^`-anchored `getByLabel` misses the wrapped label —, buttons
+  `Zapisz stawkę` and `Usuń zaplanowaną zmianę`), the same month switcher and the `list` „Rozliczenia jeźdźców” (name, `"{n} jazd…"`,
+  amount) with `Razem: …` under it; amounts carry non-breaking spaces, match them with `\s`. The spec deletes the stable's rates as
+  superuser before and after (`session_replication_role = replica`, since `SB027` binds `postgres` too) — the database is left
+  without rates. The landing page (`landing.spec.ts`,
   guest, no storage state) repeats link names: "Załóż konto jeźdźca" and
   "Załóż konto ośrodka" (and "Mój panel" when signed in) stand twice, once in
   a half and once in the closing of the "Jeden dzień" section, and the top bar
