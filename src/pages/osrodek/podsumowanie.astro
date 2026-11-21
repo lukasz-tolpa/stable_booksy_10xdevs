@@ -16,6 +16,7 @@ import {
 import { composeMonthNav } from "@/lib/month-summary/summary";
 import { MONTH_SUMMARY_TEXTS } from "@/lib/month-summary/texts";
 import { todayIso } from "@/lib/schedule/dates";
+import { settlementsHref } from "@/lib/settlements/redirect";
 import { getOwnedStableId, listStableHorses } from "@/lib/stables/queries";
 import { getStatsRows } from "@/lib/stats/queries";
 import { createClient } from "@/lib/supabase";
@@ -63,12 +64,17 @@ if (supabase && profile) {
 // Przełącznik miesięcy zostaje także przy awarii odczytu — da się przejść do innego miesiąca.
 const nav = view?.nav ?? composeMonthNav(month, ownerMonthHref);
 const filter = view?.filter ?? null;
+// Rozliczenia tego samego miesiąca, bez filtra instruktora — rozliczenie obejmuje wszystkie jazdy jeźdźca.
+const settlementsLink = settlementsHref(month.month);
 ---
 
 <Layout title={texts.heading}>
   <Topbar />
   <main class="container-narrow page">
     <MonthSummaryBody lead={texts.owner.lead} nav={nav} view={view} list={view?.list}>
+      <p slot="related" class="related">
+        <a href={settlementsLink}>{texts.owner.settlementsLink}</a>
+      </p>
       {
         filter && (
           <form
@@ -98,6 +104,22 @@ const filter = view?.filter ?? null;
 <style>
   .page {
     padding-block: 24px 56px;
+  }
+
+  /* Link pod opisem jak „Podsumowanie miesiąca” na Statystykach: cel dotyku 44 px. */
+  .related {
+    margin: 4px 0 0;
+    font-size: 14.5px;
+  }
+  .related a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    font-weight: 600;
+    color: var(--primary);
+  }
+  .related a:hover {
+    color: var(--primary-strong);
   }
 
   /* Filtr instruktora: etykieta nad listą wyboru i przyciskiem na telefonie, w jednym rzędzie od `sm`.

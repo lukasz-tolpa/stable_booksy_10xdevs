@@ -45,10 +45,13 @@ export const PANEL_TEXTS = {
     horses: "Konie",
     instructors: "Instruktorzy",
     monthSummary: "Podsumowanie miesiąca",
+    settlements: "Rozliczenia",
     stats: "Statystyki",
     tomorrowScheduled: "jutro: ułożony",
     tomorrowUnscheduled: "jutro: brak grafiku",
     anyPeriod: "dowolny okres",
+    /** Przy „Rozliczeniach”, gdy ośrodek nie ma stawki (zamiast sumy miesiąca). */
+    setRate: "Ustaw stawkę",
     /** `dziś: 3` — zapisy dziś. */
     todayPrefix: "dziś:",
     /** `2 z 3 z kontem` — aktywni instruktorzy z kontem. */

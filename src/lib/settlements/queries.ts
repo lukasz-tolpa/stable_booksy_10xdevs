@@ -1,6 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/db/database.types";
+import type { SummaryMonth } from "@/lib/month-summary/month";
 import type { RateChange } from "@/lib/settlements/rates";
+import { settlementBookings, type SettlementsInput } from "@/lib/settlements/settlements";
+import { getStatsRows } from "@/lib/stats/queries";
 import type { Rate } from "@/types";
 
 type Client = SupabaseClient<Database>;
@@ -30,6 +33,21 @@ export async function listRates(client: Client, stableId: number): Promise<RateC
     throw error;
   }
   return data.map(toRateChange);
+}
+
+/**
+ * Wszystko, czego lista rozliczeń miesiąca potrzebuje (`composeSettlementList`): zapisy ośrodka z dni
+ * miesiąca — ten sam odczyt co Podsumowanie miesiąca właściciela — i zmiany stawki. Panel ośrodka bierze
+ * stąd sumę bieżącego miesiąca; nowe składniki rozliczenia (koszty dodatkowe) dochodzą tutaj, więc panel
+ * ich nie zna. Rzuca przy błędzie zapytania.
+ */
+export async function loadSettlementsInput(
+  client: Client,
+  stableId: number,
+  month: SummaryMonth,
+): Promise<SettlementsInput> {
+  const [rows, rates] = await Promise.all([getStatsRows(client, stableId, month), listRates(client, stableId)]);
+  return { month, bookings: settlementBookings(rows), rates };
 }
 
 export interface RateWrite {
