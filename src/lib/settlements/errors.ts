@@ -5,7 +5,8 @@
  */
 
 import { formatMoney } from "@/lib/format";
-import { RATE_AMOUNT } from "@/lib/settlements/amounts";
+import { EXTRA_COST_AMOUNT, RATE_AMOUNT } from "@/lib/settlements/amounts";
+import { COST_NAME_MAX } from "@/lib/settlements/schemas";
 
 /** Zmiana stawki z miesiącem „od” innym niż bieżący albo następny — wyzwalacz `rates_month_rules`. */
 export const RATE_MONTH_OUT_OF_RANGE = "SB026";
@@ -49,4 +50,36 @@ export function rateDeleteErrorMessage(code: string | undefined): string {
 /** Odmowa wynikająca z reguł stawek, nie awaria — endpoint jej nie loguje. */
 export function isExpectedRateRefusal(code: string | undefined): boolean {
   return code !== undefined && (SAVE_REFUSALS.has(code) || DELETE_REFUSALS.has(code));
+}
+
+/** Koszt dodatkowy w przyszłym miesiącu — wyzwalacz `extra_costs_month_rules` (#96). */
+export const COST_MONTH_IN_FUTURE = "SB029";
+/** Kwota albo nazwa poza granicami — CHECK-i tabeli `extra_costs`. */
+const COST_CHECK = "23514";
+/** RLS: jeździec spoza ośrodka (albo konto nie jest właścicielem). */
+const COST_FORBIDDEN = "42501";
+
+/** Zapis kosztu dodatkowego nie powiódł się z przyczyny spoza reguł (awaria). */
+export const COST_SAVE_FAILED = "Nie udało się zapisać kosztu dodatkowego. Spróbuj ponownie.";
+/** Usunięcie kosztu dodatkowego nie powiodło się — usunięcie nie ma reguł bazy, więc to zawsze awaria. */
+export const COST_DELETE_FAILED = "Nie udało się usunąć kosztu dodatkowego. Spróbuj ponownie.";
+/** Poprawka albo usunięcie bez skutku: kosztu nie ma (usunięty w innej karcie) albo nie należy do ośrodka. */
+export const COST_NOT_FOUND = "Nie ma już takiego kosztu dodatkowego.";
+
+const COST_SAVE_REFUSALS = new Map<string, string>([
+  [COST_MONTH_IN_FUTURE, "Koszt dodatkowy możesz dopisać tylko w bieżącym albo minionym miesiącu."],
+  [
+    COST_CHECK,
+    `Koszt musi wynosić od 0,01 do ${formatMoney(EXTRA_COST_AMOUNT.max)}, a jego nazwa mieć od 1 do ${String(COST_NAME_MAX)} znaków.`,
+  ],
+  [COST_FORBIDDEN, "Koszt dodatkowy możesz dopisać tylko jeźdźcowi, który miał zapis w Twoim ośrodku."],
+]);
+
+export function costSaveErrorMessage(code: string | undefined): string {
+  return (code === undefined ? undefined : COST_SAVE_REFUSALS.get(code)) ?? COST_SAVE_FAILED;
+}
+
+/** Odmowa wynikająca z reguł kosztów dodatkowych, nie awaria — endpoint jej nie loguje. */
+export function isExpectedCostRefusal(code: string | undefined): boolean {
+  return code !== undefined && COST_SAVE_REFUSALS.has(code);
 }

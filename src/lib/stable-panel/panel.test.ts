@@ -371,7 +371,10 @@ describe("composeSettlementsLink — Rozliczenia w bocznej kolumnie i w główne
   // Oracle: AC #98 — informacja to suma bieżącego miesiąca z listy rozliczeń (ta sama co na stronie
   // „Rozliczenia”), np. „listopad: 360,00 zł”; bez stawki — „Ustaw stawkę”; awaria — link bez informacji.
   it("podaje sumę bieżącego miesiąca z listy rozliczeń, np. „listopad: 360,00 zł”", () => {
-    const settlement = composeSettlementList({ month: NOVEMBER, bookings: novemberRides, rates: [RATE_120] }, NOW);
+    const settlement = composeSettlementList(
+      { month: NOVEMBER, bookings: novemberRides, rates: [RATE_120], costs: [] },
+      NOW,
+    );
 
     expect(composeSettlementsLink({ today: TODAY, settlement })).toEqual({
       name: "Rozliczenia",
@@ -391,7 +394,7 @@ describe("composeSettlementsLink — Rozliczenia w bocznej kolumnie i w główne
   });
 
   it("ośrodek bez stawki: zamiast sumy prośba „Ustaw stawkę”, wyróżniona jak jutro bez grafiku", () => {
-    const settlement = composeSettlementList({ month: NOVEMBER, bookings: novemberRides, rates: [] }, NOW);
+    const settlement = composeSettlementList({ month: NOVEMBER, bookings: novemberRides, rates: [], costs: [] }, NOW);
 
     expect(composeSettlementsLink({ today: TODAY, settlement })).toMatchObject({
       href: "/osrodek/rozliczenia",

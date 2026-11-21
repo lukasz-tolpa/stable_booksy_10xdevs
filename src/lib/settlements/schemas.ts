@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { formInt } from "@/lib/form-data";
-import { parseAmount, RATE_AMOUNT, type AmountLimits } from "@/lib/settlements/amounts";
+import { EXTRA_COST_AMOUNT, parseAmount, RATE_AMOUNT, type AmountLimits } from "@/lib/settlements/amounts";
 import { RATE_FROM } from "@/lib/settlements/rates";
+import { parseRiderKey } from "@/lib/settlements/rider";
 
 /**
  * Schematy formularzy rozliczeń (spec #93). Walidacja przed pierwszą mutacją — brak albo błędne pole
@@ -34,3 +35,51 @@ export const rateIdSchema = z.object({
 });
 
 export type StableRateInput = z.infer<typeof stableRateSchema>;
+
+/** Nazwa kosztu dodatkowego: 1–80 znaków po przycięciu (CHECK `extra_costs_name_check`). */
+export const COST_NAME_MAX = 80;
+
+export const COST_TEXTS = {
+  rider: "Wybierz jeźdźca",
+  nameMissing: "Podaj nazwę kosztu",
+  nameTooLong: `Nazwa kosztu może mieć najwyżej ${String(COST_NAME_MAX)} znaków`,
+  costId: "Nieprawidłowy koszt dodatkowy",
+} as const;
+
+const costName = z
+  .string()
+  .trim()
+  .min(1, { error: COST_TEXTS.nameMissing })
+  // Znaki jak `char_length` w bazie (punkty kodowe), nie jednostki UTF-16.
+  .refine((name) => Array.from(name).length <= COST_NAME_MAX, { error: COST_TEXTS.nameTooLong });
+
+const costId = formInt(COST_TEXTS.costId).pipe(z.number().positive({ error: COST_TEXTS.costId }));
+
+/** Jeździec (konto) z listy jeźdźców ośrodka; czy jest jeźdźcem ośrodka, pilnuje RLS. */
+const costRider = z.string().transform((raw, ctx) => {
+  const key = parseRiderKey(raw.trim());
+  if (key === null) {
+    ctx.addIssue({ code: "custom", message: COST_TEXTS.rider, input: raw });
+    return z.NEVER;
+  }
+  return key;
+});
+
+/** „Dopisz koszt” (#96): jeździec, nazwa i kwota; miesiąc to oglądany miesiąc strony (`returnMonth`). */
+export const extraCostSchema = z.object({
+  rider: costRider,
+  name: costName,
+  amount: formAmount(EXTRA_COST_AMOUNT),
+});
+
+/** „Popraw” koszt dodatkowy: nowa nazwa i kwota (jeździec i miesiąc kosztu się nie zmieniają). */
+export const extraCostUpdateSchema = z.object({
+  costId,
+  name: costName,
+  amount: formAmount(EXTRA_COST_AMOUNT),
+});
+
+/** „Usuń” koszt dodatkowy. */
+export const costIdSchema = z.object({ costId });
+
+export type ExtraCostInput = z.infer<typeof extraCostSchema>;

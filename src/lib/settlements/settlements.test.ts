@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { resolveSummaryMonth } from "@/lib/month-summary/month";
+import type { ExtraCost } from "@/lib/settlements/costs";
 import type { RateChange } from "@/lib/settlements/rates";
 import {
   composeSettlementList,
@@ -24,7 +25,7 @@ function ride(day: string, riderKey: string | null, riderName: string | null, ho
 const STABLE_120: RateChange = { id: 1, riderKey: null, fromMonth: "2026-10", amount: 12000 };
 
 function input(overrides: Partial<SettlementsInput> = {}): SettlementsInput {
-  return { month: OCTOBER, bookings: [], rates: [STABLE_120], ...overrides };
+  return { month: OCTOBER, bookings: [], rates: [STABLE_120], costs: [], ...overrides };
 }
 
 // Oracle: AC #94 — jeźdźcy z jazdami miesiąca (reguła jazdy z Podsumowania miesiąca), alfabetycznie
@@ -231,5 +232,68 @@ describe("composeSettlementsPage — strona „Rozliczenia”", () => {
       ["Anna", "/osrodek/rozliczenia/anna?miesiac=2026-10"],
       ["Piotr", "/osrodek/rozliczenia/piotr?miesiac=2026-10"],
     ]);
+  });
+});
+
+function cost(riderKey: string, riderName: string | null, amount: number, name = "Pensjonat konia"): ExtraCost {
+  return { id: amount, riderKey, riderName, name, amount };
+}
+
+// Oracle: AC #96 — „Do zapłaty” = kwota za jazdy + koszty dodatkowe; jeździec z samymi kosztami jest
+// na liście; suma miesiąca obejmuje koszty.
+describe("composeSettlementList — koszty dodatkowe", () => {
+  it("„Do zapłaty” jeźdźca to kwota za jazdy plus jego koszty, a suma miesiąca je obejmuje", () => {
+    const list = composeSettlementList(
+      input({
+        bookings: [ride("2026-10-02", "anna", "Anna Kowalska"), ride("2026-10-03", "piotr", "Piotr Nowak")],
+        costs: [cost("anna", "Anna Kowalska", 80000), cost("anna", "Anna Kowalska", 5050, "Wypożyczenie siodła")],
+      }),
+      NOW,
+    );
+
+    expect(list.rows.map((row) => [row.name, row.ridesAmountText, row.costsAmountText, row.dueText])).toEqual([
+      ["Anna Kowalska", zl("120,00 zł"), zl("850,50 zł"), zl("970,50 zł")],
+      ["Piotr Nowak", zl("120,00 zł"), zl("0,00 zł"), zl("120,00 zł")],
+    ]);
+    expect(list.total).toBe(97050 + 12000);
+    expect(list.totalText).toBe(`Razem: ${zl("1 090,50 zł")}`);
+  });
+
+  it("jeździec bez jazd, któremu dopisano koszt, jest na liście alfabetycznie", () => {
+    const list = composeSettlementList(
+      input({
+        bookings: [ride("2026-10-02", "piotr", "Piotr Nowak")],
+        costs: [cost("anna", "Anna Kowalska", 80000), cost("bez", null, 100)],
+      }),
+      NOW,
+    );
+
+    expect(list.rows.map((row) => [row.name, row.ridesText, row.dueText])).toEqual([
+      ["(bez nazwiska)", "0 jazd", zl("1,00 zł")],
+      ["Anna Kowalska", "0 jazd", zl("800,00 zł")],
+      ["Piotr Nowak", "1 jazda", zl("120,00 zł")],
+    ]);
+    expect(list.rows[1]).toMatchObject({ riderKey: "anna", rides: 0, ridesAmount: 0, costsAmount: 80000, due: 80000 });
+    expect(list.total).toBe(80000 + 100 + 12000);
+  });
+
+  it("bez stawki ośrodka jeździec z samymi kosztami jest na liście, ale kwoty czekają na stawkę", () => {
+    const list = composeSettlementList(input({ rates: [], costs: [cost("anna", "Anna Kowalska", 80000)] }), NOW);
+    expect(list.needsRate).toBe(true);
+    expect(list.rows).toEqual([expect.objectContaining({ name: "Anna Kowalska", rides: 0, due: null, dueText: null })]);
+    expect(list.total).toBeNull();
+  });
+
+  it("miesiąc z samymi kosztami nie jest pusty", () => {
+    const view = composeSettlementsPage(
+      {
+        ...input({ costs: [cost("anna", "Anna", 100)] }),
+        monthHref: (month) => month,
+        riderHref: (riderKey) => riderKey,
+      },
+      NOW,
+    );
+    expect(view.isEmpty).toBe(false);
+    expect(view.list.rows.map((row) => row.href)).toEqual(["anna"]);
   });
 });

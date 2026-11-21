@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  COST_SAVE_FAILED,
+  costSaveErrorMessage,
+  isExpectedCostRefusal,
   isExpectedRateRefusal,
   RATE_DELETE_FAILED,
   RATE_SAVE_FAILED,
@@ -46,4 +49,25 @@ describe("rateDeleteErrorMessage — usunięcie zaplanowanej zmiany", () => {
     expect(isExpectedRateRefusal(undefined)).toBe(false);
     expect(isExpectedRateRefusal("08006")).toBe(false);
   });
+});
+
+// Oracle: AC #96 — zamknięty polski zestaw błędów kosztów dodatkowych (SB029, granice, jeździec spoza ośrodka).
+describe("costSaveErrorMessage — dopisanie i poprawka kosztu", () => {
+  it.each([
+    ["SB029", "Koszt dodatkowy możesz dopisać tylko w bieżącym albo minionym miesiącu."],
+    ["23514", "Koszt musi wynosić od 0,01 do 100 000,00 zł, a jego nazwa mieć od 1 do 80 znaków."],
+    ["42501", "Koszt dodatkowy możesz dopisać tylko jeźdźcowi, który miał zapis w Twoim ośrodku."],
+  ])("%s ma własny komunikat", (code, message) => {
+    expect(costSaveErrorMessage(code)).toBe(message);
+    expect(isExpectedCostRefusal(code)).toBe(true);
+  });
+
+  it.each([undefined, "", "PGRST301", "23505", "SB026", "08006", "fetch failed"])(
+    "inny kod (%s) to komunikat awarii",
+    (code) => {
+      expect(costSaveErrorMessage(code)).toBe(COST_SAVE_FAILED);
+      expect(costSaveErrorMessage(code)).not.toMatch(PROVIDER_TEXT);
+      expect(isExpectedCostRefusal(code)).toBe(false);
+    },
+  );
 });

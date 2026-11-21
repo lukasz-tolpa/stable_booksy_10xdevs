@@ -16,6 +16,9 @@ export interface AmountLimits {
 /** Stawka: 0,00–10 000,00 zł (CHECK `rates_amount_range_check`). */
 export const RATE_AMOUNT: AmountLimits = { name: "Stawka", min: 0, max: 1_000_000 };
 
+/** Koszt dodatkowy (#96): 0,01–100 000,00 zł (CHECK `extra_costs_amount_range_check`). */
+export const EXTRA_COST_AMOUNT: AmountLimits = { name: "Koszt", min: 1, max: 10_000_000 };
+
 export type ParsedAmount = { ok: true; grosze: number } | { ok: false; message: string };
 
 export const AMOUNT_TEXTS = {

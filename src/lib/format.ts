@@ -237,3 +237,12 @@ export function formatMoney(grosze: number): string {
   const fraction = String(abs % 100).padStart(2, "0");
   return `${sign}${zloty},${fraction}${NBSP}zł`;
 }
+
+/**
+ * Kwota w groszach jako wartość pola formularza, np. `750,50` — bez „zł” i separatorów tysięcy, żeby
+ * „Popraw” koszt dodatkowy (#96) odesłał ją bez zmian (`parseAmount`).
+ */
+export function formatAmountInput(grosze: number): string {
+  const abs = Math.abs(Math.trunc(grosze));
+  return `${String(Math.floor(abs / 100))},${String(abs % 100).padStart(2, "0")}`;
+}

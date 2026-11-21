@@ -14,6 +14,7 @@ import {
   formatNumber,
   formatPercent,
   formatTakenSeats,
+  formatAmountInput,
   formatMoney,
   formatFromMonth,
 } from "@/lib/format";
@@ -152,6 +153,18 @@ describe("formatMoney", () => {
     [123456789, "1 234 567,89 zł"],
   ])("%i groszy to %s", (grosze, text) => {
     expect(formatMoney(grosze)).toBe(text.replaceAll(" ", "\u00a0"));
+  });
+});
+
+// Kwota w polu formularza „Popraw” koszt (#96): zapis, który `parseAmount` przyjmie z powrotem.
+describe("formatAmountInput", () => {
+  it.each([
+    [1, "0,01"],
+    [80000, "800,00"],
+    [75050, "750,50"],
+    [10000000, "100000,00"],
+  ])("%i groszy to „%s”", (grosze, text) => {
+    expect(formatAmountInput(grosze)).toBe(text);
   });
 });
 

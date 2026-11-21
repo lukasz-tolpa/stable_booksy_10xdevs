@@ -4,7 +4,7 @@
  */
 export const SETTLEMENT_TEXTS = {
   heading: "Rozliczenia",
-  lead: "Kwoty jeźdźców ośrodka za jazdy w wybranym miesiącu: liczba jazd razy stawka.",
+  lead: "Kwoty jeźdźców ośrodka w wybranym miesiącu: liczba jazd razy stawka plus koszty dodatkowe.",
   failure: "Nie udało się wczytać rozliczeń.",
   retry: "Odśwież stronę za chwilę.",
   saved: "Zapisano.",
@@ -22,7 +22,7 @@ export const SETTLEMENT_TEXTS = {
   rider: {
     /** Tytuł karty przeglądarki przed nazwą jeźdźca: `Rozliczenie — Anna Kowalska`. */
     title: "Rozliczenie",
-    lead: "Rozliczenie jeźdźca za wybrany miesiąc: jego jazdy razy stawka.",
+    lead: "Rozliczenie jeźdźca za wybrany miesiąc: jego jazdy razy stawka plus koszty dodatkowe.",
     /** Nagłówek karty przed `formatMonthYear`: `Rozliczenie za listopad 2026`. */
     forMonth: "Rozliczenie za",
     back: "Wróć do rozliczeń",
@@ -57,5 +57,26 @@ export const SETTLEMENT_TEXTS = {
     fromCurrent: "Od tego miesiąca",
     fromNext: "Od następnego miesiąca",
     submit: "Zapisz stawkę",
+  },
+  /** Koszty dodatkowe (#96): rozliczenie jeźdźca i „Dopisz koszt” na stronie „Rozliczenia”. */
+  costs: {
+    heading: "Koszty dodatkowe",
+    /** Nazwa listy kosztów przed nazwą jeźdźca: `Koszty dodatkowe — Anna Kowalska`. */
+    listLabel: "Koszty dodatkowe",
+    none: "W tym miesiącu nie ma kosztów dodatkowych.",
+    add: "Dopisz koszt",
+    /** Pod formularzem na stronie „Rozliczenia”, przed `formatInMonthYear`: `Koszt trafi do rozliczenia w listopadzie 2026.` */
+    addHint: "Koszt trafi do rozliczenia jeźdźca",
+    riderLabel: "Jeździec",
+    riderPlaceholder: "Wybierz jeźdźca",
+    noRiders: "Koszt dopiszesz jeźdźcowi, który miał zapis w Twoim ośrodku.",
+    nameLabel: "Nazwa kosztu",
+    namePlaceholder: "np. Pensjonat konia",
+    amountLabel: "Kwota (zł)",
+    edit: "Popraw",
+    /** Nazwa formularza poprawki przed nazwą kosztu: `Popraw koszt Pensjonat konia`. */
+    editForm: "Popraw koszt",
+    save: "Zapisz koszt",
+    delete: "Usuń",
   },
 } as const;

@@ -100,6 +100,54 @@ export type Database = {
           },
         ];
       };
+      extra_costs: {
+        Row: {
+          amount: number;
+          created_at: string;
+          id: number;
+          month: string;
+          name: string;
+          rider_id: string;
+          stable_id: number;
+          updated_at: string;
+        };
+        Insert: {
+          amount: number;
+          created_at?: string;
+          id?: never;
+          month: string;
+          name: string;
+          rider_id: string;
+          stable_id: number;
+          updated_at?: string;
+        };
+        Update: {
+          amount?: number;
+          created_at?: string;
+          id?: never;
+          month?: string;
+          name?: string;
+          rider_id?: string;
+          stable_id?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "extra_costs_rider_id_fkey";
+            columns: ["rider_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "extra_costs_stable_id_fkey";
+            columns: ["stable_id"];
+            isOneToOne: false;
+            referencedRelation: "stables";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       horses: {
         Row: {
           active: boolean;

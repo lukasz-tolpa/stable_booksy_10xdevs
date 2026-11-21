@@ -342,7 +342,10 @@ się nie zapisał.`); the inactive-account screen (`/instruktor/konto-nieaktywne
   `Zapisz stawkę` and `Usuń zaplanowaną zmianę`), the same month switcher and the `list` „Rozliczenia jeźdźców” (name, `"{n} jazd…"`,
   amount) with `Razem: …` under it; amounts carry non-breaking spaces, match them with `\s`. The spec deletes the stable's rates as
   superuser before and after (`session_replication_role = replica`, since `SB027` binds `postgres` too) — the database is left
-  without rates. The landing page (`landing.spec.ts`,
+  without rates. `settlements-costs.spec.ts` (#96) adds, corrects and deletes extra costs on the rider settlement (`list`
+  „Koszty dodatkowe — {rider}”, `form` „Dopisz koszt” / „Popraw koszt {name}”, „Popraw” is a `<summary>` — click it by text) and on
+  the list page (region „Dopisz koszt”, select „Jeździec”); „Do zapłaty” is read from its `paragraph`, because cost amounts are
+  amount-only elements too; it deletes the stable's rates and extra costs as superuser before and after. The landing page (`landing.spec.ts`,
   guest, no storage state) repeats link names: "Załóż konto jeźdźca" and
   "Załóż konto ośrodka" (and "Mój panel" when signed in) stand twice, once in
   a half and once in the closing of the "Jeden dzień" section, and the top bar

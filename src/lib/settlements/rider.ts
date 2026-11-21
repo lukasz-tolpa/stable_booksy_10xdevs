@@ -1,6 +1,7 @@
 /**
  * Rozliczenie jeźdźca (GLOSSARY „Rozliczenie”, #95): jeden jeździec, jeden miesiąc — liczba jazd ×
- * obowiązująca stawka, wiersze jazd (wspólne z Podsumowaniem miesiąca) i „Do zapłaty”.
+ * obowiązująca stawka, wiersze jazd (wspólne z Podsumowaniem miesiąca), koszty dodatkowe (#96) i
+ * „Do zapłaty” = kwota za jazdy + suma kosztów.
  *
  * `composeRiderSettlement` zwraca jeden obiekt bez adresów strony, żeby PDF rozliczenia (KAN-91)
  * wyrenderował go także poza stroną; `composeRiderSettlementPage` dokłada przełącznik miesięcy i powrót.
@@ -19,6 +20,7 @@ import {
   type SummaryBooking,
   type SummaryRideRow,
 } from "@/lib/month-summary/summary";
+import { extraCostRows, riderCosts, type ExtraCost, type ExtraCostRow } from "@/lib/settlements/costs";
 import type { RateChange } from "@/lib/settlements/rates";
 import { riderAmounts, type RiderAmounts } from "@/lib/settlements/settlements";
 import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
@@ -39,6 +41,8 @@ export interface RiderSettlementInput {
   bookings: SummaryBooking[];
   /** Wszystkie zmiany stawki ośrodka (`listRates`). */
   rates: RateChange[];
+  /** Koszty dodatkowe ośrodka w miesiącu (`listMonthCosts`, #96) — liczą się tylko koszty tego jeźdźca. */
+  costs: ExtraCost[];
   /** Adres dnia przy dacie jazdy; `null` — daty bez linków (np. PDF). */
   dayHref: ((day: string) => string) | null;
 }
@@ -60,6 +64,8 @@ export interface RiderSettlement extends RiderAmounts {
   rateSourceText: string | null;
   /** Jazdy chronologicznie: data, godzina, instruktor, koń albo „bez konia”. */
   rideRows: SummaryRideRow[];
+  /** Koszty dodatkowe jeźdźca w miesiącu (#96), od najwcześniej dopisanego; suma w `costsAmount`. */
+  costs: ExtraCostRow[];
   /** Ośrodek nie ma stawki — zamiast kwot prośba „Ustaw stawkę ośrodka”. */
   needsRate: boolean;
 }
@@ -71,7 +77,8 @@ export function composeRiderSettlement(input: RiderSettlementInput, now: Date = 
     input.month,
     now,
   );
-  const amounts = riderAmounts(rides.length, input.rates, input.month.month);
+  const costs = riderCosts(input.costs, input.rider.key);
+  const amounts = riderAmounts(rides.length, input.rates, input.month.month, costs);
   const texts = SETTLEMENT_TEXTS.rider;
 
   return {
@@ -88,6 +95,7 @@ export function composeRiderSettlement(input: RiderSettlementInput, now: Date = 
         : `${texts.rides} ${String(rides.length)} × ${formatMoney(amounts.rate.amount)} = ${amounts.ridesAmountText}`,
     rateSourceText: amounts.rate === null ? null : texts.source[amounts.rate.source],
     rideRows: composeRideRows(rides, { viewer: "owner", dayHref: input.dayHref }),
+    costs: extraCostRows(costs),
     needsRate: amounts.rate === null,
   };
 }

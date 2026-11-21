@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { SummaryBooking } from "@/lib/month-summary/summary";
 import { resolveSummaryMonth } from "@/lib/month-summary/month";
+import type { ExtraCost } from "@/lib/settlements/costs";
 import type { RateChange } from "@/lib/settlements/rates";
 import {
   composeRiderSettlement,
@@ -40,6 +41,7 @@ function input(overrides: Partial<RiderSettlementInput> = {}): RiderSettlementIn
     rider: { key: "anna", name: "Anna Kowalska" },
     bookings: [],
     rates: [STABLE_120],
+    costs: [],
     dayHref: null,
     ...overrides,
   };
@@ -165,6 +167,52 @@ describe("composeRiderSettlement — rozliczenie jeźdźca", () => {
   it("jeździec bez nazwy w profilu to „(bez nazwiska)”", () => {
     const settlement = composeRiderSettlement(input({ rider: { key: "anna", name: null } }), NOW);
     expect(settlement.name).toBe("(bez nazwiska)");
+  });
+});
+
+function cost(id: number, amount: number, name = "Pensjonat konia", riderKey = "anna"): ExtraCost {
+  return { id, riderKey, riderName: "Anna Kowalska", name, amount };
+}
+
+// Oracle: AC #96 — koszty dodatkowe z nazwą i kwotą, „Do zapłaty” = jazdy + suma kosztów; koszty widać
+// także przed pierwszą stawką ośrodka (kwota za jazdy i „Do zapłaty” czekają na stawkę).
+describe("composeRiderSettlement — koszty dodatkowe", () => {
+  it("„Do zapłaty” to kwota za jazdy plus suma kosztów jeźdźca; koszty innych jeźdźców się nie liczą", () => {
+    const settlement = composeRiderSettlement(
+      input({
+        bookings: [ride("2026-10-02"), ride("2026-10-09")],
+        costs: [cost(1, 80000), cost(2, 5050, "Wypożyczenie siodła"), cost(3, 99900, "Pensjonat konia", "piotr")],
+      }),
+      NOW,
+    );
+
+    expect(settlement.costs).toEqual([
+      { id: 1, name: "Pensjonat konia", amount: 80000, amountText: zl("800,00 zł"), amountInput: "800,00" },
+      { id: 2, name: "Wypożyczenie siodła", amount: 5050, amountText: zl("50,50 zł"), amountInput: "50,50" },
+    ]);
+    expect(settlement).toMatchObject({ ridesAmount: 24000, costsAmount: 85050, due: 109050 });
+    expect(settlement.costsAmountText).toBe(zl("850,50 zł"));
+    expect(settlement.dueText).toBe(zl("1 090,50 zł"));
+  });
+
+  it("jeździec z samymi kosztami: 0 jazd, „Do zapłaty” = suma kosztów", () => {
+    const settlement = composeRiderSettlement(input({ costs: [cost(1, 80000)] }), NOW);
+    expect(settlement.rides).toBe(0);
+    expect(settlement.dueText).toBe(zl("800,00 zł"));
+  });
+
+  it("bez kosztów lista kosztów jest pusta, a „Do zapłaty” to kwota za jazdy", () => {
+    const settlement = composeRiderSettlement(input({ bookings: [ride("2026-10-02")] }), NOW);
+    expect(settlement.costs).toEqual([]);
+    expect(settlement.costsAmount).toBe(0);
+    expect(settlement.due).toBe(12000);
+  });
+
+  it("przed pierwszą stawką ośrodka koszty widać, a „Do zapłaty” czeka na stawkę", () => {
+    const settlement = composeRiderSettlement(input({ rates: [], costs: [cost(1, 80000)] }), NOW);
+    expect(settlement.costs.map((item) => item.name)).toEqual(["Pensjonat konia"]);
+    expect(settlement.costsAmountText).toBe(zl("800,00 zł"));
+    expect(settlement).toMatchObject({ needsRate: true, due: null, dueText: null });
   });
 });
 

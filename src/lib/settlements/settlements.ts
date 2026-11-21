@@ -1,7 +1,7 @@
 /**
  * Rozliczenia (GLOSSARY „Rozliczenie”, spec #93) — jedyne miejsce, które liczy kwoty. Strony tylko
- * wczytują wiersze (zapisy miesiąca jak w Podsumowaniu miesiąca właściciela, zmiany stawki) i renderują
- * model widoku. Kwoty w groszach (liczby całkowite), zapis kwot — `formatMoney`.
+ * wczytują wiersze (zapisy miesiąca jak w Podsumowaniu miesiąca właściciela, zmiany stawki, koszty
+ * dodatkowe miesiąca) i renderują model widoku. Kwoty w groszach (liczby całkowite), zapis kwot — `formatMoney`.
  *
  * Klocki:
  * - `composeSettlementList` — lista jeźdźców miesiąca z kwotami i sumą (strona, boczna kolumna panelu);
@@ -23,6 +23,7 @@ import {
 import type { SummaryMonth } from "@/lib/month-summary/month";
 import { composeMonthNav, monthRides, type MonthNav } from "@/lib/month-summary/summary";
 import { todayIso } from "@/lib/schedule/dates";
+import { costsSum, riderCosts, type ExtraCost } from "@/lib/settlements/costs";
 import {
   RATE_FROM,
   rateFromMonth,
@@ -58,7 +59,10 @@ export interface RiderAmounts {
   /** Kwota za jazdy w groszach; `null` — bez stawki. */
   ridesAmount: number | null;
   ridesAmountText: string | null;
-  /** Do zapłaty w groszach — dziś kwota za jazdy (koszty dodatkowe dochodzą w #96); `null` — bez stawki. */
+  /** Suma kosztów dodatkowych jeźdźca w miesiącu, w groszach (#96); liczy się także bez stawki. */
+  costsAmount: number;
+  costsAmountText: string;
+  /** Do zapłaty w groszach — kwota za jazdy + koszty dodatkowe; `null` — bez stawki. */
   due: number | null;
   dueText: string | null;
 }
@@ -89,6 +93,8 @@ export interface SettlementsInput {
   bookings: SettlementBooking[];
   /** Wszystkie zmiany stawki ośrodka (`listRates`). */
   rates: RateChange[];
+  /** Koszty dodatkowe ośrodka w miesiącu (`listMonthCosts`, #96). */
+  costs: ExtraCost[];
 }
 
 /**
@@ -117,23 +123,36 @@ function moneyText(grosze: number | null): string | null {
 }
 
 /**
- * Kwoty jeźdźca za miesiąc `RRRR-MM` przy `rides` jazdach — jedyne miejsce, które wybiera stawkę
- * jeźdźca i liczy „do zapłaty” (lista i rozliczenie jeźdźca). Stawka indywidualna (#97) i koszty
- * dodatkowe (#96) dochodzą tutaj.
+ * Kwoty jeźdźca za miesiąc `RRRR-MM` przy `rides` jazdach i jego kosztach dodatkowych `costs` — jedyne
+ * miejsce, które wybiera stawkę jeźdźca i liczy „do zapłaty” (lista i rozliczenie jeźdźca). Stawka
+ * indywidualna (#97) dochodzi tutaj.
  */
-export function riderAmounts(rides: number, rates: readonly RateChange[], month: string): RiderAmounts {
+export function riderAmounts(
+  rides: number,
+  rates: readonly RateChange[],
+  month: string,
+  costs: readonly ExtraCost[],
+): RiderAmounts {
   const rate = stableRateFor(rates, month);
   const amount = ridesAmount(rides, rate);
+  const costsAmount = costsSum(costs);
+  // Bez stawki nie ma kwoty za jazdy, więc i „do zapłaty” czeka na stawkę — koszty widać osobno.
+  const due = amount === null ? null : amount + costsAmount;
   return {
     rate,
     ridesAmount: amount,
     ridesAmountText: moneyText(amount),
-    due: amount,
-    dueText: moneyText(amount),
+    costsAmount,
+    costsAmountText: formatMoney(costsAmount),
+    due,
+    dueText: moneyText(due),
   };
 }
 
-/** Lista rozliczeń miesiąca: jeźdźcy z jazdami alfabetycznie, kwoty i suma. `now` jak w statystykach. */
+/**
+ * Lista rozliczeń miesiąca: jeźdźcy z jazdami lub kosztami dodatkowymi alfabetycznie, kwoty i suma.
+ * `now` jak w statystykach.
+ */
 export function composeSettlementList(input: SettlementsInput, now: Date = new Date()): SettlementList {
   const byRider = new Map<string, { name: string | null; rides: number }>();
   for (const ride of monthRides(input.bookings, input.month, now)) {
@@ -146,6 +165,12 @@ export function composeSettlementList(input: SettlementsInput, now: Date = new D
       byRider.set(ride.riderKey, { name: ride.riderName, rides: 1 });
     }
   }
+  // Jeździec bez jazd, któremu dopisano koszt dodatkowy, też ma rozliczenie (#96).
+  for (const cost of input.costs) {
+    if (!byRider.has(cost.riderKey)) {
+      byRider.set(cost.riderKey, { name: cost.riderName, rides: 0 });
+    }
+  }
 
   const needsRate = stableRateFor(input.rates, input.month.month) === null;
   const rows = [...byRider]
@@ -155,7 +180,7 @@ export function composeSettlementList(input: SettlementsInput, now: Date = new D
         name: entry.name ?? UNNAMED_RIDER,
         rides: entry.rides,
         ridesText: formatCount(entry.rides, RIDE_FORMS),
-        ...riderAmounts(entry.rides, input.rates, input.month.month),
+        ...riderAmounts(entry.rides, input.rates, input.month.month, riderCosts(input.costs, riderKey)),
       }),
     )
     .sort((a, b) => a.name.localeCompare(b.name, "pl") || a.riderKey.localeCompare(b.riderKey));

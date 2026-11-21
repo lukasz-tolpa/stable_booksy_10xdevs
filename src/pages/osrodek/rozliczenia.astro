@@ -1,5 +1,6 @@
 ---
 import Banner from "@/components/Banner.astro";
+import AddCost from "@/components/settlements/AddCost.astro";
 import Layout from "@/layouts/Layout.astro";
 import Topbar from "@/components/Topbar.astro";
 import MonthNav from "@/components/month-summary/MonthNav.astro";
@@ -12,18 +13,18 @@ import { logError } from "@/lib/log";
 import { MONTH_PARAM, resolveSummaryMonth } from "@/lib/month-summary/month";
 import { composeMonthNav } from "@/lib/month-summary/summary";
 import { todayIso } from "@/lib/schedule/dates";
-import { listRates } from "@/lib/settlements/queries";
+import { composeAddCost, type AddCostView } from "@/lib/settlements/costs";
+import { listStableRiders, loadSettlementsInput } from "@/lib/settlements/queries";
 import { riderSettlementHref, settlementsHref } from "@/lib/settlements/redirect";
-import { composeSettlementsPage, settlementBookings, type SettlementsView } from "@/lib/settlements/settlements";
+import { composeSettlementsPage, type SettlementsView } from "@/lib/settlements/settlements";
 import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
 import { getOwnedStableId } from "@/lib/stables/queries";
-import { getStatsRows } from "@/lib/stats/queries";
 import { createClient } from "@/lib/supabase";
 
 // Rozliczenia właściciela (#94, spec #93). Dostęp pilnuje middleware (mapa tras w @/lib/auth/roles):
 // przestrzeń ośrodka jest tylko dla właściciela; stawki chroni dodatkowo RLS. Liczy
 // `@/lib/settlements/settlements`; tu tylko odczyt i render. Miesiąc żyje w adresie (`?miesiac=RRRR-MM`),
-// formularze stawki wracają na niego z `?sukces=1` albo `?error=`.
+// formularze stawki i „Dopisz koszt” (#96) wracają na niego z `?sukces=1` albo `?error=`.
 const { profile } = Astro.locals;
 const SCOPE = "page:osrodek/rozliczenia";
 const texts = SETTLEMENT_TEXTS;
@@ -35,6 +36,7 @@ const saved = Astro.url.searchParams.get("sukces") === "1";
 const supabase = createClient(Astro.request.headers, Astro.cookies);
 
 let view: SettlementsView | null = null;
+let addCost: AddCostView | null = null;
 
 if (supabase && profile) {
   try {
@@ -43,13 +45,16 @@ if (supabase && profile) {
       // Middleware nie wpuszcza tu właściciela bez stadniny; jej brak to awaria odczytu, nie pusty miesiąc.
       logError(SCOPE, new Error("Brak stadniny dla konta właściciela"));
     } else {
-      // Ten sam odczyt zapisów miesiąca co Podsumowanie miesiąca właściciela, bez filtra instruktora.
-      const [rows, rates] = await Promise.all([getStatsRows(supabase, stableId, month), listRates(supabase, stableId)]);
+      // Ten sam odczyt zapisów miesiąca co Podsumowanie miesiąca właściciela, bez filtra instruktora,
+      // plus stawki i koszty dodatkowe miesiąca (`loadSettlementsInput`, jak suma w panelu ośrodka).
+      const [input, riders] = await Promise.all([
+        loadSettlementsInput(supabase, stableId, month),
+        listStableRiders(supabase),
+      ]);
+      addCost = composeAddCost(riders, month.month);
       view = composeSettlementsPage(
         {
-          month,
-          bookings: settlementBookings(rows),
-          rates,
+          ...input,
           monthHref: settlementsHref,
           riderHref: (riderKey) => riderSettlementHref(riderKey, month.month),
         },
@@ -115,6 +120,8 @@ const nav = view?.nav ?? composeMonthNav(month, settlementsHref);
         </section>
       )
     }
+
+    {addCost && <AddCost form={addCost} />}
   </main>
 </Layout>
 

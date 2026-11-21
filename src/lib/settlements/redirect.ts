@@ -2,6 +2,7 @@ import type { APIContext } from "astro";
 import { OWNER_SETTLEMENTS_ROUTE } from "@/lib/auth/roles";
 import { MONTH_PARAM, monthSearch, resolveSummaryMonth } from "@/lib/month-summary/month";
 import { todayIso } from "@/lib/schedule/dates";
+import { parseRiderKey } from "@/lib/settlements/rider";
 
 /** Adres strony „Rozliczenia” dla miesiąca `RRRR-MM`. */
 export function settlementsHref(month: string): string {
@@ -29,4 +30,26 @@ export function returnMonth(form: FormData, now: Date = new Date()): string {
 export function backToSettlements(context: APIContext, month: string, error?: string) {
   const outcome = error ? `error=${encodeURIComponent(error)}` : "sukces=1";
   return context.redirect(`${settlementsHref(month)}&${outcome}`);
+}
+
+/** Powrót do rozliczenia jeźdźca tego samego miesiąca (#96): `?error=` z komunikatem albo `?sukces=1`. */
+export function backToRiderSettlement(context: APIContext, riderKey: string, month: string, error?: string) {
+  const outcome = error ? `error=${encodeURIComponent(error)}` : "sukces=1";
+  return context.redirect(`${riderSettlementHref(riderKey, month)}&${outcome}`);
+}
+
+/** Ukryte pole formularza kosztu: jeździec, do którego rozliczenia wraca formularz (#96). */
+export const RETURN_RIDER_FIELD = "powrot";
+
+/**
+ * Powrót formularza kosztu dodatkowego: do rozliczenia jeźdźca z ukrytego pola `powrot` (konto,
+ * sprawdzone przez `parseRiderKey`), a bez niego — na listę „Rozliczenia” tego samego miesiąca.
+ */
+export function costReturn(context: APIContext, form: FormData, month: string): (error?: string) => Response {
+  const raw = form.get(RETURN_RIDER_FIELD);
+  const riderKey = parseRiderKey(typeof raw === "string" ? raw : null);
+  return (error) =>
+    riderKey === null
+      ? backToSettlements(context, month, error)
+      : backToRiderSettlement(context, riderKey, month, error);
 }
