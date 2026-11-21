@@ -44,7 +44,7 @@ let week: WeekView | null = null;
 let lastMonth: LastMonthView | null = null;
 let sideData: Awaited<ReturnType<typeof loadSideData>> | null = null;
 let monthBookings: StatsBooking[] | null = null;
-let settlement: SettlementList | null = null;
+let settlementsTotal: SettlementList | null = null;
 
 type Client = NonNullable<typeof supabase>;
 type Horses = ReturnType<typeof listStableHorses>;
@@ -69,7 +69,7 @@ async function loadHistory(client: Client, stableId: number, horses: Horses) {
 }
 
 // Suma bieżącego miesiąca z tej samej listy rozliczeń co strona „Rozliczenia” — panel jej nie liczy.
-async function loadSettlement(client: Client, stableId: number) {
+async function loadSettlementsTotal(client: Client, stableId: number) {
   const input = await loadSettlementsInput(client, stableId, resolveSummaryMonth(null, today));
   return composeSettlementList(input, now);
 }
@@ -89,11 +89,11 @@ if (supabase && profile) {
     const stableId = stable.id;
     // Stado czytają dwie części (liczba aktywnych koni, nazwy koni w 30 dniach) — jeden odczyt.
     const horses = listStableHorses(supabase, stableId);
-    const [weekResult, historyResult, sideResult, settlementResult] = await Promise.allSettled([
+    const [weekResult, historyResult, sideResult, settlementsTotalResult] = await Promise.allSettled([
       getStatsRows(supabase, stableId, weekPeriod(today)).then((rows) => composeWeek({ today, ...rows })),
       loadHistory(supabase, stableId, horses),
       loadSideData(supabase, stableId, horses),
-      loadSettlement(supabase, stableId),
+      loadSettlementsTotal(supabase, stableId),
     ]);
 
     week = settledValue(weekResult);
@@ -101,17 +101,20 @@ if (supabase && profile) {
     lastMonth = history?.lastMonth ?? null;
     monthBookings = history?.bookings ?? null;
     sideData = settledValue(sideResult);
-    settlement = settledValue(settlementResult);
+    settlementsTotal = settledValue(settlementsTotalResult);
   }
 }
 
 const [horses, instructors, accounts] = sideData ?? [null, null, null];
-const sideLinks = composeSideColumn({ today, week, horses, instructors, accounts, monthBookings, settlement }, now);
+const sideLinks = composeSideColumn(
+  { today, week, horses, instructors, accounts, monthBookings, settlementsTotal },
+  now,
+);
 // Poniżej 1000 px boczna kolumna znika, a dolny pasek nie ma Podsumowania miesiąca ani Rozliczeń — wejścia
 // w kolumnie głównej.
 const phoneLinks = [
   composeMonthSummaryLink({ today, monthBookings }, now),
-  composeSettlementsLink({ today, settlement }),
+  composeSettlementsLink({ today, settlementsTotal }),
 ];
 ---
 

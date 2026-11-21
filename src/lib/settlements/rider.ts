@@ -71,8 +71,13 @@ export function composeRiderSettlement(input: RiderSettlementInput, now: Date = 
     input.month,
     now,
   );
-  const costs = riderCosts(input.costs, input.rider.key);
-  const amounts = riderAmounts(rides.length, input.rates, input.month.month, input.rider.key, costs);
+  const amounts = riderAmounts({
+    riderKey: input.rider.key,
+    month: input.month.month,
+    rides: rides.length,
+    rates: input.rates,
+    costs: input.costs,
+  });
   const texts = SETTLEMENT_TEXTS.rider;
   const ridesText = formatCount(rides.length, RIDE_FORMS);
 
@@ -89,7 +94,7 @@ export function composeRiderSettlement(input: RiderSettlementInput, now: Date = 
         ? `${texts.rides} ${ridesText}`
         : `${texts.rides} ${String(rides.length)} × ${formatMoney(amounts.rate.amount)} = ${amounts.ridesAmountText}`,
     rideRows: composeRideRows(rides, { viewer: "owner", dayHref: input.dayHref }),
-    costs: extraCostRows(costs),
+    costs: extraCostRows(riderCosts(input.costs, input.rider.key)),
     needsRate: amounts.rate === null,
   };
 }

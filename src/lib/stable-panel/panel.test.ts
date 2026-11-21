@@ -207,7 +207,7 @@ describe("composeSideColumn", () => {
 
   it("prowadzi do sekcji ośrodka: Grafik na jutro, Zapisy na dziś, Konie, Instruktorzy, Podsumowanie miesiąca, Rozliczenia, Statystyki", () => {
     const links = composeSideColumn(
-      { today: TODAY, week, horses, instructors, accounts, monthBookings: [], settlement: null },
+      { today: TODAY, week, horses, instructors, accounts, monthBookings: [], settlementsTotal: null },
       NOW,
     );
 
@@ -224,7 +224,7 @@ describe("composeSideColumn", () => {
 
   it("przy każdym linku krótka informacja: jutro bez grafiku, aktywne zapisy dziś, aktywne konie, instruktorzy z kontem spośród aktywnych", () => {
     const links = composeSideColumn(
-      { today: TODAY, week, horses, instructors, accounts, monthBookings: [], settlement: null },
+      { today: TODAY, week, horses, instructors, accounts, monthBookings: [], settlementsTotal: null },
       NOW,
     );
 
@@ -256,7 +256,7 @@ describe("composeSideColumn", () => {
           booking("2026-11-21"),
           booking("2026-11-05", { status: "cancelled", horseId: null, cancelledBy: "rider" }),
         ],
-        settlement: null,
+        settlementsTotal: null,
       },
       NOW,
     );
@@ -267,7 +267,15 @@ describe("composeSideColumn", () => {
   it("jutro z grafikiem to „jutro: ułożony” bez ostrzeżenia", () => {
     const scheduledTomorrow = composeWeek({ today: TODAY, days: [scheduleDay("2026-11-21", [1])], bookings: [] });
     const [schedule] = composeSideColumn(
-      { today: TODAY, week: scheduledTomorrow, horses, instructors, accounts, monthBookings: [], settlement: null },
+      {
+        today: TODAY,
+        week: scheduledTomorrow,
+        horses,
+        instructors,
+        accounts,
+        monthBookings: [],
+        settlementsTotal: null,
+      },
       NOW,
     );
 
@@ -283,7 +291,7 @@ describe("composeSideColumn", () => {
         instructors,
         accounts,
         monthBookings: [],
-        settlement: null,
+        settlementsTotal: null,
       })[2]?.fact;
 
     expect([factFor(1), factFor(4), factFor(5), factFor(12), factFor(22)]).toEqual([
@@ -297,7 +305,15 @@ describe("composeSideColumn", () => {
 
   it("część, której nie udało się wczytać, zostawia link bez informacji", () => {
     const links = composeSideColumn(
-      { today: TODAY, week: null, horses: null, instructors, accounts: null, monthBookings: null, settlement: null },
+      {
+        today: TODAY,
+        week: null,
+        horses: null,
+        instructors,
+        accounts: null,
+        monthBookings: null,
+        settlementsTotal: null,
+      },
       NOW,
     );
 
@@ -371,12 +387,12 @@ describe("composeSettlementsLink — Rozliczenia w bocznej kolumnie i w główne
   // Oracle: AC #98 — informacja to suma bieżącego miesiąca z listy rozliczeń (ta sama co na stronie
   // „Rozliczenia”), np. „listopad: 360,00 zł”; bez stawki — „Ustaw stawkę”; awaria — link bez informacji.
   it("podaje sumę bieżącego miesiąca z listy rozliczeń, np. „listopad: 360,00 zł”", () => {
-    const settlement = composeSettlementList(
+    const settlementsTotal = composeSettlementList(
       { month: NOVEMBER, bookings: novemberRides, rates: [RATE_120], costs: [] },
       NOW,
     );
 
-    expect(composeSettlementsLink({ today: TODAY, settlement })).toEqual({
+    expect(composeSettlementsLink({ today: TODAY, settlementsTotal })).toEqual({
       name: "Rozliczenia",
       href: "/osrodek/rozliczenia",
       fact: "listopad: 360,00 zł",
@@ -385,18 +401,21 @@ describe("composeSettlementsLink — Rozliczenia w bocznej kolumnie i w główne
   });
 
   it("suma pochodzi z listy rozliczeń, nie z własnego liczenia — także suma zero przy stawce bez jazd", () => {
-    expect(composeSettlementsLink({ today: TODAY, settlement: { total: 1_234_000, needsRate: false } }).fact).toBe(
-      "listopad: 12 340,00 zł",
-    );
-    expect(composeSettlementsLink({ today: TODAY, settlement: { total: 0, needsRate: false } }).fact).toBe(
+    expect(
+      composeSettlementsLink({ today: TODAY, settlementsTotal: { total: 1_234_000, needsRate: false } }).fact,
+    ).toBe("listopad: 12 340,00 zł");
+    expect(composeSettlementsLink({ today: TODAY, settlementsTotal: { total: 0, needsRate: false } }).fact).toBe(
       "listopad: 0,00 zł",
     );
   });
 
   it("ośrodek bez stawki: zamiast sumy prośba „Ustaw stawkę”, wyróżniona jak jutro bez grafiku", () => {
-    const settlement = composeSettlementList({ month: NOVEMBER, bookings: novemberRides, rates: [], costs: [] }, NOW);
+    const settlementsTotal = composeSettlementList(
+      { month: NOVEMBER, bookings: novemberRides, rates: [], costs: [] },
+      NOW,
+    );
 
-    expect(composeSettlementsLink({ today: TODAY, settlement })).toMatchObject({
+    expect(composeSettlementsLink({ today: TODAY, settlementsTotal })).toMatchObject({
       href: "/osrodek/rozliczenia",
       fact: "Ustaw stawkę",
       warn: true,
@@ -404,7 +423,7 @@ describe("composeSettlementsLink — Rozliczenia w bocznej kolumnie i w główne
   });
 
   it("bez wczytanej listy rozliczeń link zostaje, bez informacji", () => {
-    expect(composeSettlementsLink({ today: TODAY, settlement: null })).toEqual({
+    expect(composeSettlementsLink({ today: TODAY, settlementsTotal: null })).toEqual({
       name: "Rozliczenia",
       href: "/osrodek/rozliczenia",
       fact: null,
@@ -413,13 +432,21 @@ describe("composeSettlementsLink — Rozliczenia w bocznej kolumnie i w główne
   });
 
   it("w bocznej kolumnie stoi po Podsumowaniu miesiąca, z tą samą informacją", () => {
-    const settlement = { total: 48000, needsRate: false };
+    const settlementsTotal = { total: 48000, needsRate: false };
     const links = composeSideColumn(
-      { today: TODAY, week: null, horses: null, instructors: null, accounts: null, monthBookings: null, settlement },
+      {
+        today: TODAY,
+        week: null,
+        horses: null,
+        instructors: null,
+        accounts: null,
+        monthBookings: null,
+        settlementsTotal,
+      },
       NOW,
     );
 
-    expect(links[5]).toEqual(composeSettlementsLink({ today: TODAY, settlement }));
+    expect(links[5]).toEqual(composeSettlementsLink({ today: TODAY, settlementsTotal }));
     expect(links[5]?.fact).toBe("listopad: 480,00 zł");
   });
 });

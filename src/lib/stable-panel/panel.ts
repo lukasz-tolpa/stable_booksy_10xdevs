@@ -195,7 +195,7 @@ export interface SideColumnInput {
    * Lista rozliczeń bieżącego miesiąca (`composeSettlementList` — ta sama co na stronie „Rozliczenia”);
    * panel czyta z niej tylko sumę. `null` — nie wczytano.
    */
-  settlement: Pick<SettlementList, "total" | "needsRate"> | null;
+  settlementsTotal: Pick<SettlementList, "total" | "needsRate"> | null;
 }
 
 export interface SideLink {
@@ -252,18 +252,18 @@ export function composeMonthSummaryLink(
  * zapłaty” (także koszty dodatkowe). Jak Podsumowanie miesiąca: w bocznej kolumnie i poniżej 1000 px
  * w kolumnie głównej.
  */
-export function composeSettlementsLink(input: Pick<SideColumnInput, "today" | "settlement">): SideLink {
+export function composeSettlementsLink(input: Pick<SideColumnInput, "today" | "settlementsTotal">): SideLink {
   const texts = PANEL_TEXTS.side;
   const link = { name: texts.settlements, href: OWNER_SETTLEMENTS_ROUTE };
-  const { settlement } = input;
-  if (settlement === null) {
+  const { settlementsTotal } = input;
+  if (settlementsTotal === null) {
     return { ...link, fact: null, warn: false };
   }
-  if (settlement.needsRate || settlement.total === null) {
+  if (settlementsTotal.needsRate || settlementsTotal.total === null) {
     return { ...link, fact: texts.setRate, warn: true };
   }
   const month = resolveSummaryMonth(null, input.today).month;
-  return { ...link, fact: `${formatMonthName(month)}: ${formatMoney(settlement.total)}`, warn: false };
+  return { ...link, fact: `${formatMonthName(month)}: ${formatMoney(settlementsTotal.total)}`, warn: false };
 }
 
 /**

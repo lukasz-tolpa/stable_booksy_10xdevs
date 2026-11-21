@@ -133,23 +133,29 @@ function moneyText(grosze: number | null): string | null {
   return grosze === null ? null : formatMoney(grosze);
 }
 
+export interface RiderAmountsInput {
+  /** Konto jeźdźca. */
+  riderKey: string;
+  /** Miesiąc `RRRR-MM`. */
+  month: string;
+  /** Liczba jazd jeźdźca w miesiącu. */
+  rides: number;
+  /** Wszystkie zmiany stawki ośrodka (`listRates`). */
+  rates: readonly RateChange[];
+  /** Koszty dodatkowe ośrodka w miesiącu — liczą się tylko koszty tego jeźdźca. */
+  costs: readonly ExtraCost[];
+}
+
 /**
- * Kwoty jeźdźca `riderKey` za miesiąc `RRRR-MM` przy `rides` jazdach i jego kosztach dodatkowych `costs`
- * — jedyne miejsce, które wybiera stawkę jeźdźca (stawka indywidualna albo ośrodka, `effectiveRate`)
- * i liczy „do zapłaty” = kwota za jazdy + koszty (lista i rozliczenie jeźdźca).
+ * Kwoty jeźdźca w miesiącu — jedyne miejsce, które wybiera stawkę jeźdźca (stawka indywidualna albo
+ * ośrodka, `effectiveRate`) i liczy „do zapłaty” = kwota za jazdy + jego koszty (lista i rozliczenie jeźdźca).
  */
-export function riderAmounts(
-  rides: number,
-  rates: readonly RateChange[],
-  month: string,
-  riderKey: string,
-  costs: readonly ExtraCost[],
-): RiderAmounts {
+export function riderAmounts({ riderKey, month, rides, rates, costs }: RiderAmountsInput): RiderAmounts {
   // Dopóki ośrodek nie ma żadnej stawki ośrodka, nie ma kwot nigdzie — także przy stawce indywidualnej
   // (lista, suma, panel i rozliczenie jeźdźca proszą o stawkę ośrodka).
   const rate = stableRateFor(rates, month) === null ? null : effectiveRate(rates, month, riderKey);
   const amount = ridesAmount(rides, rate);
-  const costsAmount = costsSum(costs);
+  const costsAmount = costsSum(riderCosts(costs, riderKey));
   // Bez stawki nie ma kwoty za jazdy, więc i „do zapłaty” czeka na stawkę — koszty widać osobno.
   const due = amount === null ? null : amount + costsAmount;
   return {
@@ -195,7 +201,13 @@ export function composeSettlementList(input: SettlementsInput, now: Date = new D
         name: entry.name ?? UNNAMED_RIDER,
         rides: entry.rides,
         ridesText: formatCount(entry.rides, RIDE_FORMS),
-        ...riderAmounts(entry.rides, input.rates, input.month.month, riderKey, riderCosts(input.costs, riderKey)),
+        ...riderAmounts({
+          riderKey,
+          month: input.month.month,
+          rides: entry.rides,
+          rates: input.rates,
+          costs: input.costs,
+        }),
       }),
     )
     .sort((a, b) => a.name.localeCompare(b.name, "pl") || a.riderKey.localeCompare(b.riderKey));
