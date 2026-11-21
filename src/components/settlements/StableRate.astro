@@ -1,0 +1,186 @@
+---
+// Stawka ośrodka na górze strony „Rozliczenia” (#94): stawka obowiązująca teraz albo prośba „Ustaw
+// stawkę ośrodka”, zaplanowana zmiana z „Usuń zaplanowaną zmianę” i formularz nowej stawki „od tego /
+// od następnego miesiąca”. Formularze bez JavaScriptu; ukryte pole `miesiac` wraca na oglądany miesiąc.
+// Renderuje `StableRateView` z `@/lib/settlements/settlements`.
+//
+// KONTRAKT e2e: pole „Nowa stawka (zł)”, radia „Od tego miesiąca (…)” / „Od następnego miesiąca (…)”,
+// przyciski „Zapisz stawkę” i „Usuń zaplanowaną zmianę”; zaplanowana zmiana to jeden element z tekstem
+// „od {miesiąca} {rok}: {kwota}”.
+import Card from "@/components/ui/Card.astro";
+import GhostButton from "@/components/ui/GhostButton.astro";
+import { MONTH_PARAM } from "@/lib/month-summary/month";
+import type { StableRateView } from "@/lib/settlements/settlements";
+import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
+
+interface Props {
+  rate: StableRateView;
+  /** Oglądany miesiąc `RRRR-MM` — formularze wracają na niego. */
+  month: string;
+}
+
+const { rate, month } = Astro.props;
+const texts = SETTLEMENT_TEXTS.rate;
+---
+
+<section class="section" aria-labelledby="rate-heading">
+  <Card>
+    <h2 id="rate-heading">{texts.heading}</h2>
+    {
+      rate.currentText ? (
+        <p class="current">
+          {texts.current} <strong class="mono-nums">{rate.currentText}</strong>
+        </p>
+      ) : (
+        <div class="missing">
+          <p class="missing__ask">{texts.missing}</p>
+          <p class="hint">{texts.missingHint}</p>
+        </div>
+      )
+    }
+    {
+      rate.planned && (
+        <div class="planned">
+          <p>
+            {texts.planned}: <span class="mono-nums">{rate.planned.text}</span>
+          </p>
+          <form method="post" action="/api/settlements/rate-delete">
+            <input type="hidden" name={MONTH_PARAM} value={month} />
+            <input type="hidden" name="rateId" value={rate.planned.id} />
+            <GhostButton>{texts.deletePlanned}</GhostButton>
+          </form>
+        </div>
+      )
+    }
+
+    <form method="post" action="/api/settlements/rate" class="change">
+      <input type="hidden" name={MONTH_PARAM} value={month} />
+      <div class="field">
+        <label for="rate-amount">{texts.amountLabel}</label>
+        <input id="rate-amount" name="amount" type="text" inputmode="decimal" autocomplete="off" required />
+      </div>
+      <fieldset>
+        <legend>{texts.fromLegend}</legend>
+        {
+          rate.choices.map((choice) => (
+            <label class="choice">
+              <input type="radio" name="from" value={choice.value} checked={choice.checked} />
+              {choice.label}
+            </label>
+          ))
+        }
+      </fieldset>
+      <div class="actions">
+        <GhostButton>{texts.submit}</GhostButton>
+        {rate.currentText && <p class="hint">{texts.changeHint}</p>}
+      </div>
+    </form>
+  </Card>
+</section>
+
+<style>
+  .section {
+    display: block;
+    margin-top: 18px;
+  }
+  h2 {
+    margin: 0 0 10px;
+    font-size: 20px;
+  }
+  .current {
+    margin: 0;
+    font-size: 15.5px;
+  }
+  .current strong {
+    font-size: 18px;
+  }
+  .missing__ask {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 600;
+  }
+  .hint {
+    margin: 4px 0 0;
+    font-size: 13.5px;
+    color: var(--muted);
+    max-width: 62ch;
+  }
+  .planned {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .planned p {
+    margin: 0;
+    flex: 1 1 24ch;
+  }
+  .change {
+    display: grid;
+    gap: 14px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+  .field {
+    display: grid;
+    gap: 6px;
+    max-width: 260px;
+  }
+  .field label,
+  legend {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .field input {
+    min-height: 44px;
+    padding: 8px 12px;
+    border: 1px solid var(--border-2);
+    border-radius: var(--r);
+    background: var(--surface);
+    color: var(--fg);
+    font: inherit;
+    font-size: 15px;
+  }
+  .field input:focus-visible {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-soft);
+  }
+  fieldset {
+    display: grid;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  legend {
+    padding: 0;
+    margin-bottom: 6px;
+  }
+  .choice {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    font-size: 15px;
+  }
+  .choice input {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--primary);
+  }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+  }
+  .actions .hint {
+    margin: 0;
+  }
+</style>

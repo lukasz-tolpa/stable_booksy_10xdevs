@@ -1,0 +1,87 @@
+---
+// Lista rozliczeń miesiąca: stawka ośrodka w miesiącu, jeździec z liczbą jazd i kwotą, na końcu suma
+// „Razem: …”. Bez stawki ośrodka — jeźdźcy i jazdy bez kwot i zdanie, że kwoty czekają na stawkę.
+// Renderuje `SettlementList` z `@/lib/settlements/settlements` — kolejność i kwoty są już policzone.
+//
+// KONTRAKT e2e: `list` „Rozliczenia jeźdźców”, jedna pozycja na jeźdźca: nazwa, „N jazd…”, kwota.
+import Card from "@/components/ui/Card.astro";
+import type { SettlementList } from "@/lib/settlements/settlements";
+import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
+
+interface Props {
+  list: SettlementList;
+  /** Np. `Stawka ośrodka w październiku 2026: 120,00 zł`; `null` — bez stawki. */
+  monthRateText: string | null;
+}
+
+const { list, monthRateText } = Astro.props;
+const texts = SETTLEMENT_TEXTS;
+---
+
+{monthRateText && <p class="rate mono-nums">{monthRateText}</p>}
+<Card padding={0}>
+  <ul class="riders" aria-label={texts.ridersList}>
+    {
+      list.rows.map((row) => (
+        <li class="rider">
+          <span class="rider__name">{row.name}</span>
+          <span class="rider__count mono-nums">{row.ridesText}</span>
+          {row.dueText && <span class="rider__due mono-nums">{row.dueText}</span>}
+        </li>
+      ))
+    }
+  </ul>
+</Card>
+{list.totalText ? <p class="total mono-nums">{list.totalText}</p> : <p class="note">{texts.amountsNeedRate}</p>}
+
+<style>
+  .rate {
+    margin: 0 0 10px;
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .riders {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .rider {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 12px;
+    min-height: 52px;
+    padding: 8px 16px;
+  }
+  .rider + .rider {
+    border-top: 1px solid var(--border);
+  }
+  .rider__name {
+    flex: 1 1 12ch;
+    min-width: 0;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+  .rider__count {
+    flex: none;
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .rider__due {
+    flex: none;
+    min-width: 11ch;
+    text-align: right;
+    font-weight: 600;
+  }
+  .total {
+    margin: 12px 0 0;
+    font-size: 17px;
+    font-weight: 600;
+    text-align: right;
+  }
+  .note {
+    margin: 12px 0 0;
+    font-size: 14px;
+    color: var(--muted);
+  }
+</style>

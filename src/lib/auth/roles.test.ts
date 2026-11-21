@@ -374,6 +374,19 @@ describe("instructorRedirect — Podsumowanie miesiąca instruktora", () => {
   });
 });
 
+describe("instructorRedirect — Rozliczenia (#94)", () => {
+  it("wpuszcza tylko właściciela; instruktora z uprawnieniem do układania grafiku i bez przenosi do „Moje sloty”", () => {
+    expect(instructorRedirect("/osrodek/rozliczenia", "owner")).toBeNull();
+    expect(instructorRedirect("/osrodek/rozliczenia", "instructor")).toBe("/instruktor");
+    expect(instructorRedirect("/osrodek/rozliczenia", "arranging-instructor")).toBe("/instruktor");
+    expect(instructorRedirect("/osrodek/rozliczenia", "inactive")).toBe("/instruktor/konto-nieaktywne");
+  });
+
+  it("strona wymaga konta instruktora — jeźdźca strażnik tras przenosi do jego przestrzeni", () => {
+    expect(routeGuardFor("/osrodek/rozliczenia")).toEqual({ prefix: "/osrodek", role: "instructor" });
+  });
+});
+
 describe("scheduleRouteFor", () => {
   it("właściciel układa grafik w przestrzeni ośrodka, instruktor z uprawnieniem — w swojej", () => {
     expect(scheduleRouteFor("owner")).toBe("/osrodek/grafik");
