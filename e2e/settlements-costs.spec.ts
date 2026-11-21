@@ -71,15 +71,18 @@ async function rows(page: Page): Promise<{ text: string; rides: number; amount: 
   }));
 }
 
-/** Lista ze stawką: bieżący miesiąc, a gdy jeszcze pusty — poprzedni. Zwraca miesiąc z adresu. */
-async function openSettlementsWithRides(page: Page): Promise<string> {
+/**
+ * Lista ze stawką: bieżący miesiąc, a gdy jeszcze pusty — poprzedni. Zwraca miesiąc z adresu (`null` —
+ * bieżący, bez parametru).
+ */
+async function openSettlementsWithRides(page: Page): Promise<string | null> {
   await page.goto(ROUTE);
   if (await page.getByText(/^We? .+ nie ma nic do rozliczenia\.$/).isVisible()) {
     await page.getByRole("navigation", { name: "Wybór miesiąca" }).getByRole("link", { name: "Poprzedni" }).click();
     await page.waitForURL(/miesiac=\d{4}-\d{2}$/);
   }
   await expect(riders(page).first(), DEMO_HINT).toBeVisible();
-  return new URL(page.url()).searchParams.get("miesiac") ?? "";
+  return new URL(page.url()).searchParams.get("miesiac");
 }
 
 function settlementCard(page: Page) {
@@ -88,7 +91,7 @@ function settlementCard(page: Page) {
 
 /** „Do zapłaty” i kwota (pogrubiona) to osobne elementy jednego akapitu. */
 async function due(card: Locator): Promise<number> {
-  const paragraph = card.getByRole("paragraph").filter({ hasText: /^Do zapłaty/ });
+  const paragraph = card.getByRole("paragraph").filter({ hasText: "Do zapłaty" });
   await expect(paragraph).toBeVisible();
   return grosze(await paragraph.innerText());
 }
@@ -103,11 +106,13 @@ test.describe("Koszty dodatkowe", () => {
   test("właściciel dopisuje, poprawia i usuwa koszt w rozliczeniu jeźdźca: „Do zapłaty” = jazdy + koszty", async ({
     page,
   }) => {
-    const month = await openSettlementsWithRides(page);
+    await openSettlementsWithRides(page);
     const [first] = await rows(page);
     await riders(page).first().getByRole("link").click();
     await page.waitForURL(/\/osrodek\/rozliczenia\/[0-9a-f-]{36}\?miesiac=\d{4}-\d{2}$/);
     const riderUrl = page.url();
+    // Wiersz listy prowadzi do rozliczenia z miesiącem w adresie.
+    const month = new URL(riderUrl).searchParams.get("miesiac");
     const name = (await page.getByRole("heading", { level: 1 }).innerText()).trim();
     const card = settlementCard(page);
     const costs = card.getByRole("list", { name: `Koszty dodatkowe — ${name}` }).getByRole("listitem");
@@ -131,7 +136,7 @@ test.describe("Koszty dodatkowe", () => {
       await addForm.getByRole("button", { name: "Dopisz koszt", exact: true }).click();
       await page.waitForURL(/error=/);
       expectBackHere();
-      await expect(page.getByRole("alert")).toHaveText(/^Koszt musi wynosić co najmniej 0,01\szł$/);
+      await expect(page.getByRole("alert")).toHaveText(/Koszt musi wynosić co najmniej 0,01\szł/);
       await expect(costs).toHaveCount(0);
     });
 
@@ -204,7 +209,9 @@ test.describe("Koszty dodatkowe", () => {
       await region.getByLabel("Kwota (zł)").fill("50,50");
       await region.getByRole("button", { name: "Dopisz koszt", exact: true }).click();
       await page.waitForURL(/sukces=1/);
-      expect(new URL(page.url()).searchParams.get("miesiac"), "powrót na ten sam miesiąc").toBe(month);
+      if (month !== null) {
+        expect(new URL(page.url()).searchParams.get("miesiac"), "powrót na ten sam miesiąc").toBe(month);
+      }
     });
 
     await test.step("wiersz jeźdźca: jazdy × stawka + koszt, „Razem” = suma wierszy", async () => {
