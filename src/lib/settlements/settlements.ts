@@ -6,7 +6,8 @@
  * Klocki:
  * - `composeSettlementList` — lista jeźdźców miesiąca z kwotami i sumą (strona, boczna kolumna panelu);
  * - `composeSettlementsPage` — cała strona „Rozliczenia” (lista, stawka ośrodka, przełącznik miesięcy);
- * - `ridesAmount` — kwota za jazdy: liczba jazd × stawka (także rozliczenie jeźdźca).
+ * - `riderAmounts` — stawka jeźdźca w miesiącu i jego kwoty (wiersz listy i rozliczenie jeźdźca, `rider.ts`);
+ * - `ridesAmount` — kwota za jazdy: liczba jazd × stawka.
  */
 
 import type { RideCandidate } from "@/lib/bookings/rides";
@@ -47,13 +48,11 @@ export interface SettlementBooking extends RideCandidate {
   riderName: string | null;
 }
 
-/** Wiersz listy rozliczeń: jeden jeździec w miesiącu. */
-export interface SettlementRow {
-  riderKey: string;
-  name: string;
-  rides: number;
-  /** Np. `8 jazd`. */
-  ridesText: string;
+/**
+ * Kwoty jeźdźca w miesiącu — wspólne dla wiersza listy i rozliczenia jeźdźca (`riderAmounts`), więc
+ * obie strony zawsze pokazują to samo.
+ */
+export interface RiderAmounts {
   /** Stawka jazd jeźdźca w miesiącu; `null` — ośrodek bez stawki. */
   rate: EffectiveRate | null;
   /** Kwota za jazdy w groszach; `null` — bez stawki. */
@@ -62,6 +61,15 @@ export interface SettlementRow {
   /** Do zapłaty w groszach — dziś kwota za jazdy (koszty dodatkowe dochodzą w #96); `null` — bez stawki. */
   due: number | null;
   dueText: string | null;
+}
+
+/** Wiersz listy rozliczeń: jeden jeździec w miesiącu. */
+export interface SettlementRow extends RiderAmounts {
+  riderKey: string;
+  name: string;
+  rides: number;
+  /** Np. `8 jazd`. */
+  ridesText: string;
 }
 
 export interface SettlementList {
@@ -108,6 +116,23 @@ function moneyText(grosze: number | null): string | null {
   return grosze === null ? null : formatMoney(grosze);
 }
 
+/**
+ * Kwoty jeźdźca za miesiąc `RRRR-MM` przy `rides` jazdach — jedyne miejsce, które wybiera stawkę
+ * jeźdźca i liczy „do zapłaty” (lista i rozliczenie jeźdźca). Stawka indywidualna (#97) i koszty
+ * dodatkowe (#96) dochodzą tutaj.
+ */
+export function riderAmounts(rides: number, rates: readonly RateChange[], month: string): RiderAmounts {
+  const rate = stableRateFor(rates, month);
+  const amount = ridesAmount(rides, rate);
+  return {
+    rate,
+    ridesAmount: amount,
+    ridesAmountText: moneyText(amount),
+    due: amount,
+    dueText: moneyText(amount),
+  };
+}
+
 /** Lista rozliczeń miesiąca: jeźdźcy z jazdami alfabetycznie, kwoty i suma. `now` jak w statystykach. */
 export function composeSettlementList(input: SettlementsInput, now: Date = new Date()): SettlementList {
   const byRider = new Map<string, { name: string | null; rides: number }>();
@@ -122,28 +147,23 @@ export function composeSettlementList(input: SettlementsInput, now: Date = new D
     }
   }
 
-  const rate = stableRateFor(input.rates, input.month.month);
+  const needsRate = stableRateFor(input.rates, input.month.month) === null;
   const rows = [...byRider]
-    .map(([riderKey, entry]): SettlementRow => {
-      const amount = ridesAmount(entry.rides, rate);
-      return {
+    .map(
+      ([riderKey, entry]): SettlementRow => ({
         riderKey,
         name: entry.name ?? UNNAMED_RIDER,
         rides: entry.rides,
         ridesText: formatCount(entry.rides, RIDE_FORMS),
-        rate,
-        ridesAmount: amount,
-        ridesAmountText: moneyText(amount),
-        due: amount,
-        dueText: moneyText(amount),
-      };
-    })
+        ...riderAmounts(entry.rides, input.rates, input.month.month),
+      }),
+    )
     .sort((a, b) => a.name.localeCompare(b.name, "pl") || a.riderKey.localeCompare(b.riderKey));
 
-  const total = rate === null ? null : rows.reduce((sum, row) => sum + (row.due ?? 0), 0);
+  const total = needsRate ? null : rows.reduce((sum, row) => sum + (row.due ?? 0), 0);
   return {
     rows,
-    needsRate: rate === null,
+    needsRate,
     total,
     totalText: total === null ? null : `${SETTLEMENT_TEXTS.total} ${formatMoney(total)}`,
   };
@@ -169,6 +189,13 @@ export interface StableRateView {
 export interface SettlementsPageInput extends SettlementsInput {
   /** Adres strony dla miesiąca `RRRR-MM`. */
   monthHref: (month: string) => string;
+  /** Adres rozliczenia jeźdźca w wybranym miesiącu. */
+  riderHref: (riderKey: string) => string;
+}
+
+/** Wiersz listy na stronie „Rozliczenia” — prowadzi do rozliczenia jeźdźca tego samego miesiąca. */
+export interface SettlementLinkRow extends SettlementRow {
+  href: string;
 }
 
 export interface SettlementsView {
@@ -176,7 +203,7 @@ export interface SettlementsView {
   rate: StableRateView;
   /** Np. `Stawka ośrodka w październiku 2026: 120,00 zł`; `null` — bez stawki. */
   monthRateText: string | null;
-  list: SettlementList;
+  list: Omit<SettlementList, "rows"> & { rows: SettlementLinkRow[] };
   /** Miesiąc bez nic do rozliczenia — strona pokazuje `EmptyState` z `emptyText`. */
   isEmpty: boolean;
   /** Np. `W październiku 2026 nie ma nic do rozliczenia.` */
@@ -217,7 +244,7 @@ export function composeSettlementsPage(input: SettlementsPageInput, now: Date = 
       monthRate === null
         ? null
         : `${SETTLEMENT_TEXTS.rate.inMonth} ${formatInMonthYear(input.month.month)}: ${formatMoney(monthRate.amount)}`,
-    list,
+    list: { ...list, rows: list.rows.map((row) => ({ ...row, href: input.riderHref(row.riderKey) })) },
     isEmpty: list.rows.length === 0,
     emptyText: `${capitalize(formatInMonthYear(input.month.month))} ${SETTLEMENT_TEXTS.empty}`,
   };

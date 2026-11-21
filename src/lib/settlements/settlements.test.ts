@@ -170,6 +170,7 @@ describe("settlementBookings — zapisy miesiąca z odczytu Podsumowania miesią
 
 describe("composeSettlementsPage — strona „Rozliczenia”", () => {
   const monthHref = (month: string) => `/osrodek/rozliczenia?miesiac=${month}`;
+  const riderHref = (riderKey: string) => `/osrodek/rozliczenia/${riderKey}?miesiac=2026-10`;
 
   it("pokazuje stawkę ośrodka dziś, zaplanowaną zmianę i stawkę wybranego miesiąca", () => {
     const view = composeSettlementsPage(
@@ -179,6 +180,7 @@ describe("composeSettlementsPage — strona „Rozliczenia”", () => {
           bookings: [ride("2026-10-02", "anna", "Anna")],
         }),
         monthHref,
+        riderHref,
       },
       NOW,
     );
@@ -202,7 +204,7 @@ describe("composeSettlementsPage — strona „Rozliczenia”", () => {
   });
 
   it("przed pierwszą stawką ośrodka prosi o nią zamiast kwot", () => {
-    const view = composeSettlementsPage({ ...input({ rates: [] }), monthHref }, NOW);
+    const view = composeSettlementsPage({ ...input({ rates: [] }), monthHref, riderHref }, NOW);
     expect(view.rate.current).toBeNull();
     expect(view.rate.currentText).toBeNull();
     expect(view.rate.planned).toBeNull();
@@ -211,8 +213,23 @@ describe("composeSettlementsPage — strona „Rozliczenia”", () => {
   });
 
   it("miesiąc bez jazd to spokojny stan pusty", () => {
-    const view = composeSettlementsPage({ ...input(), monthHref }, NOW);
+    const view = composeSettlementsPage({ ...input(), monthHref, riderHref }, NOW);
     expect(view.isEmpty).toBe(true);
     expect(view.emptyText).toBe("W październiku 2026 nie ma nic do rozliczenia.");
+  });
+
+  it("wiersz jeźdźca prowadzi do jego rozliczenia", () => {
+    const view = composeSettlementsPage(
+      {
+        ...input({ bookings: [ride("2026-10-02", "anna", "Anna"), ride("2026-10-03", "piotr", "Piotr")] }),
+        monthHref,
+        riderHref,
+      },
+      NOW,
+    );
+    expect(view.list.rows.map((row) => [row.name, row.href])).toEqual([
+      ["Anna", "/osrodek/rozliczenia/anna?miesiac=2026-10"],
+      ["Piotr", "/osrodek/rozliczenia/piotr?miesiac=2026-10"],
+    ]);
   });
 });

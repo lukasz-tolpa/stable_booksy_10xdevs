@@ -65,6 +65,8 @@ export const OWNER_MONTH_SUMMARY_ROUTE = `${ROLE_HOME.instructor}/podsumowanie`;
 /**
  * Rozliczenia (spec #93) — strona właściciela w przestrzeni ośrodka, miesiąc w `?miesiac=RRRR-MM`.
  * Instruktor i jeździec tu nie wchodzą: przestrzeń ośrodka jest tylko dla właściciela (`STANDINGS`).
+ * Pod nią rozliczenie jeźdźca (#95): `/osrodek/rozliczenia/<konto jeźdźca>?miesiac=RRRR-MM`
+ * (`riderSettlementHref`).
  */
 export const OWNER_SETTLEMENTS_ROUTE = `${ROLE_HOME.instructor}/rozliczenia`;
 

@@ -18,6 +18,28 @@ export const SETTLEMENT_TEXTS = {
   total: "Razem:",
   /** Zamiast kwot na liście, gdy ośrodek nie ma stawki. */
   amountsNeedRate: "Kwoty pojawią się po ustawieniu stawki ośrodka.",
+  /** Rozliczenie jeźdźca (#95): `/osrodek/rozliczenia/<jeździec>?miesiac=RRRR-MM`. */
+  rider: {
+    /** Tytuł karty przeglądarki przed nazwą jeźdźca: `Rozliczenie — Anna Kowalska`. */
+    title: "Rozliczenie",
+    lead: "Rozliczenie jeźdźca za wybrany miesiąc: jego jazdy razy stawka.",
+    /** Nagłówek karty przed `formatMonthYear`: `Rozliczenie za listopad 2026`. */
+    forMonth: "Rozliczenie za",
+    back: "Wróć do rozliczeń",
+    /** Początek wiersza kwoty za jazdy: `Jazdy: 8 × 120,00 zł = 960,00 zł`. */
+    rides: "Jazdy:",
+    /** Nagłówek sekcji jazd i początek nazwy listy jazd (`Jazdy — Anna Kowalska`). */
+    ridesHeading: "Jazdy",
+    /** Dopisek o źródle stawki przy kwocie za jazdy. */
+    source: { stable: "stawka ośrodka", individual: "stawka indywidualna" },
+    due: "Do zapłaty",
+    /** Bez stawki ośrodka: prośba zamiast kwot, link na „Rozliczenia”, gdzie jest formularz stawki. */
+    needsRate: "Ustaw stawkę ośrodka",
+    needsRateHint: "Kwoty pojawią się po ustawieniu stawki ośrodka na stronie „Rozliczenia”.",
+    notFound: "Nie ma takiego jeźdźca.",
+    notFoundHint: "Rozliczenie ma tylko jeździec, który miał zapis w Twoim ośrodku.",
+    failure: "Nie udało się wczytać rozliczenia jeźdźca.",
+  },
   rate: {
     heading: "Stawka ośrodka",
     /** Przed `formatInMonthYear`: `Stawka ośrodka w październiku 2026: 120,00 zł`. */

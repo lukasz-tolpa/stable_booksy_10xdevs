@@ -1,0 +1,174 @@
+---
+import { ArrowLeft } from "lucide-react";
+import Layout from "@/layouts/Layout.astro";
+import Topbar from "@/components/Topbar.astro";
+import MonthNav from "@/components/month-summary/MonthNav.astro";
+import RiderSettlement from "@/components/settlements/RiderSettlement.astro";
+import Card from "@/components/ui/Card.astro";
+import EmptyState from "@/components/ui/EmptyState.astro";
+import FailureState from "@/components/ui/FailureState.astro";
+import { STABLE_DAY_BOOKINGS_ROUTE } from "@/lib/bookings/stable-redirect";
+import { listStableInstructors } from "@/lib/instructors/queries";
+import { logError } from "@/lib/log";
+import { MONTH_PARAM, resolveSummaryMonth } from "@/lib/month-summary/month";
+import { ownerSummaryBookings } from "@/lib/month-summary/owner";
+import { composeMonthNav } from "@/lib/month-summary/summary";
+import { todayIso } from "@/lib/schedule/dates";
+import { getSettlementRider, listRates } from "@/lib/settlements/queries";
+import { riderSettlementHref, settlementsHref } from "@/lib/settlements/redirect";
+import { composeRiderSettlementPage, parseRiderKey, type RiderSettlementView } from "@/lib/settlements/rider";
+import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
+import { dayHref } from "@/lib/stable-panel/panel";
+import { getOwnedStableId, listStableHorses } from "@/lib/stables/queries";
+import { getStatsRows } from "@/lib/stats/queries";
+import { createClient } from "@/lib/supabase";
+
+// Rozliczenie jeźdźca (#95, spec #93): jeździec (konto) w ścieżce, miesiąc w adresie (`?miesiac=RRRR-MM`).
+// Dostęp pilnuje middleware (przestrzeń ośrodka tylko dla właściciela, mapa tras w @/lib/auth/roles);
+// profil jeźdźca i stawki chroni RLS. Liczy `@/lib/settlements/rider`; tu tylko odczyt i render.
+// Jeździec spoza ośrodka, zanonimizowany albo nieznany — spokojny stan „Nie ma takiego jeźdźca.”.
+const { profile } = Astro.locals;
+const SCOPE = "page:osrodek/rozliczenia/[jezdziec]";
+const texts = SETTLEMENT_TEXTS;
+const now = new Date();
+const month = resolveSummaryMonth(Astro.url.searchParams.get(MONTH_PARAM), todayIso(now));
+const riderKey = parseRiderKey(Astro.params.jezdziec);
+
+const supabase = createClient(Astro.request.headers, Astro.cookies);
+
+let view: RiderSettlementView | null = null;
+let notFound = riderKey === null;
+
+if (riderKey !== null) {
+  if (supabase && profile) {
+    try {
+      const stableId = await getOwnedStableId(supabase, profile.id);
+      if (stableId === null) {
+        // Middleware nie wpuszcza tu właściciela bez stadniny; jej brak to awaria odczytu.
+        logError(SCOPE, new Error("Brak stadniny dla konta właściciela"));
+      } else {
+        const rider = await getSettlementRider(supabase, riderKey);
+        if (rider === null) {
+          notFound = true;
+        } else {
+          // Ten sam odczyt zapisów miesiąca co Podsumowanie miesiąca właściciela; stado i instruktorzy
+          // obejmują zdezaktywowanych — jedyne źródło nazw przy minionych jazdach.
+          const [rows, horses, instructors, rates] = await Promise.all([
+            getStatsRows(supabase, stableId, month),
+            listStableHorses(supabase, stableId),
+            listStableInstructors(supabase, stableId),
+            listRates(supabase, stableId),
+          ]);
+          view = composeRiderSettlementPage(
+            {
+              month,
+              rider,
+              bookings: ownerSummaryBookings({ month, ...rows, horses, instructors }),
+              rates,
+              dayHref: (day) => dayHref(STABLE_DAY_BOOKINGS_ROUTE, day),
+              monthHref: (target) => riderSettlementHref(rider.key, target),
+            },
+            now,
+          );
+        }
+      }
+    } catch (error) {
+      logError(SCOPE, error);
+    }
+  } else {
+    // Brak klienta Supabase lub profilu to awaria konfiguracji, nie brak jeźdźca.
+    logError(SCOPE, new Error("Brak klienta Supabase albo profilu właściciela"));
+  }
+}
+
+const listHref = settlementsHref(month.month);
+// Przełącznik miesięcy zostaje także przy awarii odczytu — da się przejść do innego miesiąca.
+const nav =
+  view?.nav ?? (riderKey === null ? null : composeMonthNav(month, (target) => riderSettlementHref(riderKey, target)));
+const title = view ? `${texts.rider.title} — ${view.settlement.name}` : texts.rider.title;
+---
+
+<Layout title={title}>
+  <Topbar />
+  <main class="container-narrow page">
+    <a href={listHref} class="back">
+      <ArrowLeft className="size-4" />
+      {texts.rider.back}
+    </a>
+
+    <h1>{view ? view.settlement.name : texts.rider.title}</h1>
+    <p class="lead">{texts.rider.lead}</p>
+
+    {
+      notFound ? (
+        <div class="state">
+          <Card>
+            <EmptyState>
+              <p>{texts.rider.notFound}</p>
+              <p>{texts.rider.notFoundHint}</p>
+            </EmptyState>
+          </Card>
+        </div>
+      ) : (
+        <>
+          {nav && (
+            <div class="month">
+              <MonthNav nav={nav} />
+            </div>
+          )}
+          {view ? (
+            <RiderSettlement
+              settlement={view.settlement}
+              emptyText={view.isEmpty ? view.emptyText : null}
+              rateHref={listHref}
+            />
+          ) : (
+            <FailureState>
+              <p>{texts.rider.failure}</p>
+              <p>{texts.retry}</p>
+            </FailureState>
+          )}
+        </>
+      )
+    }
+  </main>
+</Layout>
+
+<style>
+  .page {
+    padding-block: 24px 56px;
+  }
+  .back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+    margin-bottom: 12px;
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--primary);
+  }
+  .back:hover {
+    color: var(--primary-strong);
+    text-decoration: underline;
+  }
+  .back:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
+    border-radius: 8px;
+  }
+  h1 {
+    font-size: 32px;
+    overflow-wrap: anywhere;
+  }
+  .lead {
+    margin: 10px 0 0;
+    font-size: 15.5px;
+    color: var(--muted);
+    max-width: 62ch;
+  }
+  .month,
+  .state {
+    margin-top: 18px;
+  }
+</style>

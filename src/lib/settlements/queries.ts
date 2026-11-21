@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/db/database.types";
 import type { RateChange } from "@/lib/settlements/rates";
+import type { SettlementRider } from "@/lib/settlements/rider";
 import type { Rate } from "@/types";
 
 type Client = SupabaseClient<Database>;
@@ -68,4 +69,23 @@ export function saveRate(client: Client, rate: RateWrite) {
  */
 export function deleteRate(client: Client, stableId: number, rateId: number) {
   return client.from("rates").delete().eq("id", rateId).eq("stable_id", stableId).select("id");
+}
+
+/**
+ * Jeździec rozliczenia z adresu strony: profil konta `rider`, który właściciel widzi — RLS na
+ * `profiles` (`is_rider_of_my_stable`) pokazuje tylko jeźdźców z zapisem w jego ośrodku. `null` —
+ * jeździec spoza ośrodka, zanonimizowany (profil usunięty) albo nieznany. Rzuca przy błędzie zapytania.
+ */
+export async function getSettlementRider(client: Client, riderKey: string): Promise<SettlementRider | null> {
+  const { data, error } = await client
+    .from("profiles")
+    .select("id, full_name")
+    .eq("id", riderKey)
+    .eq("role", "rider")
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+  return data === null ? null : { key: data.id, name: data.full_name };
 }

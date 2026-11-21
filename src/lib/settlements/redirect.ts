@@ -9,6 +9,14 @@ export function settlementsHref(month: string): string {
 }
 
 /**
+ * Adres rozliczenia jeźdźca (#95) dla miesiąca `RRRR-MM`: jeździec (konto) w ścieżce pod „Rozliczeniami”,
+ * miesiąc w adresie jak na liście. Ochrona przestrzeni ośrodka obejmuje go razem z listą (`/osrodek`).
+ */
+export function riderSettlementHref(riderKey: string, month: string): string {
+  return `${OWNER_SETTLEMENTS_ROUTE}/${encodeURIComponent(riderKey)}${monthSearch(month)}`;
+}
+
+/**
  * Miesiąc strony, na którą wraca formularz (ukryte pole `miesiac`) — przez `resolveSummaryMonth`,
  * więc brak, błąd i przyszłość dają bieżący miesiąc, a do adresu nie trafi nic spoza `RRRR-MM`.
  */

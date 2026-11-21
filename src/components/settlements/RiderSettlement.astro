@@ -1,0 +1,141 @@
+---
+// Rozliczenie jeźdźca za miesiąc (#95): „Jazdy: N × stawka = kwota” z dopiskiem o źródle stawki, lista
+// jazd (`RideList`, wspólna z Podsumowaniem miesiąca) albo stan pusty, na dole „Do zapłaty”. Bez stawki
+// ośrodka — liczba jazd i prośba „Ustaw stawkę ośrodka” (link na „Rozliczenia”) zamiast kwot.
+// Renderuje `RiderSettlement` z `@/lib/settlements/rider` — liczby i teksty są już policzone.
+//
+// Miejsca na rozbudowę: slot `costs` — koszty dodatkowe między jazdami a „Do zapłaty” (#96); slot
+// `actions` — przyciski pod „Do zapłaty”, np. „Pobierz PDF” (KAN-91).
+//
+// KONTRAKT e2e: `region` „Rozliczenie za {miesiąc}”; wiersz „Jazdy: N × … = …” w jednym elemencie;
+// lista jazd — `list` „Jazdy — {jeździec}”, jedna pozycja na jazdę; „Do zapłaty” i kwota to osobne
+// elementy jednego akapitu.
+import RideList from "@/components/month-summary/RideList.astro";
+import Card from "@/components/ui/Card.astro";
+import EmptyState from "@/components/ui/EmptyState.astro";
+import Tag from "@/components/ui/Tag.astro";
+import type { RiderSettlement } from "@/lib/settlements/rider";
+import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
+
+interface Props {
+  settlement: RiderSettlement;
+  /** Tekst stanu pustego zamiast listy jazd; `null` — jeździec miał jazdy. */
+  emptyText: string | null;
+  /** Strona z formularzem stawki ośrodka (lista „Rozliczenia” tego miesiąca). */
+  rateHref: string;
+}
+
+const { settlement, emptyText, rateHref } = Astro.props;
+const texts = SETTLEMENT_TEXTS.rider;
+const headingId = "settlement-heading";
+---
+
+<section aria-labelledby={headingId}>
+  <Card>
+    <h2 id={headingId}>{`${texts.forMonth} ${settlement.monthLabel}`}</h2>
+
+    <div class="rides-head">
+      {
+        settlement.ridesLine ? (
+          <p class="line mono-nums">{settlement.ridesLine}</p>
+        ) : (
+          <p class="line mono-nums">{`${texts.rides} ${settlement.ridesText}`}</p>
+        )
+      }
+      {settlement.rateSourceText && <Tag>{settlement.rateSourceText}</Tag>}
+    </div>
+
+    {
+      settlement.needsRate && (
+        <div class="needs-rate">
+          <a href={rateHref}>{texts.needsRate}</a>
+          <p>{texts.needsRateHint}</p>
+        </div>
+      )
+    }
+
+    <div class="rides">
+      {
+        emptyText ? (
+          <EmptyState>
+            <p>{emptyText}</p>
+          </EmptyState>
+        ) : (
+          <RideList rides={settlement.rideRows} label={`${texts.ridesHeading} — ${settlement.name}`} />
+        )
+      }
+    </div>
+
+    <slot name="costs" />
+
+    {
+      settlement.dueText && (
+        <p class="due">
+          <span>{texts.due}</span>
+          <strong class="mono-nums">{settlement.dueText}</strong>
+        </p>
+      )
+    }
+
+    <slot name="actions" />
+  </Card>
+</section>
+
+<style>
+  h2 {
+    margin: 0 0 12px;
+    font-size: 20px;
+  }
+  .rides-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+  }
+  .line {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .needs-rate {
+    margin-top: 10px;
+  }
+  .needs-rate a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    font-weight: 600;
+    color: var(--primary);
+  }
+  .needs-rate a:hover {
+    color: var(--primary-strong);
+    text-decoration: underline;
+  }
+  .needs-rate a:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+  .needs-rate p {
+    margin: 0;
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .rides {
+    margin-top: 12px;
+    padding-top: 6px;
+    border-top: 1px solid var(--border);
+  }
+  .due {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 4px 12px;
+    margin: 14px 0 0;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    font-size: 17px;
+    font-weight: 600;
+  }
+</style>

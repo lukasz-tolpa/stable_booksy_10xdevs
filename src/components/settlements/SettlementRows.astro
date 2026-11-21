@@ -1,15 +1,17 @@
 ---
 // Lista rozliczeń miesiąca: stawka ośrodka w miesiącu, jeździec z liczbą jazd i kwotą, na końcu suma
 // „Razem: …”. Bez stawki ośrodka — jeźdźcy i jazdy bez kwot i zdanie, że kwoty czekają na stawkę.
-// Renderuje `SettlementList` z `@/lib/settlements/settlements` — kolejność i kwoty są już policzone.
+// Cały wiersz to link do rozliczenia jeźdźca tego samego miesiąca (#95).
+// Renderuje listę z `SettlementsView` (`@/lib/settlements/settlements`) — kolejność, kwoty i adresy
+// są już policzone.
 //
-// KONTRAKT e2e: `list` „Rozliczenia jeźdźców”, jedna pozycja na jeźdźca: nazwa, „N jazd…”, kwota.
+// KONTRAKT e2e: `list` „Rozliczenia jeźdźców”, jedna pozycja na jeźdźca: link z nazwą, „N jazd…”, kwotą.
 import Card from "@/components/ui/Card.astro";
-import type { SettlementList } from "@/lib/settlements/settlements";
+import type { SettlementsView } from "@/lib/settlements/settlements";
 import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
 
 interface Props {
-  list: SettlementList;
+  list: SettlementsView["list"];
   /** Np. `Stawka ośrodka w październiku 2026: 120,00 zł`; `null` — bez stawki. */
   monthRateText: string | null;
 }
@@ -24,9 +26,11 @@ const texts = SETTLEMENT_TEXTS;
     {
       list.rows.map((row) => (
         <li class="rider">
-          <span class="rider__name">{row.name}</span>
-          <span class="rider__count mono-nums">{row.ridesText}</span>
-          {row.dueText && <span class="rider__due mono-nums">{row.dueText}</span>}
+          <a class="rider__link" href={row.href}>
+            <span class="rider__name">{row.name}</span>
+            <span class="rider__count mono-nums">{row.ridesText}</span>
+            {row.dueText && <span class="rider__due mono-nums">{row.dueText}</span>}
+          </a>
         </li>
       ))
     }
@@ -45,21 +49,32 @@ const texts = SETTLEMENT_TEXTS;
     margin: 0;
     padding: 0;
   }
-  .rider {
+  .rider + .rider {
+    border-top: 1px solid var(--border);
+  }
+  .rider__link {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 4px 12px;
     min-height: 52px;
     padding: 8px 16px;
+    color: inherit;
   }
-  .rider + .rider {
-    border-top: 1px solid var(--border);
+  .rider__link:hover .rider__name {
+    color: var(--primary);
+    text-decoration: underline;
+  }
+  .rider__link:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: -2px;
+    border-radius: var(--r);
   }
   .rider__name {
     flex: 1 1 12ch;
     min-width: 0;
     font-weight: 600;
+    color: var(--primary);
     overflow-wrap: anywhere;
   }
   .rider__count {
