@@ -57,6 +57,8 @@ export interface SettlementBooking extends RideCandidate {
 export interface RiderAmounts {
   /** Stawka jazd jeźdźca w miesiącu; `null` — ośrodek bez stawki. */
   rate: EffectiveRate | null;
+  /** Dopisek źródła stawki: `stawka ośrodka` / `stawka indywidualna`; `null` — bez stawki. */
+  rateSourceText: string | null;
   /** Kwota za jazdy w groszach; `null` — bez stawki. */
   ridesAmount: number | null;
   ridesAmountText: string | null;
@@ -135,13 +137,16 @@ export function riderAmounts(
   riderKey: string,
   costs: readonly ExtraCost[],
 ): RiderAmounts {
-  const rate = effectiveRate(rates, month, riderKey);
+  // Dopóki ośrodek nie ma żadnej stawki ośrodka, nie ma kwot nigdzie — także przy stawce indywidualnej
+  // (lista, suma, panel i rozliczenie jeźdźca proszą o stawkę ośrodka).
+  const rate = stableRateFor(rates, month) === null ? null : effectiveRate(rates, month, riderKey);
   const amount = ridesAmount(rides, rate);
   const costsAmount = costsSum(costs);
   // Bez stawki nie ma kwoty za jazdy, więc i „do zapłaty” czeka na stawkę — koszty widać osobno.
   const due = amount === null ? null : amount + costsAmount;
   return {
     rate,
+    rateSourceText: rate === null ? null : SETTLEMENT_TEXTS.rider.source[rate.source],
     ridesAmount: amount,
     ridesAmountText: moneyText(amount),
     costsAmount,

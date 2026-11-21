@@ -269,6 +269,29 @@ describe("composeRiderSettlement — stawka indywidualna", () => {
     expect(settlement).toMatchObject({ due: 18100, needsRate: false });
   });
 
+  // Review #93: jedna reguła bez stawki ośrodka — żadnych kwot, także przy stawce indywidualnej.
+  it("stawka indywidualna bez stawki ośrodka: jazdy bez kwot i prośba o stawkę ośrodka", () => {
+    const settlement = composeRiderSettlement(
+      input({
+        month: NOVEMBER,
+        bookings,
+        rates: [{ id: 2, riderKey: "anna", fromMonth: "2026-11", amount: 9050 }],
+        costs: [{ id: 5, riderKey: "anna", riderName: "Anna Kowalska", name: "Pensjonat konia", amount: 80000 }],
+      }),
+      NOW,
+    );
+    expect(settlement).toMatchObject({
+      rides: 2,
+      needsRate: true,
+      rate: null,
+      ridesLine: null,
+      rateSourceText: null,
+      ridesAmountText: null,
+      dueText: null,
+    });
+    expect(settlement.costs.map((row) => row.name)).toEqual(["Pensjonat konia"]);
+  });
+
   it("stawka indywidualna innego jeźdźca nie zmienia rozliczenia", () => {
     const settlement = composeRiderSettlement(
       input({

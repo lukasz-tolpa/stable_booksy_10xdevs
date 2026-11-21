@@ -254,6 +254,17 @@ describe("composeSettlementList — stawka indywidualna", () => {
     expect(list.total).toBe(30000);
   });
 
+  // AC #97: dopisek źródła stawki przy każdym wierszu ze stawką.
+  it("każdy wiersz ze stawką ma dopisek źródła stawki", () => {
+    const list = composeSettlementList(input({ month: NOVEMBER, bookings, rates: [STABLE_120, ANNA_90] }), NOW);
+    expect(list.rows.map((row) => [row.name, row.rateSourceText])).toEqual([
+      ["Anna Kowalska", "stawka indywidualna"],
+      ["Piotr Nowak", "stawka ośrodka"],
+    ]);
+    const noRate = composeSettlementList(input({ month: NOVEMBER, bookings, rates: [] }), NOW);
+    expect(noRate.rows.map((row) => row.rateSourceText)).toEqual([null, null]);
+  });
+
   it("stawka indywidualna od listopada nie zmienia października", () => {
     const list = composeSettlementList(
       input({ bookings: [ride("2026-10-02", "anna", "Anna Kowalska")], rates: [STABLE_120, ANNA_90] }),
@@ -261,6 +272,18 @@ describe("composeSettlementList — stawka indywidualna", () => {
     );
     expect(list.rows[0]?.rate).toEqual({ amount: 12000, source: "stable" });
     expect(list.total).toBe(12000);
+  });
+
+  // Review #93: jedna reguła bez stawki ośrodka — żadnych kwot, także przy stawce indywidualnej.
+  it("stawka indywidualna bez stawki ośrodka: wiersz bez kwot, bez sumy, prośba o stawkę ośrodka", () => {
+    const list = composeSettlementList(input({ month: NOVEMBER, bookings, rates: [ANNA_90] }), NOW);
+    expect(list.needsRate).toBe(true);
+    expect(list.rows.map((row) => [row.name, row.ridesText, row.rate, row.ridesAmountText, row.dueText])).toEqual([
+      ["Anna Kowalska", "2 jazdy", null, null, null],
+      ["Piotr Nowak", "1 jazda", null, null, null],
+    ]);
+    expect(list.total).toBeNull();
+    expect(list.totalText).toBeNull();
   });
 
   it("stawka indywidualna 0,00 zł: jazdy na liście, kwota 0,00 zł", () => {
