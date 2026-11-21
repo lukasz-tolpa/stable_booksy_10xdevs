@@ -2,6 +2,7 @@
 // Pola kosztu dodatkowego (#96): „Nazwa kosztu” i „Kwota (zł)” — wspólne dla „Dopisz koszt” (rozliczenie
 // jeźdźca i strona „Rozliczenia”) i „Popraw”. Wartości do poprawki przychodzą gotowe z modułu
 // (`ExtraCostRow.amountInput`).
+import FormField from "@/components/settlements/FormField.astro";
 import { COST_NAME_MAX } from "@/lib/settlements/schemas";
 import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
 
@@ -17,30 +18,18 @@ const texts = SETTLEMENT_TEXTS.costs;
 ---
 
 <div class="fields">
-  <div class="field field--name">
-    <label for={`${idPrefix}-name`}>{texts.nameLabel}</label>
-    <input
+  <div class="name">
+    <FormField
       id={`${idPrefix}-name`}
+      label={texts.nameLabel}
       name="name"
-      type="text"
       value={name}
       maxlength={COST_NAME_MAX}
       placeholder={texts.namePlaceholder}
-      autocomplete="off"
-      required
     />
   </div>
-  <div class="field field--amount">
-    <label for={`${idPrefix}-amount`}>{texts.amountLabel}</label>
-    <input
-      id={`${idPrefix}-amount`}
-      name="amount"
-      type="text"
-      value={amount}
-      inputmode="decimal"
-      autocomplete="off"
-      required
-    />
+  <div class="amount">
+    <FormField id={`${idPrefix}-amount`} label={texts.amountLabel} name="amount" value={amount} inputmode="decimal" />
   </div>
 </div>
 
@@ -50,37 +39,13 @@ const texts = SETTLEMENT_TEXTS.costs;
     flex-wrap: wrap;
     gap: 12px 14px;
   }
-  .field {
-    display: grid;
-    gap: 6px;
+  .name {
+    flex: 2 1 220px;
     min-width: 0;
   }
-  .field--name {
-    flex: 2 1 220px;
-  }
-  .field--amount {
+  .amount {
     flex: 1 1 140px;
+    min-width: 0;
     max-width: 220px;
-  }
-  label {
-    font-size: 13.5px;
-    font-weight: 600;
-    color: var(--muted);
-  }
-  input {
-    min-height: 44px;
-    width: 100%;
-    padding: 8px 12px;
-    border: 1px solid var(--border-2);
-    border-radius: var(--r);
-    background: var(--surface);
-    color: var(--fg);
-    font: inherit;
-    font-size: 15px;
-  }
-  input:focus-visible {
-    outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px var(--primary-soft);
   }
 </style>

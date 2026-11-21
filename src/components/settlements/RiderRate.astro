@@ -11,6 +11,8 @@
 // „Zapisz stawkę indywidualną”) i „Powrót do stawki ośrodka” (te same radia, przycisk „Usuń stawkę
 // indywidualną”); kwota obok „Obowiązuje teraz:” to osobny element; zaplanowana zmiana to jeden element
 // „od {miesiąca} {rok}: {kwota albo „stawka ośrodka”}”.
+import FormField from "@/components/settlements/FormField.astro";
+import RateFromChoices from "@/components/settlements/RateFromChoices.astro";
 import Card from "@/components/ui/Card.astro";
 import GhostButton from "@/components/ui/GhostButton.astro";
 import Tag from "@/components/ui/Tag.astro";
@@ -65,21 +67,10 @@ const texts = SETTLEMENT_TEXTS.riderRate;
       <input type="hidden" name={MONTH_PARAM} value={month} />
       <input type="hidden" name={RIDER_PARAM} value={riderKey} />
       <input type="hidden" name="kind" value={RIDER_RATE_KIND.set} />
-      <div class="field">
-        <label for="rider-rate-amount">{texts.amountLabel}</label>
-        <input id="rider-rate-amount" name="amount" type="text" inputmode="decimal" autocomplete="off" required />
+      <div class="amount">
+        <FormField id="rider-rate-amount" label={texts.amountLabel} name="amount" inputmode="decimal" />
       </div>
-      <fieldset>
-        <legend>{SETTLEMENT_TEXTS.rate.fromLegend}</legend>
-        {
-          rate.choices.map((choice) => (
-            <label class="choice">
-              <input type="radio" name="from" value={choice.value} checked={choice.checked} />
-              {choice.label}
-            </label>
-          ))
-        }
-      </fieldset>
+      <RateFromChoices legend={SETTLEMENT_TEXTS.rate.fromLegend} choices={rate.choices} />
       <div>
         <GhostButton>{texts.submit}</GhostButton>
       </div>
@@ -91,15 +82,7 @@ const texts = SETTLEMENT_TEXTS.riderRate;
           <input type="hidden" name={MONTH_PARAM} value={month} />
           <input type="hidden" name={RIDER_PARAM} value={riderKey} />
           <input type="hidden" name="kind" value={RIDER_RATE_KIND.end} />
-          <fieldset>
-            <legend>{texts.end}</legend>
-            {rate.choices.map((choice) => (
-              <label class="choice">
-                <input type="radio" name="from" value={choice.value} checked={choice.checked} />
-                {choice.label}
-              </label>
-            ))}
-          </fieldset>
+          <RateFromChoices legend={texts.end} choices={rate.choices} />
           <div class="actions">
             <GhostButton>{texts.endSubmit}</GhostButton>
             <p class="hint">{texts.endHint}</p>
@@ -158,54 +141,8 @@ const texts = SETTLEMENT_TEXTS.riderRate;
     padding-top: 16px;
     border-top: 1px solid var(--border);
   }
-  .field {
-    display: grid;
-    gap: 6px;
+  .amount {
     max-width: 260px;
-  }
-  .field label,
-  legend {
-    font-size: 13.5px;
-    font-weight: 600;
-    color: var(--muted);
-  }
-  .field input {
-    min-height: 44px;
-    padding: 8px 12px;
-    border: 1px solid var(--border-2);
-    border-radius: var(--r);
-    background: var(--surface);
-    color: var(--fg);
-    font: inherit;
-    font-size: 15px;
-  }
-  .field input:focus-visible {
-    outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px var(--primary-soft);
-  }
-  fieldset {
-    display: grid;
-    gap: 6px;
-    margin: 0;
-    padding: 0;
-    border: 0;
-  }
-  legend {
-    padding: 0;
-    margin-bottom: 6px;
-  }
-  .choice {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    min-height: 44px;
-    font-size: 15px;
-  }
-  .choice input {
-    width: 18px;
-    height: 18px;
-    accent-color: var(--primary);
   }
   .actions {
     display: flex;

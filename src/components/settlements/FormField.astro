@@ -1,0 +1,61 @@
+---
+// Pole tekstowe formularzy rozliczeń z etykietą nad nim — kwota stawki ośrodka, stawki indywidualnej
+// i kosztu dodatkowego, nazwa kosztu. Zawsze wymagane, bez podpowiedzi przeglądarki; kwoty z
+// `inputmode="decimal"` (zapis `120,50`, sprawdza go `parseAmount`). Pole wypełnia szerokość rodzica —
+// szerokość ustawia element, w którym rodzic je umieszcza.
+interface Props {
+  id: string;
+  label: string;
+  name: string;
+  value?: string;
+  inputmode?: "decimal";
+  maxlength?: number;
+  placeholder?: string;
+}
+
+const { id, label, name: fieldName, value = "", inputmode, maxlength, placeholder } = Astro.props;
+---
+
+<div class="field">
+  <label for={id}>{label}</label>
+  <input
+    id={id}
+    name={fieldName}
+    type="text"
+    value={value}
+    inputmode={inputmode}
+    maxlength={maxlength}
+    placeholder={placeholder}
+    autocomplete="off"
+    required
+  />
+</div>
+
+<style>
+  .field {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+  }
+  label {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  input {
+    min-height: 44px;
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border-2);
+    border-radius: var(--r);
+    background: var(--surface);
+    color: var(--fg);
+    font: inherit;
+    font-size: 15px;
+  }
+  input:focus-visible {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-soft);
+  }
+</style>

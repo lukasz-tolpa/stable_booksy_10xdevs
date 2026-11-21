@@ -7,6 +7,8 @@
 // KONTRAKT e2e: pole „Nowa stawka (zł)”, radia „Od tego miesiąca (…)” / „Od następnego miesiąca (…)”,
 // przyciski „Zapisz stawkę” i „Usuń zaplanowaną zmianę”; zaplanowana zmiana to jeden element z tekstem
 // „od {miesiąca} {rok}: {kwota}”.
+import FormField from "@/components/settlements/FormField.astro";
+import RateFromChoices from "@/components/settlements/RateFromChoices.astro";
 import Card from "@/components/ui/Card.astro";
 import GhostButton from "@/components/ui/GhostButton.astro";
 import { MONTH_PARAM } from "@/lib/month-summary/month";
@@ -55,21 +57,10 @@ const texts = SETTLEMENT_TEXTS.rate;
 
     <form method="post" action="/api/settlements/rate" class="change">
       <input type="hidden" name={MONTH_PARAM} value={month} />
-      <div class="field">
-        <label for="rate-amount">{texts.amountLabel}</label>
-        <input id="rate-amount" name="amount" type="text" inputmode="decimal" autocomplete="off" required />
+      <div class="amount">
+        <FormField id="rate-amount" label={texts.amountLabel} name="amount" inputmode="decimal" />
       </div>
-      <fieldset>
-        <legend>{texts.fromLegend}</legend>
-        {
-          rate.choices.map((choice) => (
-            <label class="choice">
-              <input type="radio" name="from" value={choice.value} checked={choice.checked} />
-              {choice.label}
-            </label>
-          ))
-        }
-      </fieldset>
+      <RateFromChoices legend={texts.fromLegend} choices={rate.choices} />
       <div class="actions">
         <GhostButton>{texts.submit}</GhostButton>
         {rate.currentText && <p class="hint">{texts.changeHint}</p>}
@@ -125,54 +116,8 @@ const texts = SETTLEMENT_TEXTS.rate;
     padding-top: 16px;
     border-top: 1px solid var(--border);
   }
-  .field {
-    display: grid;
-    gap: 6px;
+  .amount {
     max-width: 260px;
-  }
-  .field label,
-  legend {
-    font-size: 13.5px;
-    font-weight: 600;
-    color: var(--muted);
-  }
-  .field input {
-    min-height: 44px;
-    padding: 8px 12px;
-    border: 1px solid var(--border-2);
-    border-radius: var(--r);
-    background: var(--surface);
-    color: var(--fg);
-    font: inherit;
-    font-size: 15px;
-  }
-  .field input:focus-visible {
-    outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px var(--primary-soft);
-  }
-  fieldset {
-    display: grid;
-    gap: 6px;
-    margin: 0;
-    padding: 0;
-    border: 0;
-  }
-  legend {
-    padding: 0;
-    margin-bottom: 6px;
-  }
-  .choice {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    min-height: 44px;
-    font-size: 15px;
-  }
-  .choice input {
-    width: 18px;
-    height: 18px;
-    accent-color: var(--primary);
   }
   .actions {
     display: flex;
