@@ -71,11 +71,11 @@ export type Database = {
         };
         Relationships: [
           {
-            foreignKeyName: "bookings_assigned_horse_fkey";
-            columns: ["schedule_day_id", "horse_id"];
+            foreignKeyName: "bookings_horse_fkey";
+            columns: ["horse_id"];
             isOneToOne: false;
-            referencedRelation: "schedule_day_horses";
-            referencedColumns: ["schedule_day_id", "horse_id"];
+            referencedRelation: "horses";
+            referencedColumns: ["id"];
           },
           {
             foreignKeyName: "bookings_instructor_fkey";
@@ -572,6 +572,7 @@ export type Database = {
         Row: {
           hour: number;
           instructor_id: number;
+          kind: string;
           place_id: number;
           schedule_day_id: number;
           seats: number;
@@ -579,6 +580,7 @@ export type Database = {
         Insert: {
           hour: number;
           instructor_id: number;
+          kind?: string;
           place_id: number;
           schedule_day_id: number;
           seats?: number;
@@ -586,6 +588,7 @@ export type Database = {
         Update: {
           hour?: number;
           instructor_id?: number;
+          kind?: string;
           place_id?: number;
           schedule_day_id?: number;
           seats?: number;

@@ -90,6 +90,7 @@ run_one "settlement_rates.sql" run_sql settlement_rates.sql
 run_one "settlement_extra_costs.sql" run_sql settlement_extra_costs.sql
 run_one "places.sql" run_sql places.sql
 run_one "boarding_horses.sql" run_sql boarding_horses.sql
+run_one "training_slots.sql" run_sql training_slots.sql
 run_one "concurrent_seat_booking.sh" bash "$SCRIPT_DIR/concurrent_seat_booking.sh"
 
 echo
