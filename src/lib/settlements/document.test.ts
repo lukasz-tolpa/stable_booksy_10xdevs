@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveSummaryMonth, shiftMonth } from "@/lib/month-summary/month";
+import { requestedSummaryMonth, resolveSummaryMonth, shiftMonth } from "@/lib/month-summary/month";
 import type { SummaryBooking } from "@/lib/month-summary/summary";
 import { currentMonth, todayIso } from "@/lib/schedule/dates";
 import type { ExtraCost } from "@/lib/settlements/costs";
@@ -220,10 +220,10 @@ describe("isSettlementPdfAvailable — kiedy PDF jest dostępny", () => {
     ).toBe(true);
   });
 
-  it("przyszły miesiąc — niedostępny, nawet z kosztem dodatkowym", () => {
+  it("przyszły miesiąc z adresu PDF — niedostępny, nawet z kosztem dodatkowym", () => {
     const next = shiftMonth(THIS_MONTH, 1);
     const future = settlement(next, {
-      month: resolveSummaryMonth(next, `${next}-15`),
+      month: requestedSummaryMonth(next, todayIso(NOW)),
       costs: [cost(1, "Pensjonat konia", 50000)],
     });
 

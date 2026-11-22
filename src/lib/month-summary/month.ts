@@ -44,7 +44,20 @@ function parseMonth(raw: string | null | undefined): string | null {
 export function resolveSummaryMonth(raw: string | null | undefined, today: string = todayIso()): SummaryMonth {
   const current = today.slice(0, 7);
   const parsed = parseMonth(raw);
-  const month = parsed !== null && parsed <= current ? parsed : current;
+  return summaryMonth(parsed !== null && parsed <= current ? parsed : current, current);
+}
+
+/**
+ * Miesiąc z parametru adresu bez przycinania przyszłości: poprawny `RRRR-MM` zostaje, także przyszły;
+ * brak i błędna wartość dają bieżący miesiąc jak `resolveSummaryMonth`. Dla adresu, który sam odmawia
+ * przyszłości — PDF rozliczenia jeźdźca (`isSettlementPdfAvailable` widzi prawdziwy miesiąc, #102).
+ */
+export function requestedSummaryMonth(raw: string | null | undefined, today: string = todayIso()): SummaryMonth {
+  const current = today.slice(0, 7);
+  return summaryMonth(parseMonth(raw) ?? current, current);
+}
+
+function summaryMonth(month: string, current: string): SummaryMonth {
   const next = shiftMonth(month, 1);
 
   return {

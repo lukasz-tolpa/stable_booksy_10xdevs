@@ -1,7 +1,7 @@
 import type { APIContext, APIRoute } from "astro";
 import { errorCode } from "@/lib/db-errors";
 import { logError } from "@/lib/log";
-import { MONTH_PARAM, resolveSummaryMonth, type SummaryMonth } from "@/lib/month-summary/month";
+import { MONTH_PARAM, requestedSummaryMonth, type SummaryMonth } from "@/lib/month-summary/month";
 import { todayIso } from "@/lib/schedule/dates";
 import { composeSettlementDocument, isSettlementPdfAvailable } from "@/lib/settlements/document";
 import { settlementPdfErrorMessage } from "@/lib/settlements/errors";
@@ -68,13 +68,14 @@ function toRiderPage(context: APIContext, riderKey: string, month: SummaryMonth)
  * jsPDF i czcionki ładuje dynamiczny `import()` — tylko tutaj, osobny kawałek paczki workera.
  *
  * Brzegi (#102): gdy PDF nie ma (także niepoprawny klucz jeźdźca) — powrót na stronę jeźdźca bez
- * komunikatu, bo strona w tej sytuacji nie pokazuje „Pobierz PDF”; niepoprawny miesiąc rozpoznaje
- * `resolveSummaryMonth` jak na stronie. Awaria odczytu albo generowania — log ze szczegółami i powrót
- * na stronę jeźdźca z banerem `SETTLEMENT_PDF_FAILED`.
+ * komunikatu, bo strona w tej sytuacji nie pokazuje „Pobierz PDF”. Miesiąc z adresu bierze
+ * `requestedSummaryMonth`: przyszły zostaje przyszłym, więc odmawia mu `isSettlementPdfAvailable` (powrót na
+ * stronę jeźdźca tego miesiąca), a niepoprawny daje bieżący jak na stronie. Awaria odczytu albo generowania —
+ * log ze szczegółami i powrót na stronę jeźdźca z banerem `SETTLEMENT_PDF_FAILED`.
  */
 export const GET: APIRoute = async (context) => {
   const now = new Date();
-  const month = resolveSummaryMonth(context.url.searchParams.get(MONTH_PARAM), todayIso(now));
+  const month = requestedSummaryMonth(context.url.searchParams.get(MONTH_PARAM), todayIso(now));
   const riderKey = parseRiderKey(context.params.jezdziec);
   if (riderKey === null) {
     return toRiderPage(context, context.params.jezdziec ?? "", month);
