@@ -218,22 +218,37 @@ describe("composeRiderSettlement — koszty dodatkowe", () => {
 
 describe("composeRiderSettlementPage — strona rozliczenia jeźdźca", () => {
   const monthHref = (month: string) => `/osrodek/rozliczenia/anna?miesiac=${month}`;
+  const pdfHref = "/osrodek/rozliczenia/anna/pdf?miesiac=2026-10";
 
   it("strzałki miesięcy prowadzą do rozliczenia tego samego jeźdźca", () => {
-    const view = composeRiderSettlementPage({ ...input({ bookings: [ride("2026-10-02")] }), monthHref }, NOW);
+    const view = composeRiderSettlementPage({ ...input({ bookings: [ride("2026-10-02")] }), monthHref, pdfHref }, NOW);
     expect(view.nav).toEqual({
       label: "październik 2026",
       previousHref: "/osrodek/rozliczenia/anna?miesiac=2026-09",
       nextHref: "/osrodek/rozliczenia/anna?miesiac=2026-11",
     });
     expect(view.settlement.rides).toBe(1);
-    expect(view.isEmpty).toBe(false);
+    expect(view.settlement.emptyText).toBeNull();
   });
 
   it("miesiąc bez jazd jeźdźca to spokojny stan pusty zamiast listy jazd", () => {
-    const view = composeRiderSettlementPage({ ...input(), monthHref }, NOW);
-    expect(view.isEmpty).toBe(true);
-    expect(view.emptyText).toBe("W październiku 2026 nie było jazd.");
+    const view = composeRiderSettlementPage({ ...input(), monthHref, pdfHref }, NOW);
+    expect(view.settlement.emptyText).toBe("W październiku 2026 nie było jazd.");
+  });
+
+  // Oracle: AC #101 — „Pobierz PDF” tylko, gdy PDF jest dostępny (stawka ośrodka, jazdy albo koszty).
+  it("„Pobierz PDF” prowadzi do PDF rozliczenia, gdy PDF jest dostępny; bez stawki ośrodka go nie ma", () => {
+    const priced = composeRiderSettlementPage(
+      { ...input({ bookings: [ride("2026-10-02")] }), monthHref, pdfHref },
+      NOW,
+    );
+    const unpriced = composeRiderSettlementPage(
+      { ...input({ bookings: [ride("2026-10-02")], rates: [] }), monthHref, pdfHref },
+      NOW,
+    );
+
+    expect(priced.pdfHref).toBe(pdfHref);
+    expect(unpriced.pdfHref).toBeNull();
   });
 });
 

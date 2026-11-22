@@ -82,12 +82,12 @@ function paragraph(doc: jsPDF, text: string, y: number, size: number, style: "no
  * Tabela z nagłówkiem powtarzanym na każdej stronie; wiersz nie dzieli się między strony, długi tekst
  * zawija się w komórce. `columns` — style kolumn (szerokość, wyrównanie) dla nagłówka i wierszy.
  */
-function table(doc: jsPDF, content: DocumentTable, y: number, columns: Partial<Styles>[]): number {
+function table(doc: jsPDF, data: DocumentTable, y: number, columns: Partial<Styles>[]): number {
   autoTable(doc, {
     startY: y,
     margin: { left: MARGIN, right: MARGIN, top: MARGIN, bottom: MARGIN + FOOTER_SPACE },
-    head: [content.columns],
-    body: content.rows,
+    head: [data.columns],
+    body: data.rows,
     theme: "plain",
     showHead: "everyPage",
     rowPageBreak: "avoid",
@@ -118,7 +118,7 @@ const COST_COLUMNS: Partial<Styles>[] = [{}, { cellWidth: 110, halign: "right" }
  * Stopka na każdej stronie: data wygenerowania z lewej, „strona X z Y” z prawej. Rysowana na końcu,
  * gdy liczba stron jest już znana.
  */
-function drawFooters(doc: jsPDF, document: Pick<SettlementDocument, "footer" | "pageLabel">): void {
+function drawFooters(doc: jsPDF, content: Pick<SettlementDocument, "footer" | "pageLabel">): void {
   const pages = doc.getNumberOfPages();
   const baseline = pageHeight(doc) - MARGIN;
   const right = MARGIN + contentWidth(doc);
@@ -126,38 +126,38 @@ function drawFooters(doc: jsPDF, document: Pick<SettlementDocument, "footer" | "
     doc.setPage(page);
     doc.setFont(FONT, "normal");
     doc.setFontSize(SIZE.small);
-    doc.text(document.footer, MARGIN, baseline);
-    doc.text(document.pageLabel(page, pages), right, baseline, { align: "right" });
+    doc.text(content.footer, MARGIN, baseline);
+    doc.text(content.pageLabel(page, pages), right, baseline, { align: "right" });
   }
 }
 
 /** Bajty PDF rozliczenia jeźdźca. */
-export function renderSettlementPdf(document: SettlementDocument): Uint8Array<ArrayBuffer> {
-  const doc = createDocument(document.title);
+export function renderSettlementPdf(content: SettlementDocument): Uint8Array<ArrayBuffer> {
+  const doc = createDocument(content.title);
   let y = MARGIN;
 
-  y = paragraph(doc, document.title, y, SIZE.title, "bold");
-  if (document.asOf) {
-    y = paragraph(doc, document.asOf, y, SIZE.body);
+  y = paragraph(doc, content.title, y, SIZE.title, "bold");
+  if (content.asOf) {
+    y = paragraph(doc, content.asOf, y, SIZE.body);
   }
   y += 10;
-  for (const line of document.header) {
+  for (const line of content.header) {
     y = paragraph(doc, `${line.label}: ${line.value}`, y, SIZE.body);
   }
 
-  y = paragraph(doc, `${document.ridesLine} (${document.rateSourceText})`, y + 14, SIZE.heading, "bold");
+  y = paragraph(doc, `${content.ridesLine} (${content.rateSourceText})`, y + 14, SIZE.heading, "bold");
   y += 4;
   y =
-    document.rides.emptyText === null
-      ? table(doc, document.rides, y, RIDE_COLUMNS)
-      : paragraph(doc, document.rides.emptyText, y, SIZE.body);
+    content.rides.emptyText === null
+      ? table(doc, content.rides, y, RIDE_COLUMNS)
+      : paragraph(doc, content.rides.emptyText, y, SIZE.body);
 
-  y = paragraph(doc, document.costs.heading, y + 16, SIZE.heading, "bold");
+  y = paragraph(doc, content.costs.heading, y + 16, SIZE.heading, "bold");
   y += 2;
   y =
-    document.costs.emptyText === null
-      ? table(doc, document.costs, y, COST_COLUMNS)
-      : paragraph(doc, document.costs.emptyText, y, SIZE.body);
+    content.costs.emptyText === null
+      ? table(doc, content.costs, y, COST_COLUMNS)
+      : paragraph(doc, content.costs.emptyText, y, SIZE.body);
 
   y = ensureSpace(doc, y + 18, SIZE.due * 2);
   doc.setDrawColor(BLACK);
@@ -166,9 +166,9 @@ export function renderSettlementPdf(document: SettlementDocument): Uint8Array<Ar
   doc.setFont(FONT, "bold");
   doc.setFontSize(SIZE.due);
   const baseline = y + SIZE.due * 1.6;
-  doc.text(document.due.label, MARGIN, baseline);
-  doc.text(document.due.value, MARGIN + contentWidth(doc), baseline, { align: "right" });
+  doc.text(content.due.label, MARGIN, baseline);
+  doc.text(content.due.value, MARGIN + contentWidth(doc), baseline, { align: "right" });
 
-  drawFooters(doc, document);
+  drawFooters(doc, content);
   return new Uint8Array(doc.output("arraybuffer"));
 }

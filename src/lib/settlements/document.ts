@@ -11,7 +11,6 @@
  */
 
 import { formatDateTime, formatDayMonthYear } from "@/lib/format";
-import { emptyMonthText } from "@/lib/month-summary/summary";
 import { currentMonth } from "@/lib/schedule/dates";
 import type { RiderSettlement } from "@/lib/settlements/rider";
 import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
@@ -99,7 +98,7 @@ export function composeSettlementDocument(input: SettlementDocumentInput, now: D
   const texts = SETTLEMENT_TEXTS;
   const { columns } = texts.pdf;
   return {
-    fileName: settlementFileName(settlement.month, settlement.unnamed ? null : settlement.name),
+    fileName: settlementFileName(settlement.month, settlement.fullName),
     title: `${texts.rider.forMonth} ${settlement.monthLabel}`,
     asOf: settlement.month === currentMonth(now) ? `${texts.pdf.asOf} ${formatDayMonthYear(now)}` : null,
     header: [
@@ -114,7 +113,7 @@ export function composeSettlementDocument(input: SettlementDocumentInput, now: D
         row.instructorName ?? "",
         row.withoutHorse ? texts.pdf.noHorse : row.horseName,
       ]),
-      emptyText: settlement.rides === 0 ? emptyMonthText(settlement, "owner") : null,
+      emptyText: settlement.emptyText,
     },
     ridesLine: settlement.ridesLine,
     rateSourceText: settlement.rateSourceText,
@@ -151,11 +150,14 @@ const UNDECOMPOSABLE: Readonly<Record<string, string>> = {
   þ: "th",
 };
 
+/** Każda z liter `UNDECOMPOSABLE`. */
+const UNDECOMPOSABLE_LETTER = new RegExp(`[${Object.keys(UNDECOMPOSABLE).join("")}]`, "gu");
+
 /** Nazwa jeźdźca jako fragment nazwy pliku: małe litery ASCII i cyfry rozdzielone pojedynczym „-”. */
 function slug(name: string): string {
   return name
     .toLowerCase()
-    .replace(/[łđðħıŀøŧĸŋßæœþ]/gu, (letter) => UNDECOMPOSABLE[letter] ?? letter)
+    .replace(UNDECOMPOSABLE_LETTER, (letter) => UNDECOMPOSABLE[letter] ?? letter)
     .normalize("NFKD")
     .replace(/\p{M}/gu, "")
     .replace(/[^a-z0-9]+/g, "-")
