@@ -10,6 +10,8 @@
 --   * dwoch jezdzcow - kazdy zapisany w innym osrodku
 --   * pensjonariuszka Katarzyna Zając (12121212...) bez zapisu, z koniem pensjonatowym Hrabia Pod Dębem
 --     (blok #114 na koncu pliku)
+--   * pojutrze Pod Dębem: slot treningowy Marka Dębowskiego o 10 na Dużym placu, bez zapisow
+--     (blok #115 na koncu pliku)
 --   * grafik na jutro w obu stadninach + po jednym aktywnym zapisie
 --
 -- Haslo wszystkich kont: sekret123
@@ -277,3 +279,32 @@ with horse as (
 )
 insert into public.horse_stays (horse_id, stable_id, arrival_day)
 select horse_id, stable_id, current_date - 90 from owner;
+
+-- ---------------------------------------------------------------------------
+-- #115 Slot treningowy (spec #112, GLOSSARY „Slot treningowy”)
+-- ---------------------------------------------------------------------------
+
+-- Pojutrze Pod Dębem: wlasciciel Marek Dębowski prowadzi o 10 slot treningowy (2 miejsca) na Dużym placu;
+-- o 11 nie prowadzi jazdy. Dzien ma same sloty treningowe, wiec jezdziec rekreacyjny go nie widzi, a
+-- pensjonariuszka Katarzyna widzi i zapisuje sie na Hrabi. Bez koni dnia - slot treningowy nie liczy sie do
+-- sumy limitow (SB007). Bez zapisow: boarding_horses.sql zaklada, ze Katarzyna nie ma zadnego zapisu.
+-- created_at o minute wczesniej - szkic grafiku (ostatnio ulozony dzien) zostaje jutrzejszym dniem.
+insert into public.schedule_days (stable_id, day, open_hour, close_hour, created_at)
+select s.id, current_date + 2, 10, 12, now() - interval '1 minute'
+from public.stables s
+where s.name = 'Stadnina Pod Dębem';
+
+insert into public.schedule_day_instructors (schedule_day_id, instructor_id, stable_id)
+select sd.id, i.id, i.stable_id
+from public.schedule_days sd
+join public.stables s on s.id = sd.stable_id
+join public.instructors i on i.stable_id = s.id and i.account_id = s.owner_id
+where s.name = 'Stadnina Pod Dębem' and sd.day = current_date + 2;
+
+insert into public.schedule_slots (schedule_day_id, instructor_id, hour, seats, place_id, kind)
+select sdi.schedule_day_id, sdi.instructor_id, v.hour, v.seats, p.id, 'training'
+from public.schedule_day_instructors sdi
+join public.schedule_days sd on sd.id = sdi.schedule_day_id
+join public.places p on p.stable_id = sd.stable_id and p.name = 'Duży plac'
+cross join (values (10::smallint, 2::smallint), (11::smallint, 0::smallint)) as v(hour, seats)
+where sd.day = current_date + 2;

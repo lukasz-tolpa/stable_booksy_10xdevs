@@ -24,6 +24,8 @@
 --     czyli poza godzinami dnia (slot zniknal po skroceniu dnia) - nadal jest odwolaniem
 --   * jazdy bez jezdzca (ADR-0001) o 12:00 w dniach starszych niz 15 dni
 --   * dzien sprzed 30 dni z grafikiem i bez zadnego zapisu
+--   * (#115, blok na koncu pliku) sloty treningowe Marka Dębowskiego w srody i soboty o 10 z jazdami
+--     pensjonariuszki Katarzyny Zając na Hrabi
 --
 -- Idempotentne: druga proba konczy sie komunikatem, bez zmian.
 
@@ -197,3 +199,55 @@ update public.schedule_slots sl
    and sd.stable_id = (select id from public.stables where name = 'Stadnina Pod Dębem')
    and sd.day < current_date
    and sl.place_id is distinct from p.id;
+
+-- #115 Slot treningowy (spec #112): w srody i soboty historii wlasciciel Marek Dębowski prowadzi o 10 slot
+-- treningowy (1 miejsce) na "Duży plac", a pensjonariuszka Katarzyna Zając jezdzi na nim na swoim koniu
+-- pensjonatowym Hrabi (pobyt od 90 dni obejmuje cala historie). Pelna siatka godzin 10-15 jak z
+-- save_schedule_day; poza 10 limit 0. Slot treningowy nie liczy sie do sumy limitow (SB007), wiec
+-- regula sumy historii zostaje spelniona. Idempotentne.
+do $$
+declare
+  v_stable bigint;
+  v_kasia constant uuid := '12121212-1212-1212-1212-121212121212';
+begin
+  select id into strict v_stable from public.stables where name = 'Stadnina Pod Dębem';
+
+  if exists (
+    select 1
+    from public.schedule_slots sl
+    join public.schedule_days sd on sd.id = sl.schedule_day_id
+    where sd.stable_id = v_stable and sd.day < current_date and sl.kind = 'training'
+  ) then
+    raise notice 'Sloty treningowe historii demo sa juz zaladowane - bez zmian.';
+    return;
+  end if;
+
+  insert into public.schedule_day_instructors (schedule_day_id, instructor_id, stable_id)
+  select sd.id, i.id, v_stable
+  from public.schedule_days sd
+  join public.stables s on s.id = sd.stable_id
+  join public.instructors i on i.stable_id = v_stable and i.account_id = s.owner_id
+  where sd.stable_id = v_stable
+    and sd.day between current_date - 24 and current_date - 1
+    and extract(isodow from sd.day) in (3, 6);
+
+  insert into public.schedule_slots (schedule_day_id, instructor_id, hour, seats, place_id, kind)
+  select sdi.schedule_day_id, sdi.instructor_id, hr, case when hr = 10 then 1 else 0 end, p.id, 'training'
+  from public.schedule_day_instructors sdi
+  join public.schedule_days sd on sd.id = sdi.schedule_day_id
+  join public.stables s on s.id = sd.stable_id
+  join public.instructors i on i.id = sdi.instructor_id and i.account_id = s.owner_id
+  join public.places p on p.stable_id = v_stable and p.name = 'Duży plac'
+  cross join generate_series(10, 15) as hr
+  where sd.stable_id = v_stable and sd.day < current_date;
+
+  -- Kon nie podany - wyzwalacz bookings_slot_rules przydziela jedynego konia pensjonariuszki z pobytem.
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id)
+  select sl.schedule_day_id, sl.instructor_id, sl.hour, v_kasia
+  from public.schedule_slots sl
+  join public.schedule_days sd on sd.id = sl.schedule_day_id
+  where sd.stable_id = v_stable and sd.day < current_date and sl.kind = 'training' and sl.seats > 0;
+
+  raise notice 'Sloty treningowe historii demo zaladowane.';
+end
+$$;

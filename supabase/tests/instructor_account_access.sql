@@ -385,9 +385,10 @@ begin
   end if;
 
   -- Katalog bez zmian: jezdziec czyta sloty, konie i dni wszystkich osrodkow.
+  -- Plus 2 sloty treningowe wlasciciela Pod Dębem pojutrze (seed #115).
   select count(*) into v from public.schedule_slots;
-  if v <> 6 + 6 + 5 then
-    raise exception 'FAIL: jezdziec widzi % slotow zamiast wszystkich 17', v;
+  if v <> 6 + 6 + 5 + 2 then
+    raise exception 'FAIL: jezdziec widzi % slotow zamiast wszystkich 19', v;
   end if;
   -- 5 koni osrodka i kon pensjonatowy Hrabia (#114) - katalog widzi konia, nie jego wlasciciela.
   select count(*) into v from public.horses;

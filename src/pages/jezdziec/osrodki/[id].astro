@@ -470,6 +470,8 @@ const dayLabel = formatLongDateWithYear(day);
   .slot__tag {
     margin-left: auto;
     color: var(--muted);
+    /* Dłuższy stan („Slot rekreacyjny — nie dla pensjonariuszy”, #115) zawija się na telefonie. */
+    white-space: normal;
   }
   .slot__book {
     background: var(--surface);

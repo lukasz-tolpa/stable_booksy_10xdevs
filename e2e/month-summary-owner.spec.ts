@@ -16,7 +16,8 @@ test.use({ storageState: STABLE_STATE });
 
 const DEMO_HINT = "Brak minionej historii demo — uruchom: npm run db:demo";
 const SUMMARY_ROUTE = "/osrodek/podsumowanie";
-const TOTAL = /^(\d+) jazd\S* · \d+ jeźdźc\S*$/;
+// „1 jeździec” albo „2 jeźdźców” — instruktor z jednym jeźdźcem (slot treningowy pensjonariuszki, #115) też pasuje.
+const TOTAL = /^(\d+) jazd\S* · \d+ (?:jeździec|jeźdźc\S*)$/;
 
 function monthNav(page: Page) {
   return page.getByRole("navigation", { name: "Wybór miesiąca" });
