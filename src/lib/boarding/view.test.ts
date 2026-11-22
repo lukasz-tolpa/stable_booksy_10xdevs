@@ -161,6 +161,7 @@ function myRow(overrides: Partial<MyBoardingHorseRow>): MyBoardingHorseRow {
     horseName: "Hrabia",
     stableName: "Stadnina Pod Dębem",
     stays: [{ id: 1, arrivalDay: "2026-08-24", departureDay: null, departureSetBy: null }],
+    fees: [],
     ...overrides,
   };
 }
@@ -214,11 +215,54 @@ describe("composeMyBoardingHorses — „Moje konie” pensjonariusza", () => {
   });
 });
 
+/** Kwoty mają twarde spacje — w oczekiwaniach piszemy zwykłe. */
+const zl = (text: string) => text.replaceAll(" ", " ");
+
+// Oracle: AC #117, GLOSSARY „Opłata za pensjonat” — opłatę ustawia właściciel przy koniu na stronie
+// „Pensjonariusze” (od tego albo od następnego miesiąca, zaplanowaną zmianę można usunąć); pensjonariusz
+// widzi swoją w „Moich koniach” bez formularza. Opłata obowiązuje w bieżącym miesiącu jak stawka.
+describe("opłata za pensjonat przy koniu", () => {
+  const fees = [
+    { id: 1, horseId: 1, fromMonth: "2026-09", amount: 150000 },
+    { id: 2, horseId: 1, fromMonth: "2026-12", amount: 170000 },
+    { id: 3, horseId: 2, fromMonth: "2026-11", amount: 1 },
+  ];
+
+  it("właściciel: opłata dziś, zaplanowana zmiana do usunięcia i formularz „od tego / od następnego miesiąca”", () => {
+    const [boarder] = composeStableBoarders([row({ horse_id: 1 })], TODAY, fees).boarders;
+    expect(boarder.horses[0].fee).toEqual({
+      currentText: zl("1 500,00 zł"),
+      planned: { id: 2, text: `od grudnia 2026: ${zl("1 700,00 zł")}` },
+      choices: [
+        { value: "biezacy", label: "Od tego miesiąca (listopad 2026)", checked: true },
+        { value: "nastepny", label: "Od następnego miesiąca (grudzień 2026)", checked: false },
+      ],
+    });
+  });
+
+  it("właściciel: koń bez opłaty — bez kwoty, z formularzem", () => {
+    const [boarder] = composeStableBoarders([row({ horse_id: 5 })], TODAY, fees).boarders;
+    expect(boarder.horses[0].fee).toMatchObject({ currentText: null, planned: null });
+    expect(boarder.horses[0].fee.choices).toHaveLength(2);
+  });
+
+  it("pensjonariusz: swoja opłata i zaplanowana zmiana, bez formularza", () => {
+    const [horse] = composeMyBoardingHorses([myRow({ fees: fees.filter((fee) => fee.horseId === 1) })], TODAY);
+    expect(horse.fee).toEqual({
+      currentText: zl("1 500,00 zł"),
+      planned: { id: 2, text: `od grudnia 2026: ${zl("1 700,00 zł")}` },
+      choices: null,
+    });
+  });
+});
+
 describe("boardingNotice — zdanie po udanej czynności", () => {
   it.each([
     ["kon", "Dodano konia pensjonatowego."],
     ["pobyt", "Dodano nowy pobyt."],
     ["wyjazd", "Zapisano dzień wyjazdu."],
+    ["oplata", "Zapisano opłatę za pensjonat."],
+    ["oplata-usunieta", "Usunięto zaplanowaną zmianę opłaty za pensjonat."],
   ])("?sukces=%s", (raw, text) => {
     expect(boardingNotice(raw)).toBe(text);
   });

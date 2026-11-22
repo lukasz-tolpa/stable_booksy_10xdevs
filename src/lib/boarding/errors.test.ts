@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  BOARDING_FEE_DELETE_FAILED,
+  BOARDING_FEE_FAILED,
   BOARDING_HORSE_FAILED,
   DEPARTURE_FAILED,
   STAY_FAILED,
+  boardingFeeDeleteErrorMessage,
+  boardingFeeErrorMessage,
   boardingHorseErrorMessage,
   departureErrorMessage,
   isExpectedBoardingRefusal,
@@ -77,5 +81,34 @@ describe("departureErrorMessage — dzień wyjazdu", () => {
   it.each([undefined, "SB040", "42501", "23502", "fetch failed"])("inny kod (%s) to komunikat awarii", (code) => {
     expect(departureErrorMessage(code, undefined)).toBe(DEPARTURE_FAILED);
     expect(departureErrorMessage(code, undefined)).not.toMatch(PROVIDER_TEXT);
+  });
+});
+
+// Oracle: AC #117 — odmowy opłaty za pensjonat po polsku wzorem stawki (SB060–SB062, migracja 20261204090000).
+describe("boardingFeeErrorMessage — opłata za pensjonat", () => {
+  it.each([
+    [
+      "SB060",
+      "Opłatę za pensjonat możesz zmienić tylko od tego albo od następnego miesiąca. Odśwież stronę i spróbuj ponownie.",
+    ],
+    ["23514", "Opłata za pensjonat musi wynosić od 0,00 do 100 000,00 zł."],
+    ["23503", "Opłatę za pensjonat ustawia się tylko koniowi pensjonatowemu Twojego ośrodka."],
+    ["42501", "Nie możesz zmieniać opłat za pensjonat w tym ośrodku."],
+  ])("%s", (code, text) => {
+    expect(boardingFeeErrorMessage(code).replaceAll("\u00a0", " ")).toBe(text);
+    expect(isExpectedBoardingRefusal(code)).toBe(true);
+  });
+
+  it("usunięcie obowiązującej opłaty (SB061) mówi, że zmiana już obowiązuje", () => {
+    expect(boardingFeeDeleteErrorMessage("SB061")).toBe(
+      "Ta zmiana opłaty za pensjonat już obowiązuje, więc nie można jej usunąć. Możesz ustawić nową opłatę.",
+    );
+    expect(isExpectedBoardingRefusal("SB061")).toBe(true);
+  });
+
+  it.each([undefined, "PGRST301", "08006"])("inny kod (%s) to komunikat awarii", (code) => {
+    expect(boardingFeeErrorMessage(code)).toBe(BOARDING_FEE_FAILED);
+    expect(boardingFeeDeleteErrorMessage(code)).toBe(BOARDING_FEE_DELETE_FAILED);
+    expect(boardingFeeErrorMessage(code)).not.toMatch(PROVIDER_TEXT);
   });
 });

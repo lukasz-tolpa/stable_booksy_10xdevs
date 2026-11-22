@@ -13,7 +13,7 @@ export interface ExtraCost {
   riderKey: string;
   /** Nazwa jeźdźca z profilu; `null` — „(bez nazwiska)”. */
   riderName: string | null;
-  /** Np. `Pensjonat konia`. */
+  /** Np. `Wyjazd na zawody`. */
   name: string;
   /** Grosze, 1..10 000 000. */
   amount: number;

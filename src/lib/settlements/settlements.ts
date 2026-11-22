@@ -11,6 +11,8 @@
  * - `ridesAmount` — kwota za jazdy: liczba jazd × stawka.
  */
 
+import { boardingFeeFor, type BoardingFeeChange } from "@/lib/boarding/fees";
+import { isBoarderInMonth, stayOverlapsMonth, type BoardingStay } from "@/lib/boarding/month";
 import type { RideCandidate } from "@/lib/bookings/rides";
 import { UNNAMED_RIDER } from "@/lib/bookings/rows";
 import {
@@ -37,6 +39,7 @@ import {
   type PlannedRate,
   type RateChange,
   type RateFrom,
+  type RateKind,
 } from "@/lib/settlements/rates";
 import type { SettlementRider } from "@/lib/settlements/rider";
 import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
@@ -59,7 +62,12 @@ export interface SettlementBooking extends RideCandidate {
  * obie strony zawsze pokazują to samo.
  */
 export interface RiderAmounts {
-  /** Stawka jazd jeźdźca w miesiącu; `null` — ośrodek bez stawki. */
+  /**
+   * Rodzaj jeźdźca w miesiącu (#117, reguła „pensjonariusz w miesiącu”): `training` — pensjonariusz,
+   * liczy się po stawce treningowej i płaci opłaty za pensjonat; `recreation` — jeździec rekreacyjny.
+   */
+  kind: RateKind;
+  /** Stawka jazd jeźdźca w miesiącu (jego rodzaju); `null` — ośrodek bez stawki tego rodzaju. */
   rate: EffectiveRate | null;
   /** Dopisek źródła stawki: `stawka ośrodka` / `stawka indywidualna`; `null` — bez stawki. */
   rateSourceText: string | null;
@@ -69,9 +77,42 @@ export interface RiderAmounts {
   /** Suma kosztów dodatkowych jeźdźca w miesiącu, w groszach (#96); liczy się także bez stawki. */
   costsAmount: number;
   costsAmountText: string;
-  /** Do zapłaty w groszach — kwota za jazdy + koszty dodatkowe; `null` — bez stawki. */
+  /**
+   * Opłaty za pensjonat (#117): jedna pozycja na konia pensjonariusza z pobytem w miesiącu, po imieniu
+   * konia; jeździec rekreacyjny — pusta lista.
+   */
+  fees: BoardingFeeLine[];
+  /** Któryś koń nie ma opłaty — pozycja bez kwoty, a „Do zapłaty” czeka na opłatę (jak na stawkę). */
+  needsFee: boolean;
+  /**
+   * Do zapłaty w groszach — kwota za jazdy + opłaty za pensjonat + koszty dodatkowe; `null` — bez stawki
+   * albo bez opłaty któregoś konia.
+   */
   due: number | null;
   dueText: string | null;
+}
+
+/** Pozycja opłaty za pensjonat w rozliczeniu pensjonariusza (#117). */
+export interface BoardingFeeLine {
+  horseId: number;
+  horseName: string;
+  /** Grosze za cały miesiąc; `null` — koń bez opłaty (pozycja z prośbą o jej ustawienie). */
+  amount: number | null;
+  amountText: string | null;
+  /** Np. `Opłata za pensjonat — Hrabia: 1 500,00 zł` albo `Opłata za pensjonat — Hrabia: brak kwoty`. */
+  line: string;
+}
+
+/**
+ * Koń pensjonatowy ośrodka z właścicielem i pobytami (#117) — z niego reguła „pensjonariusz w miesiącu”
+ * i pozycje opłat za pensjonat. Opłaty konia są osobno (`SettlementIngredients.boardingFees`).
+ */
+export interface SettlementBoardingHorse {
+  horseId: number;
+  name: string;
+  /** Pensjonariusz — właściciel konia; `null` — konto usunięte, koń bez właściciela (nikt nie płaci). */
+  riderKey: string | null;
+  stays: BoardingStay[];
 }
 
 /** Wiersz listy rozliczeń: jeden jeździec w miesiącu. */
@@ -99,10 +140,14 @@ export interface SettlementList {
  * jedno miejsce w `queries.ts`, więc nowy składnik dochodzi tu i tam, a obie strony go dostają.
  */
 export interface SettlementIngredients {
-  /** Wszystkie zmiany stawki ośrodka (`listRates`). */
+  /** Wszystkie zmiany stawki ośrodka (`listRates`), obu rodzajów. */
   rates: RateChange[];
   /** Koszty dodatkowe ośrodka w miesiącu (`listMonthCosts`, #96). */
   costs: ExtraCost[];
+  /** Konie pensjonatowe ośrodka z właścicielami i pobytami (`listSettlementBoardingHorses`, #117). */
+  boardingHorses: SettlementBoardingHorse[];
+  /** Wszystkie zmiany opłat za pensjonat koni ośrodka (#117). */
+  boardingFees: BoardingFeeChange[];
 }
 
 export interface SettlementsInput extends SettlementIngredients {
@@ -136,7 +181,7 @@ function moneyText(grosze: number | null): string | null {
   return grosze === null ? null : formatMoney(grosze);
 }
 
-export interface RiderAmountsInput {
+export interface RiderAmountsInput extends Pick<SettlementIngredients, "boardingHorses" | "boardingFees"> {
   /** Konto jeźdźca. */
   riderKey: string;
   /** Miesiąc `RRRR-MM`. */
@@ -149,25 +194,81 @@ export interface RiderAmountsInput {
   costs: readonly ExtraCost[];
 }
 
+/** Konie pensjonatowe jeźdźca (jako właściciela) w ośrodku. */
+function riderHorses(horses: readonly SettlementBoardingHorse[], riderKey: string): SettlementBoardingHorse[] {
+  return horses.filter((horse) => horse.riderKey === riderKey);
+}
+
 /**
- * Kwoty jeźdźca w miesiącu — jedyne miejsce, które wybiera stawkę jeźdźca (stawka indywidualna albo
- * ośrodka, `effectiveRate`) i liczy „do zapłaty” = kwota za jazdy + jego koszty (lista i rozliczenie jeźdźca).
+ * Rodzaj jeźdźca w miesiącu `RRRR-MM` (reguła „pensjonariusz w miesiącu”, `isBoarderInMonth`): pobyt
+ * choć jednego jego konia zachodzi na miesiąc — `training`, inaczej `recreation`. Także rodzaj stawki
+ * indywidualnej, którą ustawia formularz rozliczenia jeźdźca.
  */
-export function riderAmounts({ riderKey, month, rides, rates, costs }: RiderAmountsInput): RiderAmounts {
-  // Dopóki ośrodek nie ma żadnej stawki ośrodka, nie ma kwot nigdzie — także przy stawce indywidualnej
-  // (lista, suma, panel i rozliczenie jeźdźca proszą o stawkę ośrodka).
-  const rate = stableRateFor(rates, month) === null ? null : effectiveRate(rates, month, riderKey);
+export function riderKindIn(horses: readonly SettlementBoardingHorse[], riderKey: string, month: string): RateKind {
+  const stays = riderHorses(horses, riderKey).flatMap((horse) => horse.stays);
+  return isBoarderInMonth(stays, month) ? "training" : "recreation";
+}
+
+/** Pozycje opłat za pensjonat: konie jeźdźca z pobytem w miesiącu, po imieniu konia. */
+function feeLines(
+  horses: readonly SettlementBoardingHorse[],
+  fees: readonly BoardingFeeChange[],
+  riderKey: string,
+  month: string,
+): BoardingFeeLine[] {
+  const texts = SETTLEMENT_TEXTS.rider.fee;
+  return riderHorses(horses, riderKey)
+    .filter((horse) => horse.stays.some((stay) => stayOverlapsMonth(stay, month)))
+    .sort((a, b) => a.name.localeCompare(b.name, "pl") || a.horseId - b.horseId)
+    .map((horse) => {
+      const amount = boardingFeeFor(fees, horse.horseId, month);
+      const amountText = moneyText(amount);
+      return {
+        horseId: horse.horseId,
+        horseName: horse.name,
+        amount,
+        amountText,
+        line: texts.line(horse.name, amountText ?? texts.missing),
+      };
+    });
+}
+
+/**
+ * Kwoty jeźdźca w miesiącu — jedyne miejsce, które wybiera stawkę jeźdźca (rodzaj jeźdźca w miesiącu,
+ * stawka indywidualna albo ośrodka tego rodzaju, `effectiveRate`) i liczy „do zapłaty” = kwota za jazdy
+ * + opłaty za pensjonat jego koni + jego koszty (lista i rozliczenie jeźdźca).
+ */
+export function riderAmounts({
+  riderKey,
+  month,
+  rides,
+  rates,
+  costs,
+  boardingHorses,
+  boardingFees,
+}: RiderAmountsInput): RiderAmounts {
+  const kind = riderKindIn(boardingHorses, riderKey, month);
+  // Dopóki ośrodek nie ma stawki ośrodka rodzaju jeźdźca, jego kwot nie ma — także przy stawce
+  // indywidualnej (lista, suma, panel i rozliczenie jeźdźca proszą o stawkę ośrodka).
+  const rate = stableRateFor(rates, month, kind) === null ? null : effectiveRate(rates, month, riderKey, kind);
   const amount = ridesAmount(rides, rate);
   const costsAmount = costsSum(riderCosts(costs, riderKey));
-  // Bez stawki nie ma kwoty za jazdy, więc i „do zapłaty” czeka na stawkę — koszty widać osobno.
-  const due = amount === null ? null : amount + costsAmount;
+  const fees = kind === "training" ? feeLines(boardingHorses, boardingFees, riderKey, month) : [];
+  const needsFee = fees.some((fee) => fee.amount === null);
+  const feesAmount = fees.reduce((sum, fee) => sum + (fee.amount ?? 0), 0);
+  // Bez stawki (albo bez opłaty konia) „do zapłaty” czeka — koszty i znane pozycje widać osobno.
+  const due = amount === null || needsFee ? null : amount + feesAmount + costsAmount;
+  const sources = kind === "training" ? SETTLEMENT_TEXTS.rider.trainingSource : SETTLEMENT_TEXTS.rider.source;
   return {
+    kind,
     rate,
-    rateSourceText: rate === null ? null : SETTLEMENT_TEXTS.rider.source[rate.source],
+    rateSourceText: rate === null ? null : sources[rate.source],
     ridesAmount: amount,
     ridesAmountText: moneyText(amount),
     costsAmount,
     costsAmountText: formatMoney(costsAmount),
+    fees,
+    needsFee,
     due,
     dueText: moneyText(due),
   };
@@ -210,6 +311,8 @@ export function composeSettlementList(input: SettlementsInput, now: Date = new D
           rides: entry.rides,
           rates: input.rates,
           costs: input.costs,
+          boardingHorses: input.boardingHorses,
+          boardingFees: input.boardingFees,
         }),
       }),
     )
@@ -300,7 +403,10 @@ export interface OtherRider {
 export interface SettlementsView {
   nav: MonthNav;
   summary: SettlementsSummary;
+  /** Stawka rekreacyjna ośrodka (karta „Stawka ośrodka”). */
   rate: StableRateView;
+  /** Stawka treningowa ośrodka (#117, karta „Stawka treningowa”) — jazdy pensjonariuszy. */
+  trainingRate: StableRateView;
   list: Omit<SettlementList, "rows"> & { rows: SettlementLinkRow[] };
   /** „Pozostali jeźdźcy ośrodka”: alfabetycznie; pusta — strona nie pokazuje sekcji. */
   others: OtherRider[];
@@ -333,9 +439,9 @@ export function rateChoices(currentMonth: string): RateChoice[] {
   return [choice(RATE_FROM.current, texts.fromCurrent), choice(RATE_FROM.next, texts.fromNext)];
 }
 
-/** Stawka ośrodka dziś, zaplanowana zmiana i wybór „od tego / od następnego miesiąca”. */
-function stableRateView(rates: RateChange[], currentMonth: string): StableRateView {
-  const { current, planned } = rateSchedule(rates, null, currentMonth);
+/** Stawka ośrodka rodzaju `kind` dziś, zaplanowana zmiana i wybór „od tego / od następnego miesiąca”. */
+function stableRateView(rates: RateChange[], currentMonth: string, kind: RateKind): StableRateView {
+  const { current, planned } = rateSchedule(rates, null, currentMonth, kind);
   const amount = current?.amount ?? null;
   return {
     current: amount,
@@ -375,7 +481,8 @@ export function composeSettlementsPage(input: SettlementsPageInput, now: Date = 
       totalLabel: list.totalText,
       countsText: `${formatCount(list.rows.length, RIDER_FORMS)} · ${formatCount(rides, RIDE_FORMS)}`,
     },
-    rate: stableRateView(input.rates, currentMonth(now)),
+    rate: stableRateView(input.rates, currentMonth(now), "recreation"),
+    trainingRate: stableRateView(input.rates, currentMonth(now), "training"),
     list: {
       ...list,
       rows: list.rows.map((row) => ({

@@ -22,10 +22,18 @@ function ride(day: string, riderKey: string | null, riderName: string | null, ho
   return { day, hour, status: "active", riderKey, riderName };
 }
 
-const STABLE_120: RateChange = { id: 1, riderKey: null, fromMonth: "2026-10", amount: 12000 };
+const STABLE_120: RateChange = { id: 1, riderKey: null, kind: "recreation", fromMonth: "2026-10", amount: 12000 };
 
 function input(overrides: Partial<SettlementsInput> = {}): SettlementsInput {
-  return { month: OCTOBER, bookings: [], rates: [STABLE_120], costs: [], ...overrides };
+  return {
+    month: OCTOBER,
+    bookings: [],
+    rates: [STABLE_120],
+    costs: [],
+    boardingHorses: [],
+    boardingFees: [],
+    ...overrides,
+  };
 }
 
 // Oracle: AC #94 — jeźdźcy z jazdami miesiąca (reguła jazdy z Podsumowania miesiąca), alfabetycznie
@@ -102,7 +110,10 @@ describe("composeSettlementList — lista rozliczeń miesiąca", () => {
   });
 
   it("stawka miesiąca obowiązuje wszystkie jego jazdy — zmiana od listopada nie przelicza października", () => {
-    const rates = [STABLE_120, { id: 2, riderKey: null, fromMonth: "2026-11", amount: 15000 }];
+    const rates: RateChange[] = [
+      STABLE_120,
+      { id: 2, riderKey: null, kind: "recreation", fromMonth: "2026-11", amount: 15000 },
+    ];
     const october = composeSettlementList(input({ rates, bookings: [ride("2026-10-30", "anna", "Anna")] }), NOW);
     const november = composeSettlementList(
       input({ rates, month: NOVEMBER, bookings: [ride("2026-11-02", "anna", "Anna")] }),
@@ -136,7 +147,7 @@ describe("composeSettlementList — lista rozliczeń miesiąca", () => {
   it("stawka 0,00 zł daje kwoty 0,00 zł, nie prośbę o stawkę", () => {
     const list = composeSettlementList(
       input({
-        rates: [{ id: 1, riderKey: null, fromMonth: "2026-10", amount: 0 }],
+        rates: [{ id: 1, riderKey: null, kind: "recreation", fromMonth: "2026-10", amount: 0 }],
         bookings: [ride("2026-10-02", "anna", "Anna")],
       }),
       NOW,
@@ -177,7 +188,7 @@ describe("composeSettlementsPage — strona „Rozliczenia”", () => {
     const view = composeSettlementsPage(
       {
         ...input({
-          rates: [STABLE_120, { id: 7, riderKey: null, fromMonth: "2026-12", amount: 14000 }],
+          rates: [STABLE_120, { id: 7, riderKey: null, kind: "recreation", fromMonth: "2026-12", amount: 14000 }],
           bookings: [ride("2026-10-02", "anna", "Anna")],
         }),
         riders: [],
@@ -202,6 +213,38 @@ describe("composeSettlementsPage — strona „Rozliczenia”", () => {
       nextHref: "/osrodek/rozliczenia?miesiac=2026-11",
     });
     expect(view.isEmpty).toBe(false);
+  });
+
+  // Oracle: AC #117 — strona stawek ośrodka pokazuje obie stawki ośrodka, każdą z własną zaplanowaną zmianą.
+  it("pokazuje osobno stawkę treningową ośrodka dziś i jej zaplanowaną zmianę", () => {
+    const view = composeSettlementsPage(
+      {
+        ...input({
+          rates: [
+            STABLE_120,
+            { id: 8, riderKey: null, kind: "training", fromMonth: "2026-09", amount: 15000 },
+            { id: 9, riderKey: null, kind: "training", fromMonth: "2026-12", amount: 16000 },
+            { id: 10, riderKey: "kasia", kind: "training", fromMonth: "2026-12", amount: 1 },
+          ],
+        }),
+        riders: [],
+        monthHref,
+        riderHref,
+      },
+      NOW,
+    );
+    expect(view.trainingRate).toMatchObject({
+      current: 15000,
+      currentText: zl("150,00 zł"),
+      planned: { id: 9, text: `od grudnia 2026: ${zl("160,00 zł")}` },
+    });
+    expect(view.rate).toMatchObject({ current: 12000, planned: null });
+  });
+
+  it("bez stawki treningowej ośrodka jej karta prosi o nią, a rekreacyjna zostaje", () => {
+    const view = composeSettlementsPage({ ...input(), riders: [], monthHref, riderHref }, NOW);
+    expect(view.trainingRate).toMatchObject({ current: null, currentText: null, planned: null });
+    expect(view.rate.current).toBe(12000);
   });
 
   it("przed pierwszą stawką ośrodka prosi o nią zamiast kwot", () => {
@@ -275,7 +318,7 @@ describe("composeSettlementsPage — strona „Rozliczenia”", () => {
             ride("2026-11-09", "anna", "Anna Kowalska"),
             ride("2026-11-03", "piotr", "Piotr Nowak"),
           ],
-          rates: [STABLE_120, { id: 7, riderKey: "anna", fromMonth: "2026-11", amount: 9000 }],
+          rates: [STABLE_120, { id: 7, riderKey: "anna", kind: "recreation", fromMonth: "2026-11", amount: 9000 }],
           costs: [cost("anna", "Anna Kowalska", 150000)],
         }),
         riders: [],
@@ -361,7 +404,7 @@ describe("composeSettlementsPage — strona „Rozliczenia”", () => {
 // Oracle: AC #97 — kwoty jeźdźca ze stawką indywidualną liczą się po niej, kwoty innych jeźdźców
 // po stawce ośrodka; minione miesiące się nie zmieniają; suma miesiąca = suma wierszy.
 describe("composeSettlementList — stawka indywidualna", () => {
-  const ANNA_90: RateChange = { id: 7, riderKey: "anna", fromMonth: "2026-11", amount: 9000 };
+  const ANNA_90: RateChange = { id: 7, riderKey: "anna", kind: "recreation", fromMonth: "2026-11", amount: 9000 };
   const bookings = [
     ride("2026-11-02", "anna", "Anna Kowalska"),
     ride("2026-11-09", "anna", "Anna Kowalska"),
@@ -419,7 +462,7 @@ describe("composeSettlementList — stawka indywidualna", () => {
   });
 });
 
-function cost(riderKey: string, riderName: string | null, amount: number, name = "Pensjonat konia"): ExtraCost {
+function cost(riderKey: string, riderName: string | null, amount: number, name = "Wyjazd na zawody"): ExtraCost {
   return { id: amount, riderKey, riderName, name, amount };
 }
 

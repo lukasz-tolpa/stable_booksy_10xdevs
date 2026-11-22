@@ -1,7 +1,9 @@
+import { boardingFeeSchedule, type BoardingFeeChange } from "@/lib/boarding/fees";
 import { BOARDING_PAGE_TEXTS } from "@/lib/boarding/texts";
 import { BOARDING_OUTCOME, type BoardingOutcome } from "@/lib/boarding/redirect";
-import { formatLongDayMonthYear } from "@/lib/format";
+import { formatFromMonth, formatLongDayMonthYear, formatMoney } from "@/lib/format";
 import { addDays } from "@/lib/schedule/dates";
+import { rateChoices, type RateChoice } from "@/lib/settlements/settlements";
 
 /**
  * Modele widoku stron „Pensjonariusze” (właściciel) i „Moje konie” (pensjonariusz), #114. Strony tylko
@@ -50,9 +52,23 @@ export interface NewStayForm {
   value: string;
 }
 
+/**
+ * Opłata za pensjonat konia (#117) dziś — wzorem stawki ośrodka: kwota w bieżącym miesiącu, zaplanowana
+ * zmiana i (tylko u właściciela) wybór „od tego / od następnego miesiąca” formularza nowej opłaty.
+ */
+export interface BoardingFeeView {
+  /** Np. `1 500,00 zł`; `null` — koń bez opłaty. */
+  currentText: string | null;
+  /** Zmiana od następnego miesiąca: `od grudnia 2026: 1 700,00 zł` — u właściciela z „Usuń zaplanowaną zmianę”. */
+  planned: { id: number; text: string } | null;
+  /** Wybór miesiąca „od” formularza; `null` — pensjonariusz (opłatę ustawia tylko ośrodek). */
+  choices: RateChoice[] | null;
+}
+
 export interface BoardingHorseView {
   id: number;
   name: string;
+  fee: BoardingFeeView;
   /** Najnowszy pobyt trwa (bez dnia wyjazdu). */
   current: boolean;
   stays: StayView[];
@@ -124,6 +140,25 @@ function newStayForm(horseId: number, latest: Stay, today: string): NewStayForm 
   return { horseId, min, value: min > today ? min : today };
 }
 
+/** Opłata konia dziś (miesiąc dnia `today`) — formularz tylko u właściciela ośrodka. */
+function composeFee(
+  fees: readonly BoardingFeeChange[],
+  horseId: number,
+  today: string,
+  viewer: "stable" | "rider",
+): BoardingFeeView {
+  const month = today.slice(0, 7);
+  const { current, planned } = boardingFeeSchedule(fees, horseId, month);
+  return {
+    currentText: current === null ? null : formatMoney(current),
+    planned:
+      planned === null
+        ? null
+        : { id: planned.id, text: `${formatFromMonth(planned.fromMonth)}: ${formatMoney(planned.amount)}` },
+    choices: viewer === "stable" ? rateChoices(month) : null,
+  };
+}
+
 /** Koń z pobytami (od najnowszego). `canAddStay` — właściciel ośrodka i koń z właścicielem. */
 function composeHorse(
   id: number,
@@ -132,12 +167,14 @@ function composeHorse(
   today: string,
   viewer: "stable" | "rider",
   canAddStay: boolean,
+  fees: readonly BoardingFeeChange[],
 ): BoardingHorseView {
   const sorted = [...stays].sort((a, b) => b.arrivalDay.localeCompare(a.arrivalDay));
   const latest = sorted[0];
   return {
     id,
     name,
+    fee: composeFee(fees, id, today, viewer),
     current: latest.departureDay === null,
     stays: sorted.map((stay) => ({ id: stay.id, periodText: periodText(stay), setByText: setByText(stay, viewer) })),
     departureForm: departureForm(latest, today),
@@ -147,8 +184,15 @@ function composeHorse(
 
 const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, "pl");
 
-/** Strona „Pensjonariusze”: pensjonariusze po nazwisku (konie bez właściciela na końcu), konie po imieniu. */
-export function composeStableBoarders(rows: readonly StableBoardingRow[], today: string): StableBoardersView {
+/**
+ * Strona „Pensjonariusze”: pensjonariusze po nazwisku (konie bez właściciela na końcu), konie po imieniu,
+ * przy koniu opłata za pensjonat ze zmian `fees` (#117).
+ */
+export function composeStableBoarders(
+  rows: readonly StableBoardingRow[],
+  today: string,
+  fees: readonly BoardingFeeChange[] = [],
+): StableBoardersView {
   const boarders = new Map<string, { boarder: BoarderView; horses: Map<number, { name: string; stays: Stay[] }> }>();
 
   for (const row of rows) {
@@ -182,7 +226,7 @@ export function composeStableBoarders(rows: readonly StableBoardingRow[], today:
   const list = [...boarders.values()].map(({ boarder, horses }) => ({
     ...boarder,
     horses: [...horses.entries()]
-      .map(([id, horse]) => composeHorse(id, horse.name, horse.stays, today, "stable", boarder.riderId !== null))
+      .map(([id, horse]) => composeHorse(id, horse.name, horse.stays, today, "stable", boarder.riderId !== null, fees))
       .sort(byName),
   }));
 
@@ -199,6 +243,8 @@ export interface MyBoardingHorseRow {
   horseName: string;
   stableName: string;
   stays: Stay[];
+  /** Zmiany opłaty za pensjonat tego konia (#117). */
+  fees: BoardingFeeChange[];
 }
 
 export interface MyBoardingHorseView extends BoardingHorseView {
@@ -210,7 +256,7 @@ export function composeMyBoardingHorses(rows: readonly MyBoardingHorseRow[], tod
   return rows
     .filter((row) => row.stays.length > 0)
     .map((row) => ({
-      ...composeHorse(row.horseId, row.horseName, row.stays, today, "rider", false),
+      ...composeHorse(row.horseId, row.horseName, row.stays, today, "rider", false, row.fees),
       stableName: row.stableName,
     }))
     .sort((a, b) => a.stableName.localeCompare(b.stableName, "pl") || byName(a, b));
@@ -220,6 +266,8 @@ const NOTICES: Record<BoardingOutcome, string> = {
   [BOARDING_OUTCOME.horse]: texts.stable.added,
   [BOARDING_OUTCOME.stay]: texts.stable.stayAdded,
   [BOARDING_OUTCOME.departure]: texts.departureSaved,
+  [BOARDING_OUTCOME.fee]: texts.fee.saved,
+  [BOARDING_OUTCOME.feeDeleted]: texts.fee.deleted,
 };
 
 /** Zdanie po udanej czynności z `?sukces=` (`SUCCESS_PARAM`); nieznana wartość — bez zdania. */

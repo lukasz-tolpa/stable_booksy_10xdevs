@@ -6,6 +6,7 @@ import {
   extraCostUpdateSchema,
   rateIdSchema,
   riderRateSchema,
+  stableRateFormSchema,
   stableRateSchema,
 } from "@/lib/settlements/schemas";
 
@@ -35,6 +36,32 @@ describe("stableRateSchema — formularz stawki ośrodka", () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(firstErrorMessage(result.error)).toBe(message);
+    }
+  });
+});
+
+// Oracle: AC #117 — strona stawek ośrodka zapisuje obie stawki ośrodka; formularz bez rodzaju (sprzed
+// zmiany) to stawka rekreacyjna, nieznany rodzaj — komunikat pola.
+describe("stableRateFormSchema — rodzaj stawki ośrodka", () => {
+  it("„treningowa” to stawka treningowa, „rekreacyjna” i brak pola — rekreacyjna", () => {
+    expect(stableRateFormSchema.safeParse({ amount: "150", from: "biezacy", rodzaj: "treningowa" }).data).toEqual({
+      amount: 15000,
+      from: "biezacy",
+      rodzaj: "training",
+    });
+    expect(stableRateFormSchema.safeParse({ amount: "1", from: "biezacy", rodzaj: "rekreacyjna" }).data?.rodzaj).toBe(
+      "recreation",
+    );
+    expect(stableRateFormSchema.safeParse({ amount: "1", from: "biezacy", rodzaj: "" }).data?.rodzaj).toBe(
+      "recreation",
+    );
+  });
+
+  it("odrzuca nieznany rodzaj", () => {
+    const result = stableRateFormSchema.safeParse({ amount: "1", from: "biezacy", rodzaj: "pensjonat" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(firstErrorMessage(result.error)).toBe("Nieprawidłowy rodzaj stawki");
     }
   });
 });
@@ -93,12 +120,12 @@ const ANNA = "33333333-3333-3333-3333-333333333333";
 // z listy (konto); walidacja przed mutacją — komunikat pola, nie odmowa bazy.
 describe("extraCostSchema — „Dopisz koszt”", () => {
   it("przycina nazwę, zamienia kwotę na grosze i przyjmuje jeźdźca (konto)", () => {
-    expect(extraCostSchema.safeParse({ rider: ANNA.toUpperCase(), name: "  Pensjonat konia ", amount: "800" })).toEqual(
-      {
-        success: true,
-        data: { rider: ANNA, name: "Pensjonat konia", amount: 80000 },
-      },
-    );
+    expect(
+      extraCostSchema.safeParse({ rider: ANNA.toUpperCase(), name: "  Wyjazd na zawody ", amount: "800" }),
+    ).toEqual({
+      success: true,
+      data: { rider: ANNA, name: "Wyjazd na zawody", amount: 80000 },
+    });
     expect(extraCostSchema.safeParse({ rider: ANNA, name: "ą".repeat(80), amount: "100 000,00" }).data?.amount).toBe(
       10_000_000,
     );

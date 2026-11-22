@@ -23,11 +23,11 @@ function contextWith(fields: Record<string, string>): APIContext {
 describe("costFormEndpoint — formularz kosztu dodatkowego i jego powrót", () => {
   it("sukces i błąd wracają do rozliczenia jeźdźca z pola `powrot`, w tym samym miesiącu", async () => {
     const endpoint = costFormEndpoint((_context, { form, month, back }) => {
-      expect(form.get("name")).toBe("Pensjonat konia");
+      expect(form.get("name")).toBe("Wyjazd na zawody");
       expect(month).toBe("2026-10");
       return Promise.resolve(back());
     });
-    const ok = await endpoint(contextWith({ powrot: RIDER, miesiac: "2026-10", name: "Pensjonat konia" }));
+    const ok = await endpoint(contextWith({ powrot: RIDER, miesiac: "2026-10", name: "Wyjazd na zawody" }));
     expect(ok.headers.get("Location")).toBe(`/osrodek/rozliczenia/${RIDER}?miesiac=2026-10&sukces=1`);
 
     const failing = costFormEndpoint((_context, { back }) => Promise.resolve(back("Zła kwota")));

@@ -23,10 +23,11 @@ function document(overrides: Partial<SettlementDocument> = {}): SettlementDocume
     },
     ridesLine: zl("Jazdy: 2 × 120,00 zł = 240,00 zł"),
     rateSourceText: "stawka ośrodka",
+    fees: null,
     costs: {
       heading: "Koszty dodatkowe",
       columns: ["Nazwa", "Kwota"],
-      rows: [["Pensjonat konia „Gałązka”", zl("1 150,00 zł")]],
+      rows: [["Wyjazd na zawody „Gałązka”", zl("1 150,00 zł")]],
       emptyText: null,
     },
     due: { label: "Do zapłaty", value: zl("1 390,00 zł") },
@@ -99,5 +100,24 @@ describe("renderSettlementPdf — wiele stron", () => {
     expect(header(bytes)).toBe("%PDF-");
     expect(pages).toBeGreaterThan(1);
     expect(pageLabel.mock.calls).toEqual(Array.from({ length: pages }, (_, index) => [index + 1, pages]));
+  });
+});
+
+// Oracle: AC #117 — PDF pensjonariusza z tabelą opłat za pensjonat (koń, kwota) nadal jest plikiem PDF.
+describe("renderSettlementPdf — opłaty za pensjonat", () => {
+  it("dokument z tabelą opłat za pensjonat daje plik PDF", () => {
+    const bytes = renderSettlementPdf(
+      document({
+        fees: {
+          heading: "Opłata za pensjonat",
+          columns: ["Koń", "Kwota"],
+          rows: [
+            ["Hrabia", zl("1 500,00 zł")],
+            ["Źrebię Żółć", zl("1 200,50 zł")],
+          ],
+        },
+      }),
+    );
+    expect(header(bytes)).toBe("%PDF-");
   });
 });

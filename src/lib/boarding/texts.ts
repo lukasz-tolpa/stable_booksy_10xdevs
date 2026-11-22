@@ -48,5 +48,22 @@ export const BOARDING_PAGE_TEXTS = {
   endStay: "Zakończ pobyt",
   correctDeparture: "Popraw dzień wyjazdu",
   departureSaved: "Zapisano dzień wyjazdu.",
+  /** Opłata za pensjonat przy koniu (#117): u właściciela z formularzem, u pensjonariusza do wglądu. */
+  fee: {
+    heading: "Opłata za pensjonat",
+    current: "Obowiązuje teraz:",
+    perMonth: "miesięcznie",
+    missing: "Opłata nie jest ustawiona.",
+    missingStableHint: "Bez opłaty rozliczenie pensjonariusza nie ma kwoty „Do zapłaty”.",
+    missingRiderHint: "Ośrodek nie ustawił jeszcze opłaty za tego konia.",
+    hint: "Kwota za cały miesiąc pobytu, także miesiąc przyjazdu i wyjazdu. Zmiana nie przelicza minionych miesięcy.",
+    planned: "Zaplanowana zmiana",
+    deletePlanned: "Usuń zaplanowaną zmianę",
+    amountLabel: "Nowa opłata (zł)",
+    fromLegend: "Obowiązuje",
+    submit: "Zapisz opłatę",
+    saved: "Zapisano opłatę za pensjonat.",
+    deleted: "Usunięto zaplanowaną zmianę opłaty za pensjonat.",
+  },
   retry: "Odśwież stronę za chwilę.",
 } as const;

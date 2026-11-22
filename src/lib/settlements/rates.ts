@@ -6,11 +6,27 @@ import { shiftMonth } from "@/lib/month-summary/month";
  * przelicza minionych miesięcy; tylko pierwsza stawka ośrodka obowiązuje też wstecz.
  */
 
+/**
+ * Rodzaj stawki (#117, GLOSSARY „Stawka”): rekreacyjna — jazda na koniu ośrodka, treningowa — jazda
+ * pensjonariusza na jego koniu pensjonatowym. Kolumna `rates.kind`; reguły „od miesiąca” i „pierwsza
+ * stawka ośrodka obowiązuje wstecz” działają osobno dla każdego rodzaju.
+ */
+export type RateKind = "recreation" | "training";
+
+export const RATE_KINDS: readonly RateKind[] = ["recreation", "training"];
+
+/** Rodzaj z kolumny `rates.kind` — inna wartość (baza jej nie przyjmie) liczy się jak rekreacyjna. */
+export function toRateKind(raw: string): RateKind {
+  return raw === "training" ? "training" : "recreation";
+}
+
 /** Jedna zmiana stawki (wiersz `public.rates`); miesiące jako `RRRR-MM`, kwoty w groszach. */
 export interface RateChange {
   id: number;
   /** `null` — stawka ośrodka; inaczej stawka indywidualna jeźdźca (klucz = konto, #97). */
   riderKey: string | null;
+  /** Rodzaj stawki (#117); stawka indywidualna ma rodzaj stawki jeźdźca. */
+  kind: RateKind;
   /** Miesiąc „od” `RRRR-MM`. */
   fromMonth: string;
   /** Grosze. `null` tylko przy stawce indywidualnej: od tego miesiąca wraca stawka ośrodka (#97). */
@@ -27,19 +43,27 @@ export interface EffectiveRate {
   source: RateSource;
 }
 
-/** Zmiany stawki ośrodka z kwotą, od najwcześniejszej. */
-function stableChanges(changes: readonly RateChange[]): (RateChange & { amount: number })[] {
+/** Zmiany stawki ośrodka rodzaju `kind` z kwotą, od najwcześniejszej. */
+function stableChanges(changes: readonly RateChange[], kind: RateKind): (RateChange & { amount: number })[] {
   return changes
-    .filter((change): change is RateChange & { amount: number } => change.riderKey === null && change.amount !== null)
+    .filter(
+      (change): change is RateChange & { amount: number } =>
+        change.riderKey === null && change.kind === kind && change.amount !== null,
+    )
     .sort((a, b) => a.fromMonth.localeCompare(b.fromMonth));
 }
 
 /**
- * Stawka ośrodka w miesiącu `RRRR-MM`: najpóźniejsza zmiana ośrodka z miesiącem „od” ≤ miesiąc, a gdy
- * żadnej — najwcześniejsza zmiana ośrodka (pierwsza stawka działa wstecz). `null` — ośrodek bez stawki.
+ * Stawka ośrodka rodzaju `kind` w miesiącu `RRRR-MM`: najpóźniejsza zmiana ośrodka tego rodzaju z miesiącem
+ * „od” ≤ miesiąc, a gdy żadnej — najwcześniejsza (pierwsza stawka rodzaju działa wstecz). `null` — ośrodek
+ * bez stawki tego rodzaju.
  */
-export function stableRateFor(changes: readonly RateChange[], month: string): EffectiveRate | null {
-  const sorted = stableChanges(changes);
+export function stableRateFor(
+  changes: readonly RateChange[],
+  month: string,
+  kind: RateKind = "recreation",
+): EffectiveRate | null {
+  const sorted = stableChanges(changes, kind);
   const first = sorted.at(0);
   if (!first) {
     return null;
@@ -48,34 +72,36 @@ export function stableRateFor(changes: readonly RateChange[], month: string): Ef
   return { amount: inForce.amount, source: "stable" };
 }
 
-/** Zmiany stawki indywidualnej jeźdźca (także powroty do stawki ośrodka), od najwcześniejszej. */
-function riderChanges(changes: readonly RateChange[], riderKey: string): RateChange[] {
+/** Zmiany stawki indywidualnej jeźdźca rodzaju `kind` (także powroty do stawki ośrodka), od najwcześniejszej. */
+function riderChanges(changes: readonly RateChange[], riderKey: string, kind: RateKind): RateChange[] {
   return changes
-    .filter((change) => change.riderKey === riderKey)
+    .filter((change) => change.riderKey === riderKey && change.kind === kind)
     .sort((a, b) => a.fromMonth.localeCompare(b.fromMonth));
 }
 
 /**
- * Stawka jazd jeźdźca w miesiącu `RRRR-MM` (#97): najpóźniejsza zmiana jeźdźca z miesiącem „od” ≤ miesiąc
- * — z kwotą zastępuje stawkę ośrodka, pusta wraca do niej; bez takiej zmiany liczy się stawka ośrodka.
- * Stawka indywidualna nie działa wstecz. `riderKey` `null` (jeździec zanonimizowany) — stawka ośrodka.
- * `null` — ani stawki indywidualnej, ani stawki ośrodka.
+ * Stawka jazd jeźdźca w miesiącu `RRRR-MM` (#97) dla rodzaju jeźdźca w tym miesiącu (`kind`, #117 —
+ * pensjonariusz: treningowa): najpóźniejsza zmiana jeźdźca tego rodzaju z miesiącem „od” ≤ miesiąc
+ * — z kwotą zastępuje stawkę ośrodka, pusta wraca do niej; bez takiej zmiany liczy się stawka ośrodka
+ * tego rodzaju. Stawka indywidualna nie działa wstecz. `riderKey` `null` (jeździec zanonimizowany) —
+ * stawka ośrodka. `null` — ani stawki indywidualnej, ani stawki ośrodka.
  */
 export function effectiveRate(
   changes: readonly RateChange[],
   month: string,
   riderKey: string | null,
+  kind: RateKind = "recreation",
 ): EffectiveRate | null {
   const inForce =
     riderKey === null
       ? undefined
-      : riderChanges(changes, riderKey)
+      : riderChanges(changes, riderKey, kind)
           .filter((change) => change.fromMonth <= month)
           .at(-1);
   if (inForce !== undefined && inForce.amount !== null) {
     return { amount: inForce.amount, source: "individual" };
   }
-  return stableRateFor(changes, month);
+  return stableRateFor(changes, month, kind);
 }
 
 /**
@@ -97,18 +123,19 @@ export interface RateSchedule {
 }
 
 /**
- * Stawka w bieżącym miesiącu (`RRRR-MM`, strefa ośrodka) i zaplanowana zmiana: `riderKey` `null` —
- * stawka ośrodka i jej zmiany; inaczej stawka, po której płaci jeździec, i zmiany tego jeźdźca.
+ * Stawka rodzaju `kind` w bieżącym miesiącu (`RRRR-MM`, strefa ośrodka) i zaplanowana zmiana: `riderKey`
+ * `null` — stawka ośrodka i jej zmiany; inaczej stawka, po której płaci jeździec, i zmiany tego jeźdźca.
  */
 export function rateSchedule(
   changes: readonly RateChange[],
   riderKey: string | null,
   currentMonth: string,
+  kind: RateKind = "recreation",
 ): RateSchedule {
-  const own = riderKey === null ? stableChanges(changes) : riderChanges(changes, riderKey);
+  const own = riderKey === null ? stableChanges(changes, kind) : riderChanges(changes, riderKey, kind);
   const planned = own.find((change) => change.fromMonth > currentMonth);
   return {
-    current: effectiveRate(changes, currentMonth, riderKey),
+    current: effectiveRate(changes, currentMonth, riderKey, kind),
     planned: planned ? { id: planned.id, fromMonth: planned.fromMonth, amount: planned.amount } : null,
   };
 }

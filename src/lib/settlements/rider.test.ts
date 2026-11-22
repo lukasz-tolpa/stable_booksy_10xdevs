@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { SummaryBooking } from "@/lib/month-summary/summary";
 import { resolveSummaryMonth } from "@/lib/month-summary/month";
 import type { ExtraCost } from "@/lib/settlements/costs";
+import type { BoardingFeeChange } from "@/lib/boarding/fees";
 import type { RateChange } from "@/lib/settlements/rates";
+import type { SettlementBoardingHorse } from "@/lib/settlements/settlements";
 import {
   composeRiderSettlement,
   composeRiderSettlementPage,
@@ -33,7 +35,7 @@ function ride(day: string, overrides: Partial<SummaryBooking> = {}): SummaryBook
   };
 }
 
-const STABLE_120: RateChange = { id: 1, riderKey: null, fromMonth: "2026-10", amount: 12000 };
+const STABLE_120: RateChange = { id: 1, riderKey: null, kind: "recreation", fromMonth: "2026-10", amount: 12000 };
 
 function input(overrides: Partial<RiderSettlementInput> = {}): RiderSettlementInput {
   return {
@@ -42,6 +44,8 @@ function input(overrides: Partial<RiderSettlementInput> = {}): RiderSettlementIn
     bookings: [],
     rates: [STABLE_120],
     costs: [],
+    boardingHorses: [],
+    boardingFees: [],
     dayHref: null,
     ...overrides,
   };
@@ -134,7 +138,10 @@ describe("composeRiderSettlement — rozliczenie jeźdźca", () => {
   });
 
   it("stawka miesiąca rozliczenia — zmiana od listopada nie przelicza października", () => {
-    const rates = [STABLE_120, { id: 2, riderKey: null, fromMonth: "2026-11", amount: 15000 }];
+    const rates: RateChange[] = [
+      STABLE_120,
+      { id: 2, riderKey: null, kind: "recreation", fromMonth: "2026-11", amount: 15000 },
+    ];
     const october = composeRiderSettlement(input({ rates, bookings: [ride("2026-10-30")] }), NOW);
     const november = composeRiderSettlement(input({ rates, month: NOVEMBER, bookings: [ride("2026-11-02")] }), NOW);
     expect(october.due).toBe(12000);
@@ -170,7 +177,7 @@ describe("composeRiderSettlement — rozliczenie jeźdźca", () => {
   });
 });
 
-function cost(id: number, amount: number, name = "Pensjonat konia", riderKey = "anna"): ExtraCost {
+function cost(id: number, amount: number, name = "Wyjazd na zawody", riderKey = "anna"): ExtraCost {
   return { id, riderKey, riderName: "Anna Kowalska", name, amount };
 }
 
@@ -181,13 +188,13 @@ describe("composeRiderSettlement — koszty dodatkowe", () => {
     const settlement = composeRiderSettlement(
       input({
         bookings: [ride("2026-10-02"), ride("2026-10-09")],
-        costs: [cost(1, 80000), cost(2, 5050, "Wypożyczenie siodła"), cost(3, 99900, "Pensjonat konia", "piotr")],
+        costs: [cost(1, 80000), cost(2, 5050, "Wypożyczenie siodła"), cost(3, 99900, "Wyjazd na zawody", "piotr")],
       }),
       NOW,
     );
 
     expect(settlement.costs).toEqual([
-      { id: 1, name: "Pensjonat konia", amount: 80000, amountText: zl("800,00 zł"), amountInput: "800,00" },
+      { id: 1, name: "Wyjazd na zawody", amount: 80000, amountText: zl("800,00 zł"), amountInput: "800,00" },
       { id: 2, name: "Wypożyczenie siodła", amount: 5050, amountText: zl("50,50 zł"), amountInput: "50,50" },
     ]);
     expect(settlement).toMatchObject({ ridesAmount: 24000, costsAmount: 85050, due: 109050 });
@@ -210,7 +217,7 @@ describe("composeRiderSettlement — koszty dodatkowe", () => {
 
   it("przed pierwszą stawką ośrodka koszty widać, a „Do zapłaty” czeka na stawkę", () => {
     const settlement = composeRiderSettlement(input({ rates: [], costs: [cost(1, 80000)] }), NOW);
-    expect(settlement.costs.map((item) => item.name)).toEqual(["Pensjonat konia"]);
+    expect(settlement.costs.map((item) => item.name)).toEqual(["Wyjazd na zawody"]);
     expect(settlement.costsAmountText).toBe(zl("800,00 zł"));
     expect(settlement).toMatchObject({ needsRate: true, due: null, dueText: null });
   });
@@ -277,7 +284,7 @@ describe("composeRiderSettlementPage — suma kosztów dodatkowych w karcie", ()
       {
         ...input({
           bookings: [ride("2026-10-02")],
-          costs: [cost(1, 80000), cost(2, 5050, "Wypożyczenie siodła"), cost(3, 99900, "Pensjonat konia", "piotr")],
+          costs: [cost(1, 80000), cost(2, 5050, "Wypożyczenie siodła"), cost(3, 99900, "Wyjazd na zawody", "piotr")],
         }),
         monthHref,
         pdfHref,
@@ -290,7 +297,7 @@ describe("composeRiderSettlementPage — suma kosztów dodatkowych w karcie", ()
   it("bez kosztów zdania o kosztach nie ma", () => {
     const view = composeRiderSettlementPage(
       {
-        ...input({ bookings: [ride("2026-10-02")], costs: [cost(3, 99900, "Pensjonat konia", "piotr")] }),
+        ...input({ bookings: [ride("2026-10-02")], costs: [cost(3, 99900, "Wyjazd na zawody", "piotr")] }),
         monthHref,
         pdfHref,
       },
@@ -331,7 +338,7 @@ describe("composeRiderSettlement — stawka indywidualna", () => {
       input({
         month: NOVEMBER,
         bookings,
-        rates: [STABLE_120, { id: 2, riderKey: "anna", fromMonth: "2026-11", amount: 9050 }],
+        rates: [STABLE_120, { id: 2, riderKey: "anna", kind: "recreation", fromMonth: "2026-11", amount: 9050 }],
       }),
       NOW,
     );
@@ -346,8 +353,8 @@ describe("composeRiderSettlement — stawka indywidualna", () => {
       input({
         month: NOVEMBER,
         bookings,
-        rates: [{ id: 2, riderKey: "anna", fromMonth: "2026-11", amount: 9050 }],
-        costs: [{ id: 5, riderKey: "anna", riderName: "Anna Kowalska", name: "Pensjonat konia", amount: 80000 }],
+        rates: [{ id: 2, riderKey: "anna", kind: "recreation", fromMonth: "2026-11", amount: 9050 }],
+        costs: [{ id: 5, riderKey: "anna", riderName: "Anna Kowalska", name: "Wyjazd na zawody", amount: 80000 }],
       }),
       NOW,
     );
@@ -360,7 +367,7 @@ describe("composeRiderSettlement — stawka indywidualna", () => {
       ridesAmountText: null,
       dueText: null,
     });
-    expect(settlement.costs.map((row) => row.name)).toEqual(["Pensjonat konia"]);
+    expect(settlement.costs.map((row) => row.name)).toEqual(["Wyjazd na zawody"]);
   });
 
   it("stawka indywidualna innego jeźdźca nie zmienia rozliczenia", () => {
@@ -368,7 +375,7 @@ describe("composeRiderSettlement — stawka indywidualna", () => {
       input({
         month: NOVEMBER,
         bookings,
-        rates: [STABLE_120, { id: 2, riderKey: "piotr", fromMonth: "2026-11", amount: 0 }],
+        rates: [STABLE_120, { id: 2, riderKey: "piotr", kind: "recreation", fromMonth: "2026-11", amount: 0 }],
       }),
       NOW,
     );
@@ -383,8 +390,8 @@ describe("composeRiderSettlement — stawka indywidualna", () => {
         bookings,
         rates: [
           STABLE_120,
-          { id: 2, riderKey: "anna", fromMonth: "2026-10", amount: 0 },
-          { id: 3, riderKey: "anna", fromMonth: "2026-11", amount: null },
+          { id: 2, riderKey: "anna", kind: "recreation", fromMonth: "2026-10", amount: 0 },
+          { id: 3, riderKey: "anna", kind: "recreation", fromMonth: "2026-11", amount: null },
         ],
       }),
       NOW,
@@ -603,5 +610,207 @@ describe("composeRiderSettlementPage — zestawienie „Z kim i na czym”", () 
   it("w miesiącu bez jazd zestawienia nie ma", () => {
     const view = composeRiderSettlementPage({ ...input({ costs: [cost(1, 80000)] }), monthHref, pdfHref }, NOW);
     expect(view.breakdown).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Rozliczenie pensjonariusza (#117)
+// ---------------------------------------------------------------------------
+
+const KASIA = { key: "kasia", name: "Katarzyna Zając" };
+const TRAINING_150: RateChange = { id: 10, riderKey: null, kind: "training", fromMonth: "2026-10", amount: 15000 };
+
+function horse(
+  horseId: number,
+  name: string,
+  stays: SettlementBoardingHorse["stays"],
+  riderKey = "kasia",
+): SettlementBoardingHorse {
+  return { horseId, name, riderKey, stays };
+}
+function fee(id: number, horseId: number, amount: number, fromMonth = "2026-10"): BoardingFeeChange {
+  return { id, horseId, fromMonth, amount };
+}
+/** Hrabia stoi od sierpnia i nadal. */
+const HRABIA = horse(7, "Hrabia", [{ arrivalDay: "2026-08-10", departureDay: null }]);
+
+function boarderInput(overrides: Partial<RiderSettlementInput> = {}): RiderSettlementInput {
+  return input({
+    rider: KASIA,
+    rates: [STABLE_120, TRAINING_150],
+    boardingHorses: [HRABIA],
+    boardingFees: [fee(1, 7, 150000)],
+    bookings: [
+      ride("2026-10-07", { riderKey: "kasia", riderName: "Katarzyna Zając", horseName: "Hrabia" }),
+      ride("2026-10-14", { riderKey: "kasia", riderName: "Katarzyna Zając", horseName: "Hrabia" }),
+    ],
+    ...overrides,
+  });
+}
+
+// Oracle: AC #117, GLOSSARY „Opłata za pensjonat”, „Pensjonariusz” — pensjonariusz w miesiącu (pobyt konia
+// zachodzi na miesiąc) płaci: jazdy × stawka treningowa (indywidualna albo ośrodka) + opłata za pensjonat
+// za każdego konia w całości (także w miesiącu przyjazdu i wyjazdu) + koszty dodatkowe; bez stawki
+// treningowej albo opłaty konia „Do zapłaty” nie jest liczone.
+describe("composeRiderSettlement — rozliczenie pensjonariusza", () => {
+  it("jazdy × stawka treningowa ośrodka, opłata za pensjonat konia i „Do zapłaty”", () => {
+    const settlement = composeRiderSettlement(boarderInput(), NOW);
+
+    expect(settlement.kind).toBe("training");
+    expect(settlement.ridesLine).toBe(`Jazdy: 2 × ${zl("150,00 zł")} = ${zl("300,00 zł")}`);
+    expect(settlement.rateSourceText).toBe("stawka treningowa ośrodka");
+    expect(settlement.fees).toEqual([
+      {
+        horseId: 7,
+        horseName: "Hrabia",
+        amount: 150000,
+        amountText: zl("1 500,00 zł"),
+        line: `Opłata za pensjonat — Hrabia: ${zl("1 500,00 zł")}`,
+      },
+    ]);
+    expect(settlement).toMatchObject({ ridesAmount: 30000, due: 180000, needsRate: false, needsFee: false });
+    expect(settlement.dueText).toBe(zl("1 800,00 zł"));
+  });
+
+  it("stawka indywidualna pensjonariusza jest treningowa; jego rekreacyjna stawka indywidualna się nie liczy", () => {
+    const settlement = composeRiderSettlement(
+      boarderInput({
+        rates: [
+          STABLE_120,
+          TRAINING_150,
+          { id: 11, riderKey: "kasia", kind: "training", fromMonth: "2026-10", amount: 11000 },
+          { id: 12, riderKey: "kasia", kind: "recreation", fromMonth: "2026-10", amount: 1000 },
+        ],
+      }),
+      NOW,
+    );
+    expect(settlement.ridesLine).toBe(`Jazdy: 2 × ${zl("110,00 zł")} = ${zl("220,00 zł")}`);
+    expect(settlement.rateSourceText).toBe("stawka indywidualna");
+    expect(settlement.due).toBe(22000 + 150000);
+  });
+
+  it("opłata za każdego konia z pobytem w miesiącu — w całości przy przyjeździe i wyjeździe w trakcie miesiąca", () => {
+    const settlement = composeRiderSettlement(
+      boarderInput({
+        boardingHorses: [
+          // Wicher przyjechał 20 października, Hrabia wyjechał 3 października, Sokół — we wrześniu.
+          horse(8, "Wicher", [{ arrivalDay: "2026-10-20", departureDay: null }]),
+          horse(7, "Hrabia", [{ arrivalDay: "2026-08-10", departureDay: "2026-10-03" }]),
+          horse(9, "Sokół", [{ arrivalDay: "2026-05-01", departureDay: "2026-09-30" }]),
+          horse(10, "Bursztyn", [{ arrivalDay: "2026-01-01", departureDay: null }], "piotr"),
+        ],
+        boardingFees: [fee(1, 7, 150000), fee(2, 8, 120000), fee(3, 9, 99900), fee(4, 10, 88800)],
+      }),
+      NOW,
+    );
+    expect(settlement.fees.map((line) => [line.horseName, line.amount])).toEqual([
+      ["Hrabia", 150000],
+      ["Wicher", 120000],
+    ]);
+    expect(settlement.due).toBe(30000 + 150000 + 120000);
+  });
+
+  it("opłata miesiąca rozliczenia — zmiana od listopada nie przelicza października, pierwsza działa wstecz", () => {
+    const fees = [fee(1, 7, 150000, "2026-09"), fee(2, 7, 170000, "2026-11")];
+    const october = composeRiderSettlement(boarderInput({ boardingFees: fees }), NOW);
+    const november = composeRiderSettlement(boarderInput({ boardingFees: fees, month: NOVEMBER, bookings: [] }), NOW);
+    const firstLater = composeRiderSettlement(boarderInput({ boardingFees: [fee(3, 7, 160000, "2026-11")] }), NOW);
+    expect(october.fees[0]?.amount).toBe(150000);
+    expect(november.fees[0]?.amount).toBe(170000);
+    expect(firstLater.fees[0]?.amount).toBe(160000);
+  });
+
+  it("koszty dodatkowe pensjonariusza wchodzą do „Do zapłaty” obok opłaty", () => {
+    const settlement = composeRiderSettlement(
+      boarderInput({ costs: [cost(1, 25000, "Wyjazd na zawody", "kasia")] }),
+      NOW,
+    );
+    expect(settlement.costs.map((row) => row.name)).toEqual(["Wyjazd na zawody"]);
+    expect(settlement.due).toBe(30000 + 150000 + 25000);
+  });
+
+  it("bez stawki treningowej: liczba jazd, prośba o stawkę treningową, opłata widoczna, bez „Do zapłaty”", () => {
+    const settlement = composeRiderSettlement(boarderInput({ rates: [STABLE_120] }), NOW);
+    expect(settlement).toMatchObject({
+      kind: "training",
+      needsRate: true,
+      needsRateText: "Ustaw stawkę treningową",
+      ridesLine: "Jazdy: 2 jazdy",
+      rateSourceText: null,
+      due: null,
+      dueText: null,
+    });
+    expect(settlement.needsRateHint).toContain("stawki treningowej");
+    expect(settlement.fees[0]?.line).toBe(`Opłata za pensjonat — Hrabia: ${zl("1 500,00 zł")}`);
+  });
+
+  it("bez opłaty konia: pozycja bez kwoty, prośba o opłatę, bez „Do zapłaty”", () => {
+    const settlement = composeRiderSettlement(
+      boarderInput({
+        boardingHorses: [HRABIA, horse(8, "Wicher", [{ arrivalDay: "2026-09-01", departureDay: null }])],
+      }),
+      NOW,
+    );
+    expect(settlement.fees).toEqual([
+      expect.objectContaining({ horseName: "Hrabia", amount: 150000 }),
+      {
+        horseId: 8,
+        horseName: "Wicher",
+        amount: null,
+        amountText: null,
+        line: "Opłata za pensjonat — Wicher: brak kwoty",
+      },
+    ]);
+    expect(settlement).toMatchObject({ needsRate: false, needsFee: true, due: null, dueText: null });
+    expect(settlement.ridesAmount).toBe(30000);
+  });
+
+  it("miesiąc bez jazd z pobytem konia: opłata, koszty i „Do zapłaty”", () => {
+    const settlement = composeRiderSettlement(
+      boarderInput({ bookings: [], costs: [cost(1, 25000, "Kowal", "kasia")] }),
+      NOW,
+    );
+    expect(settlement).toMatchObject({ kind: "training", rides: 0, due: 175000 });
+    expect(settlement.ridesLine).toBe(`Jazdy: 0 × ${zl("150,00 zł")} = ${zl("0,00 zł")}`);
+    expect(settlement.emptyText).toBe("W październiku 2026 nie było jazd.");
+  });
+
+  it("od miesiąca po wyjeździe ostatniego konia jeździec jest rekreacyjny: stawka ośrodka, bez opłat", () => {
+    const settlement = composeRiderSettlement(
+      boarderInput({
+        boardingHorses: [horse(7, "Hrabia", [{ arrivalDay: "2026-08-10", departureDay: "2026-09-30" }])],
+      }),
+      NOW,
+    );
+    expect(settlement).toMatchObject({ kind: "recreation", fees: [], due: 24000, needsFee: false });
+    expect(settlement.rateSourceText).toBe("stawka ośrodka");
+  });
+
+  it("jeździec rekreacyjny: bez pozycji opłat, prośba o stawkę ośrodka jak dotąd", () => {
+    const settlement = composeRiderSettlement(input({ rates: [], bookings: [ride("2026-10-02")] }), NOW);
+    expect(settlement).toMatchObject({
+      kind: "recreation",
+      fees: [],
+      needsFee: false,
+      needsRateText: "Ustaw stawkę ośrodka",
+      needsRateHint: "Kwoty pojawią się po ustawieniu stawki ośrodka na stronie „Rozliczenia”.",
+    });
+  });
+});
+
+describe("composeRiderSettlementPage — pensjonariusz", () => {
+  const monthHref = (month: string) => `/osrodek/rozliczenia/kasia?miesiac=${month}`;
+  const pdfHref = "/osrodek/rozliczenia/kasia/pdf?miesiac=2026-10";
+
+  it("miesiąc bez jazd z opłatą: PDF dostępny, bez kalendarza i listy jazd", () => {
+    const view = composeRiderSettlementPage({ ...boarderInput({ bookings: [] }), monthHref, pdfHref }, NOW);
+    expect(view.pdfHref).toBe(pdfHref);
+    expect(view.calendar).toBeNull();
+    expect(view.ridesToggle).toBeNull();
+  });
+
+  it("bez opłaty konia PDF nie jest dostępny", () => {
+    const view = composeRiderSettlementPage({ ...boarderInput({ boardingFees: [] }), monthHref, pdfHref }, NOW);
+    expect(view.pdfHref).toBeNull();
   });
 });

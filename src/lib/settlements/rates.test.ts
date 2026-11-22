@@ -1,10 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { effectiveRate, stableRateFor, rateSchedule, type RateChange } from "@/lib/settlements/rates";
+import { effectiveRate, stableRateFor, rateSchedule, type RateChange, type RateKind } from "@/lib/settlements/rates";
 
 let nextId = 1;
-function change(fromMonth: string, amount: number | null, riderKey: string | null = null): RateChange {
-  return { id: nextId++, riderKey, fromMonth, amount };
+function change(
+  fromMonth: string,
+  amount: number | null,
+  riderKey: string | null = null,
+  kind: RateKind = "recreation",
+): RateChange {
+  return { id: nextId++, riderKey, kind, fromMonth, amount };
 }
+const training = (fromMonth: string, amount: number | null, riderKey: string | null = null) =>
+  change(fromMonth, amount, riderKey, "training");
 
 // Oracle: GLOSSARY „Stawka”, AC #94 — obowiązuje najpóźniejsza zmiana „od” ≤ miesiąc, a gdy żadnej —
 // pierwsza stawka ośrodka (wstecz); kolejne zmiany nie przeliczają minionych miesięcy.
@@ -161,5 +168,60 @@ describe("rateSchedule — stawka jeźdźca dziś i zaplanowana zmiana", () => {
 
   it("zaplanowana zmiana stawki ośrodka nie jest zmianą jeźdźca", () => {
     expect(rateSchedule([STABLE, change("2026-12", 14000)], "anna", "2026-11").planned).toBeNull();
+  });
+});
+
+// Oracle: GLOSSARY „Stawka”, AC #117 — ośrodek ma dwie stawki ośrodka, rekreacyjną i treningową; reguły
+// „od miesiąca” i „pierwsza stawka ośrodka obowiązuje wstecz” działają osobno dla każdego rodzaju, a
+// stawka indywidualna zastępuje stawkę ośrodka tylko swojego rodzaju.
+describe("rodzaje stawki — rekreacyjna i treningowa osobno", () => {
+  it("stawka ośrodka jednego rodzaju nie jest stawką drugiego", () => {
+    const changes = [change("2026-09", 12000)];
+    expect(stableRateFor(changes, "2026-11", "recreation")?.amount).toBe(12000);
+    expect(stableRateFor(changes, "2026-11", "training")).toBeNull();
+    expect(stableRateFor([training("2026-09", 15000)], "2026-11", "recreation")).toBeNull();
+  });
+
+  it("pierwsza stawka treningowa obowiązuje wstecz niezależnie od dawniejszej rekreacyjnej", () => {
+    const changes = [change("2026-01", 12000), change("2026-10", 13000), training("2026-11", 15000)];
+    expect(stableRateFor(changes, "2026-03", "training")).toEqual({ amount: 15000, source: "stable" });
+    expect(stableRateFor(changes, "2026-03", "recreation")?.amount).toBe(12000);
+  });
+
+  it("zmiana stawki treningowej od miesiąca nie przelicza minionych miesięcy ani stawki rekreacyjnej", () => {
+    const changes = [training("2026-09", 15000), training("2027-01", 16000), change("2026-09", 12000)];
+    expect(stableRateFor(changes, "2026-12", "training")?.amount).toBe(15000);
+    expect(stableRateFor(changes, "2027-01", "training")?.amount).toBe(16000);
+    expect(stableRateFor(changes, "2027-01", "recreation")?.amount).toBe(12000);
+  });
+
+  it("stawka indywidualna treningowa zastępuje tylko stawkę treningową", () => {
+    const changes = [change("2026-09", 12000), training("2026-09", 15000), training("2026-11", 11000, "kasia")];
+    expect(effectiveRate(changes, "2026-11", "kasia", "training")).toEqual({ amount: 11000, source: "individual" });
+    expect(effectiveRate(changes, "2026-11", "kasia", "recreation")).toEqual({ amount: 12000, source: "stable" });
+    expect(effectiveRate(changes, "2026-10", "kasia", "training")).toEqual({ amount: 15000, source: "stable" });
+  });
+
+  it("stawka indywidualna rekreacyjna nie działa w miesiącu treningowym", () => {
+    const changes = [training("2026-09", 15000), change("2026-09", 9000, "kasia")];
+    expect(effectiveRate(changes, "2026-11", "kasia", "training")).toEqual({ amount: 15000, source: "stable" });
+  });
+
+  it("stawka treningowa dziś i jej zaplanowana zmiana — bez zmian rekreacyjnych", () => {
+    const planned = training("2026-12", 16000);
+    const changes = [change("2026-09", 12000), change("2026-12", 13000), training("2026-10", 15000), planned];
+    expect(rateSchedule(changes, null, "2026-11", "training")).toEqual({
+      current: { amount: 15000, source: "stable" },
+      planned: { id: planned.id, fromMonth: "2026-12", amount: 16000 },
+    });
+  });
+
+  it("zaplanowana stawka indywidualna treningowa pensjonariusza", () => {
+    const planned = training("2026-12", 11000, "kasia");
+    const changes = [training("2026-10", 15000), change("2026-12", 9000, "kasia"), planned];
+    expect(rateSchedule(changes, "kasia", "2026-11", "training")).toEqual({
+      current: { amount: 15000, source: "stable" },
+      planned: { id: planned.id, fromMonth: "2026-12", amount: 11000 },
+    });
   });
 });

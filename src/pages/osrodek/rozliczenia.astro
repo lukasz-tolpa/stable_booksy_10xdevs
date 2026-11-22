@@ -139,6 +139,7 @@ const nav = view?.nav ?? composeMonthNav(month, settlementsHref);
         view && (
           <div class="rate">
             <StableRate rate={view.rate} month={month.month} />
+            <StableRate rate={view.trainingRate} month={month.month} kind="training" />
           </div>
         )
       }
@@ -159,6 +160,12 @@ const nav = view?.nav ?? composeMonthNav(month, settlementsHref);
   .summary,
   .rate {
     min-width: 0;
+  }
+  /* Dwie karty stawek ośrodka (#117): rekreacyjna nad treningową. */
+  .rate {
+    display: grid;
+    gap: 16px;
+    align-content: start;
   }
   .summary {
     display: grid;

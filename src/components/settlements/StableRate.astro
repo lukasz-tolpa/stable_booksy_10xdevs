@@ -3,16 +3,21 @@
 // obowiązująca teraz albo prośba „Ustaw stawkę ośrodka”, zaplanowana zmiana z „Usuń zaplanowaną zmianę”
 // i formularz nowej stawki „od tego / od następnego miesiąca”. Formularze bez JavaScriptu; ukryte pole
 // `miesiac` wraca na oglądany miesiąc.
-// Renderuje `StableRateView` z `@/lib/settlements/settlements`.
+// Renderuje `StableRateView` z `@/lib/settlements/settlements`. Dwie karty (#117): stawka rekreacyjna
+// („Stawka ośrodka”, `kind="recreation"`) i stawka treningowa („Stawka treningowa”) — ten sam formularz
+// z ukrytym polem `rodzaj`.
 //
-// KONTRAKT e2e: pole „Nowa stawka (zł)”, radia „Od tego miesiąca (…)” / „Od następnego miesiąca (…)”,
-// przyciski „Zapisz stawkę” i „Usuń zaplanowaną zmianę”; zaplanowana zmiana to jeden element z tekstem
+// KONTRAKT e2e: `region` „Stawka ośrodka” / „Stawka treningowa”; pole „Nowa stawka (zł)” / „Nowa stawka
+// treningowa (zł)”, radia „Od tego miesiąca (…)” / „Od następnego miesiąca (…)”, przyciski „Zapisz stawkę” /
+// „Zapisz stawkę treningową” i „Usuń zaplanowaną zmianę”; zaplanowana zmiana to jeden element z tekstem
 // „od {miesiąca} {rok}: {kwota}”.
 import FormField from "@/components/settlements/FormField.astro";
 import RateFromChoices from "@/components/settlements/RateFromChoices.astro";
 import Card from "@/components/ui/Card.astro";
 import GhostButton from "@/components/ui/GhostButton.astro";
 import { MONTH_PARAM } from "@/lib/month-summary/month";
+import type { RateKind } from "@/lib/settlements/rates";
+import { RATE_KIND_FIELD, RATE_KIND_VALUE } from "@/lib/settlements/schemas";
 import type { StableRateView } from "@/lib/settlements/settlements";
 import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
 
@@ -20,15 +25,20 @@ interface Props {
   rate: StableRateView;
   /** Oglądany miesiąc `RRRR-MM` — formularze wracają na niego. */
   month: string;
+  /** Rodzaj stawki ośrodka (#117); domyślnie rekreacyjna. */
+  kind?: RateKind;
 }
 
-const { rate, month } = Astro.props;
-const texts = SETTLEMENT_TEXTS.rate;
+const { rate, month, kind = "recreation" } = Astro.props;
+const texts = { ...SETTLEMENT_TEXTS.rate, ...(kind === "training" ? SETTLEMENT_TEXTS.trainingRate : {}) };
+const headingId = kind === "training" ? "training-rate-heading" : "rate-heading";
+const amountId = kind === "training" ? "training-rate-amount" : "rate-amount";
 ---
 
-<section aria-labelledby="rate-heading">
+<section aria-labelledby={headingId}>
   <Card padding={18}>
-    <h2 id="rate-heading" class="eyebrow">{texts.heading}</h2>
+    <h2 id={headingId} class="eyebrow">{texts.heading}</h2>
+    <p class="lead">{texts.lead}</p>
     {
       rate.currentText ? (
         <p class="current">
@@ -58,7 +68,8 @@ const texts = SETTLEMENT_TEXTS.rate;
 
     <form method="post" action="/api/settlements/rate" class="change">
       <input type="hidden" name={MONTH_PARAM} value={month} />
-      <FormField id="rate-amount" label={texts.amountLabel} name="amount" inputmode="decimal" />
+      <input type="hidden" name={RATE_KIND_FIELD} value={RATE_KIND_VALUE[kind]} />
+      <FormField id={amountId} label={texts.amountLabel} name="amount" inputmode="decimal" />
       <RateFromChoices legend={texts.fromLegend} choices={rate.choices} />
       <div class="actions">
         <GhostButton>{texts.submit}</GhostButton>
@@ -70,7 +81,12 @@ const texts = SETTLEMENT_TEXTS.rate;
 
 <style>
   h2 {
-    margin: 0 0 8px;
+    margin: 0;
+  }
+  .lead {
+    margin: 2px 0 8px;
+    font-size: 13.5px;
+    color: var(--muted);
   }
   .money {
     font-variant-numeric: tabular-nums;

@@ -46,7 +46,7 @@ begin
 
   -- Koszt Piotra w Nad Rzeką - cudzy wiersz dla wlasciciela Pod Dębem.
   insert into public.extra_costs (stable_id, rider_id, month, name, amount)
-  values (v_rzeka, '44444444-4444-4444-4444-444444444444', v_current, 'Pensjonat konia', 80000);
+  values (v_rzeka, '44444444-4444-4444-4444-444444444444', v_current, 'Wyjazd na zawody', 80000);
 
   perform set_config('app.debem', v_debem::text, true);
   perform set_config('app.current', v_current::text, true);
@@ -59,7 +59,7 @@ do $$
 begin
   insert into public.extra_costs (stable_id, rider_id, month, name, amount)
   values (current_setting('app.debem')::bigint, '33333333-3333-3333-3333-333333333333',
-          current_setting('app.next')::date, 'Pensjonat konia', 100);
+          current_setting('app.next')::date, 'Wyjazd na zawody', 100);
   raise exception 'FAIL 0: postgres dopisal koszt w nastepnym miesiacu';
 exception when sqlstate 'SB029' then
   raise notice 'PASS 0: regula miesiaca obowiazuje takze postgres - SB029';
@@ -88,7 +88,7 @@ begin
   raise notice 'PASS 1: wlasciciel nie widzi kosztow innego osrodka';
 
   insert into public.extra_costs (stable_id, rider_id, month, name, amount)
-  values (v_debem, '33333333-3333-3333-3333-333333333333', v_current, 'Pensjonat konia', 80000)
+  values (v_debem, '33333333-3333-3333-3333-333333333333', v_current, 'Wyjazd na zawody', 80000)
   returning id into v_current_cost;
   insert into public.extra_costs (stable_id, rider_id, month, name, amount)
   values (v_debem, '33333333-3333-3333-3333-333333333333', v_previous, 'Wypożyczenie siodła', 5050)
@@ -101,16 +101,16 @@ begin
 
   begin
     insert into public.extra_costs (stable_id, rider_id, month, name, amount)
-    values (v_debem, '33333333-3333-3333-3333-333333333333', current_setting('app.next')::date, 'Pensjonat konia', 100);
+    values (v_debem, '33333333-3333-3333-3333-333333333333', current_setting('app.next')::date, 'Wyjazd na zawody', 100);
     raise exception 'FAIL 3: koszt w nastepnym miesiacu przeszedl';
   exception when sqlstate 'SB029' then
     raise notice 'PASS 3: koszt w nastepnym miesiacu - SB029';
   end;
 
-  update public.extra_costs set name = 'Pensjonat konia (listopad)', amount = 75050 where id = v_current_cost;
+  update public.extra_costs set name = 'Wyjazd na zawody (listopad)', amount = 75050 where id = v_current_cost;
   get diagnostics v = row_count;
   select * into r from public.extra_costs where id = v_current_cost;
-  if v <> 1 or r.name <> 'Pensjonat konia (listopad)' or r.amount <> 75050 then
+  if v <> 1 or r.name <> 'Wyjazd na zawody (listopad)' or r.amount <> 75050 then
     raise exception 'FAIL 4: poprawka kosztu - % wierszy, nazwa=% kwota=%', v, r.name, r.amount;
   end if;
   update public.extra_costs set amount = 6000 where id = v_past_cost;
@@ -230,7 +230,7 @@ begin
   end if;
 
   insert into public.extra_costs (stable_id, rider_id, month, name, amount)
-  values (v_debem, '44444444-4444-4444-4444-444444444444', current_setting('app.current')::date, 'Pensjonat konia', 90000);
+  values (v_debem, '44444444-4444-4444-4444-444444444444', current_setting('app.current')::date, 'Wyjazd na zawody', 90000);
   get diagnostics v = row_count;
   if v <> 1 then
     raise exception 'FAIL 10b: koszt jezdzca z samym odwolanym zapisem - % wierszy', v;

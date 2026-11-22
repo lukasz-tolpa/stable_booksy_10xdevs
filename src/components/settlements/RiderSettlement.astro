@@ -3,16 +3,21 @@
 // „Rozliczenie za {miesiąc}”, „Do zapłaty” dużą kwotą, pod nią wyliczenie „Jazdy: N × stawka = kwota”
 // z dopiskiem o źródle stawki i — gdy są — suma kosztów dodatkowych; „Pobierz PDF” w tym samym bloku.
 // Bez stawki ośrodka — liczba jazd i prośba „Ustaw stawkę ośrodka” (link na „Rozliczenia”) zamiast kwot.
+// Pensjonariusz (#117): wyliczenie po stawce treningowej, pod nim pozycja opłaty za pensjonat każdego konia;
+// bez stawki treningowej prośba „Ustaw stawkę treningową”, bez opłaty konia — link do konia na „Pensjonariuszach”.
 // Renderuje `RiderSettlementView` z `@/lib/settlements/rider` — liczby, teksty i adres PDF są już policzone.
 // Lista jazd, koszty dodatkowe i stawka jeźdźca stoją pod kartą, na stronie.
 //
 // KONTRAKT e2e: `region` „Rozliczenie za {miesiąc}”; wiersz „Jazdy: N × … = …” w jednym elemencie;
 // „Do zapłaty” i kwota to osobne elementy jednego akapitu, a kwota to jedyny element karty z samą kwotą;
-// suma kosztów to jeden element „Koszty dodatkowe: {kwota}”; link „Pobierz PDF”.
+// suma kosztów to jeden element „Koszty dodatkowe: {kwota}”; link „Pobierz PDF”; pozycja opłaty to jeden
+// element „Opłata za pensjonat — {koń}: {kwota albo „brak kwoty”}”, bez kwoty z linkiem
+// „Ustaw opłatę za pensjonat — {koń}”.
 import { Download } from "lucide-react";
 import GhostButton from "@/components/ui/GhostButton.astro";
 import Card from "@/components/ui/Card.astro";
 import Tag from "@/components/ui/Tag.astro";
+import { boardingHorseHref } from "@/lib/boarding/redirect";
 import type { RiderSettlementView } from "@/lib/settlements/rider";
 import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
 
@@ -46,13 +51,26 @@ const headingId = "settlement-heading";
             <p class="line">{settlement.ridesLine}</p>
             {settlement.rateSourceText && <Tag>{settlement.rateSourceText}</Tag>}
           </div>
+          {settlement.fees.map((fee) => <p class="line">{fee.line}</p>)}
           {view.costsLine && <p class="line">{view.costsLine}</p>}
         </div>
         {
           settlement.needsRate && (
             <div class="needs-rate">
-              <a href={rateHref}>{texts.rider.needsRate}</a>
-              <p>{texts.rider.needsRateHint}</p>
+              <a href={rateHref}>{settlement.needsRateText}</a>
+              <p>{settlement.needsRateHint}</p>
+            </div>
+          )
+        }
+        {
+          settlement.needsFee && (
+            <div class="needs-rate">
+              {settlement.fees
+                .filter((fee) => fee.amount === null)
+                .map((fee) => (
+                  <a href={boardingHorseHref(fee.horseId)}>{`${texts.rider.fee.set} — ${fee.horseName}`}</a>
+                ))}
+              <p>{texts.rider.fee.setHint}</p>
             </div>
           )
         }
@@ -126,7 +144,8 @@ const headingId = "settlement-heading";
     margin-top: 10px;
   }
   .needs-rate a {
-    display: inline-flex;
+    display: flex;
+    width: fit-content;
     align-items: center;
     min-height: 44px;
     font-weight: 600;

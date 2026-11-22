@@ -8,18 +8,21 @@ import Card from "@/components/ui/Card.astro";
 import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
 import GhostButton from "@/components/ui/GhostButton.astro";
-import { listStableBoardingHorses } from "@/lib/boarding/queries";
+import { listStableBoardingFees, listStableBoardingHorses } from "@/lib/boarding/queries";
 import { SUCCESS_PARAM } from "@/lib/boarding/redirect";
 import { BOARDING_PAGE_TEXTS } from "@/lib/boarding/texts";
 import { boardingNotice, composeStableBoarders, type StableBoardersView } from "@/lib/boarding/view";
 import { todayIso } from "@/lib/schedule/dates";
+import { getOwnedStableId } from "@/lib/stables/queries";
 import { createClient } from "@/lib/supabase";
 import { logError } from "@/lib/log";
 
 // Strona „Pensjonariusze” właściciela (#114): konie pensjonatowe ośrodka z właścicielami i pobytami,
 // dodanie konia po adresie e-mail pensjonariusza, zakończenie i poprawka pobytu, nowy pobyt.
 // Dostęp pilnuje middleware (przestrzeń ośrodka tylko dla właściciela); lista przychodzi z
-// `public.get_stable_boarding_horses()`, która sama bierze ośrodek z sesji.
+// `public.get_stable_boarding_horses()`, która sama bierze ośrodek z sesji. Przy koniu opłata za pensjonat
+// z formularzem (#117) — zmiany opłat ośrodka z `public.boarding_fees`.
+const { profile } = Astro.locals;
 const error = Astro.url.searchParams.get("error");
 const notice = error ? null : boardingNotice(Astro.url.searchParams.get(SUCCESS_PARAM));
 const texts = BOARDING_PAGE_TEXTS.stable;
@@ -30,9 +33,14 @@ const supabase = createClient(Astro.request.headers, Astro.cookies);
 let view: StableBoardersView = { boarders: [] };
 let loadFailed = false;
 
-if (supabase) {
+if (supabase && profile) {
   try {
-    view = composeStableBoarders(await listStableBoardingHorses(supabase), today);
+    const stableId = await getOwnedStableId(supabase, profile.id);
+    const [rows, fees] = await Promise.all([
+      listStableBoardingHorses(supabase),
+      stableId === null ? Promise.resolve([]) : listStableBoardingFees(supabase, stableId),
+    ]);
+    view = composeStableBoarders(rows, today, fees);
   } catch (error) {
     loadFailed = true;
     logError("page:osrodek/pensjonariusze", error);

@@ -400,13 +400,13 @@ describe("composeSettlementsLink — Rozliczenia w bocznej kolumnie i w główne
     ride("2026-10-30", "anna"),
     ride("2026-11-21", "piotr"),
   ];
-  const RATE_120: RateChange = { id: 1, riderKey: null, fromMonth: "2026-11", amount: 12000 };
+  const RATE_120: RateChange = { id: 1, riderKey: null, kind: "recreation", fromMonth: "2026-11", amount: 12000 };
 
   // Oracle: AC #98 — informacja to suma bieżącego miesiąca z listy rozliczeń (ta sama co na stronie
   // „Rozliczenia”), np. „listopad: 360,00 zł”; bez stawki — „Ustaw stawkę”; awaria — link bez informacji.
   it("podaje sumę bieżącego miesiąca z listy rozliczeń, np. „listopad: 360,00 zł”", () => {
     const settlementsTotal = composeSettlementList(
-      { month: NOVEMBER, bookings: novemberRides, rates: [RATE_120], costs: [] },
+      { month: NOVEMBER, bookings: novemberRides, rates: [RATE_120], costs: [], boardingHorses: [], boardingFees: [] },
       NOW,
     );
 
@@ -429,7 +429,7 @@ describe("composeSettlementsLink — Rozliczenia w bocznej kolumnie i w główne
 
   it("ośrodek bez stawki: zamiast sumy prośba „Ustaw stawkę”, wyróżniona jak jutro bez grafiku", () => {
     const settlementsTotal = composeSettlementList(
-      { month: NOVEMBER, bookings: novemberRides, rates: [], costs: [] },
+      { month: NOVEMBER, bookings: novemberRides, rates: [], costs: [], boardingHorses: [], boardingFees: [] },
       NOW,
     );
 

@@ -30,7 +30,7 @@ export function isSettlementPdfAvailable(
   return (
     settlement.dueText !== null &&
     settlement.rateSourceText !== null &&
-    (settlement.rides > 0 || settlement.costs.length > 0) &&
+    (settlement.rides > 0 || settlement.costs.length > 0 || settlement.fees.length > 0) &&
     settlement.month <= currentMonth(now)
   );
 }
@@ -61,8 +61,13 @@ export interface SettlementDocument {
   };
   /** Np. `Jazdy: 8 × 120,00 zł = 960,00 zł`. */
   ridesLine: string;
-  /** `stawka ośrodka` / `stawka indywidualna`. */
+  /** `stawka ośrodka` / `stawka indywidualna` / `stawka treningowa ośrodka`. */
   rateSourceText: string;
+  /**
+   * Opłaty za pensjonat pensjonariusza (#117): koń, kwota — te same pozycje co na stronie; jeździec
+   * rekreacyjny — `null`, części nie ma.
+   */
+  fees: (DocumentTable & { heading: string }) | null;
   /** Koszty dodatkowe jeźdźca w miesiącu: nazwa, kwota. */
   costs: DocumentTable & {
     heading: string;
@@ -117,6 +122,15 @@ export function composeSettlementDocument(input: SettlementDocumentInput, now: D
     },
     ridesLine: settlement.ridesLine,
     rateSourceText: settlement.rateSourceText,
+    fees:
+      settlement.fees.length === 0
+        ? null
+        : {
+            heading: texts.pdf.feesHeading,
+            columns: [columns.horse, texts.pdf.costAmount],
+            // „Do zapłaty” jest policzone (PDF dostępny), więc każda pozycja ma kwotę.
+            rows: settlement.fees.map((fee) => [fee.horseName, fee.amountText ?? ""]),
+          },
     costs: {
       heading: texts.costs.heading,
       columns: [texts.pdf.costName, texts.pdf.costAmount],

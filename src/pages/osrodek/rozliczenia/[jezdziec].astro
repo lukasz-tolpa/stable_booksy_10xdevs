@@ -17,11 +17,12 @@ import { STABLE_DAY_BOOKINGS_ROUTE } from "@/lib/bookings/stable-redirect";
 import { logError } from "@/lib/log";
 import { MONTH_PARAM, resolveSummaryMonth } from "@/lib/month-summary/month";
 import { composeMonthNav } from "@/lib/month-summary/summary";
-import { todayIso } from "@/lib/schedule/dates";
+import { currentMonth, todayIso } from "@/lib/schedule/dates";
 import { loadRiderSettlementInput } from "@/lib/settlements/queries";
 import { riderSettlementHref, settlementsHref } from "@/lib/settlements/redirect";
 import { composeRiderSettlementPage, parseRiderKey, type RiderSettlementView } from "@/lib/settlements/rider";
 import { composeRiderRate, type RiderRateView } from "@/lib/settlements/rider-rate";
+import { riderKindIn } from "@/lib/settlements/settlements";
 import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
 import { dayHref } from "@/lib/stable-panel/panel";
 import { getOwnedStableId } from "@/lib/stables/queries";
@@ -73,7 +74,13 @@ if (riderKey !== null) {
             },
             now,
           );
-          riderRate = composeRiderRate(input.rates, riderKey, now);
+          // Formularz stawki indywidualnej ma rodzaj jeźdźca dziś (pensjonariusz — treningowa, #117).
+          riderRate = composeRiderRate(
+            input.rates,
+            riderKey,
+            now,
+            riderKindIn(input.boardingHorses, riderKey, currentMonth(now)),
+          );
         }
       }
     } catch (error) {

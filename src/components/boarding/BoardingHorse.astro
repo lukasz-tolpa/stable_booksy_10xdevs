@@ -8,12 +8,17 @@
 // KONTRAKT e2e: `article` z nagłówkiem — imię konia; pigułka `w ośrodku` / `wyjechał`; `list` „Pobyty — {koń}”,
 // jedna pozycja na pobyt (okres, kto wpisał dzień wyjazdu); `form` „{Zakończ pobyt|Popraw dzień wyjazdu} — {koń}”
 // z polem „Dzień wyjazdu” i przyciskiem o nazwie czynności; `form` „Nowy pobyt — {koń}” z polem
-// „Dzień przyjazdu” i przyciskiem „Dodaj pobyt”.
+// „Dzień przyjazdu” i przyciskiem „Dodaj pobyt”. Opłata za pensjonat (#117): blok „Opłata za pensjonat”
+// z kwotą obok „Obowiązuje teraz:” (osobny element) albo „Opłata nie jest ustawiona.”, zaplanowana zmiana
+// jednym elementem „od {miesiąca} {rok}: {kwota}”; u właściciela `form` „Opłata za pensjonat — {koń}” z polem
+// „Nowa opłata (zł)”, radiami „Od tego miesiąca (…)” / „Od następnego miesiąca (…)” i przyciskiem
+// „Zapisz opłatę”, przy zaplanowanej zmianie przycisk „Usuń zaplanowaną zmianę”.
 import { HorseHead } from "@/components/ui/HorseHead";
 import FormField from "@/components/settlements/FormField.astro";
+import RateFromChoices from "@/components/settlements/RateFromChoices.astro";
 import GhostButton from "@/components/ui/GhostButton.astro";
 import Tag from "@/components/ui/Tag.astro";
-import { DEPARTURE_SIDE_FIELD } from "@/lib/boarding/redirect";
+import { DEPARTURE_SIDE_FIELD, horseAnchor } from "@/lib/boarding/redirect";
 import { BOARDING_PAGE_TEXTS } from "@/lib/boarding/texts";
 import type { BoardingHorseView } from "@/lib/boarding/view";
 
@@ -27,7 +32,8 @@ interface Props {
 
 const { horse, side, stableName } = Astro.props;
 const texts = BOARDING_PAGE_TEXTS;
-const headingId = `horse-${String(horse.id)}`;
+const headingId = horseAnchor(horse.id);
+const fee = texts.fee;
 ---
 
 <article class="horse" aria-labelledby={headingId}>
@@ -50,6 +56,57 @@ const headingId = `horse-${String(horse.id)}`;
       ))
     }
   </ul>
+
+  <div class="fee">
+    <h4 class="fee__heading">{fee.heading}</h4>
+    {
+      horse.fee.currentText ? (
+        <p class="fee__current">
+          {fee.current} <strong class="money">{horse.fee.currentText}</strong> {fee.perMonth}
+        </p>
+      ) : (
+        <p class="fee__current">
+          {fee.missing}{" "}
+          <span class="fee__hint">{side === "stable" ? fee.missingStableHint : fee.missingRiderHint}</span>
+        </p>
+      )
+    }
+    {
+      horse.fee.planned && (
+        <div class="fee__planned">
+          <p>
+            {fee.planned}: <span class="money">{horse.fee.planned.text}</span>
+          </p>
+          {side === "stable" && (
+            <form method="post" action="/api/boarding/fee-delete">
+              <input type="hidden" name="feeId" value={horse.fee.planned.id} />
+              <GhostButton>{fee.deletePlanned}</GhostButton>
+            </form>
+          )}
+        </div>
+      )
+    }
+    {
+      horse.fee.choices && (
+        <form method="post" action="/api/boarding/fee" class="fee__form" aria-label={`${fee.heading} — ${horse.name}`}>
+          <input type="hidden" name="horseId" value={horse.id} />
+          <div class="form__field">
+            <FormField
+              id={`fee-amount-${String(horse.id)}`}
+              label={fee.amountLabel}
+              name="amount"
+              inputmode="decimal"
+            />
+          </div>
+          <RateFromChoices legend={fee.fromLegend} choices={horse.fee.choices} />
+          <div class="fee__actions">
+            <GhostButton>{fee.submit}</GhostButton>
+            <p class="fee__hint">{fee.hint}</p>
+          </div>
+        </form>
+      )
+    }
+  </div>
 
   {
     horse.departureForm && (
@@ -165,6 +222,46 @@ const headingId = `horse-${String(horse.id)}`;
     flex: 1 1 180px;
     min-width: 0;
     max-width: 240px;
+  }
+  .fee {
+    display: grid;
+    gap: 8px;
+    padding: 10px 0 2px;
+    border-top: 1px solid var(--border);
+  }
+  .fee__heading {
+    margin: 0;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .fee__current,
+  .fee__planned p {
+    margin: 0;
+    font-size: 14.5px;
+  }
+  .fee__planned {
+    display: grid;
+    gap: 6px;
+    justify-items: start;
+  }
+  .fee__hint {
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .money {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .fee__form {
+    display: grid;
+    gap: 10px;
+  }
+  .fee__actions {
+    display: grid;
+    gap: 6px;
+    justify-items: start;
   }
   .new-stay summary {
     display: inline-flex;

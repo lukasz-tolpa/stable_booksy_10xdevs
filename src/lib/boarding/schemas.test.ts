@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { firstErrorMessage } from "@/lib/auth/schemas";
-import { BOARDING_TEXTS, boardingHorseSchema, departureSchema, newStaySchema } from "@/lib/boarding/schemas";
+import {
+  BOARDING_TEXTS,
+  boardingFeeIdSchema,
+  boardingFeeSchema,
+  boardingHorseSchema,
+  departureSchema,
+  newStaySchema,
+} from "@/lib/boarding/schemas";
 
 // Oracle: test-plan §6.4 — walidacja przed pierwszą mutacją; brak albo błędne pole to komunikat tego
 // pola po polsku, nie odmowa bazy.
@@ -58,5 +65,35 @@ describe("departureSchema — dzień wyjazdu", () => {
     [{ stayId: "7", departure: "22.11.2026" }, BOARDING_TEXTS.departureMissing],
   ])("odrzuca %o komunikatem pola", (input, expected) => {
     expect(message(departureSchema.safeParse(input))).toBe(expected);
+  });
+});
+
+// Oracle: AC #117 — opłata za pensjonat: kwota wzorem stawki (0,00–100 000,00 zł, grosze), „od tego / od
+// następnego miesiąca”, koń z ukrytego pola; walidacja przed mutacją (test-plan §6.4).
+describe("boardingFeeSchema — opłata za pensjonat konia", () => {
+  it("koń, kwota w groszach i miesiąc „od”", () => {
+    expect(boardingFeeSchema.safeParse({ horseId: "7", amount: "1500,50", from: "nastepny" }).data).toEqual({
+      horseId: 7,
+      amount: 150050,
+      from: "nastepny",
+    });
+  });
+
+  it.each([
+    [{ horseId: "7", amount: "", from: "biezacy" }, "Podaj kwotę"],
+    [{ horseId: "7", amount: "100000,01", from: "biezacy" }, "Opłata za pensjonat może wynosić najwyżej 100 000,00 zł"],
+    [{ horseId: "7", amount: "10", from: "" }, "Wybierz, od kiedy obowiązuje opłata"],
+    [{ horseId: "x", amount: "10", from: "biezacy" }, "Nieprawidłowe dane formularza"],
+  ])("odrzuca %o: %s", (form, message) => {
+    const result = boardingFeeSchema.safeParse(form);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(firstErrorMessage(result.error).replaceAll(" ", " ")).toBe(message);
+    }
+  });
+
+  it("usunięcie zaplanowanej zmiany: identyfikator zmiany", () => {
+    expect(boardingFeeIdSchema.safeParse({ feeId: "3" }).data).toEqual({ feeId: 3 });
+    expect(boardingFeeIdSchema.safeParse({ feeId: "0" }).success).toBe(false);
   });
 });
