@@ -1,0 +1,257 @@
+---
+// PROTOTYPE — wariant C „Zestawienie miesiąca”: na górze „Do zapłaty” z PDF; zamiast długiej listy —
+// kalendarz miesiąca z liczbą jazd w każdym dniu (link do Zapisów dnia) i zestawienie: ile jazd z którym
+// instruktorem i na którym koniu. Pełna lista jazd za „Pokaż wszystkie jazdy (N)”. Throwaway.
+import { Download } from "lucide-react";
+import Banner from "@/components/Banner.astro";
+import MonthNav from "@/components/month-summary/MonthNav.astro";
+import RideList from "@/components/month-summary/RideList.astro";
+import RiderCosts from "@/components/settlements/RiderCosts.astro";
+import RiderRate from "@/components/settlements/RiderRate.astro";
+import GhostButton from "@/components/ui/GhostButton.astro";
+import { countBy, type VariantProps } from "./types";
+
+type Props = VariantProps;
+const { view, riderRate, riderKey, month, listHref, saved, error } = Astro.props;
+const s = view.settlement;
+
+const [y, m] = month.split("-").map(Number);
+const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
+const lead = (new Date(Date.UTC(y, m - 1, 1)).getUTCDay() + 6) % 7; // pon. = 0
+const perDay = new Map<string, { count: number; href: string | null }>();
+for (const row of s.rideRows) {
+  const entry = perDay.get(row.day) ?? { count: 0, href: row.dayHref };
+  entry.count += 1;
+  perDay.set(row.day, entry);
+}
+const cells = [
+  ...Array.from({ length: lead }, () => null),
+  ...Array.from({ length: daysInMonth }, (_, i) => {
+    const day = `${month}-${String(i + 1).padStart(2, "0")}`;
+    return { n: i + 1, ...(perDay.get(day) ?? { count: 0, href: null }) };
+  }),
+];
+const max = Math.max(1, ...[...perDay.values()].map((d) => d.count));
+const byInstructor = countBy(s.rideRows, (r) => r.instructorName);
+const byHorse = countBy(s.rideRows, (r) => r.horseName);
+---
+
+{
+  saved && (
+    <div class="gap">
+      <Banner variant="success">Zapisano.</Banner>
+    </div>
+  )
+}
+{
+  error && (
+    <div class="gap">
+      <Banner variant="error">{error}</Banner>
+    </div>
+  )
+}
+
+<div class="gap"><MonthNav nav={view.nav} /></div>
+
+<section class="gap head">
+  <div>
+    <p class="label">Do zapłaty · {s.monthLabel}</p>
+    <p class="big">{s.dueText ?? "—"}</p>
+    <p class="muted">{s.ridesLine}{s.costs.length > 0 && <> + koszty {s.costsAmountText}</>}</p>
+    {
+      s.needsRate && (
+        <p class="muted">
+          <a href={listHref}>Ustaw stawkę ośrodka</a>, żeby zobaczyć kwoty.
+        </p>
+      )
+    }
+  </div>
+  {
+    view.pdfHref && (
+      <GhostButton href={view.pdfHref}>
+        <Download className="size-4" />
+        Pobierz PDF
+      </GhostButton>
+    )
+  }
+</section>
+
+{
+  s.emptyText ? (
+    <p class="gap muted">{s.emptyText}</p>
+  ) : (
+    <div class="gap two">
+      <section class="card" aria-label="Kalendarz jazd">
+        <h2>Kalendarz</h2>
+        <div class="cal">
+          {["pon", "wt", "śr", "czw", "pt", "sob", "nd"].map((d) => (
+            <span class="dow">{d}</span>
+          ))}
+          {cells.map((c) =>
+            c === null ? (
+              <span />
+            ) : c.count > 0 && c.href ? (
+              <a class="day on" href={c.href} style={`--a: ${0.25 + (0.75 * c.count) / max}`} title={`${c.count} jazd`}>
+                <span class="day__n">{c.n}</span>
+                <span class="day__c">{c.count}</span>
+              </a>
+            ) : (
+              <span class="day">
+                <span class="day__n">{c.n}</span>
+              </span>
+            ),
+          )}
+        </div>
+      </section>
+      <section class="card" aria-label="Zestawienie">
+        <h2>Z kim i na czym</h2>
+        <h3>Instruktorzy</h3>
+        <ul class="stat">
+          {byInstructor.map(([name, n]) => (
+            <li>
+              <span>{name}</span>
+              <strong>{n}</strong>
+            </li>
+          ))}
+        </ul>
+        <h3>Konie</h3>
+        <ul class="stat">
+          {byHorse.map(([name, n]) => (
+            <li>
+              <span>{name}</span>
+              <strong>{n}</strong>
+            </li>
+          ))}
+        </ul>
+      </section>
+    </div>
+  )
+}
+
+{
+  !s.emptyText && (
+    <details class="gap card all">
+      <summary>Pokaż wszystkie jazdy ({s.rides})</summary>
+      <RideList rides={s.rideRows} label={`Jazdy — ${s.name}`} />
+    </details>
+  )
+}
+
+<section class="gap card">
+  <RiderCosts settlement={s} />
+</section>
+
+{
+  riderRate && (
+    <div class="gap">
+      <RiderRate rate={riderRate} riderKey={riderKey} month={month} />
+    </div>
+  )
+}
+
+<style>
+  .gap {
+    margin-top: 16px;
+  }
+  .head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .label {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .big {
+    margin: 2px 0 0;
+    font-size: 40px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+  .muted {
+    margin: 4px 0 0;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .two {
+    display: grid;
+    gap: 12px;
+  }
+  @media (min-width: 760px) {
+    .two {
+      grid-template-columns: 1.3fr 1fr;
+    }
+  }
+  .card {
+    padding: 16px 18px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    background: var(--surface);
+  }
+  h2 {
+    margin: 0 0 10px;
+    font-size: 17px;
+  }
+  h3 {
+    margin: 12px 0 4px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .cal {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+  }
+  .dow {
+    font-size: 11.5px;
+    color: var(--muted);
+    text-align: center;
+  }
+  .day {
+    display: grid;
+    place-items: center;
+    aspect-ratio: 1;
+    border-radius: 8px;
+    background: var(--surface-2);
+    color: var(--faint);
+    font-size: 12px;
+  }
+  .day.on {
+    background: oklch(from var(--primary) l c h / var(--a));
+    color: var(--surface);
+    font-weight: 700;
+  }
+  .day__n {
+    font-size: 11px;
+    opacity: 0.85;
+  }
+  .day__c {
+    font-size: 15px;
+  }
+  .stat {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .stat li {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    border-bottom: 1px solid var(--border);
+    font-variant-numeric: tabular-nums;
+  }
+  .all summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--primary);
+  }
+  .all[open] summary {
+    margin-bottom: 10px;
+  }
+</style>

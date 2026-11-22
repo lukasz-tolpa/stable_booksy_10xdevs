@@ -24,6 +24,11 @@ import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
 import { dayHref } from "@/lib/stable-panel/panel";
 import { getOwnedStableId } from "@/lib/stables/queries";
 import { createClient } from "@/lib/supabase";
+// PROTOTYPE — warianty rozliczenia jeźdźca (?variant=), tylko w trybie deweloperskim. Throwaway, gałąź prototype/rozliczenie-jezdzca-ux.
+import PrototypeSwitcher from "@/components/prototype/PrototypeSwitcher.astro";
+import VariantA from "@/components/prototype/rozliczenie-jezdzca/VariantA.astro";
+import VariantB from "@/components/prototype/rozliczenie-jezdzca/VariantB.astro";
+import VariantC from "@/components/prototype/rozliczenie-jezdzca/VariantC.astro";
 
 // Rozliczenie jeźdźca (#95, spec #93): jeździec (konto) w ścieżce, miesiąc w adresie (`?miesiac=RRRR-MM`).
 // Dostęp pilnuje middleware (przestrzeń ośrodka tylko dla właściciela, mapa tras w @/lib/auth/roles);
@@ -38,6 +43,16 @@ const riderKey = parseRiderKey(Astro.params.jezdziec);
 // Formularze stawki jeźdźca (#97) i kosztów dodatkowych (#96) wracają tu z `?sukces=1` albo `?error=`.
 const error = Astro.url.searchParams.get("error");
 const saved = Astro.url.searchParams.get("sukces") === "1";
+
+// PROTOTYPE: trzy układy + dzisiejszy („0”); linki miesięcy zachowują wariant.
+const PROTO_VARIANTS = [
+  { key: "0", name: "Obecny" },
+  { key: "A", name: "Kwota na górze, jazdy zwinięte" },
+  { key: "B", name: "Tygodnie + pasek" },
+  { key: "C", name: "Kalendarz i zestawienie" },
+];
+const protoVariant = import.meta.env.DEV ? (Astro.url.searchParams.get("variant") ?? "A") : "0";
+const withVariant = (href: string) => (protoVariant === "0" ? href : `${href}&variant=${protoVariant}`);
 
 const supabase = createClient(Astro.request.headers, Astro.cookies);
 
@@ -62,7 +77,7 @@ if (riderKey !== null) {
             {
               ...input,
               dayHref: (day) => dayHref(STABLE_DAY_BOOKINGS_ROUTE, day),
-              monthHref: (target) => riderSettlementHref(riderKey, target),
+              monthHref: (target) => withVariant(riderSettlementHref(riderKey, target)),
               pdfHref: riderSettlementHref(riderKey, month.month, { pdf: true }),
             },
             now,
@@ -95,62 +110,99 @@ const title = view ? `${texts.rider.title} — ${view.settlement.name}` : texts.
     </a>
 
     <h1>{view ? view.settlement.name : texts.rider.title}</h1>
-    <p class="lead">{texts.rider.lead}</p>
-
     {
-      saved && (
-        <div class="notice">
-          <Banner variant="success">{texts.saved}</Banner>
-        </div>
-      )
-    }
-    {
-      error && (
-        <div class="notice">
-          <Banner variant="error">{error}</Banner>
-        </div>
-      )
-    }
-
-    {
-      notFound ? (
-        <div class="state">
-          <Card>
-            <EmptyState>
-              <p>{texts.rider.notFound}</p>
-              <p>{texts.rider.notFoundHint}</p>
-            </EmptyState>
-          </Card>
-        </div>
+      view && riderKey && protoVariant !== "0" ? (
+        <>
+          {protoVariant === "A" && (
+            <VariantA
+              view={view}
+              riderRate={riderRate}
+              riderKey={riderKey}
+              month={month.month}
+              listHref={listHref}
+              saved={saved}
+              error={error}
+            />
+          )}
+          {protoVariant === "B" && (
+            <VariantB
+              view={view}
+              riderRate={riderRate}
+              riderKey={riderKey}
+              month={month.month}
+              listHref={listHref}
+              saved={saved}
+              error={error}
+            />
+          )}
+          {protoVariant === "C" && (
+            <VariantC
+              view={view}
+              riderRate={riderRate}
+              riderKey={riderKey}
+              month={month.month}
+              listHref={listHref}
+              saved={saved}
+              error={error}
+            />
+          )}
+        </>
       ) : (
         <>
-          {riderRate && riderKey && <RiderRate rate={riderRate} riderKey={riderKey} month={month.month} />}
-          {nav && (
-            <div class="month">
-              <MonthNav nav={nav} />
+          <p class="lead">{texts.rider.lead}</p>
+
+          {saved && (
+            <div class="notice">
+              <Banner variant="success">{texts.saved}</Banner>
             </div>
           )}
-          {view ? (
-            <RiderSettlement settlement={view.settlement} rateHref={listHref}>
-              <RiderCosts slot="costs" settlement={view.settlement} />
-              {view.pdfHref && (
-                <div slot="actions" class="actions">
-                  <GhostButton href={view.pdfHref}>
-                    <Download className="size-4" />
-                    {texts.pdf.download}
-                  </GhostButton>
+          {error && (
+            <div class="notice">
+              <Banner variant="error">{error}</Banner>
+            </div>
+          )}
+
+          {notFound ? (
+            <div class="state">
+              <Card>
+                <EmptyState>
+                  <p>{texts.rider.notFound}</p>
+                  <p>{texts.rider.notFoundHint}</p>
+                </EmptyState>
+              </Card>
+            </div>
+          ) : (
+            <>
+              {riderRate && riderKey && <RiderRate rate={riderRate} riderKey={riderKey} month={month.month} />}
+              {nav && (
+                <div class="month">
+                  <MonthNav nav={nav} />
                 </div>
               )}
-            </RiderSettlement>
-          ) : (
-            <FailureState>
-              <p>{texts.rider.failure}</p>
-              <p>{texts.retry}</p>
-            </FailureState>
+              {view ? (
+                <RiderSettlement settlement={view.settlement} rateHref={listHref}>
+                  <RiderCosts slot="costs" settlement={view.settlement} />
+                  {view.pdfHref && (
+                    <div slot="actions" class="actions">
+                      <GhostButton href={view.pdfHref}>
+                        <Download className="size-4" />
+                        {texts.pdf.download}
+                      </GhostButton>
+                    </div>
+                  )}
+                </RiderSettlement>
+              ) : (
+                <FailureState>
+                  <p>{texts.rider.failure}</p>
+                  <p>{texts.retry}</p>
+                </FailureState>
+              )}
+            </>
           )}
         </>
       )
     }
+    {import.meta.env.DEV && <PrototypeSwitcher variants={PROTO_VARIANTS} current={protoVariant} />}
   </main>
 </Layout>
 

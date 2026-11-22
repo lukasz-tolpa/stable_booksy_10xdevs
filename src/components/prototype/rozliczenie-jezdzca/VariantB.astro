@@ -1,0 +1,199 @@
+---
+// PROTOTYPE — wariant B „Tygodnie + przyklejony pasek”: przyklejony u góry pasek „Do zapłaty · N jazd ·
+// PDF”; jazdy pogrupowane w tygodnie, każdy tydzień zwijany („3–9 lis · 22 jazdy”); koszty pod jazdami;
+// stawka jeźdźca zwinięta na dole. Throwaway.
+import { Download } from "lucide-react";
+import Banner from "@/components/Banner.astro";
+import MonthNav from "@/components/month-summary/MonthNav.astro";
+import RideList from "@/components/month-summary/RideList.astro";
+import RiderCosts from "@/components/settlements/RiderCosts.astro";
+import RiderRate from "@/components/settlements/RiderRate.astro";
+import { formatCount, RIDE_FORMS } from "@/lib/format";
+import { groupByWeek, type VariantProps } from "./types";
+
+type Props = VariantProps;
+const { view, riderRate, riderKey, month, listHref, saved, error } = Astro.props;
+const s = view.settlement;
+const weeks = groupByWeek(s.rideRows);
+---
+
+<div class="bar" role="region" aria-label="Podsumowanie rozliczenia">
+  <div class="bar__left">
+    <span class="bar__label">Do zapłaty</span>
+    <strong class="bar__due">{s.dueText ?? "—"}</strong>
+    <span class="bar__meta">{s.ridesLine}{s.costs.length > 0 && <> + koszty {s.costsAmountText}</>}</span>
+  </div>
+  {
+    view.pdfHref ? (
+      <a class="bar__pdf" href={view.pdfHref}>
+        <Download className="size-4" /> PDF
+      </a>
+    ) : (
+      s.needsRate && (
+        <a class="bar__pdf" href={listHref}>
+          Ustaw stawkę ośrodka
+        </a>
+      )
+    )
+  }
+</div>
+
+{
+  saved && (
+    <div class="gap">
+      <Banner variant="success">Zapisano.</Banner>
+    </div>
+  )
+}
+{
+  error && (
+    <div class="gap">
+      <Banner variant="error">{error}</Banner>
+    </div>
+  )
+}
+
+<div class="gap"><MonthNav nav={view.nav} /></div>
+
+<section class="gap" aria-label="Jazdy">
+  <h2>Jazdy <span class="muted">{formatCount(s.rides, RIDE_FORMS)}</span></h2>
+  {
+    s.emptyText ? (
+      <p class="muted">{s.emptyText}</p>
+    ) : (
+      <div class="weeks">
+        {weeks.map((week, i) => (
+          <details class="week" open={i === weeks.length - 1}>
+            <summary>
+              <span class="week__label">{week.label}</span>
+              <span class="week__count">{formatCount(week.rows.length, RIDE_FORMS)}</span>
+            </summary>
+            <RideList rides={week.rows} label={`Jazdy ${week.label} — ${s.name}`} />
+          </details>
+        ))}
+      </div>
+    )
+  }
+</section>
+
+<section class="gap card">
+  <RiderCosts settlement={s} />
+</section>
+
+{
+  riderRate && (
+    <details class="gap card rate">
+      <summary>
+        Stawka jeźdźca: <strong>{riderRate.currentText ?? "—"}</strong>
+        {riderRate.sourceText && <span class="muted">({riderRate.sourceText})</span>}
+        <span class="act">Zmień</span>
+      </summary>
+      <RiderRate rate={riderRate} riderKey={riderKey} month={month} />
+    </details>
+  )
+}
+
+<style>
+  .bar {
+    position: sticky;
+    top: 76px;
+    z-index: 5;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 16px;
+    margin-top: 18px;
+    padding: 12px 16px;
+    border-radius: var(--r-lg);
+    background: var(--primary-strong);
+    color: var(--surface);
+    box-shadow: var(--shadow-md);
+  }
+  .bar__left {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 12px;
+  }
+  .bar__label {
+    font-size: 13px;
+    opacity: 0.8;
+  }
+  .bar__due {
+    font-size: 22px;
+    font-variant-numeric: tabular-nums;
+  }
+  .bar__meta {
+    font-size: 13.5px;
+    opacity: 0.85;
+    font-variant-numeric: tabular-nums;
+  }
+  .bar__pdf {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 40px;
+    padding: 0 14px;
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--primary-strong);
+    font-weight: 700;
+  }
+  .gap {
+    margin-top: 16px;
+  }
+  h2 {
+    margin: 0 0 10px;
+    font-size: 20px;
+  }
+  .muted {
+    color: var(--muted);
+    font-weight: 400;
+  }
+  .weeks {
+    display: grid;
+    gap: 8px;
+  }
+  .week,
+  .card {
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    background: var(--surface);
+  }
+  .card {
+    padding: 16px 18px;
+  }
+  .week summary {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 16px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .week[open] summary {
+    border-bottom: 1px solid var(--border);
+  }
+  .week :global(ul) {
+    padding: 8px 16px 12px;
+  }
+  .week__count {
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .rate summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    cursor: pointer;
+  }
+  .act {
+    margin-left: auto;
+    color: var(--primary);
+    font-weight: 600;
+  }
+  .rate :global(section) {
+    margin-top: 12px;
+  }
+</style>
