@@ -699,6 +699,17 @@ export type Database = {
           taken: boolean;
         }[];
       };
+      get_place_occupancy: {
+        Args: { p_day: string; p_stable_id: number };
+        Returns: {
+          hour: number;
+          instructor_id: number;
+          instructor_name: string;
+          kind: string;
+          place_id: number;
+          taken: number;
+        }[];
+      };
       get_slot_occupancy: {
         Args: { p_day: string; p_stable_id: number };
         Returns: {
