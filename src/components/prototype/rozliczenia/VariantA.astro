@@ -1,0 +1,290 @@
+---
+// PROTOTYPE — wariant A „Arkusz miesiąca”: miesiąc i suma w nagłówku, pełna tabela z rozbiciem kwot,
+// stawka i „Dopisz koszt” schowane w rozwijanych panelach pod tabelą. Throwaway.
+import Banner from "@/components/Banner.astro";
+import AddCost from "@/components/settlements/AddCost.astro";
+import StableRate from "@/components/settlements/StableRate.astro";
+import { formatCount, formatMoney, RIDE_FORMS } from "@/lib/format";
+import type { VariantProps } from "./types";
+
+type Props = VariantProps;
+const { view, addCost, month, saved, error } = Astro.props;
+const rows = view.list.rows;
+const rides = rows.reduce((sum, row) => sum + row.rides, 0);
+const costs = rows.reduce((sum, row) => sum + row.costsAmount, 0);
+const ridesSum = rows.reduce((sum, row) => sum + (row.ridesAmount ?? 0), 0);
+---
+
+<main class="sheet container-narrow">
+  <header class="head">
+    <div>
+      <h1>Rozliczenia</h1>
+      <p class="sub">
+        {rows.length} jeźdźców · {formatCount(rides, RIDE_FORMS)}
+        {view.rate.currentText && <> · stawka ośrodka {view.rate.currentText}</>}
+      </p>
+    </div>
+    <nav class="month" aria-label="Miesiąc">
+      <a href={view.nav.previousHref} aria-label="Poprzedni miesiąc">‹</a>
+      <span>{view.nav.label}</span>
+      {
+        view.nav.nextHref ? (
+          <a href={view.nav.nextHref} aria-label="Następny miesiąc">
+            ›
+          </a>
+        ) : (
+          <span class="off">›</span>
+        )
+      }
+    </nav>
+  </header>
+
+  {
+    saved && (
+      <div class="notice">
+        <Banner variant="success">Zapisano.</Banner>
+      </div>
+    )
+  }
+  {
+    error && (
+      <div class="notice">
+        <Banner variant="error">{error}</Banner>
+      </div>
+    )
+  }
+
+  {
+    view.isEmpty ? (
+      <p class="empty">{view.emptyText}</p>
+    ) : (
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Jeździec</th>
+              <th scope="col" class="num">
+                Jazdy
+              </th>
+              <th scope="col" class="num">
+                Stawka
+              </th>
+              <th scope="col" class="num">
+                Za jazdy
+              </th>
+              <th scope="col" class="num">
+                Koszty
+              </th>
+              <th scope="col" class="num">
+                Do zapłaty
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr>
+                <th scope="row">
+                  <a href={row.href}>{row.name}</a>
+                </th>
+                <td class="num">{row.rides}</td>
+                <td class="num">
+                  {row.rate ? formatMoney(row.rate.amount) : "—"}
+                  {row.rate?.source === "individual" && <span class="flag">indyw.</span>}
+                </td>
+                <td class="num">{row.ridesAmountText ?? "—"}</td>
+                <td class="num">{row.costsAmount > 0 ? row.costsAmountText : "—"}</td>
+                <td class="num due">{row.dueText ?? "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+          {view.list.total !== null && (
+            <tfoot>
+              <tr>
+                <th scope="row">Razem</th>
+                <td class="num">{rides}</td>
+                <td />
+                <td class="num">{formatMoney(ridesSum)}</td>
+                <td class="num">{formatMoney(costs)}</td>
+                <td class="num due">{formatMoney(view.list.total)}</td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </div>
+    )
+  }
+  {view.list.needsRate && <p class="warn">Kwoty pojawią się po ustawieniu stawki ośrodka.</p>}
+
+  <div class="tools">
+    <details open={view.rate.currentText === null}>
+      <summary>
+        Stawka ośrodka: <strong>{view.rate.currentText ?? "nie ustawiona"}</strong>
+        {view.rate.planned && <span class="muted"> · zmiana {view.rate.planned.text}</span>}
+        <span class="action">Zmień</span>
+      </summary>
+      <StableRate rate={view.rate} month={month} />
+    </details>
+    {
+      addCost && (
+        <details>
+          <summary>
+            Koszty dodatkowe: <strong>{formatMoney(costs)}</strong>
+            <span class="action">Dopisz koszt</span>
+          </summary>
+          <AddCost form={addCost} />
+        </details>
+      )
+    }
+  </div>
+</main>
+
+<style>
+  .sheet {
+    padding-block: 24px 56px;
+  }
+  .head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    justify-content: space-between;
+    gap: 12px 24px;
+  }
+  h1 {
+    margin: 0;
+    font-size: 30px;
+  }
+  .sub {
+    margin: 6px 0 0;
+    color: var(--muted);
+    font-size: 15px;
+  }
+  .month {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    font-weight: 600;
+  }
+  .month a,
+  .month .off {
+    display: inline-grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    font-size: 22px;
+    color: var(--primary);
+  }
+  .month .off {
+    color: var(--faint);
+  }
+  .month span:not(.off) {
+    min-width: 13ch;
+    text-align: center;
+  }
+  .notice {
+    margin-top: 16px;
+  }
+  .table-wrap {
+    margin-top: 20px;
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    background: var(--surface);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 15px;
+    font-variant-numeric: tabular-nums;
+  }
+  th,
+  td {
+    padding: 12px 16px;
+    text-align: left;
+    white-space: nowrap;
+  }
+  thead th {
+    font-size: 12.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+  }
+  tbody tr + tr {
+    border-top: 1px solid var(--border);
+  }
+  tbody tr:hover {
+    background: var(--surface-2);
+  }
+  tbody th a {
+    font-weight: 600;
+    color: var(--primary);
+  }
+  .num {
+    text-align: right;
+  }
+  .due {
+    font-weight: 700;
+  }
+  .flag {
+    margin-left: 6px;
+    padding: 1px 6px;
+    border-radius: 6px;
+    background: var(--accent-soft);
+    color: var(--accent-ink);
+    font-size: 11.5px;
+    font-weight: 600;
+  }
+  tfoot {
+    border-top: 2px solid var(--border-2, var(--border));
+    background: var(--surface-2);
+  }
+  tfoot th,
+  tfoot td {
+    font-weight: 700;
+  }
+  .empty,
+  .warn {
+    margin-top: 20px;
+    color: var(--muted);
+  }
+  .tools {
+    display: grid;
+    gap: 12px;
+    margin-top: 24px;
+  }
+  details {
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    background: var(--surface);
+  }
+  summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding: 14px 18px;
+    cursor: pointer;
+    list-style: none;
+  }
+  summary::-webkit-details-marker {
+    display: none;
+  }
+  .muted {
+    color: var(--muted);
+  }
+  .action {
+    margin-left: auto;
+    color: var(--primary);
+    font-weight: 600;
+  }
+  details[open] .action {
+    color: var(--muted);
+  }
+  details :global(.section) {
+    margin: 0;
+    padding: 0 8px 8px;
+  }
+</style>

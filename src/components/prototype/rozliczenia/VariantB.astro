@@ -1,0 +1,372 @@
+---
+// PROTOTYPE — wariant B „Kolumna boczna”: po lewej karty jeźdźców z rozbiciem „N × stawka + koszty =
+// do zapłaty”, po prawej przyklejona kolumna: miesiąc, suma, mały formularz stawki (ten sam punkt
+// końcowy co strona); pod kartami zwinięci pozostali jeźdźcy ośrodka — koszty tylko w rozliczeniu jeźdźca.
+// Throwaway.
+import Banner from "@/components/Banner.astro";
+import { formatCount, formatMoney, RIDE_FORMS } from "@/lib/format";
+import { MONTH_PARAM } from "@/lib/month-summary/month";
+import { riderSettlementHref } from "@/lib/settlements/redirect";
+import type { VariantProps } from "./types";
+
+type Props = VariantProps;
+const { view, addCost, month, saved, error } = Astro.props;
+const rows = view.list.rows;
+const rides = rows.reduce((sum, row) => sum + row.rides, 0);
+// Jeźdźcy ośrodka spoza listy miesiąca (bez jazd i kosztów) — droga do ich rozliczenia, np. żeby dopisać koszt.
+const listed = new Set(rows.map((row) => row.riderKey));
+const others = (addCost?.riders ?? [])
+  .filter((rider) => !listed.has(rider.key))
+  .map((rider) => ({ name: rider.name, href: riderSettlementHref(rider.key, month) }));
+---
+
+<main class="wrap container-narrow">
+  <div class="grid">
+    <section class="main" aria-label="Rozliczenia jeźdźców">
+      <h1>Rozliczenia <span class="month-label">· {view.nav.label}</span></h1>
+      {
+        saved && (
+          <div class="notice">
+            <Banner variant="success">Zapisano.</Banner>
+          </div>
+        )
+      }
+      {
+        error && (
+          <div class="notice">
+            <Banner variant="error">{error}</Banner>
+          </div>
+        )
+      }
+      {view.list.needsRate && <p class="warn">Ustaw stawkę ośrodka w kolumnie obok — wtedy pojawią się kwoty.</p>}
+
+      {
+        view.isEmpty ? (
+          <p class="empty">{view.emptyText}</p>
+        ) : (
+          <ul class="cards">
+            {rows.map((row) => (
+              <li class="card">
+                <div class="card__top">
+                  <a class="name" href={row.href}>
+                    {row.name}
+                  </a>
+                  <span class="due">{row.dueText ?? "—"}</span>
+                </div>
+                <p class="calc">
+                  <span>{formatCount(row.rides, RIDE_FORMS)}</span>
+                  {row.rate && (
+                    <>
+                      <span class="op">×</span>
+                      <span>{formatMoney(row.rate.amount)}</span>
+                      <span class:list={row.rate.source === "individual" ? "src src--ind" : "src"}>
+                        {row.rateSourceText}
+                      </span>
+                      <span class="op">=</span>
+                      <span>{row.ridesAmountText}</span>
+                    </>
+                  )}
+                  {row.costsAmount > 0 && (
+                    <>
+                      <span class="op">+</span>
+                      <span>koszty {row.costsAmountText}</span>
+                    </>
+                  )}
+                </p>
+                <a class="more" href={row.href}>
+                  Rozliczenie i PDF →
+                </a>
+              </li>
+            ))}
+          </ul>
+        )
+      }
+      {
+        others.length > 0 && (
+          <details class="others">
+            <summary>
+              Pozostali jeźdźcy ośrodka <span class="count">{others.length}</span>
+              <span class="muted">— bez jazd i kosztów w tym miesiącu</span>
+            </summary>
+            <ul>
+              {others.map((rider) => (
+                <li>
+                  <a href={rider.href}>
+                    <span>{rider.name}</span>
+                    <span class="act">Dopisz koszt →</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )
+      }
+    </section>
+
+    <aside class="side">
+      <nav class="box month" aria-label="Miesiąc">
+        <a href={view.nav.previousHref}>‹ Poprzedni</a>
+        <strong>{view.nav.label}</strong>
+        {view.nav.nextHref ? <a href={view.nav.nextHref}>Następny ›</a> : <span class="off">Następny ›</span>}
+      </nav>
+
+      <div class="box total">
+        <p class="label">Do zapłaty razem</p>
+        <p class="big">{view.list.total === null ? "—" : formatMoney(view.list.total)}</p>
+        <p class="muted">{rows.length} jeźdźców · {formatCount(rides, RIDE_FORMS)}</p>
+      </div>
+
+      <form class="box" method="post" action="/api/settlements/rate">
+        <p class="label">Stawka ośrodka</p>
+        <p class="rate">{view.rate.currentText ?? "nie ustawiona"}</p>
+        {view.rate.planned && <p class="muted">Zaplanowana zmiana {view.rate.planned.text}</p>}
+        <input type="hidden" name={MONTH_PARAM} value={month} />
+        <div class="stack">
+          <input
+            name="amount"
+            inputmode="decimal"
+            placeholder="Nowa stawka, np. 160"
+            aria-label="Nowa stawka (zł)"
+            required
+          />
+          <select name="from" aria-label="Obowiązuje">
+            {
+              view.rate.choices.map((choice) => (
+                <option value={choice.value} selected={choice.checked}>
+                  {choice.label}
+                </option>
+              ))
+            }
+          </select>
+        </div>
+        <button type="submit">Zapisz stawkę</button>
+      </form>
+    </aside>
+  </div>
+</main>
+
+<style>
+  .others {
+    margin-top: 14px;
+    border: 1px dashed var(--border);
+    border-radius: var(--r-lg);
+  }
+  .others summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 18px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .others .count {
+    padding: 0 8px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    font-size: 13px;
+  }
+  .others summary .muted {
+    font-weight: 400;
+  }
+  .others ul {
+    margin: 0;
+    padding: 0 8px 8px;
+    list-style: none;
+  }
+  .others a {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 10px;
+    border-radius: var(--r);
+    color: var(--fg);
+  }
+  .others a:hover {
+    background: var(--surface);
+  }
+  .others .act {
+    color: var(--primary);
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .wrap {
+    padding-block: 24px 56px;
+  }
+  .grid {
+    display: grid;
+    gap: 24px;
+  }
+  @media (min-width: 900px) {
+    .grid {
+      grid-template-columns: minmax(0, 1fr) 300px;
+      align-items: start;
+    }
+    .side {
+      position: sticky;
+      top: 16px;
+    }
+  }
+  h1 {
+    margin: 0 0 14px;
+    font-size: 28px;
+  }
+  .month-label {
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .notice {
+    margin-bottom: 14px;
+  }
+  .warn,
+  .empty {
+    color: var(--muted);
+  }
+  .cards {
+    display: grid;
+    gap: 12px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .card {
+    padding: 16px 18px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    background: var(--surface);
+  }
+  .card__top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .name {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--fg);
+  }
+  .due {
+    font-size: 20px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .calc {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    margin: 8px 0 0;
+    font-size: 14.5px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .op {
+    color: var(--faint);
+  }
+  .src {
+    padding: 1px 7px;
+    border-radius: 6px;
+    background: var(--primary-soft);
+    color: var(--primary-strong);
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .src--ind {
+    background: var(--accent-soft);
+    color: var(--accent-ink);
+  }
+  .more {
+    display: inline-block;
+    margin-top: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--primary);
+  }
+  .side {
+    min-width: 0;
+    display: grid;
+    gap: 12px;
+  }
+  .box {
+    display: grid;
+    gap: 8px;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    background: var(--surface);
+  }
+  .month {
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    text-align: center;
+    font-size: 14px;
+  }
+  .month a {
+    color: var(--primary);
+    font-weight: 600;
+  }
+  .off {
+    color: var(--faint);
+  }
+  .label {
+    margin: 0;
+    font-size: 12.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+  }
+  .big {
+    margin: 0;
+    font-size: 32px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+  .rate {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+  }
+  .muted {
+    margin: 0;
+    font-size: 13.5px;
+    color: var(--muted);
+  }
+  .stack {
+    display: grid;
+    gap: 8px;
+  }
+  .row {
+    display: flex;
+    gap: 8px;
+  }
+  .row > * {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .row .amount {
+    flex: 0 0 80px;
+  }
+  input,
+  select {
+    width: 100%;
+    min-width: 0;
+    height: 40px;
+    padding: 0 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    background: var(--surface);
+    font: inherit;
+    font-size: 14px;
+  }
+  button {
+    height: 40px;
+    border: 0;
+    border-radius: var(--r);
+    background: var(--primary);
+    color: var(--surface);
+    font-weight: 600;
+    cursor: pointer;
+  }
+</style>

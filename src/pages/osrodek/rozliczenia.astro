@@ -20,6 +20,11 @@ import { composeSettlementsPage, type SettlementsView } from "@/lib/settlements/
 import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
 import { getOwnedStableId } from "@/lib/stables/queries";
 import { createClient } from "@/lib/supabase";
+// PROTOTYPE — warianty układu strony (?variant=), tylko w trybie deweloperskim. Throwaway, gałąź prototype/rozliczenia-ux.
+import PrototypeSwitcher from "@/components/prototype/PrototypeSwitcher.astro";
+import VariantA from "@/components/prototype/rozliczenia/VariantA.astro";
+import VariantB from "@/components/prototype/rozliczenia/VariantB.astro";
+import VariantC from "@/components/prototype/rozliczenia/VariantC.astro";
 
 // Rozliczenia właściciela (#94, spec #93). Dostęp pilnuje middleware (mapa tras w @/lib/auth/roles):
 // przestrzeń ośrodka jest tylko dla właściciela; stawki chroni dodatkowo RLS. Liczy
@@ -32,6 +37,17 @@ const now = new Date();
 const month = resolveSummaryMonth(Astro.url.searchParams.get(MONTH_PARAM), todayIso(now));
 const error = Astro.url.searchParams.get("error");
 const saved = Astro.url.searchParams.get("sukces") === "1";
+
+// PROTOTYPE: trzy układy + dzisiejszy („0”) do porównania; linki miesięcy zachowują wariant.
+const PROTO_VARIANTS = [
+  { key: "0", name: "Obecny" },
+  { key: "A", name: "Arkusz miesiąca" },
+  { key: "B", name: "Kolumna boczna" },
+  { key: "C", name: "Najpierw kwota" },
+];
+const protoVariant = import.meta.env.DEV ? (Astro.url.searchParams.get("variant") ?? "A") : "0";
+const monthLink = (m: string) =>
+  protoVariant === "0" ? settlementsHref(m) : `${settlementsHref(m)}&variant=${protoVariant}`;
 
 const supabase = createClient(Astro.request.headers, Astro.cookies);
 
@@ -55,7 +71,7 @@ if (supabase && profile) {
       view = composeSettlementsPage(
         {
           ...input,
-          monthHref: settlementsHref,
+          monthHref: monthLink,
           riderHref: (riderKey) => riderSettlementHref(riderKey, month.month),
         },
         now,
@@ -75,54 +91,68 @@ const nav = view?.nav ?? composeMonthNav(month, settlementsHref);
 
 <Layout title={texts.heading}>
   <Topbar />
-  <main class="container-narrow page">
-    <h1>{texts.heading}</h1>
-    <p class="lead">{texts.lead}</p>
+  {
+    view && protoVariant === "A" && (
+      <VariantA view={view} addCost={addCost} month={month.month} saved={saved} error={error} />
+    )
+  }
+  {
+    view && protoVariant === "B" && (
+      <VariantB view={view} addCost={addCost} month={month.month} saved={saved} error={error} />
+    )
+  }
+  {
+    view && protoVariant === "C" && (
+      <VariantC view={view} addCost={addCost} month={month.month} saved={saved} error={error} />
+    )
+  }
+  {import.meta.env.DEV && <PrototypeSwitcher variants={PROTO_VARIANTS} current={protoVariant} />}
+  {
+    (!view || protoVariant === "0") && (
+      <main class="container-narrow page">
+        <h1>{texts.heading}</h1>
+        <p class="lead">{texts.lead}</p>
 
-    {
-      saved && (
-        <div class="notice">
-          <Banner variant="success">{texts.saved}</Banner>
+        {saved && (
+          <div class="notice">
+            <Banner variant="success">{texts.saved}</Banner>
+          </div>
+        )}
+        {error && (
+          <div class="notice">
+            <Banner variant="error">{error}</Banner>
+          </div>
+        )}
+
+        {view && <StableRate rate={view.rate} month={month.month} />}
+
+        <div class="month">
+          <MonthNav nav={nav} />
         </div>
-      )
-    }
-    {
-      error && (
-        <div class="notice">
-          <Banner variant="error">{error}</Banner>
-        </div>
-      )
-    }
 
-    {view && <StableRate rate={view.rate} month={month.month} />}
+        {!view ? (
+          <FailureState>
+            <p>{texts.failure}</p>
+            <p>{texts.retry}</p>
+          </FailureState>
+        ) : view.isEmpty ? (
+          <Card>
+            <EmptyState>
+              <p>{view.emptyText}</p>
+              <p>{texts.emptyHint}</p>
+            </EmptyState>
+          </Card>
+        ) : (
+          <section aria-labelledby="riders-heading">
+            <h2 id="riders-heading">{texts.ridersHeading}</h2>
+            <SettlementRows list={view.list} monthRateText={view.monthRateText} />
+          </section>
+        )}
 
-    <div class="month">
-      <MonthNav nav={nav} />
-    </div>
-
-    {
-      !view ? (
-        <FailureState>
-          <p>{texts.failure}</p>
-          <p>{texts.retry}</p>
-        </FailureState>
-      ) : view.isEmpty ? (
-        <Card>
-          <EmptyState>
-            <p>{view.emptyText}</p>
-            <p>{texts.emptyHint}</p>
-          </EmptyState>
-        </Card>
-      ) : (
-        <section aria-labelledby="riders-heading">
-          <h2 id="riders-heading">{texts.ridersHeading}</h2>
-          <SettlementRows list={view.list} monthRateText={view.monthRateText} />
-        </section>
-      )
-    }
-
-    {addCost && <AddCost form={addCost} />}
-  </main>
+        {addCost && <AddCost form={addCost} />}
+      </main>
+    )
+  }
 </Layout>
 
 <style>

@@ -1,0 +1,132 @@
+---
+// PROTOTYPE — floating variant switcher for throwaway UI prototypes (?variant=). Throwaway.
+//
+// Strzałki to zwykłe linki z `?variant=` w adresie, więc wybór przeżywa odświeżenie i działa
+// bez JavaScriptu; skrypt dokłada tylko klawisze ←/→ (poza polami formularzy).
+// Strona renderuje go wyłącznie pod `import.meta.env.DEV`.
+import { ChevronLeft, ChevronRight } from "lucide-react";
+
+interface Props {
+  variants: { key: string; name: string }[];
+  current: string;
+}
+
+const { variants, current } = Astro.props;
+const index = Math.max(
+  0,
+  variants.findIndex((entry) => entry.key === current),
+);
+const at = (offset: number) => variants[(index + offset + variants.length) % variants.length];
+
+function hrefFor(key: string): string {
+  const url = new URL(Astro.url);
+  url.searchParams.set("variant", key);
+  return `${url.pathname}${url.search}`;
+}
+
+const active = variants[index];
+const prevHref = hrefFor(at(-1).key);
+const nextHref = hrefFor(at(1).key);
+---
+
+<div class="proto-spacer" aria-hidden="true"></div>
+<nav class="proto-switcher" aria-label="Wariant prototypu" data-proto-switcher>
+  <a href={prevHref} class="proto-arrow" data-proto-prev aria-label="Poprzedni wariant">
+    <ChevronLeft className="size-5" />
+  </a>
+  <span class="proto-label" aria-live="polite">
+    <span class="proto-key">{active.key}</span>
+    <span class="proto-name">{active.name}</span>
+    <span class="proto-count">{index + 1}/{variants.length}</span>
+  </span>
+  <a href={nextHref} class="proto-arrow" data-proto-next aria-label="Następny wariant">
+    <ChevronRight className="size-5" />
+  </a>
+</nav>
+
+<script>
+  const root = document.querySelector<HTMLElement>("[data-proto-switcher]");
+  const prev = root?.querySelector<HTMLAnchorElement>("[data-proto-prev]");
+  const next = root?.querySelector<HTMLAnchorElement>("[data-proto-next]");
+
+  function isTyping(target: EventTarget | null): boolean {
+    if (!(target instanceof HTMLElement)) return false;
+    return target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
+  }
+
+  document.addEventListener("keydown", (event) => {
+    if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    if (isTyping(event.target)) return;
+    const link = event.key === "ArrowLeft" ? prev : event.key === "ArrowRight" ? next : null;
+    if (link) {
+      event.preventDefault();
+      window.location.assign(link.href);
+    }
+  });
+</script>
+
+<style>
+  /* Miejsce pod paskiem, żeby nie zasłaniał końca strony. */
+  .proto-spacer {
+    height: 88px;
+  }
+  .proto-switcher {
+    position: fixed;
+    left: 50%;
+    bottom: 16px;
+    transform: translateX(-50%);
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    max-width: calc(100vw - 32px);
+    padding: 4px;
+    border-radius: 999px;
+    background: var(--fg);
+    color: var(--surface);
+    box-shadow: var(--shadow-md);
+  }
+  .proto-arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 44px;
+    height: 44px;
+    border-radius: 999px;
+    color: var(--surface);
+    transition: background 0.15s;
+  }
+  .proto-arrow:hover {
+    background: var(--primary-strong);
+  }
+  .proto-arrow:focus-visible {
+    outline: 2px solid var(--surface);
+    outline-offset: -4px;
+  }
+  .proto-label {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+    padding-inline: 6px;
+    font-family: var(--font-display);
+    font-size: 14.5px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .proto-key {
+    font-family: var(--font-mono);
+    font-weight: 700;
+  }
+  .proto-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .proto-count {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    opacity: 0.7;
+  }
+</style>

@@ -1,0 +1,307 @@
+---
+// PROTOTYPE — wariant C „Najpierw kwota”: duża suma miesiąca na górze, miesiące jako zakładki, lista
+// jeźdźców z paskiem udziału w sumie; stawka i „Dopisz koszt” to przyciski otwierające okna
+// (`<dialog>`) z dzisiejszymi formularzami. Throwaway.
+import Banner from "@/components/Banner.astro";
+import AddCost from "@/components/settlements/AddCost.astro";
+import StableRate from "@/components/settlements/StableRate.astro";
+import { formatCount, formatMoney, formatMonthYear, RIDE_FORMS } from "@/lib/format";
+import { settlementsHref } from "@/lib/settlements/redirect";
+import type { VariantProps } from "./types";
+
+type Props = VariantProps;
+const { view, addCost, month, saved, error } = Astro.props;
+const rows = [...view.list.rows].sort((a, b) => (b.due ?? 0) - (a.due ?? 0));
+const rides = rows.reduce((sum, row) => sum + row.rides, 0);
+const costs = rows.reduce((sum, row) => sum + row.costsAmount, 0);
+const total = view.list.total;
+const max = Math.max(1, ...rows.map((row) => row.due ?? 0));
+
+// Zakładki: 5 miesięcy wstecz od oglądanego + następny, jeśli istnieje.
+function shift(m: string, by: number): string {
+  const [y, mm] = m.split("-").map(Number);
+  const d = new Date(Date.UTC(y, mm - 1 + by, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+const tabs = [-4, -3, -2, -1, 0, ...(view.nav.nextHref ? [1] : [])].map((by) => shift(month, by));
+const variant = Astro.url.searchParams.get("variant") ?? "C";
+const withVariant = (href: string) => `${href}${href.includes("?") ? "&" : "?"}variant=${variant}`;
+---
+
+<main class="wrap container-narrow">
+  <nav class="tabs" aria-label="Miesiąc">
+    {
+      tabs.map((m) => (
+        <a href={withVariant(settlementsHref(m))} aria-current={m === month ? "page" : undefined}>
+          {formatMonthYear(m)}
+        </a>
+      ))
+    }
+  </nav>
+
+  {
+    saved && (
+      <div class="notice">
+        <Banner variant="success">Zapisano.</Banner>
+      </div>
+    )
+  }
+  {
+    error && (
+      <div class="notice">
+        <Banner variant="error">{error}</Banner>
+      </div>
+    )
+  }
+
+  <section class="hero">
+    <p class="eyebrow">Do zebrania · {view.nav.label}</p>
+    <p class="amount">{total === null ? "Brak stawki ośrodka" : formatMoney(total)}</p>
+    <ul class="stats">
+      <li><strong>{rows.length}</strong> jeźdźców</li>
+      <li><strong>{formatCount(rides, RIDE_FORMS)}</strong></li>
+      <li>stawka <strong>{view.rate.currentText ?? "—"}</strong></li>
+      {
+        costs > 0 && (
+          <li>
+            koszty <strong>{formatMoney(costs)}</strong>
+          </li>
+        )
+      }
+    </ul>
+    <div class="actions">
+      <button type="button" class="primary" data-open="rate-dialog">
+        {view.rate.currentText ? "Zmień stawkę" : "Ustaw stawkę ośrodka"}
+      </button>
+      {
+        addCost && (
+          <button type="button" data-open="cost-dialog">
+            + Dopisz koszt
+          </button>
+        )
+      }
+    </div>
+    {view.rate.planned && <p class="planned">Zaplanowana zmiana stawki {view.rate.planned.text}</p>}
+  </section>
+
+  {
+    view.isEmpty ? (
+      <p class="empty">{view.emptyText}</p>
+    ) : (
+      <ol class="list">
+        {rows.map((row) => (
+          <li>
+            <a href={row.href} class="item">
+              <span class="who">
+                <span class="name">{row.name}</span>
+                <span class="meta">
+                  {row.ridesText}
+                  {row.rateSourceText && <> · {row.rateSourceText}</>}
+                  {row.costsAmount > 0 && <> · koszty {row.costsAmountText}</>}
+                </span>
+              </span>
+              <span class="due">{row.dueText ?? "—"}</span>
+              <span class="bar" aria-hidden="true">
+                <span style={`width: ${Math.round(((row.due ?? 0) / max) * 100)}%`} />
+              </span>
+            </a>
+          </li>
+        ))}
+      </ol>
+    )
+  }
+
+  <dialog id="rate-dialog">
+    <button type="button" class="close" data-close aria-label="Zamknij">×</button>
+    <StableRate rate={view.rate} month={month} />
+  </dialog>
+  {
+    addCost && (
+      <dialog id="cost-dialog">
+        <button type="button" class="close" data-close aria-label="Zamknij">
+          ×
+        </button>
+        <AddCost form={addCost} />
+      </dialog>
+    )
+  }
+</main>
+
+<script>
+  document.querySelectorAll<HTMLButtonElement>("[data-open]").forEach((button) => {
+    button.addEventListener("click", () => {
+      document.querySelector<HTMLDialogElement>(`#${button.dataset.open}`)?.showModal();
+    });
+  });
+  document.querySelectorAll<HTMLButtonElement>("[data-close]").forEach((button) => {
+    button.addEventListener("click", () => button.closest("dialog")?.close());
+  });
+</script>
+
+<style>
+  .wrap {
+    padding-block: 20px 56px;
+  }
+  .tabs {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .tabs a {
+    flex: none;
+    padding: 8px 14px;
+    border-radius: 999px;
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .tabs a:hover {
+    background: var(--surface-2);
+  }
+  .tabs a[aria-current="page"] {
+    background: var(--fg);
+    color: var(--surface);
+  }
+  .notice {
+    margin-top: 14px;
+  }
+  .hero {
+    margin-top: 16px;
+    padding: 24px;
+    border-radius: var(--r-xl);
+    background: var(--primary-strong);
+    color: var(--surface);
+  }
+  .eyebrow {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    opacity: 0.8;
+  }
+  .amount {
+    margin: 6px 0 0;
+    font-family: var(--font-display);
+    font-size: clamp(34px, 7vw, 52px);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+  }
+  .stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+    margin: 12px 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: 15px;
+    opacity: 0.9;
+  }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 18px;
+  }
+  .actions button {
+    height: 42px;
+    padding: 0 16px;
+    border: 1px solid oklch(100% 0 0 / 0.35);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--surface);
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .actions .primary {
+    background: var(--surface);
+    color: var(--primary-strong);
+    border-color: var(--surface);
+  }
+  .planned {
+    margin: 12px 0 0;
+    font-size: 14px;
+    opacity: 0.85;
+  }
+  .empty {
+    margin-top: 20px;
+    color: var(--muted);
+  }
+  .list {
+    display: grid;
+    gap: 8px;
+    margin: 18px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .item {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 6px 16px;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    background: var(--surface);
+    color: inherit;
+  }
+  .item:hover {
+    border-color: var(--primary);
+  }
+  .who {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+  }
+  .name {
+    font-weight: 700;
+    font-size: 16.5px;
+  }
+  .meta {
+    font-size: 13.5px;
+    color: var(--muted);
+  }
+  .due {
+    align-self: center;
+    font-size: 18px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .bar {
+    grid-column: 1 / -1;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    overflow: hidden;
+  }
+  .bar span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--primary);
+  }
+  dialog {
+    width: min(100% - 32px, 560px);
+    padding: 8px;
+    border: 0;
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-md);
+  }
+  dialog::backdrop {
+    background: oklch(20% 0.02 160 / 0.45);
+  }
+  .close {
+    float: right;
+    width: 36px;
+    height: 36px;
+    border: 0;
+    background: none;
+    font-size: 24px;
+    cursor: pointer;
+  }
+  dialog :global(.section) {
+    margin: 0;
+  }
+</style>
