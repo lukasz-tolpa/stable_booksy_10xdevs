@@ -69,7 +69,7 @@ Nazwane miejsce jazd w ośrodku, np. hala, duży plac, lonżownik. Ośrodek sam 
 _Avoid_: ujeżdżalnia, arena, maneż
 
 **Zajętość placów**:
-Liczba zajętych miejsc w slotach na każdym placu w każdej godzinie dnia, z instruktorem i dyscypliną, bez jeźdźców i koni. Widzą ją pensjonariusze — by nie wjeżdżać na plac pełen jazd — i ośrodek; jeździec rekreacyjny jej nie widzi.
+Liczba zajętych miejsc w slotach na każdym placu w każdej godzinie dnia, z instruktorem i rodzajem slotu, bez jeźdźców i koni. Widzą ją pensjonariusze — by nie wjeżdżać na plac pełen jazd — i ośrodek; jeździec rekreacyjny jej nie widzi.
 _Avoid_: obłożenie placu
 
 **Slot treningowy**:
