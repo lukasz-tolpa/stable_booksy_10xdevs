@@ -10,12 +10,15 @@ import {
 const JOANNA = { id: 1, name: "Joanna Wrona" };
 const KAROL = { id: 2, name: "Karol Jasny" };
 const ANIA = { id: 3, name: "Ania Bąk" };
+const HALA = { id: 21, name: "Hala" };
+const DUZY_PLAC = { id: 22, name: "Duży plac" };
 
 function input(overrides: Partial<SlotHoursInput> = {}): SlotHoursInput {
   return {
     openHour: 10,
     closeHour: 12,
     instructors: [JOANNA, KAROL],
+    places: [HALA, DUZY_PLAC],
     seats: [],
     occupancy: [],
     myBookings: [],
@@ -29,7 +32,7 @@ describe("computeSlotHours", () => {
   it("wolne miejsca to limit minus aktywne zapisy w slocie", () => {
     const hours = computeSlotHours(
       input({
-        seats: [{ instructorId: JOANNA.id, hour: 10, seats: 4 }],
+        seats: [{ instructorId: JOANNA.id, hour: 10, seats: 4, placeId: HALA.id }],
         occupancy: [{ instructorId: JOANNA.id, hour: 10, taken: 2 }],
       }),
     );
@@ -37,15 +40,44 @@ describe("computeSlotHours", () => {
     expect(hours).toEqual([
       {
         hour: 10,
-        slots: [{ instructorId: 1, instructorName: "Joanna Wrona", seats: 4, freeSeats: 2, status: "free" }],
+        slots: [
+          {
+            instructorId: 1,
+            instructorName: "Joanna Wrona",
+            placeName: "Hala",
+            seats: 4,
+            freeSeats: 2,
+            status: "free",
+          },
+        ],
       },
+    ]);
+  });
+
+  it("slot pokazuje swój plac; plac spoza listy dostaje nazwę zastępczą", () => {
+    const hours = computeSlotHours(
+      input({
+        seats: [
+          { instructorId: JOANNA.id, hour: 10, seats: 1, placeId: DUZY_PLAC.id },
+          { instructorId: KAROL.id, hour: 10, seats: 1, placeId: HALA.id },
+          { instructorId: KAROL.id, hour: 11, seats: 1, placeId: 99 },
+        ],
+      }),
+    );
+
+    expect(hours.map((h) => h.slots.map((s) => [s.instructorName, s.placeName]))).toEqual([
+      [
+        ["Joanna Wrona", "Duży plac"],
+        ["Karol Jasny", "Hala"],
+      ],
+      [["Karol Jasny", "(plac #99)"]],
     ]);
   });
 
   it("slot bez wolnych miejsc jest pełny i nadal widoczny", () => {
     const hours = computeSlotHours(
       input({
-        seats: [{ instructorId: JOANNA.id, hour: 10, seats: 2 }],
+        seats: [{ instructorId: JOANNA.id, hour: 10, seats: 2, placeId: HALA.id }],
         occupancy: [{ instructorId: JOANNA.id, hour: 10, taken: 2 }],
       }),
     );
@@ -57,9 +89,9 @@ describe("computeSlotHours", () => {
     const hours = computeSlotHours(
       input({
         seats: [
-          { instructorId: JOANNA.id, hour: 10, seats: 2 },
-          { instructorId: KAROL.id, hour: 10, seats: 1 },
-          { instructorId: KAROL.id, hour: 11, seats: 1 },
+          { instructorId: JOANNA.id, hour: 10, seats: 2, placeId: HALA.id },
+          { instructorId: KAROL.id, hour: 10, seats: 1, placeId: HALA.id },
+          { instructorId: KAROL.id, hour: 11, seats: 1, placeId: HALA.id },
         ],
         occupancy: [{ instructorId: JOANNA.id, hour: 10, taken: 1 }],
         myBookings: [{ instructorId: JOANNA.id, hour: 10 }],
@@ -79,8 +111,8 @@ describe("computeSlotHours", () => {
     const hours = computeSlotHours(
       input({
         seats: [
-          { instructorId: JOANNA.id, hour: 10, seats: 1 },
-          { instructorId: KAROL.id, hour: 10, seats: 1 },
+          { instructorId: JOANNA.id, hour: 10, seats: 1, placeId: HALA.id },
+          { instructorId: KAROL.id, hour: 10, seats: 1, placeId: HALA.id },
         ],
         occupancy: [
           { instructorId: JOANNA.id, hour: 10, taken: 1 },
@@ -97,10 +129,10 @@ describe("computeSlotHours", () => {
     const hours = computeSlotHours(
       input({
         seats: [
-          { instructorId: JOANNA.id, hour: 10, seats: 0 },
-          { instructorId: KAROL.id, hour: 10, seats: 0 },
-          { instructorId: JOANNA.id, hour: 11, seats: 0 },
-          { instructorId: KAROL.id, hour: 11, seats: 1 },
+          { instructorId: JOANNA.id, hour: 10, seats: 0, placeId: HALA.id },
+          { instructorId: KAROL.id, hour: 10, seats: 0, placeId: HALA.id },
+          { instructorId: JOANNA.id, hour: 11, seats: 0, placeId: HALA.id },
+          { instructorId: KAROL.id, hour: 11, seats: 1, placeId: HALA.id },
         ],
       }),
     );
@@ -114,7 +146,7 @@ describe("computeSlotHours", () => {
       input({
         openHour: 10,
         closeHour: 13,
-        seats: [10, 11, 12].map((hour) => ({ instructorId: JOANNA.id, hour, seats: 1 })),
+        seats: [10, 11, 12].map((hour) => ({ instructorId: JOANNA.id, hour, seats: 1, placeId: HALA.id })),
         myBookings: [{ instructorId: JOANNA.id, hour: 11 }],
         currentHour: 11,
       }),
@@ -125,7 +157,7 @@ describe("computeSlotHours", () => {
 
   it("w dzień przyszły (currentHour null) pokazuje wszystkie godziny", () => {
     const hours = computeSlotHours(
-      input({ seats: [10, 11].map((hour) => ({ instructorId: JOANNA.id, hour, seats: 1 })) }),
+      input({ seats: [10, 11].map((hour) => ({ instructorId: JOANNA.id, hour, seats: 1, placeId: HALA.id })) }),
     );
 
     expect(hours.map((h) => h.hour)).toEqual([10, 11]);
@@ -137,8 +169,8 @@ describe("computeSlotHours", () => {
         openHour: 10,
         closeHour: 12,
         seats: [
-          { instructorId: JOANNA.id, hour: 9, seats: 1 },
-          { instructorId: JOANNA.id, hour: 12, seats: 1 },
+          { instructorId: JOANNA.id, hour: 9, seats: 1, placeId: HALA.id },
+          { instructorId: JOANNA.id, hour: 12, seats: 1, placeId: HALA.id },
         ],
       }),
     );
@@ -151,10 +183,10 @@ describe("computeSlotHours", () => {
       input({
         instructors: [KAROL, JOANNA, ANIA],
         seats: [
-          { instructorId: KAROL.id, hour: 11, seats: 1 },
-          { instructorId: JOANNA.id, hour: 10, seats: 1 },
-          { instructorId: KAROL.id, hour: 10, seats: 1 },
-          { instructorId: ANIA.id, hour: 10, seats: 1 },
+          { instructorId: KAROL.id, hour: 11, seats: 1, placeId: HALA.id },
+          { instructorId: JOANNA.id, hour: 10, seats: 1, placeId: HALA.id },
+          { instructorId: KAROL.id, hour: 10, seats: 1, placeId: HALA.id },
+          { instructorId: ANIA.id, hour: 10, seats: 1, placeId: HALA.id },
         ],
       }),
     );
@@ -170,7 +202,7 @@ describe("computeSlotHours", () => {
   });
 
   it("instruktor spoza listy dostaje nazwę zastępczą zamiast wywrócić widok", () => {
-    const hours = computeSlotHours(input({ seats: [{ instructorId: 99, hour: 10, seats: 1 }] }));
+    const hours = computeSlotHours(input({ seats: [{ instructorId: 99, hour: 10, seats: 1, placeId: HALA.id }] }));
 
     expect(hours[0].slots[0].instructorName).toBe("(instruktor #99)");
   });
@@ -178,7 +210,7 @@ describe("computeSlotHours", () => {
   it("zajętość ponad limit (limit obniżony wstecz) nie daje ujemnych wolnych miejsc", () => {
     const hours = computeSlotHours(
       input({
-        seats: [{ instructorId: JOANNA.id, hour: 10, seats: 1 }],
+        seats: [{ instructorId: JOANNA.id, hour: 10, seats: 1, placeId: HALA.id }],
         occupancy: [{ instructorId: JOANNA.id, hour: 10, taken: 3 }],
       }),
     );

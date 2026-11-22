@@ -101,3 +101,45 @@ export function lastRideLabel(open: string, close: string): string | null {
 
   return hours.length > 0 ? `ostatnia jazda o ${formatClockHour(hours[hours.length - 1])}` : null;
 }
+
+/**
+ * Place slotów w formularzu: klucz `seatKey(instruktor, godzina)` → plac. Plac ustawia się dla całego
+ * wiersza instruktora (`fillPlace`), z poprawką pojedynczej godziny (wpis tej godziny).
+ */
+export type PlaceMap = Record<string, number>;
+
+/**
+ * Plac slotu: wpis jego godziny, a bez niego plac wiersza instruktora (z jego najwcześniejszej godziny
+ * z placem), a bez niego `fallback` (pierwszy aktywny plac ośrodka — jak w `save_schedule_day`).
+ */
+export function placeAt(places: PlaceMap, instructorId: number, hour: number, fallback: number | null): number | null {
+  const key = seatKey(instructorId, hour);
+  if (key in places) {
+    return places[key];
+  }
+
+  const prefix = `${String(instructorId)}.`;
+  const row = Object.entries(places)
+    .filter(([entry]) => entry.startsWith(prefix))
+    .map(([entry, placeId]) => ({ hour: Number(entry.slice(prefix.length)), placeId }))
+    .sort((a, b) => a.hour - b.hour);
+
+  return row.length > 0 ? row[0].placeId : fallback;
+}
+
+/** Plac całego wiersza instruktora w podanych godzinach albo `null`, gdy godziny są na różnych placach. */
+export function columnPlace(
+  places: PlaceMap,
+  instructorId: number,
+  hours: number[],
+  fallback: number | null,
+): number | null {
+  const distinct = new Set(hours.map((hour) => placeAt(places, instructorId, hour, fallback)));
+
+  return distinct.size === 1 ? [...distinct][0] : null;
+}
+
+/** Plac dla całego wiersza instruktora: ten sam plac we wszystkich podanych godzinach. */
+export function fillPlace(places: PlaceMap, instructorId: number, hours: number[], placeId: number): PlaceMap {
+  return { ...places, ...Object.fromEntries(hours.map((hour) => [seatKey(instructorId, hour), placeId])) };
+}

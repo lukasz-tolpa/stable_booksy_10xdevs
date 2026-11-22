@@ -6,6 +6,7 @@ import PanelPhoneLinks from "@/components/stable-panel/PanelPhoneLinks.astro";
 import PanelSide from "@/components/stable-panel/PanelSide.astro";
 import PanelWeek from "@/components/stable-panel/PanelWeek.astro";
 import { listInstructorAccounts, listStableInstructors } from "@/lib/instructors/queries";
+import { listStablePlaces } from "@/lib/places/queries";
 import { logError } from "@/lib/log";
 import { resolveSummaryMonth } from "@/lib/month-summary/month";
 import { todayIso } from "@/lib/schedule/dates";
@@ -15,6 +16,7 @@ import {
   composeLastMonth,
   composeBoardersLink,
   composeMonthSummaryLink,
+  composePlacesLink,
   composeSettlementsLink,
   composeSideColumn,
   composeWeek,
@@ -51,7 +53,12 @@ type Client = NonNullable<typeof supabase>;
 type Horses = ReturnType<typeof listStableHorses>;
 
 function loadSideData(client: Client, stableId: number, horses: Horses) {
-  return Promise.all([horses, listStableInstructors(client, stableId), listInstructorAccounts(client)]);
+  return Promise.all([
+    horses,
+    listStableInstructors(client, stableId),
+    listInstructorAccounts(client),
+    listStablePlaces(client, stableId),
+  ]);
 }
 
 /** Wartość udanej części albo `null` — awaria jednej części trafia do logu, reszta się wyświetla. */
@@ -106,15 +113,16 @@ if (supabase && profile) {
   }
 }
 
-const [horses, instructors, accounts] = sideData ?? [null, null, null];
+const [horses, instructors, accounts, places] = sideData ?? [null, null, null, null];
 const sideLinks = composeSideColumn(
-  { today, week, horses, instructors, accounts, monthBookings, settlementsTotal },
+  { today, week, horses, instructors, accounts, places, monthBookings, settlementsTotal },
   now,
 );
-// Poniżej 1000 px boczna kolumna znika, a dolny pasek nie ma Pensjonariuszy, Podsumowania miesiąca ani
-// Rozliczeń — wejścia w kolumnie głównej.
+// Poniżej 1000 px boczna kolumna znika, a dolny pasek nie ma Pensjonariuszy, Placów, Podsumowania miesiąca
+// ani Rozliczeń — wejścia w kolumnie głównej.
 const phoneLinks = [
   composeBoardersLink({ horses }),
+  composePlacesLink({ places }),
   composeMonthSummaryLink({ today, monthBookings }, now),
   composeSettlementsLink({ today, settlementsTotal }),
 ];

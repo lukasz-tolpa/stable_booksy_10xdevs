@@ -1,6 +1,9 @@
 import type { DayBooking } from "@/lib/bookings/queries";
 import { hasSlotStarted, unknownInstructorName } from "@/lib/bookings/slots";
 import { cancelledByLabel } from "@/lib/bookings/status";
+import { placeNamer, type PlaceName } from "@/lib/places/names";
+import type { SlotSeats } from "@/lib/schedule/queries";
+import { seatKey } from "@/lib/schedule/sheet";
 
 /**
  * Składanie listy zapisów dnia ośrodka (FR-005): aktywne (godzina, instruktor, jeździec, koń,
@@ -46,6 +49,8 @@ export interface ActiveBookingRow {
   hour: number;
   instructorName: string;
   riderName: string;
+  /** Plac slotu zapisu (#113); `null` — slotu nie ma w grafiku dnia (nie powinno się zdarzyć przy aktywnym). */
+  placeName: string | null;
   /** Przydzielony koń; `null` — zapis bez konia (wiersz jest wyróżniony `NO_HORSE`). */
   horseId: number | null;
   /** Nazwa przydzielonego konia albo `NO_HORSE`. */
@@ -81,6 +86,10 @@ export interface DayBookingSectionsInput {
   horses: HorseOption[];
   /** Konie pracujące tego dnia (`schedule_day_horses`). */
   dayHorseIds: number[];
+  /** Sloty dnia (`ScheduleDayData.seats`) — plac każdego slotu. */
+  slots: SlotSeats[];
+  /** Place ośrodka, także nieaktywne — źródło nazw. */
+  places: PlaceName[];
   /** Dzień listy, ISO. */
   day: string;
   /** Chwila, względem której liczymy próg „slot już się zaczął" (`hasSlotStarted`). */
@@ -97,12 +106,18 @@ function byHourInstructorRider<T extends { hour: number; instructorName: string;
   );
 }
 
+function placeOf(placeId: number | undefined, placeName: (placeId: number) => string): string | null {
+  return placeId === undefined ? null : placeName(placeId);
+}
+
 function riderLabel(booking: DayBooking): string {
   return booking.anonymised ? ANONYMISED_RIDER : (booking.riderName ?? UNNAMED_RIDER);
 }
 
 export function composeDayBookingSections(input: DayBookingSectionsInput): DayBookingSections {
   const { bookings, horses, dayHorseIds, day, now = new Date() } = input;
+  const placeName = placeNamer(input.places);
+  const slotPlaces = new Map(input.slots.map((slot) => [seatKey(slot.instructorId, slot.hour), slot.placeId]));
   const horseNames = new Map(horses.map((horse) => [horse.id, horse.name]));
   const dayHorses = dayHorseIds.map((id) => ({ id, name: horseNames.get(id) ?? unknownHorseName(id) })).sort(byName);
   const activeBookings = bookings.filter((booking) => booking.status === "active");
@@ -119,6 +134,7 @@ export function composeDayBookingSections(input: DayBookingSectionsInput): DayBo
         hour: booking.hour,
         instructorName: booking.instructorName ?? unknownInstructorName(booking.instructorId),
         riderName: riderLabel(booking),
+        placeName: placeOf(slotPlaces.get(seatKey(booking.instructorId, booking.hour)), placeName),
         horseId: booking.horseId,
         horseName:
           booking.horseId === null ? NO_HORSE : (horseNames.get(booking.horseId) ?? unknownHorseName(booking.horseId)),

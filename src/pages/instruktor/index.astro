@@ -111,6 +111,7 @@ if (supabase && profile) {
                     <div class="slot__head">
                       {/* Cały tekst tego elementu to sama godzina. */}
                       <span class="slot__when">{formatClockHour(slot.hour)}</span>
+                      <span class="slot__place">{slot.placeName}</span>
                       <span class="slot__seats">{formatTakenSeats(slot.taken, slot.seats)}</span>
                     </div>
                     {slot.riders.length === 0 ? (
@@ -214,6 +215,10 @@ if (supabase && profile) {
     font-size: 14px;
     font-weight: 600;
     white-space: nowrap;
+  }
+  .slot__place {
+    font-weight: 600;
+    font-size: 14.5px;
   }
   .slot__seats {
     color: var(--muted);

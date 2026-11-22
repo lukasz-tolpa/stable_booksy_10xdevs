@@ -1,3 +1,4 @@
+import { placeNamer, type PlaceName } from "@/lib/places/names";
 import { isPastDate, SCHEDULE_TIME_ZONE, todayIso } from "@/lib/schedule/dates";
 import type { SlotSeats } from "@/lib/schedule/queries";
 
@@ -44,6 +45,8 @@ export function slotStatusLabel(status: SlotStatus): string | null {
 export interface RiderSlot {
   instructorId: number;
   instructorName: string;
+  /** Plac slotu (#113). */
+  placeName: string;
   seats: number;
   freeSeats: number;
   status: SlotStatus;
@@ -59,6 +62,8 @@ export interface SlotHoursInput {
   closeHour: number;
   /** Instruktorzy stadniny (także nieaktywni — ich sloty zostają otwarte) — źródło nazw. */
   instructors: { id: number; name: string }[];
+  /** Place ośrodka (także nieaktywne — zostają w dniach już ułożonych) — źródło nazw. */
+  places: PlaceName[];
   /** Limity miejsc dnia (`ScheduleDayData.seats`). */
   seats: SlotSeats[];
   occupancy: SlotOccupancy[];
@@ -88,6 +93,7 @@ function statusOf(slot: SlotSeats, freeSeats: number, mine: Set<string>, myHours
 
 export function computeSlotHours(input: SlotHoursInput): SlotHour[] {
   const names = new Map(input.instructors.map((instructor) => [instructor.id, instructor.name]));
+  const placeName = placeNamer(input.places);
   const taken = new Map(input.occupancy.map((entry) => [slotKey(entry.instructorId, entry.hour), entry.taken]));
   const mine = new Set(input.myBookings.map((booking) => slotKey(booking.instructorId, booking.hour)));
   const myHours = new Set(input.myBookings.map((booking) => booking.hour));
@@ -103,6 +109,7 @@ export function computeSlotHours(input: SlotHoursInput): SlotHour[] {
     slots.push({
       instructorId: slot.instructorId,
       instructorName: names.get(slot.instructorId) ?? unknownInstructorName(slot.instructorId),
+      placeName: placeName(slot.placeId),
       seats: slot.seats,
       freeSeats,
       status: statusOf(slot, freeSeats, mine, myHours),

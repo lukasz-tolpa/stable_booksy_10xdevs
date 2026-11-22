@@ -211,10 +211,11 @@ describe("composeSideColumn", () => {
   ];
   // Konto ma też instruktor nieaktywny (4) — nie liczy się, bo nie jest aktywny.
   const accounts = [{ instructor_id: 1 }, { instructor_id: 3 }, { instructor_id: 4 }];
+  const places = [{ active: true }, { active: false }];
 
-  it("prowadzi do sekcji ośrodka: Grafik na jutro, Zapisy na dziś, Konie, Pensjonariusze, Instruktorzy, Podsumowanie miesiąca, Rozliczenia, Statystyki", () => {
+  it("prowadzi do sekcji ośrodka: Grafik na jutro, Zapisy na dziś, Konie, Pensjonariusze, Place, Instruktorzy, Podsumowanie miesiąca, Rozliczenia, Statystyki", () => {
     const links = composeSideColumn(
-      { today: TODAY, week, horses, instructors, accounts, monthBookings: [], settlementsTotal: null },
+      { today: TODAY, week, horses, instructors, accounts, places, monthBookings: [], settlementsTotal: null },
       NOW,
     );
 
@@ -223,6 +224,7 @@ describe("composeSideColumn", () => {
       ["Zapisy", "/osrodek/zapisy?dzien=2026-11-20"],
       ["Konie", "/osrodek/konie"],
       ["Pensjonariusze", "/osrodek/pensjonariusze"],
+      ["Place", "/osrodek/place"],
       ["Instruktorzy", "/osrodek/instruktorzy"],
       ["Podsumowanie miesiąca", "/osrodek/podsumowanie"],
       ["Rozliczenia", "/osrodek/rozliczenia"],
@@ -230,9 +232,9 @@ describe("composeSideColumn", () => {
     ]);
   });
 
-  it("przy każdym linku krótka informacja: jutro bez grafiku, aktywne zapisy dziś, aktywne konie ośrodka, konie pensjonatowe, instruktorzy z kontem spośród aktywnych", () => {
+  it("przy każdym linku krótka informacja: jutro bez grafiku, aktywne zapisy dziś, aktywne konie ośrodka, konie pensjonatowe, aktywne place, instruktorzy z kontem spośród aktywnych", () => {
     const links = composeSideColumn(
-      { today: TODAY, week, horses, instructors, accounts, monthBookings: [], settlementsTotal: null },
+      { today: TODAY, week, horses, instructors, accounts, places, monthBookings: [], settlementsTotal: null },
       NOW,
     );
 
@@ -241,6 +243,7 @@ describe("composeSideColumn", () => {
       ["dziś: 2", false],
       ["2 aktywne", false],
       ["1 koń pensjonatowy", false],
+      ["1 aktywny", false],
       ["2 z 3 z kontem", false],
       ["listopad: 0 jazd", false],
       [null, false],
@@ -256,6 +259,7 @@ describe("composeSideColumn", () => {
         horses,
         instructors,
         accounts,
+        places,
         monthBookings: [
           booking("2026-10-31"),
           booking("2026-11-02"),
@@ -282,6 +286,7 @@ describe("composeSideColumn", () => {
         horses,
         instructors,
         accounts,
+        places,
         monthBookings: [],
         settlementsTotal: null,
       },
@@ -299,6 +304,7 @@ describe("composeSideColumn", () => {
         horses: Array.from({ length: count }, () => ({ active: true, kind: "stable" })),
         instructors,
         accounts,
+        places,
         monthBookings: [],
         settlementsTotal: null,
       })[2]?.fact;
@@ -320,18 +326,20 @@ describe("composeSideColumn", () => {
         horses: null,
         instructors,
         accounts: null,
+        places: null,
         monthBookings: null,
         settlementsTotal: null,
       },
       NOW,
     );
 
-    expect(links.map((link) => link.fact)).toEqual([null, null, null, null, null, null, null, "dowolny okres"]);
+    expect(links.map((link) => link.fact)).toEqual([null, null, null, null, null, null, null, null, "dowolny okres"]);
     expect(links.map((link) => link.href)).toEqual([
       "/osrodek/grafik?dzien=2026-11-21",
       "/osrodek/zapisy?dzien=2026-11-20",
       "/osrodek/konie",
       "/osrodek/pensjonariusze",
+      "/osrodek/place",
       "/osrodek/instruktorzy",
       "/osrodek/podsumowanie",
       "/osrodek/rozliczenia",
@@ -450,14 +458,15 @@ describe("composeSettlementsLink — Rozliczenia w bocznej kolumnie i w główne
         horses: null,
         instructors: null,
         accounts: null,
+        places: null,
         monthBookings: null,
         settlementsTotal,
       },
       NOW,
     );
 
-    expect(links[6]).toEqual(composeSettlementsLink({ today: TODAY, settlementsTotal }));
-    expect(links[6]?.fact).toBe("listopad: 480,00 zł");
+    expect(links[7]).toEqual(composeSettlementsLink({ today: TODAY, settlementsTotal }));
+    expect(links[7]?.fact).toBe("listopad: 480,00 zł");
   });
 });
 

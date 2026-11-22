@@ -32,6 +32,7 @@ export type ScheduleSlot = Tables["schedule_slots"]["Row"];
 export type Booking = Tables["bookings"]["Row"];
 /** Zmiana stawki (#94): stawka ośrodka (`rider_id` NULL) albo indywidualna; `amount` w groszach. */
 export type Rate = Tables["rates"]["Row"];
+export type Place = Tables["places"]["Row"];
 
 export type StableInsert = Tables["stables"]["Insert"];
 export type HorseInsert = Tables["horses"]["Insert"];

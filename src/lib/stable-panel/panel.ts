@@ -1,6 +1,7 @@
 import { OWNER_MONTH_SUMMARY_ROUTE, OWNER_SCHEDULE_ROUTE, OWNER_SETTLEMENTS_ROUTE } from "@/lib/auth/roles";
 import { STABLE_DAY_BOOKINGS_ROUTE } from "@/lib/bookings/stable-redirect";
 import { INSTRUCTORS_ROUTE } from "@/lib/instructors/redirect";
+import { PLACES_ROUTE } from "@/lib/places/redirect";
 import {
   BOOKING_FORMS,
   formatCount,
@@ -184,6 +185,8 @@ export interface SideColumnInput {
   week: WeekView | null;
   /** Wszystkie konie ośrodka, także pensjonatowe (`listStableHorses`); `null` — nie wczytano. */
   horses: { active: boolean; kind: string }[] | null;
+  /** Place ośrodka (`listStablePlaces`, #113); `null` — nie wczytano. */
+  places: { active: boolean }[] | null;
   /** Instruktorzy ośrodka (`listStableInstructors`); `null` — nie wczytano. */
   instructors: { id: number; active: boolean }[] | null;
   /** Instruktorzy z kontem (`listInstructorAccounts`); `null` — nie wczytano. */
@@ -283,6 +286,21 @@ export function composeBoardersLink(input: Pick<SideColumnInput, "horses">): Sid
 }
 
 /**
+ * Wejście na stronę „Place” (#113) z liczbą aktywnych placów — w bocznej kolumnie i poniżej 1000 px
+ * w kolumnie głównej (dolny pasek nie ma placów).
+ */
+export function composePlacesLink(input: Pick<SideColumnInput, "places">): SideLink {
+  const activePlaces = input.places?.filter((place) => place.active).length ?? null;
+
+  return {
+    name: PANEL_TEXTS.side.places,
+    href: PLACES_ROUTE,
+    fact: activePlaces === null ? null : formatCount(activePlaces, ACTIVE_FORMS),
+    warn: false,
+  };
+}
+
+/**
  * Boczna kolumna „Ośrodek”: sekcje ośrodka, każda z krótką informacją. Link zostaje także
  * wtedy, gdy jego informacji nie udało się wczytać — nawigacja nie znika z awarią odczytu.
  * `now` wstrzykiwane jak w statystykach — jazdy miesiąca liczą się do teraz.
@@ -307,6 +325,7 @@ export function composeSideColumn(input: SideColumnInput, now: Date = new Date()
       warn: false,
     },
     composeBoardersLink(input),
+    composePlacesLink(input),
     { name: texts.instructors, href: INSTRUCTORS_ROUTE, fact: instructorsFact(input), warn: false },
     composeMonthSummaryLink(input, now),
     composeSettlementsLink(input),

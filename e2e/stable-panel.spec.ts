@@ -108,10 +108,10 @@ test("panel ośrodka pokazuje liczby z ostatnich 30 dni zgodne ze Statystykami t
 });
 
 test("boczna kolumna „Ośrodek” prowadzi do sekcji ośrodka, każda z krótką informacją", async ({ page }) => {
-  await test.step("osiem linków z informacją i adresem sekcji", async () => {
+  await test.step("dziewięć linków z informacją i adresem sekcji", async () => {
     const side = page.getByRole("navigation", { name: "Ośrodek" });
     const links = side.getByRole("link");
-    await expect(links).toHaveCount(8);
+    await expect(links).toHaveCount(9);
 
     const expected: [RegExp, string][] = [
       [/^Grafik jutro: ułożony$/, `/osrodek/grafik?dzien=${seedDay()}`],
@@ -119,6 +119,8 @@ test("boczna kolumna „Ośrodek” prowadzi do sekcji ośrodka, każda z krótk
       [/^Konie \d+ aktywn\S+$/, "/osrodek/konie"],
       // Konie pensjonatowe ośrodka (#114) — seed ma jednego.
       [/^Pensjonariusze \d+ ko\S+ pensjonatow\S+$/, "/osrodek/pensjonariusze"],
+      // Ośrodek z seeda ma dwa place, Hala i Duży plac (#113).
+      [/^Place \d+ aktywn\S+$/, "/osrodek/place"],
       [/^Instruktorzy \d+ z \d+ z kontem$/, "/osrodek/instruktorzy"],
       [/^Podsumowanie miesiąca \S+: \d+ jazd\S*$/, "/osrodek/podsumowanie"],
       // Bez stawki ośrodka prośba o nią, ze stawką — suma bieżącego miesiąca (#98).
@@ -132,7 +134,8 @@ test("boczna kolumna „Ośrodek” prowadzi do sekcji ośrodka, każda z krótk
     }
   });
 
-  await test.step("obok bocznej kolumny kolumna główna nie powtarza linków do Podsumowania miesiąca i Rozliczeń", async () => {
+  await test.step("obok bocznej kolumny kolumna główna nie powtarza linków do Placów, Podsumowania miesiąca i Rozliczeń", async () => {
+    await expect(page.getByRole("link", { name: /^Place · / })).toBeHidden();
     await expect(page.getByRole("link", { name: /^Podsumowanie miesiąca · / })).toBeHidden();
     await expect(page.getByRole("link", { name: /^Rozliczenia · / })).toBeHidden();
   });

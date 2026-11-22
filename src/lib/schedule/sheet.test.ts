@@ -1,13 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
+  columnPlace,
   fillAll,
+  fillPlace,
   lastRideLabel,
   parseSeatInput,
+  placeAt,
   seatKey,
   sheetRows,
   stepSeat,
   withoutInstructor,
   workingHours,
+  type PlaceMap,
   type SeatMap,
 } from "@/lib/schedule/sheet";
 
@@ -192,5 +196,81 @@ describe("workingHours", () => {
 
   it("cała doba to godziny od 0 do 23", () => {
     expect(workingHours("0", "24")).toHaveLength(24);
+  });
+});
+
+const HALA = 11;
+const DUZY_PLAC = 12;
+
+function placeMap(entries: [instructorId: number, hour: number, placeId: number][]): PlaceMap {
+  return Object.fromEntries(entries.map(([instructorId, hour, placeId]) => [seatKey(instructorId, hour), placeId]));
+}
+
+describe("placeAt", () => {
+  it("slot ma plac ustawiony dla swojej godziny", () => {
+    const places = placeMap([
+      [KAROL, 10, HALA],
+      [KAROL, 11, DUZY_PLAC],
+    ]);
+
+    expect(placeAt(places, KAROL, 11, HALA)).toBe(DUZY_PLAC);
+  });
+
+  it("godzina bez placu dostaje plac wiersza instruktora — z jego najwcześniejszej godziny z placem", () => {
+    const places = placeMap([
+      [KAROL, 12, HALA],
+      [KAROL, 11, DUZY_PLAC],
+    ]);
+
+    expect(placeAt(places, KAROL, 15, HALA)).toBe(DUZY_PLAC);
+  });
+
+  it("instruktor bez żadnego placu dostaje plac domyślny; bez placu domyślnego — brak placu", () => {
+    const places = placeMap([[KAROL, 10, DUZY_PLAC]]);
+
+    expect(placeAt(places, OLA, 10, HALA)).toBe(HALA);
+    expect(placeAt(places, OLA, 10, null)).toBeNull();
+  });
+});
+
+describe("columnPlace", () => {
+  it("plac całego wiersza instruktora, gdy wszystkie jego godziny są na jednym placu", () => {
+    const places = placeMap([
+      [KAROL, 10, DUZY_PLAC],
+      [KAROL, 11, DUZY_PLAC],
+    ]);
+
+    expect(columnPlace(places, KAROL, [10, 11, 12], HALA)).toBe(DUZY_PLAC);
+  });
+
+  it("godziny na różnych placach nie mają jednego placu wiersza", () => {
+    const places = placeMap([
+      [KAROL, 10, DUZY_PLAC],
+      [KAROL, 11, HALA],
+    ]);
+
+    expect(columnPlace(places, KAROL, [10, 11], HALA)).toBeNull();
+  });
+});
+
+describe("fillPlace", () => {
+  it("ustawia plac całego wiersza w godzinach zakresu i tylko danemu instruktorowi; poprawka godziny zostaje możliwa", () => {
+    const places = placeMap([
+      [KAROL, 10, HALA],
+      [OLA, 10, HALA],
+    ]);
+
+    const filled = fillPlace(places, KAROL, [10, 11], DUZY_PLAC);
+    const corrected = { ...filled, [seatKey(KAROL, 11)]: HALA };
+
+    expect(filled).toEqual(
+      placeMap([
+        [KAROL, 10, DUZY_PLAC],
+        [KAROL, 11, DUZY_PLAC],
+        [OLA, 10, HALA],
+      ]),
+    );
+    expect(placeAt(corrected, KAROL, 11, HALA)).toBe(HALA);
+    expect(columnPlace(corrected, KAROL, [10, 11], HALA)).toBeNull();
   });
 });

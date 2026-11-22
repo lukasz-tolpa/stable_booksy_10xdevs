@@ -8,6 +8,17 @@ const HORSES = [
   { id: 3, name: "Iskra" },
 ];
 
+const PLACES = [
+  { id: 21, name: "Hala" },
+  { id: 22, name: "Duży plac" },
+];
+
+/** Sloty dnia: Joanna o 10 na Hali, o 11 na Dużym placu. */
+const SLOTS = [
+  { instructorId: 1, hour: 10, seats: 2, placeId: 21 },
+  { instructorId: 1, hour: 11, seats: 2, placeId: 22 },
+];
+
 /** Dzień listy jutro względem „teraz" — żaden zapis nie zaczął się, chyba że test mówi inaczej. */
 const DAY = "2026-11-14";
 /** 2026-11-13, 12:30 w Warszawie (czas zimowy, UTC+1). */
@@ -33,6 +44,8 @@ function sections(bookings: DayBooking[], options: { dayHorseIds?: number[]; day
     bookings,
     horses: HORSES,
     dayHorseIds: options.dayHorseIds ?? [1, 2],
+    slots: SLOTS,
+    places: PLACES,
     day: options.day ?? DAY,
     now: NOW,
   });
@@ -50,6 +63,20 @@ describe("composeDayBookingSections — zapisy aktywne", () => {
       horseId: null,
       horseName: "bez konia",
     });
+  });
+
+  it("wiersz pokazuje plac slotu zapisu; zapis bez slotu w grafiku nie ma placu", () => {
+    const rows = sections([
+      booking({ id: 1, hour: 10 }),
+      booking({ id: 2, hour: 11, riderName: "Piotr Nowak" }),
+      booking({ id: 3, hour: 12, riderName: "Ola Las" }),
+    ]).active;
+
+    expect(rows.map((r) => [r.hour, r.placeName])).toEqual([
+      [10, "Hala"],
+      [11, "Duży plac"],
+      [12, null],
+    ]);
   });
 
   it("przydzielony koń dostaje nazwę z listy stada, a spoza niej — nazwę zastępczą", () => {

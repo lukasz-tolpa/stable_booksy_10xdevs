@@ -12,6 +12,7 @@ import { getMyBookings, getSlotOccupancy } from "@/lib/bookings/queries";
 import { computeSlotHours, currentWarsawHour, slotStatusLabel, type SlotHour } from "@/lib/bookings/slots";
 import { formatClockHour, formatFreeSeats, formatLongDateWithYear } from "@/lib/format";
 import { listStableInstructors } from "@/lib/instructors/queries";
+import { listStablePlaces } from "@/lib/places/queries";
 import { addDays, defaultScheduleDate, isPastDate, parseScheduleDate, todayIso } from "@/lib/schedule/dates";
 import { getScheduleDay, type ScheduleDayData } from "@/lib/schedule/queries";
 import { getStableById, type StableListItem } from "@/lib/stables/queries";
@@ -48,8 +49,9 @@ if (id !== null && supabase && user) {
     }
 
     if (stable && scheduleDay) {
-      const [instructors, occupancy, myBookings] = await Promise.all([
+      const [instructors, places, occupancy, myBookings] = await Promise.all([
         listStableInstructors(supabase, id),
+        listStablePlaces(supabase, id),
         getSlotOccupancy(supabase, id, day),
         getMyBookings(supabase, scheduleDay.id, user.id),
       ]);
@@ -60,6 +62,7 @@ if (id !== null && supabase && user) {
         openHour: scheduleDay.openHour,
         closeHour: scheduleDay.closeHour,
         instructors,
+        places,
         seats: scheduleDay.seats,
         occupancy,
         myBookings,
@@ -170,6 +173,10 @@ const dayLabel = formatLongDateWithYear(day);
                         return (
                           <li class:list={["slot", `slot--${slot.status}`]}>
                             <span class="slot__who">{slot.instructorName}</span>
+                            <span class="slot__place">
+                              <MapPin className="size-3.5" aria-hidden="true" />
+                              {slot.placeName}
+                            </span>
                             <span class="slot__seats">{formatFreeSeats(slot.freeSeats, slot.seats)}</span>
                             {label === null ? (
                               <form method="post" action="/api/bookings/create">
@@ -352,7 +359,7 @@ const dayLabel = formatLongDateWithYear(day);
     display: grid;
     gap: 8px;
   }
-  /* Slot = instruktor × godzina: nazwa, wolne miejsca, akcja albo stan. */
+  /* Slot = instruktor × godzina: nazwa, plac, wolne miejsca, akcja albo stan. */
   .slot {
     display: flex;
     flex-wrap: wrap;
@@ -366,6 +373,13 @@ const dayLabel = formatLongDateWithYear(day);
   .slot__who {
     font-weight: 600;
     font-size: 14.5px;
+  }
+  .slot__place {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13.5px;
+    color: var(--muted);
   }
   .slot__seats {
     font-family: var(--font-mono);

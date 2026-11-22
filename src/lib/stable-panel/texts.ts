@@ -45,6 +45,7 @@ export const PANEL_TEXTS = {
     horses: "Konie",
     /** Konie pensjonatowe i pobyty (#114) — strona `/osrodek/pensjonariusze`. */
     boarders: "Pensjonariusze",
+    places: "Place",
     instructors: "Instruktorzy",
     monthSummary: "Podsumowanie miesiąca",
     settlements: "Rozliczenia",

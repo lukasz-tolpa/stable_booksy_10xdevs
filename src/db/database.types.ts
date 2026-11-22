@@ -366,6 +366,38 @@ export type Database = {
           },
         ];
       };
+      places: {
+        Row: {
+          active: boolean;
+          created_at: string;
+          id: number;
+          name: string;
+          stable_id: number;
+        };
+        Insert: {
+          active?: boolean;
+          created_at?: string;
+          id?: never;
+          name: string;
+          stable_id: number;
+        };
+        Update: {
+          active?: boolean;
+          created_at?: string;
+          id?: never;
+          name?: string;
+          stable_id?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "places_stable_id_fkey";
+            columns: ["stable_id"];
+            isOneToOne: false;
+            referencedRelation: "stables";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       profiles: {
         Row: {
           created_at: string;
@@ -540,18 +572,21 @@ export type Database = {
         Row: {
           hour: number;
           instructor_id: number;
+          place_id: number;
           schedule_day_id: number;
           seats: number;
         };
         Insert: {
           hour: number;
           instructor_id: number;
+          place_id: number;
           schedule_day_id: number;
           seats?: number;
         };
         Update: {
           hour?: number;
           instructor_id?: number;
+          place_id?: number;
           schedule_day_id?: number;
           seats?: number;
         };
@@ -562,6 +597,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "schedule_day_instructors";
             referencedColumns: ["schedule_day_id", "instructor_id"];
+          },
+          {
+            foreignKeyName: "schedule_slots_place_id_fkey";
+            columns: ["place_id"];
+            isOneToOne: false;
+            referencedRelation: "places";
+            referencedColumns: ["id"];
           },
         ];
       };
