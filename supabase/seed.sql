@@ -8,6 +8,8 @@
 --   * instruktorka z kontem, ktora nie jest wlascicielka: Joanna Wrona w Stadninie Pod Dębem
 --     (konto `instructor` 9999..., #72) - widzi wylacznie swoje sloty („Moje sloty”)
 --   * dwoch jezdzcow - kazdy zapisany w innym osrodku
+--   * pensjonariuszka Katarzyna Zając (12121212...) bez zapisu, z koniem pensjonatowym Hrabia Pod Dębem
+--     (blok #114 na koncu pliku)
 --   * grafik na jutro w obu stadninach + po jednym aktywnym zapisie
 --
 -- Haslo wszystkich kont: sekret123
@@ -210,3 +212,54 @@ from (
 join public.stables s on s.name = b.stable_name
 join public.schedule_days sd on sd.stable_id = s.id
 join public.instructors i on i.stable_id = s.id and i.name = b.instructor_name;
+
+-- ---------------------------------------------------------------------------
+-- #114 Pensjonariusz z koniem pensjonatowym (spec #112, GLOSSARY „Pensjonariusz”)
+-- ---------------------------------------------------------------------------
+
+-- Katarzyna Zając (12121212..., haslo sekret123) - konto jezdzca bez zadnego zapisu; jej kon
+-- pensjonatowy Hrabia stoi w Stadninie Pod Dębem od 90 dni (pobyt trwa). Hrabia nie jest koniem
+-- pracujacym (SB046), wiec nie zmienia reguly sumy limitow. Blok wlasny, na koncu pliku - konta wyzej
+-- dostaly juz tokeny i tozsamosci, wiec ten robi to samo tylko dla swojego konta.
+insert into auth.users (
+  instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+  confirmation_token, recovery_token, email_change, email_change_token_new, email_change_token_current,
+  phone_change, phone_change_token, reauthentication_token
+)
+values (
+  '00000000-0000-0000-0000-000000000000',
+  '12121212-1212-1212-1212-121212121212',
+  'authenticated', 'authenticated', 'katarzyna.zajac@example.com',
+  extensions.crypt('sekret123', extensions.gen_salt('bf')), now(),
+  '{"provider":"email","providers":["email"]}',
+  '{"role":"rider","full_name":"Katarzyna Zając"}',
+  now(), now(),
+  '', '', '', '', '', '', '', ''
+);
+
+insert into auth.identities (
+  id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at
+)
+values (
+  gen_random_uuid(),
+  '12121212-1212-1212-1212-121212121212',
+  jsonb_build_object('sub', '12121212-1212-1212-1212-121212121212', 'email', 'katarzyna.zajac@example.com'),
+  'email',
+  '12121212-1212-1212-1212-121212121212',
+  now(), now(), now()
+);
+
+with horse as (
+  insert into public.horses (stable_id, name, notes, kind)
+  select s.id, 'Hrabia', 'Koń pensjonatowy Katarzyny Zając.', 'boarding'
+  from public.stables s
+  where s.name = 'Stadnina Pod Dębem'
+  returning id, stable_id
+), owner as (
+  insert into public.horse_owners (horse_id, stable_id, rider_id)
+  select id, stable_id, '12121212-1212-1212-1212-121212121212' from horse
+  returning horse_id, stable_id
+)
+insert into public.horse_stays (horse_id, stable_id, arrival_day)
+select horse_id, stable_id, current_date - 90 from owner;

@@ -8,6 +8,9 @@ import Card from "@/components/ui/Card.astro";
 import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
 import { RIDER_MONTH_SUMMARY_ROUTE, ROLE_HOME } from "@/lib/auth/roles";
+import { hasBoardingHorses } from "@/lib/boarding/queries";
+import { MY_HORSES_ROUTE } from "@/lib/boarding/redirect";
+import { BOARDING_PAGE_TEXTS } from "@/lib/boarding/texts";
 import { MONTH_SUMMARY_TEXTS } from "@/lib/month-summary/texts";
 import { listStables, type StableListItem } from "@/lib/stables/queries";
 import { prepareSearchTerm } from "@/lib/stables/search";
@@ -26,13 +29,25 @@ const supabase = createClient(Astro.request.headers, Astro.cookies);
 // pokazujemy stan awarii obok dwóch stanów pustych.
 let stables: StableListItem[] = [];
 let loadFailed = false;
+// „Moje konie” tylko u pensjonariusza (#114). Awaria tego odczytu chowa link, nie psuje katalogu.
+let boarder = false;
 
 if (supabase) {
-  try {
-    stables = await listStables(supabase, term);
-  } catch (error) {
+  const profileId = Astro.locals.profile?.id;
+  const [catalogue, horses] = await Promise.allSettled([
+    listStables(supabase, term),
+    profileId ? hasBoardingHorses(supabase, profileId) : Promise.resolve(false),
+  ]);
+  if (catalogue.status === "fulfilled") {
+    stables = catalogue.value;
+  } else {
     loadFailed = true;
-    logError("page:jezdziec/index", error);
+    logError("page:jezdziec/index", catalogue.reason);
+  }
+  if (horses.status === "fulfilled") {
+    boarder = horses.value;
+  } else {
+    logError("page:jezdziec/index", horses.reason);
   }
 }
 
@@ -47,6 +62,7 @@ const isEmpty = stables.length === 0;
       <h1>Ośrodki</h1>
       <div class="page-head__links">
         <GhostButton href="/jezdziec/zapisy">Moje zapisy</GhostButton>
+        {boarder && <GhostButton href={MY_HORSES_ROUTE}>{BOARDING_PAGE_TEXTS.rider.title}</GhostButton>}
         <GhostButton href={RIDER_MONTH_SUMMARY_ROUTE}>{MONTH_SUMMARY_TEXTS.heading}</GhostButton>
       </div>
     </div>

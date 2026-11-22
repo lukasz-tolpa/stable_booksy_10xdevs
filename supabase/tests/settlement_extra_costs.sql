@@ -201,10 +201,11 @@ begin
   end;
 
   select string_agg(id::text, ',' order by id) into v_riders from public.profiles where role = 'rider';
-  if v_riders is distinct from '33333333-3333-3333-3333-333333333333' then
+  -- Katarzyna (1212...) bez zapisu - pensjonariuszka z koniem w pobycie Pod Dębem (#114).
+  if v_riders is distinct from '12121212-1212-1212-1212-121212121212,33333333-3333-3333-3333-333333333333' then
     raise exception 'FAIL 9: jezdzcy do wyboru przed odwolanym zapisem Piotra: %', v_riders;
   end if;
-  raise notice 'PASS 9: jezdzcy do wyboru - tylko jezdzcy z zapisem w osrodku';
+  raise notice 'PASS 9: jezdzcy do wyboru - tylko jezdzcy z zapisem w osrodku i pensjonariuszka';
 end $$;
 
 -- Piotr dostaje w Pod Dębem jedynie odwolany zapis (jutro u Joanny o 12).
@@ -224,7 +225,7 @@ declare
   v int;
 begin
   select string_agg(id::text, ',' order by id) into v_riders from public.profiles where role = 'rider';
-  if v_riders is distinct from '33333333-3333-3333-3333-333333333333,44444444-4444-4444-4444-444444444444' then
+  if v_riders is distinct from '12121212-1212-1212-1212-121212121212,33333333-3333-3333-3333-333333333333,44444444-4444-4444-4444-444444444444' then
     raise exception 'FAIL 10: jezdzcy do wyboru po odwolanym zapisie Piotra: % (seed nieaktualny?)', v_riders;
   end if;
 

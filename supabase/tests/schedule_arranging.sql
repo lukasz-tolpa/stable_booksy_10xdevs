@@ -169,10 +169,11 @@ begin
   raise notice 'PASS: konie pracujace jutro (2), bez koni dnia innego osrodka';
 
   select count(*), count(*) filter (where stable_id <> v_stable_a) into v, v_foreign from public.horses;
-  if v <> 3 or v_foreign <> 0 then
-    raise exception 'FAIL: konie osrodka - % (z innego osrodka %) zamiast 3', v, v_foreign;
+  -- Bella, Kasztan, Iskra i kon pensjonatowy Hrabia (#114).
+  if v <> 4 or v_foreign <> 0 then
+    raise exception 'FAIL: konie osrodka - % (z innego osrodka %) zamiast 4', v, v_foreign;
   end if;
-  raise notice 'PASS: wszystkie konie swojego osrodka (3), bez koni innego osrodka';
+  raise notice 'PASS: wszystkie konie swojego osrodka (4), bez koni innego osrodka';
 
   select count(*), count(*) filter (where stable_id <> v_stable_a) into v, v_foreign from public.instructors;
   if v <> 3 or v_foreign <> 0 then

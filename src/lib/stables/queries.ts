@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/db/database.types";
+import { HORSE_KIND } from "@/lib/stables/kind";
 import type { Horse, Stable } from "@/types";
 
 type Client = SupabaseClient<Database>;
@@ -10,8 +11,12 @@ export type StableListItem = Pick<Stable, "id" | "name" | "city" | "description"
 /** Pola konia pokazywane na liście stada. */
 export type HorseListItem = Pick<Horse, "id" | "name" | "notes" | "active">;
 
+/** Koń z rodzajem — koń ośrodka albo pensjonatowy (`@/lib/stables/kind`, #114). */
+export type StableHorseItem = HorseListItem & Pick<Horse, "kind">;
+
 const LIST_COLUMNS = "id, name, city, description";
 const HORSE_COLUMNS = "id, name, notes, active";
+const HORSE_KIND_COLUMNS = `${HORSE_COLUMNS}, kind`;
 
 /**
  * Lista ośrodków, opcjonalnie zawężona frazą przygotowaną przez `prepareSearchTerm`.
@@ -80,17 +85,39 @@ export async function getOwnedStable(client: Client, ownerId: string): Promise<O
 }
 
 /**
- * Stado stadniny, posortowane: najpierw aktywne, potem wycofane, w obu grupach po imieniu.
+ * Wszystkie konie stadniny — konie ośrodka i pensjonatowe (źródło nazw dla zapisów, statystyk, rozliczeń;
+ * konie pracujące to tylko konie ośrodka, `isStableHorse`), posortowane: najpierw aktywne, potem wycofane,
+ * w obu grupach po imieniu.
  *
  * Filtr po `stable_id` jest KONIECZNY: polityka odczytu na `horses` jest otwarta dla
  * każdego zalogowanego (jeździec musi widzieć imię konia w slocie), więc bez niego
  * ośrodek zobaczyłby konie cudzych stadnin.
  */
-export async function listStableHorses(client: Client, stableId: number): Promise<HorseListItem[]> {
+export async function listStableHorses(client: Client, stableId: number): Promise<StableHorseItem[]> {
+  const { data, error } = await client
+    .from("horses")
+    .select(HORSE_KIND_COLUMNS)
+    .eq("stable_id", stableId)
+    .order("active", { ascending: false })
+    .order("name");
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+/**
+ * Konie ośrodka (bez koni pensjonatowych, #114) — kandydaci na konie pracujące w formularzu grafiku i stado
+ * na stronie „Konie”. Ta sama kolejność co `listStableHorses`; filtr po `stable_id` konieczny jak tam.
+ */
+export async function listStableOwnedHorses(client: Client, stableId: number): Promise<HorseListItem[]> {
   const { data, error } = await client
     .from("horses")
     .select(HORSE_COLUMNS)
     .eq("stable_id", stableId)
+    .eq("kind", HORSE_KIND.stable)
     .order("active", { ascending: false })
     .order("name");
 

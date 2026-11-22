@@ -13,6 +13,7 @@ import { loadSettlementsInput } from "@/lib/settlements/queries";
 import { composeSettlementList, type SettlementList } from "@/lib/settlements/settlements";
 import {
   composeLastMonth,
+  composeBoardersLink,
   composeMonthSummaryLink,
   composeSettlementsLink,
   composeSideColumn,
@@ -110,9 +111,10 @@ const sideLinks = composeSideColumn(
   { today, week, horses, instructors, accounts, monthBookings, settlementsTotal },
   now,
 );
-// Poniżej 1000 px boczna kolumna znika, a dolny pasek nie ma Podsumowania miesiąca ani Rozliczeń — wejścia
-// w kolumnie głównej.
+// Poniżej 1000 px boczna kolumna znika, a dolny pasek nie ma Pensjonariuszy, Podsumowania miesiąca ani
+// Rozliczeń — wejścia w kolumnie głównej.
 const phoneLinks = [
+  composeBoardersLink({ horses }),
   composeMonthSummaryLink({ today, monthBookings }, now),
   composeSettlementsLink({ today, settlementsTotal }),
 ];

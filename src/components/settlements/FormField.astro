@@ -2,8 +2,12 @@
 // Pole tekstowe formularzy rozliczeń z etykietą nad nim — kwota stawki ośrodka, stawki indywidualnej
 // i kosztu dodatkowego, nazwa kosztu. Zawsze wymagane, bez podpowiedzi przeglądarki; kwoty z
 // `inputmode="decimal"` (zapis `120,50`, sprawdza go `parseAmount`). Pole wypełnia szerokość rodzica —
-// szerokość ustawia element, w którym rodzic je umieszcza.
+// szerokość ustawia element, w którym rodzic je umieszcza. Od #114 także adres e-mail i dzień
+// (`type="email"` / `type="date"` z `min` i `max`) w formularzach koni pensjonatowych.
 interface Props {
+  type?: "text" | "email" | "date";
+  min?: string;
+  max?: string;
   id: string;
   label: string;
   name: string;
@@ -13,7 +17,18 @@ interface Props {
   placeholder?: string;
 }
 
-const { id, label, name: fieldName, value = "", inputmode, maxlength, placeholder } = Astro.props;
+const {
+  id,
+  label,
+  name: fieldName,
+  value = "",
+  inputmode,
+  maxlength,
+  placeholder,
+  type = "text",
+  min,
+  max,
+} = Astro.props;
 ---
 
 <div class="field">
@@ -21,8 +36,10 @@ const { id, label, name: fieldName, value = "", inputmode, maxlength, placeholde
   <input
     id={id}
     name={fieldName}
-    type="text"
+    type={type}
     value={value}
+    min={min}
+    max={max}
     inputmode={inputmode}
     maxlength={maxlength}
     placeholder={placeholder}

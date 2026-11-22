@@ -148,11 +148,96 @@ export type Database = {
           },
         ];
       };
+      horse_owners: {
+        Row: {
+          created_at: string;
+          horse_id: number;
+          rider_id: string | null;
+          stable_id: number;
+        };
+        Insert: {
+          created_at?: string;
+          horse_id: number;
+          rider_id?: string | null;
+          stable_id: number;
+        };
+        Update: {
+          created_at?: string;
+          horse_id?: number;
+          rider_id?: string | null;
+          stable_id?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "horse_owners_horse_fkey";
+            columns: ["horse_id", "stable_id"];
+            isOneToOne: true;
+            referencedRelation: "horses";
+            referencedColumns: ["id", "stable_id"];
+          },
+          {
+            foreignKeyName: "horse_owners_rider_id_fkey";
+            columns: ["rider_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "horse_owners_stable_id_fkey";
+            columns: ["stable_id"];
+            isOneToOne: false;
+            referencedRelation: "stables";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      horse_stays: {
+        Row: {
+          arrival_day: string;
+          created_at: string;
+          departure_day: string | null;
+          departure_set_at: string | null;
+          departure_set_by: string | null;
+          horse_id: number;
+          id: number;
+          stable_id: number;
+        };
+        Insert: {
+          arrival_day: string;
+          created_at?: string;
+          departure_day?: string | null;
+          departure_set_at?: string | null;
+          departure_set_by?: string | null;
+          horse_id: number;
+          id?: never;
+          stable_id: number;
+        };
+        Update: {
+          arrival_day?: string;
+          created_at?: string;
+          departure_day?: string | null;
+          departure_set_at?: string | null;
+          departure_set_by?: string | null;
+          horse_id?: number;
+          id?: never;
+          stable_id?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "horse_stays_horse_fkey";
+            columns: ["horse_id", "stable_id"];
+            isOneToOne: false;
+            referencedRelation: "horse_owners";
+            referencedColumns: ["horse_id", "stable_id"];
+          },
+        ];
+      };
       horses: {
         Row: {
           active: boolean;
           created_at: string;
           id: number;
+          kind: string;
           name: string;
           notes: string | null;
           stable_id: number;
@@ -161,6 +246,7 @@ export type Database = {
           active?: boolean;
           created_at?: string;
           id?: never;
+          kind?: string;
           name: string;
           notes?: string | null;
           stable_id: number;
@@ -169,6 +255,7 @@ export type Database = {
           active?: boolean;
           created_at?: string;
           id?: never;
+          kind?: string;
           name?: string;
           notes?: string | null;
           stable_id?: number;
@@ -518,6 +605,14 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      add_boarding_horse: {
+        Args: { p_arrival: string; p_name: string; p_rider_email: string };
+        Returns: number;
+      };
+      add_horse_stay: {
+        Args: { p_arrival: string; p_horse_id: number };
+        Returns: number;
+      };
       assign_my_slot_horse: {
         Args: { p_booking_id: number; p_horse_id?: number };
         Returns: undefined;
@@ -526,6 +621,7 @@ export type Database = {
         Args: { p_city: string; p_instructor_name: string; p_name: string };
         Returns: number;
       };
+      find_rider_by_email: { Args: { p_email: string }; Returns: string };
       get_my_month_bookings: {
         Args: { p_from: string; p_to: string };
         Returns: {
@@ -564,6 +660,20 @@ export type Database = {
           hour: number;
           instructor_id: number;
           taken: number;
+        }[];
+      };
+      get_stable_boarding_horses: {
+        Args: never;
+        Returns: {
+          arrival_day: string;
+          departure_day: string;
+          departure_set_by: string;
+          horse_id: number;
+          horse_name: string;
+          rider_email: string;
+          rider_id: string;
+          rider_name: string;
+          stay_id: number;
         }[];
       };
       invitation_by_token: {
@@ -627,6 +737,10 @@ export type Database = {
       set_schedule_permission: {
         Args: { p_granted: boolean; p_instructor_id: number };
         Returns: undefined;
+      };
+      set_stay_departure: {
+        Args: { p_departure: string; p_stay_id: number };
+        Returns: number;
       };
     };
     Enums: {

@@ -16,9 +16,11 @@ import {
 } from "@/lib/format";
 import { resolveSummaryMonth } from "@/lib/month-summary/month";
 import { monthRides } from "@/lib/month-summary/summary";
+import { STABLE_BOARDERS_ROUTE } from "@/lib/boarding/redirect";
 import { addDays } from "@/lib/schedule/dates";
 import type { SettlementList } from "@/lib/settlements/settlements";
-import { ACTIVE_FORMS, DAY_FORMS, PANEL_TEXTS, SEAT_FORMS } from "@/lib/stable-panel/texts";
+import { isStableHorse } from "@/lib/stables/kind";
+import { ACTIVE_FORMS, BOARDING_HORSE_FORMS, DAY_FORMS, PANEL_TEXTS, SEAT_FORMS } from "@/lib/stable-panel/texts";
 import { rideHoursBars, type BarChartItem } from "@/lib/stats/chart-items";
 import { statsPeriodSearch } from "@/lib/stats/period";
 import type { StatsRider } from "@/lib/stats/riders";
@@ -180,8 +182,8 @@ export interface SideColumnInput {
   today: string;
   /** Model tygodnia; `null`, gdy tygodnia nie udało się wczytać. */
   week: WeekView | null;
-  /** Stado ośrodka (`listStableHorses`); `null` — nie wczytano. */
-  horses: { active: boolean }[] | null;
+  /** Wszystkie konie ośrodka, także pensjonatowe (`listStableHorses`); `null` — nie wczytano. */
+  horses: { active: boolean; kind: string }[] | null;
   /** Instruktorzy ośrodka (`listStableInstructors`); `null` — nie wczytano. */
   instructors: { id: number; active: boolean }[] | null;
   /** Instruktorzy z kontem (`listInstructorAccounts`); `null` — nie wczytano. */
@@ -267,6 +269,20 @@ export function composeSettlementsLink(input: Pick<SideColumnInput, "today" | "s
 }
 
 /**
+ * Link „Pensjonariusze” (#114) z liczbą koni pensjonatowych ośrodka, np. `2 konie pensjonatowe`. Dolny pasek
+ * go nie mieści, więc jak Podsumowanie miesiąca jest w bocznej kolumnie i poniżej 1000 px w kolumnie głównej.
+ */
+export function composeBoardersLink(input: Pick<SideColumnInput, "horses">): SideLink {
+  const boarding = input.horses?.filter((horse) => !isStableHorse(horse)).length ?? null;
+  return {
+    name: PANEL_TEXTS.side.boarders,
+    href: STABLE_BOARDERS_ROUTE,
+    fact: boarding === null ? null : formatCount(boarding, BOARDING_HORSE_FORMS),
+    warn: false,
+  };
+}
+
+/**
  * Boczna kolumna „Ośrodek”: sekcje ośrodka, każda z krótką informacją. Link zostaje także
  * wtedy, gdy jego informacji nie udało się wczytać — nawigacja nie znika z awarią odczytu.
  * `now` wstrzykiwane jak w statystykach — jazdy miesiąca liczą się do teraz.
@@ -274,7 +290,7 @@ export function composeSettlementsLink(input: Pick<SideColumnInput, "today" | "s
 export function composeSideColumn(input: SideColumnInput, now: Date = new Date()): SideLink[] {
   const texts = PANEL_TEXTS.side;
   const today = input.week?.days[0];
-  const activeHorses = input.horses?.filter((horse) => horse.active).length ?? null;
+  const activeHorses = input.horses?.filter((horse) => isStableHorse(horse) && horse.active).length ?? null;
 
   return [
     { name: texts.schedule, href: dayHref(OWNER_SCHEDULE_ROUTE, addDays(input.today, 1)), ...tomorrowFact(input.week) },
@@ -290,6 +306,7 @@ export function composeSideColumn(input: SideColumnInput, now: Date = new Date()
       fact: activeHorses === null ? null : formatCount(activeHorses, ACTIVE_FORMS),
       warn: false,
     },
+    composeBoardersLink(input),
     { name: texts.instructors, href: INSTRUCTORS_ROUTE, fact: instructorsFact(input), warn: false },
     composeMonthSummaryLink(input, now),
     composeSettlementsLink(input),

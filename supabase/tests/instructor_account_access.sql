@@ -389,9 +389,10 @@ begin
   if v <> 6 + 6 + 5 then
     raise exception 'FAIL: jezdziec widzi % slotow zamiast wszystkich 17', v;
   end if;
+  -- 5 koni osrodka i kon pensjonatowy Hrabia (#114) - katalog widzi konia, nie jego wlasciciela.
   select count(*) into v from public.horses;
-  if v <> 5 then
-    raise exception 'FAIL: jezdziec widzi % z 5 koni', v;
+  if v <> 6 then
+    raise exception 'FAIL: jezdziec widzi % z 6 koni', v;
   end if;
   select count(*) into v from public.stables;
   if v < 2 then

@@ -79,6 +79,21 @@ export function formatLongDayMonth(iso: string): string {
   return LONG_DAY_MONTH.format(new Date(`${iso}T00:00:00Z`));
 }
 
+const LONG_DAY_MONTH_YEAR = new Intl.DateTimeFormat("pl-PL", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+/**
+ * Dzień, miesiąc w dopełniaczu i rok dnia kalendarzowego (`RRRR-MM-DD`), np. `3 listopada 2026` — dni
+ * przyjazdu i wyjazdu pobytu konia. Data kalendarzowa, więc w UTC.
+ */
+export function formatLongDayMonthYear(iso: string): string {
+  return LONG_DAY_MONTH_YEAR.format(new Date(`${iso}T00:00:00Z`));
+}
+
 const SHORT_WEEKDAY_DATE = new Intl.DateTimeFormat("pl-PL", {
   weekday: "short",
   day: "numeric",

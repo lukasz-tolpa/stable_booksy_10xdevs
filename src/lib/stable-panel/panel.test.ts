@@ -3,6 +3,7 @@ import {
   composeLastMonth,
   composeMonthSummaryLink,
   composeSettlementsLink,
+  composeBoardersLink,
   composeSideColumn,
   composeWeek,
   historyPeriod,
@@ -195,7 +196,13 @@ describe("composeSideColumn", () => {
     days: [scheduleDay(TODAY, [3])],
     bookings: [booking(TODAY), booking(TODAY, { hour: 11 }), booking(TODAY, { status: "cancelled" })],
   });
-  const horses = [{ active: true }, { active: true }, { active: false }];
+  // Konie ośrodka: dwa aktywne, jeden wycofany; koń pensjonatowy nie liczy się do „Konie” (#114).
+  const horses = [
+    { active: true, kind: "stable" },
+    { active: true, kind: "stable" },
+    { active: false, kind: "stable" },
+    { active: true, kind: "boarding" },
+  ];
   const instructors = [
     { id: 1, active: true },
     { id: 2, active: true },
@@ -205,7 +212,7 @@ describe("composeSideColumn", () => {
   // Konto ma też instruktor nieaktywny (4) — nie liczy się, bo nie jest aktywny.
   const accounts = [{ instructor_id: 1 }, { instructor_id: 3 }, { instructor_id: 4 }];
 
-  it("prowadzi do sekcji ośrodka: Grafik na jutro, Zapisy na dziś, Konie, Instruktorzy, Podsumowanie miesiąca, Rozliczenia, Statystyki", () => {
+  it("prowadzi do sekcji ośrodka: Grafik na jutro, Zapisy na dziś, Konie, Pensjonariusze, Instruktorzy, Podsumowanie miesiąca, Rozliczenia, Statystyki", () => {
     const links = composeSideColumn(
       { today: TODAY, week, horses, instructors, accounts, monthBookings: [], settlementsTotal: null },
       NOW,
@@ -215,6 +222,7 @@ describe("composeSideColumn", () => {
       ["Grafik", "/osrodek/grafik?dzien=2026-11-21"],
       ["Zapisy", "/osrodek/zapisy?dzien=2026-11-20"],
       ["Konie", "/osrodek/konie"],
+      ["Pensjonariusze", "/osrodek/pensjonariusze"],
       ["Instruktorzy", "/osrodek/instruktorzy"],
       ["Podsumowanie miesiąca", "/osrodek/podsumowanie"],
       ["Rozliczenia", "/osrodek/rozliczenia"],
@@ -222,7 +230,7 @@ describe("composeSideColumn", () => {
     ]);
   });
 
-  it("przy każdym linku krótka informacja: jutro bez grafiku, aktywne zapisy dziś, aktywne konie, instruktorzy z kontem spośród aktywnych", () => {
+  it("przy każdym linku krótka informacja: jutro bez grafiku, aktywne zapisy dziś, aktywne konie ośrodka, konie pensjonatowe, instruktorzy z kontem spośród aktywnych", () => {
     const links = composeSideColumn(
       { today: TODAY, week, horses, instructors, accounts, monthBookings: [], settlementsTotal: null },
       NOW,
@@ -232,6 +240,7 @@ describe("composeSideColumn", () => {
       ["jutro: brak grafiku", true],
       ["dziś: 2", false],
       ["2 aktywne", false],
+      ["1 koń pensjonatowy", false],
       ["2 z 3 z kontem", false],
       ["listopad: 0 jazd", false],
       [null, false],
@@ -287,7 +296,7 @@ describe("composeSideColumn", () => {
       composeSideColumn({
         today: TODAY,
         week,
-        horses: Array.from({ length: count }, () => ({ active: true })),
+        horses: Array.from({ length: count }, () => ({ active: true, kind: "stable" })),
         instructors,
         accounts,
         monthBookings: [],
@@ -317,11 +326,12 @@ describe("composeSideColumn", () => {
       NOW,
     );
 
-    expect(links.map((link) => link.fact)).toEqual([null, null, null, null, null, null, "dowolny okres"]);
+    expect(links.map((link) => link.fact)).toEqual([null, null, null, null, null, null, null, "dowolny okres"]);
     expect(links.map((link) => link.href)).toEqual([
       "/osrodek/grafik?dzien=2026-11-21",
       "/osrodek/zapisy?dzien=2026-11-20",
       "/osrodek/konie",
+      "/osrodek/pensjonariusze",
       "/osrodek/instruktorzy",
       "/osrodek/podsumowanie",
       "/osrodek/rozliczenia",
@@ -446,8 +456,8 @@ describe("composeSettlementsLink — Rozliczenia w bocznej kolumnie i w główne
       NOW,
     );
 
-    expect(links[5]).toEqual(composeSettlementsLink({ today: TODAY, settlementsTotal }));
-    expect(links[5]?.fact).toBe("listopad: 480,00 zł");
+    expect(links[6]).toEqual(composeSettlementsLink({ today: TODAY, settlementsTotal }));
+    expect(links[6]?.fact).toBe("listopad: 480,00 zł");
   });
 });
 
@@ -557,5 +567,32 @@ describe("historyPeriod", () => {
     expect(historyPeriod(TODAY)).toEqual({ from: "2026-10-22", to: TODAY });
     // 31. dnia miesiąc zaczyna się wcześniej niż 30 dni temu.
     expect(historyPeriod("2026-12-31")).toEqual({ from: "2026-12-01", to: "2026-12-31" });
+  });
+});
+
+describe("composeBoardersLink — Pensjonariusze w bocznej kolumnie i w głównej kolumnie (telefon)", () => {
+  // Oracle: AC #114 — nawigacja „Pensjonariusze” u właściciela; liczba to konie pensjonatowe ośrodka.
+  it.each([
+    [[], "0 koni pensjonatowych"],
+    [[{ active: true, kind: "boarding" }], "1 koń pensjonatowy"],
+    [
+      [
+        { active: true, kind: "boarding" },
+        { active: false, kind: "boarding" },
+        { active: true, kind: "stable" },
+      ],
+      "2 konie pensjonatowe",
+    ],
+  ])("konie %j — %s", (horses, fact) => {
+    expect(composeBoardersLink({ horses })).toEqual({
+      name: "Pensjonariusze",
+      href: "/osrodek/pensjonariusze",
+      fact,
+      warn: false,
+    });
+  });
+
+  it("bez wczytanych koni link zostaje bez informacji", () => {
+    expect(composeBoardersLink({ horses: null }).fact).toBeNull();
   });
 });

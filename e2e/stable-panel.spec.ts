@@ -108,15 +108,17 @@ test("panel ośrodka pokazuje liczby z ostatnich 30 dni zgodne ze Statystykami t
 });
 
 test("boczna kolumna „Ośrodek” prowadzi do sekcji ośrodka, każda z krótką informacją", async ({ page }) => {
-  await test.step("siedem linków z informacją i adresem sekcji", async () => {
+  await test.step("osiem linków z informacją i adresem sekcji", async () => {
     const side = page.getByRole("navigation", { name: "Ośrodek" });
     const links = side.getByRole("link");
-    await expect(links).toHaveCount(7);
+    await expect(links).toHaveCount(8);
 
     const expected: [RegExp, string][] = [
       [/^Grafik jutro: ułożony$/, `/osrodek/grafik?dzien=${seedDay()}`],
       [/^Zapisy dziś: \d+$/, "/osrodek/zapisy?dzien="],
       [/^Konie \d+ aktywn\S+$/, "/osrodek/konie"],
+      // Konie pensjonatowe ośrodka (#114) — seed ma jednego.
+      [/^Pensjonariusze \d+ ko\S+ pensjonatow\S+$/, "/osrodek/pensjonariusze"],
       [/^Instruktorzy \d+ z \d+ z kontem$/, "/osrodek/instruktorzy"],
       [/^Podsumowanie miesiąca \S+: \d+ jazd\S*$/, "/osrodek/podsumowanie"],
       // Bez stawki ośrodka prośba o nią, ze stawką — suma bieżącego miesiąca (#98).

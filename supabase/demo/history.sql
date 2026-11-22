@@ -51,7 +51,8 @@ begin
   insert into public.schedule_day_horses (schedule_day_id, horse_id, stable_id)
   select sd.id, h.id, v_stable
   from public.schedule_days sd
-  join public.horses h on h.stable_id = v_stable
+  -- Tylko konie osrodka: kon pensjonatowy (Hrabia, #114) nie pracuje w grafiku (SB046).
+  join public.horses h on h.stable_id = v_stable and h.kind = 'stable'
   where sd.stable_id = v_stable
     and sd.day < current_date
     and (h.name in ('Bella', 'Kasztan') or extract(isodow from sd.day) in (6, 7));
