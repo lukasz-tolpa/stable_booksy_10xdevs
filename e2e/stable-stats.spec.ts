@@ -102,7 +102,7 @@ test("statystyki liczą rekreację i sloty treningowe osobno, a konie ośrodka i
     expect(recreationRides + trainingRides).toBe(rides);
     // Przy slotach godzinowych godziny jazd równe są liczbie jazd.
     await expect(trainingRow.getByRole("cell").nth(1)).toHaveText(new RegExp(`^${trainingRides}\\s*h$`));
-    await expect(trainingRow.getByRole("cell").nth(2)).toHaveText(/^\d+\s*%$/);
+    await expect(trainingRow.getByRole("cell").nth(2)).toHaveText(/^\s*\d+\s*%\s*$/);
   });
 
   await test.step("konie ośrodka nie niosą jazd treningowych, konie pensjonatowe mają własną tabelę", async () => {
