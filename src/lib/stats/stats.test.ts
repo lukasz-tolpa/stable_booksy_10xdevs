@@ -697,3 +697,115 @@ describe("computeStableStats — zapis bez konia", () => {
     ]);
   });
 });
+
+// #119: rekreacja i sloty treningowe liczone osobno (GLOSSARY „Obłożenie grafiku”, „Obciążenie konia”).
+describe("computeStableStats — rekreacja i sloty treningowe osobno", () => {
+  const HRABIA = 7;
+
+  /** Dzień 10–12: o 10 slot rekreacyjny (2 miejsca, konie ośrodka), o 11 slot treningowy (2 miejsca). */
+  function mixedDay(iso: string): StatsScheduleDay {
+    return day(iso, {
+      horseIds: [BELLA, KASZTAN],
+      slots: [
+        { hour: 10, seats: 2, kind: "recreation" },
+        { hour: 11, seats: 2, kind: "training" },
+      ],
+    });
+  }
+
+  it("obłożenie grafiku i godziny jazd są liczone osobno dla slotów rekreacyjnych i treningowych", () => {
+    const stats = computeStableStats(
+      input({
+        days: [mixedDay("2026-11-05")],
+        bookings: [
+          booking("2026-11-05", 10),
+          booking("2026-11-05", 11, { slotKind: "training", horseId: HRABIA, riderId: "rider-kasia" }),
+          booking("2026-11-05", 11, { slotKind: "training", horseId: HRABIA, riderId: "rider-ola" }),
+        ],
+      }),
+      NOW,
+    );
+
+    expect(stats.bySlotKind).toEqual({
+      recreation: { rides: 1, rideHours: 1, occupancyPercent: 50 },
+      training: { rides: 2, rideHours: 2, occupancyPercent: 100 },
+    });
+    // Podsumowanie okresu zostaje łączne.
+    expect(stats.summary.rides).toBe(3);
+  });
+
+  it("ośrodek bez slotów treningowych nie dostaje części treningowej ani tabeli koni pensjonatowych", () => {
+    const stats = computeStableStats(
+      input({
+        horses: [
+          { id: BELLA, name: "Bella", kind: "stable" },
+          { id: KASZTAN, name: "Kasztan", kind: "stable" },
+          { id: HRABIA, name: "Hrabia", kind: "boarding" },
+        ],
+        days: [day("2026-11-05")],
+        bookings: [booking("2026-11-05", 10)],
+      }),
+      NOW,
+    );
+
+    expect(stats.bySlotKind).toBeNull();
+    expect(stats.boardingHorses).toEqual([]);
+    expect(stats.horses.map((row) => row.name)).toEqual(["Bella", "Kasztan"]);
+  });
+
+  it("obciążenie konia w dwóch tabelach: konie ośrodka bez jazd na slotach treningowych, konie pensjonatowe osobno", () => {
+    const SOKOL = 8;
+    const stats = computeStableStats(
+      input({
+        horses: [
+          { id: BELLA, name: "Bella", kind: "stable" },
+          { id: KASZTAN, name: "Kasztan", kind: "stable" },
+          { id: HRABIA, name: "Hrabia", kind: "boarding" },
+          { id: SOKOL, name: "Sokół", kind: "boarding" },
+        ],
+        days: [mixedDay("2026-11-05"), mixedDay("2026-11-06")],
+        bookings: [
+          booking("2026-11-05", 10),
+          booking("2026-11-05", 11, { slotKind: "training", horseId: HRABIA, riderId: "rider-kasia" }),
+          booking("2026-11-06", 11, { slotKind: "training", horseId: HRABIA, riderId: "rider-kasia" }),
+          booking("2026-11-06", 11, { slotKind: "training", horseId: SOKOL, riderId: "rider-ola" }),
+          // Jazda na slocie treningowym bez konia nie obciąża żadnego konia, ale jest jazdą treningową.
+          booking("2026-11-05", 11, { slotKind: "training", horseId: null, riderId: "rider-ola" }),
+        ],
+      }),
+      NOW,
+    );
+
+    expect(stats.horses).toEqual([
+      { horseId: BELLA, name: "Bella", rides: 1, rideHours: 1 },
+      { horseId: KASZTAN, name: "Kasztan", rides: 0, rideHours: 0 },
+    ]);
+    expect(stats.boardingHorses).toEqual([
+      { horseId: HRABIA, name: "Hrabia", rides: 2, rideHours: 2 },
+      { horseId: SOKOL, name: "Sokół", rides: 1, rideHours: 1 },
+    ]);
+    expect(stats.bySlotKind?.training.rides).toBe(4);
+  });
+
+  it("miniony slot treningowy bez wystawionych miejsc pokazuje część treningową z brakiem danych obłożenia", () => {
+    const stats = computeStableStats(
+      input({
+        days: [
+          day("2026-11-05", {
+            slots: [
+              { hour: 10, seats: 2, kind: "recreation" },
+              { hour: 11, seats: 0, kind: "training" },
+            ],
+          }),
+        ],
+        bookings: [booking("2026-11-05", 10)],
+      }),
+      NOW,
+    );
+
+    expect(stats.bySlotKind).toEqual({
+      recreation: { rides: 1, rideHours: 1, occupancyPercent: 50 },
+      training: { rides: 0, rideHours: 0, occupancyPercent: null },
+    });
+  });
+});
