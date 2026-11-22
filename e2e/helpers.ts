@@ -290,3 +290,13 @@ export function emptySettlementsMonth(page: Page): Locator {
 export function settlementCard(page: Page): Locator {
   return page.getByRole("region", { name: /^Rozliczenie za / });
 }
+
+/** Nagłówek zwiniętej sekcji „Pozostali jeźdźcy ośrodka” (#106) — kliknięcie ją rozwija. */
+export function otherRidersToggle(page: Page): Locator {
+  return page.getByText("Pozostali jeźdźcy ośrodka", { exact: true });
+}
+
+/** Rozwinięta lista „Pozostali jeźdźcy ośrodka”: jedna pozycja na jeźdźca z linkiem „Dopisz koszt →”. */
+export function otherRiders(page: Page): Locator {
+  return page.getByRole("list", { name: "Pozostali jeźdźcy ośrodka" }).getByRole("listitem");
+}

@@ -6,8 +6,9 @@ import { logError } from "@/lib/log";
 import { COST_NOT_FOUND, costSaveErrorMessage, isExpectedCostRefusal } from "@/lib/settlements/errors";
 import { settlementOwner } from "@/lib/settlements/owner-request";
 import { updateCost } from "@/lib/settlements/queries";
-import { costReturn, returnMonth } from "@/lib/settlements/redirect";
+import { backToSettlements, costReturn, returnMonth } from "@/lib/settlements/redirect";
 import { extraCostUpdateSchema } from "@/lib/settlements/schemas";
+import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
 
 export const prerender = false;
 
@@ -15,12 +16,16 @@ const SCOPE = "api:settlements/cost-update";
 
 /**
  * „Popraw” koszt dodatkowy (#96): nowa nazwa i kwota, także w minionym miesiącu. Cudzy albo usunięty
- * koszt to zero poprawionych wierszy. Powrót do rozliczenia jeźdźca tego samego miesiąca.
+ * koszt to zero poprawionych wierszy. Powrót do rozliczenia jeźdźca tego samego miesiąca; formularz bez jeźdźca
+ * (spreparowany) wraca na listę z błędem.
  */
 export const POST: APIRoute = async (context) => {
   const form = await context.request.formData();
   const month = returnMonth(form);
   const back = costReturn(context, form, month);
+  if (back === null) {
+    return backToSettlements(context, month, SETTLEMENT_TEXTS.riderRate.unknownRider);
+  }
 
   const parsed = extraCostUpdateSchema.safeParse({
     costId: formValue(form, "costId"),

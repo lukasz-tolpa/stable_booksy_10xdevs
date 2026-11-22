@@ -64,14 +64,15 @@ export function backToRiderSettlement(context: APIContext, riderKey: string, mon
 export const RETURN_RIDER_FIELD = "powrot";
 
 /**
- * Powrót formularza kosztu dodatkowego: do rozliczenia jeźdźca z ukrytego pola `powrot` (konto,
- * sprawdzone przez `parseRiderKey`), a bez niego — na listę „Rozliczenia” tego samego miesiąca.
+ * Powrót formularza kosztu dodatkowego — zawsze do rozliczenia jeźdźca z ukrytego pola `powrot` (konto,
+ * sprawdzone przez `parseRiderKey`) w tym samym miesiącu; koszt dopisuje się tylko tam (#106). `null` —
+ * formularz bez jeźdźca (spreparowany): punkt końcowy odmawia przed zapisem.
  */
-export function costReturn(context: APIContext, form: FormData, month: string): (error?: string) => Response {
+export function costReturn(context: APIContext, form: FormData, month: string): ((error?: string) => Response) | null {
   const raw = form.get(RETURN_RIDER_FIELD);
   const riderKey = parseRiderKey(typeof raw === "string" ? raw : null);
-  return (error) =>
-    riderKey === null
-      ? backToSettlements(context, month, error)
-      : backToRiderSettlement(context, riderKey, month, error);
+  if (riderKey === null) {
+    return null;
+  }
+  return (error) => backToRiderSettlement(context, riderKey, month, error);
 }

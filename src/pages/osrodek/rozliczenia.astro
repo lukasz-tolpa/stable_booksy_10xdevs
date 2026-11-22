@@ -1,9 +1,9 @@
 ---
 import Banner from "@/components/Banner.astro";
-import AddCost from "@/components/settlements/AddCost.astro";
 import Layout from "@/layouts/Layout.astro";
 import Topbar from "@/components/Topbar.astro";
 import MonthNav from "@/components/month-summary/MonthNav.astro";
+import OtherRiders from "@/components/settlements/OtherRiders.astro";
 import SettlementCards from "@/components/settlements/SettlementCards.astro";
 import SettlementsTotal from "@/components/settlements/SettlementsTotal.astro";
 import StableRate from "@/components/settlements/StableRate.astro";
@@ -14,7 +14,6 @@ import { logError } from "@/lib/log";
 import { MONTH_PARAM, resolveSummaryMonth } from "@/lib/month-summary/month";
 import { composeMonthNav } from "@/lib/month-summary/summary";
 import { todayIso } from "@/lib/schedule/dates";
-import { composeAddCost, type AddCostView } from "@/lib/settlements/costs";
 import { listStableRiders, loadSettlementsInput } from "@/lib/settlements/queries";
 import { riderSettlementHref, settlementsHref } from "@/lib/settlements/redirect";
 import { composeSettlementsPage, type SettlementsView } from "@/lib/settlements/settlements";
@@ -25,10 +24,12 @@ import { createClient } from "@/lib/supabase";
 // Rozliczenia właściciela (#94, spec #93). Dostęp pilnuje middleware (mapa tras w @/lib/auth/roles):
 // przestrzeń ośrodka jest tylko dla właściciela; stawki chroni dodatkowo RLS. Liczy
 // `@/lib/settlements/settlements`; tu tylko odczyt i render. Miesiąc żyje w adresie (`?miesiac=RRRR-MM`),
-// formularze stawki i „Dopisz koszt” (#96) wracają na niego z `?sukces=1` albo `?error=`.
-// Układ (#105, wariant B): główna kolumna z kartami jeźdźców, boczna — przełącznik miesięcy, suma i stawka
-// ośrodka, przyklejona od 1000 px. Na telefonie jedna kolumna: miesiąc i suma, karty, „Dopisz koszt”, stawka
-// — kolejność z siatki (boczna kolumna rozpada się na swoje bloki), bez JavaScriptu.
+// formularze stawki wracają na niego z `?sukces=1` albo `?error=`.
+// Układ (#105, wariant B): główna kolumna z kartami jeźdźców i „Pozostałymi jeźdźcami ośrodka”, boczna
+// — przełącznik miesięcy, suma i stawka ośrodka, przyklejona od 1000 px. Koszt dodatkowy dopisuje się tylko
+// w rozliczeniu jeźdźca (#106), do którego prowadzą linki pozostałych jeźdźców. Na telefonie jedna kolumna:
+// miesiąc i suma, karty, pozostali jeźdźcy, stawka — kolejność z siatki (boczna kolumna rozpada się na swoje
+// bloki), bez JavaScriptu.
 const { profile } = Astro.locals;
 const SCOPE = "page:osrodek/rozliczenia";
 const texts = SETTLEMENT_TEXTS;
@@ -40,7 +41,6 @@ const saved = Astro.url.searchParams.get("sukces") === "1";
 const supabase = createClient(Astro.request.headers, Astro.cookies);
 
 let view: SettlementsView | null = null;
-let addCost: AddCostView | null = null;
 
 if (supabase && profile) {
   try {
@@ -50,15 +50,16 @@ if (supabase && profile) {
       logError(SCOPE, new Error("Brak stadniny dla konta właściciela"));
     } else {
       // Ten sam odczyt zapisów miesiąca co Podsumowanie miesiąca właściciela, bez filtra instruktora,
-      // plus stawki i koszty dodatkowe miesiąca (`loadSettlementsInput`, jak suma w panelu ośrodka).
+      // plus stawki i koszty dodatkowe miesiąca (`loadSettlementsInput`, jak suma w panelu ośrodka)
+      // i jeźdźcy ośrodka do „Pozostałych jeźdźców ośrodka”.
       const [input, riders] = await Promise.all([
         loadSettlementsInput(supabase, stableId, month),
         listStableRiders(supabase),
       ]);
-      addCost = composeAddCost(riders, month.month);
       view = composeSettlementsPage(
         {
           ...input,
+          riders,
           monthHref: settlementsHref,
           riderHref: (riderKey) => riderSettlementHref(riderKey, month.month),
         },
@@ -133,7 +134,13 @@ const nav = view?.nav ?? composeMonthNav(month, settlementsHref);
           )
         }
 
-        {addCost && <AddCost form={addCost} />}
+        {
+          view && view.others.length > 0 && (
+            <div class="others">
+              <OtherRiders riders={view.others} />
+            </div>
+          )
+        }
       </div>
     </div>
   </main>
@@ -191,11 +198,14 @@ const nav = view?.nav ?? composeMonthNav(month, settlementsHref);
     margin: 0;
     font-size: 30px;
   }
+  .notice {
+    margin-bottom: 14px;
+  }
+  .others {
+    margin-top: 14px;
+  }
   .heading__month {
     font-weight: 500;
     color: var(--muted);
-  }
-  .notice {
-    margin-bottom: 14px;
   }
 </style>

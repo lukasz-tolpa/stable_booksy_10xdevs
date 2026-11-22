@@ -180,6 +180,7 @@ describe("composeSettlementsPage — strona „Rozliczenia”", () => {
           rates: [STABLE_120, { id: 7, riderKey: null, fromMonth: "2026-12", amount: 14000 }],
           bookings: [ride("2026-10-02", "anna", "Anna")],
         }),
+        riders: [],
         monthHref,
         riderHref,
       },
@@ -204,7 +205,7 @@ describe("composeSettlementsPage — strona „Rozliczenia”", () => {
   });
 
   it("przed pierwszą stawką ośrodka prosi o nią zamiast kwot", () => {
-    const view = composeSettlementsPage({ ...input({ rates: [] }), monthHref, riderHref }, NOW);
+    const view = composeSettlementsPage({ ...input({ rates: [] }), riders: [], monthHref, riderHref }, NOW);
     expect(view.rate.current).toBeNull();
     expect(view.rate.currentText).toBeNull();
     expect(view.rate.planned).toBeNull();
@@ -212,7 +213,7 @@ describe("composeSettlementsPage — strona „Rozliczenia”", () => {
   });
 
   it("miesiąc bez jazd to spokojny stan pusty", () => {
-    const view = composeSettlementsPage({ ...input(), monthHref, riderHref }, NOW);
+    const view = composeSettlementsPage({ ...input(), riders: [], monthHref, riderHref }, NOW);
     expect(view.isEmpty).toBe(true);
     expect(view.emptyText).toBe("W październiku 2026 nie ma nic do rozliczenia.");
   });
@@ -220,7 +221,7 @@ describe("composeSettlementsPage — strona „Rozliczenia”", () => {
   // Oracle: AC #105 — podsumowanie w bocznej kolumnie: „Do zapłaty razem” i „N jeźdźców · N jazd”.
   it("podsumowanie: suma miesiąca i „N jeźdźców · N jazd” z odmianą", () => {
     const summaryOf = (bookings: SettlementBooking[], rates: RateChange[] = [STABLE_120]) =>
-      composeSettlementsPage({ ...input({ bookings, rates }), monthHref, riderHref }, NOW).summary;
+      composeSettlementsPage({ ...input({ bookings, rates }), riders: [], monthHref, riderHref }, NOW).summary;
 
     expect(summaryOf([ride("2026-10-02", "anna", "Anna")])).toEqual({
       total: 12000,
@@ -255,7 +256,7 @@ describe("composeSettlementsPage — strona „Rozliczenia”", () => {
 
   it("podsumowanie bez stawki ośrodka: suma `null`, liczby jeźdźców i jazd zostają", () => {
     const view = composeSettlementsPage(
-      { ...input({ rates: [], bookings: [ride("2026-10-02", "anna", "Anna")] }), monthHref, riderHref },
+      { ...input({ rates: [], bookings: [ride("2026-10-02", "anna", "Anna")] }), riders: [], monthHref, riderHref },
       NOW,
     );
     expect(view.summary).toEqual({
@@ -281,6 +282,7 @@ describe("composeSettlementsPage — strona „Rozliczenia”", () => {
           rates: [STABLE_120, { id: 7, riderKey: "anna", fromMonth: "2026-11", amount: 9000 }],
           costs: [cost("anna", "Anna Kowalska", 150000)],
         }),
+        riders: [],
         monthHref,
         riderHref,
       },
@@ -330,6 +332,7 @@ describe("composeSettlementsPage — strona „Rozliczenia”", () => {
           bookings: [ride("2026-10-02", "anna", "Anna")],
           costs: [cost("anna", "Anna", 5000)],
         }),
+        riders: [],
         monthHref,
         riderHref,
       },
@@ -349,6 +352,7 @@ describe("composeSettlementsPage — strona „Rozliczenia”", () => {
     const view = composeSettlementsPage(
       {
         ...input({ bookings: [ride("2026-10-02", "anna", "Anna"), ride("2026-10-03", "piotr", "Piotr")] }),
+        riders: [],
         monthHref,
         riderHref,
       },
@@ -475,6 +479,7 @@ describe("composeSettlementList — koszty dodatkowe", () => {
     const view = composeSettlementsPage(
       {
         ...input({ costs: [cost("anna", "Anna", 100)] }),
+        riders: [],
         monthHref: (month) => month,
         riderHref: (riderKey) => riderKey,
       },
@@ -482,5 +487,77 @@ describe("composeSettlementList — koszty dodatkowe", () => {
     );
     expect(view.isEmpty).toBe(false);
     expect(view.list.rows.map((row) => row.href)).toEqual(["anna"]);
+  });
+});
+
+// Oracle: AC #106 — „Pozostali jeźdźcy ośrodka”: jeźdźcy ośrodka (konta z jakimkolwiek zapisem) bez
+// rozliczenia w oglądanym miesiącu, alfabetycznie po polsku, każdy z adresem swojego rozliczenia.
+describe("composeSettlementsPage — „Pozostali jeźdźcy ośrodka”", () => {
+  const monthHref = (month: string) => `/osrodek/rozliczenia?miesiac=${month}`;
+  const riderHref = (riderKey: string) => `/osrodek/rozliczenia/${riderKey}?miesiac=2026-10`;
+  const riders = [
+    { key: "zenon", name: "Zenon Żak" },
+    { key: "anna", name: "Anna Kowalska" },
+    { key: "lukasz", name: "Łukasz Lis" },
+    { key: "piotr", name: "Piotr Nowak" },
+    { key: "adam", name: "Adam Ąk" },
+  ];
+
+  it("pomija jeźdźców z jazdami i z samym kosztem, reszta alfabetycznie z adresem rozliczenia miesiąca", () => {
+    const view = composeSettlementsPage(
+      {
+        ...input({
+          bookings: [ride("2026-10-02", "piotr", "Piotr Nowak")],
+          costs: [cost("anna", "Anna Kowalska", 5000)],
+        }),
+        riders,
+        monthHref,
+        riderHref,
+      },
+      NOW,
+    );
+    expect(view.others).toEqual([
+      { riderKey: "adam", name: "Adam Ąk", href: "/osrodek/rozliczenia/adam?miesiac=2026-10" },
+      { riderKey: "lukasz", name: "Łukasz Lis", href: "/osrodek/rozliczenia/lukasz?miesiac=2026-10" },
+      { riderKey: "zenon", name: "Zenon Żak", href: "/osrodek/rozliczenia/zenon?miesiac=2026-10" },
+    ]);
+  });
+
+  it("konto bez nazwy jako „(bez nazwiska)” — kolejność jak na liście", () => {
+    const view = composeSettlementsPage(
+      {
+        ...input(),
+        riders: [
+          { key: "b", name: "Bartek" },
+          { key: "x", name: null },
+        ],
+        monthHref,
+        riderHref,
+      },
+      NOW,
+    );
+    expect(view.others.map((rider) => rider.name)).toEqual(["(bez nazwiska)", "Bartek"]);
+  });
+
+  it("w pustym miesiącu to wszyscy jeźdźcy ośrodka", () => {
+    const view = composeSettlementsPage({ ...input(), riders, monthHref, riderHref }, NOW);
+    expect(view.isEmpty).toBe(true);
+    expect(view.others.map((rider) => rider.riderKey)).toEqual(["adam", "anna", "lukasz", "piotr", "zenon"]);
+  });
+
+  it("pusta lista, gdy wszyscy jeźdźcy ośrodka są na liście miesiąca", () => {
+    const view = composeSettlementsPage(
+      {
+        ...input({ bookings: [ride("2026-10-02", "piotr", "Piotr Nowak")], costs: [cost("anna", "Anna", 100)] }),
+        riders: [
+          { key: "anna", name: "Anna" },
+          { key: "piotr", name: "Piotr Nowak" },
+        ],
+        monthHref,
+        riderHref,
+      },
+      NOW,
+    );
+    expect(view.others).toEqual([]);
   });
 });

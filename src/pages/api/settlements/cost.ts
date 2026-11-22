@@ -6,22 +6,27 @@ import { logError } from "@/lib/log";
 import { COST_SAVE_FAILED, costSaveErrorMessage, isExpectedCostRefusal } from "@/lib/settlements/errors";
 import { settlementOwner } from "@/lib/settlements/owner-request";
 import { addCost } from "@/lib/settlements/queries";
-import { costReturn, returnMonth, RIDER_PARAM } from "@/lib/settlements/redirect";
+import { backToSettlements, costReturn, returnMonth, RIDER_PARAM } from "@/lib/settlements/redirect";
 import { extraCostSchema } from "@/lib/settlements/schemas";
+import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
 
 export const prerender = false;
 
 const SCOPE = "api:settlements/cost";
 
 /**
- * „Dopisz koszt” (#96): koszt dodatkowy jeźdźcowi ośrodka na oglądany miesiąc (`miesiac`, bieżący albo
- * miniony — regułę pilnuje też baza, SB029). Jeździec z pola `jezdziec` (`RIDER_PARAM`); czy jest jeźdźcem ośrodka,
- * sprawdza RLS. Powrót do rozliczenia jeźdźca (pole `powrot`) albo na listę „Rozliczenia” tego miesiąca.
+ * „Dopisz koszt” w rozliczeniu jeźdźca (#96, #106): koszt dodatkowy jeźdźcowi ośrodka na oglądany miesiąc
+ * (`miesiac`, bieżący albo miniony — regułę pilnuje też baza, SB029). Jeździec z pola `jezdziec`
+ * (`RIDER_PARAM`); czy jest jeźdźcem ośrodka, sprawdza RLS. Powrót do rozliczenia jeźdźca (pole `powrot`);
+ * formularz bez niego (spreparowany) wraca na listę z błędem, nic nie zapisując.
  */
 export const POST: APIRoute = async (context) => {
   const form = await context.request.formData();
   const month = returnMonth(form);
   const back = costReturn(context, form, month);
+  if (back === null) {
+    return backToSettlements(context, month, SETTLEMENT_TEXTS.riderRate.unknownRider);
+  }
 
   const parsed = extraCostSchema.safeParse({
     rider: formValue(form, RIDER_PARAM),

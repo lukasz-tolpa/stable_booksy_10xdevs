@@ -5,6 +5,7 @@ import {
   emptySettlementsMonth,
   grosze,
   INSTRUCTOR_EMAIL,
+  otherRidersToggle,
   RIDER_A_STATE,
   RIDER_SETTLEMENT_URL,
   settlementCard,
@@ -148,7 +149,7 @@ test.describe("Rozliczenia właściciela", () => {
       await expect(total).toHaveText(before);
     });
 
-    await test.step("na telefonie jedna kolumna: miesiąc i suma, karty, „Dopisz koszt”, stawka — bez przewijania w bok", async () => {
+    await test.step("na telefonie jedna kolumna: miesiąc i suma, karty, pozostali jeźdźcy, stawka — bez przewijania w bok", async () => {
       await page.setViewportSize({ width: 390, height: 844 });
       await page.reload();
       const top = async (locator: Locator) => (await locator.boundingBox())?.y ?? Number.NaN;
@@ -156,7 +157,7 @@ test.describe("Rozliczenia właściciela", () => {
         await top(page.getByRole("navigation", { name: "Wybór miesiąca" })),
         await top(total),
         await top(settlementRiders(page).first()),
-        await top(page.getByRole("region", { name: "Dopisz koszt" })),
+        await top(otherRidersToggle(page)),
         await top(rateRegion),
       ];
       expect(order, "kolejność bloków od góry").toEqual([...order].sort((a, b) => a - b));

@@ -4,6 +4,8 @@ import {
   DEMO_HINT,
   emptySettlementsMonth,
   grosze,
+  otherRiders,
+  otherRidersToggle,
   pricedSettlementRows,
   RIDER_SETTLEMENT_URL,
   settlementCard,
@@ -15,11 +17,11 @@ import {
 
 /**
  * Koszty dodatkowe (#96, spec #93) na minionej historii demo, którą ładuje setup: właściciel dopisuje,
- * poprawia i usuwa koszt w rozliczeniu jeźdźca, a na stronie „Rozliczenia” dopisuje koszt jeźdźcowi
- * z listy jeźdźców ośrodka (najlepiej takiemu bez jazd w miesiącu).
+ * poprawia i usuwa koszt w rozliczeniu jeźdźca, a jeźdźcowi bez jazd w miesiącu dopisuje koszt przez
+ * „Pozostali jeźdźcy ośrodka” na stronie „Rozliczenia” (#106) — koszt dopisuje się tylko w rozliczeniu jeźdźca.
  *
  * Wyrocznią jest spójność, nie konkretne liczby: „Do zapłaty” = kwota za jazdy + suma pozycji kosztów,
- * kwota wiersza listy = jazdy × stawka + koszty jeźdźca, „Razem” = suma wierszy. Stawkę ośrodka ustawia
+ * kwota karty = jazdy × stawka + koszty jeźdźca, „Razem” = suma kart. Stawkę ośrodka ustawia
  * scenariusz jako superuser od bieżącego miesiąca bazy (`private.warsaw_month_start()`); przed i po
  * scenariuszach superuser usuwa stawki (z wyłączonymi wyzwalaczami, SB027) i koszty dodatkowe ośrodka —
  * kolejne specyfikacje zaczynają bez nich.
@@ -143,43 +145,69 @@ test.describe("Koszty dodatkowe", () => {
     });
   });
 
-  test("„Dopisz koszt” na stronie „Rozliczenia”: jeździec z listy jeźdźców ośrodka trafia na listę z kosztem", async ({
+  test("„Pozostali jeźdźcy ośrodka”: koszt dopisany jeźdźcowi bez jazd w jego rozliczeniu, na liście 0 jazd i koszt", async ({
     page,
   }) => {
-    const month = await openSettlementsWithRides(page);
+    await openSettlementsWithRides(page);
     const before = await pricedSettlementRows(page);
-    const region = page.getByRole("region", { name: "Dopisz koszt" });
-    const select = region.getByLabel("Jeździec");
-    const options = (await select.getByRole("option").allInnerTexts())
-      .map((text) => text.trim())
-      .filter((text) => text !== "Wybierz jeźdźca");
-    expect(options.length, "jeźdźcy ośrodka do wyboru").toBeGreaterThan(0);
-    // Najlepiej jeździec bez jazd w miesiącu (np. konto e2e z samymi odwołaniami); bez takiego — pierwszy.
-    const withoutRides = options.find((option) => !before.some((row) => row.text.startsWith(option)));
-    const rider = withoutRides ?? options[0];
-    const previous = before.find((row) => row.text.startsWith(rider));
+    let rider = "";
 
-    await test.step("koszt dopisany jeźdźcowi wraca na listę tego samego miesiąca", async () => {
-      await select.selectOption({ label: rider });
-      await region.getByLabel("Nazwa kosztu").fill("Wypożyczenie siodła");
-      await region.getByLabel("Kwota (zł)").fill("50,50");
-      await region.getByRole("button", { name: "Dopisz koszt", exact: true }).click();
-      await page.waitForURL(/sukces=1/);
+    await test.step("rozwinięta sekcja „Pozostali jeźdźcy ośrodka” pokazuje jeźdźców spoza listy", async () => {
+      await expect(otherRiders(page).first(), "sekcja jest domyślnie zwinięta").toBeHidden();
+      await otherRidersToggle(page).click();
+      await expect(otherRiders(page).first(), "demo ma jeźdźców bez jazd (konta e2e)").toBeVisible();
+      const names = (await otherRiders(page).allInnerTexts()).map((text) => text.replace("Dopisz koszt →", "").trim());
+      for (const name of names) {
+        expect(
+          before.some((row) => row.text.startsWith(name)),
+          `„${name}” nie ma karty na liście`,
+        ).toBe(false);
+      }
+      rider = names[0];
+    });
+
+    await test.step("„Dopisz koszt →” prowadzi do rozliczenia jeźdźca tego samego miesiąca", async () => {
+      const listUrl = new URL(page.url());
+      // Nazwa jeźdźca jest w nazwie dostępnej linku.
+      await otherRiders(page)
+        .getByRole("link", { name: `${rider} Dopisz koszt →`, exact: true })
+        .click();
+      await page.waitForURL(RIDER_SETTLEMENT_URL);
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText(rider);
+      const month = listUrl.searchParams.get("miesiac");
       if (month !== null) {
-        expect(new URL(page.url()).searchParams.get("miesiac"), "powrót na ten sam miesiąc").toBe(month);
+        expect(new URL(page.url()).searchParams.get("miesiac"), "rozliczenie oglądanego miesiąca").toBe(month);
       }
     });
 
-    await test.step("wiersz jeźdźca: jazdy × stawka + koszt, „Razem” = suma wierszy", async () => {
+    await test.step("dopisany koszt jest w rozliczeniu, a „Do zapłaty” to sam koszt", async () => {
+      const card = settlementCard(page);
+      const addForm = card.getByRole("form", { name: "Dopisz koszt" });
+      await addForm.getByLabel("Nazwa kosztu").fill("Wypożyczenie siodła");
+      await addForm.getByLabel("Kwota (zł)").fill("50,50");
+      await addForm.getByRole("button", { name: "Dopisz koszt", exact: true }).click();
+      await page.waitForURL(/sukces=1/);
+      await expect(card.getByRole("list", { name: `Koszty dodatkowe — ${rider}` }).getByRole("listitem")).toHaveCount(
+        1,
+      );
+      expect(await due(card)).toBe(5050);
+    });
+
+    await test.step("po powrocie jeździec ma kartę z 0 jazd i kosztem, „Razem” = suma kart", async () => {
+      await page.getByRole("link", { name: "Wróć do rozliczeń" }).click();
+      await page.waitForURL(/\/osrodek\/rozliczenia\?miesiac=/);
       const after = await pricedSettlementRows(page);
       const row = after.find((item) => item.text.startsWith(rider));
-      expect(row, `wiersz „${rider}” na liście`).toBeDefined();
-      if (previous === undefined) {
-        expect(row?.rides, "jeździec z samym kosztem ma 0 jazd").toBe(0);
-      }
-      expect(row?.amount).toBe((row?.rides ?? 0) * RATE + 5050);
+      expect(row, `karta „${rider}” na liście`).toBeDefined();
+      expect(row?.rides, "jeździec z samym kosztem ma 0 jazd").toBe(0);
+      expect(row?.amount).toBe(5050);
       const total = grosze(await page.getByText(/^Razem: /).innerText());
       expect(total).toBe(after.reduce((sum, item) => sum + item.amount, 0));
+      await otherRidersToggle(page).click();
+      await expect(
+        otherRiders(page).filter({ hasText: rider }),
+        "jeździec z kosztem nie jest już wśród pozostałych",
+      ).toHaveCount(0);
     });
   });
 });

@@ -5,7 +5,8 @@
  *
  * Klocki:
  * - `composeSettlementList` — lista jeźdźców miesiąca z kwotami i sumą (strona, boczna kolumna panelu);
- * - `composeSettlementsPage` — cała strona „Rozliczenia” (karty jeźdźców, suma, stawka ośrodka, przełącznik miesięcy);
+ * - `composeSettlementsPage` — cała strona „Rozliczenia” (karty jeźdźców, suma, stawka ośrodka, przełącznik miesięcy,
+ *   „Pozostali jeźdźcy ośrodka”);
  * - `riderAmounts` — stawka jeźdźca w miesiącu i jego kwoty (wiersz listy i rozliczenie jeźdźca, `rider.ts`);
  * - `ridesAmount` — kwota za jazdy: liczba jazd × stawka.
  */
@@ -37,6 +38,7 @@ import {
   type RateChange,
   type RateFrom,
 } from "@/lib/settlements/rates";
+import type { SettlementRider } from "@/lib/settlements/rider";
 import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
 import type { StatsRider } from "@/lib/stats/riders";
 import type { StatsBooking } from "@/lib/stats/stats";
@@ -240,6 +242,11 @@ export interface StableRateView {
 }
 
 export interface SettlementsPageInput extends SettlementsInput {
+  /**
+   * Jeźdźcy ośrodka (`listStableRiders` — konta z jakimkolwiek zapisem w ośrodku, także odwołanym);
+   * ci spoza listy miesiąca to „Pozostali jeźdźcy ośrodka”.
+   */
+  riders: readonly SettlementRider[];
   /** Adres strony dla miesiąca `RRRR-MM`. */
   monthHref: (month: string) => string;
   /** Adres rozliczenia jeźdźca w wybranym miesiącu. */
@@ -270,11 +277,24 @@ export interface SettlementsSummary {
   countsText: string;
 }
 
+/**
+ * Jeździec ośrodka bez jazd i kosztów w oglądanym miesiącu (#106) — link „Dopisz koszt →” do jego
+ * rozliczenia, gdzie dopisuje się koszt dodatkowy.
+ */
+export interface OtherRider {
+  riderKey: string;
+  name: string;
+  /** Rozliczenie jeźdźca w oglądanym miesiącu. */
+  href: string;
+}
+
 export interface SettlementsView {
   nav: MonthNav;
   summary: SettlementsSummary;
   rate: StableRateView;
   list: Omit<SettlementList, "rows"> & { rows: SettlementLinkRow[] };
+  /** „Pozostali jeźdźcy ośrodka”: alfabetycznie; pusta — strona nie pokazuje sekcji. */
+  others: OtherRider[];
   /** Miesiąc bez nic do rozliczenia — strona pokazuje `EmptyState` z `emptyText`. */
   isEmpty: boolean;
   /** Np. `W październiku 2026 nie ma nic do rozliczenia.` */
@@ -317,8 +337,24 @@ function stableRateView(rates: RateChange[], currentMonth: string): StableRateVi
 }
 
 /**
+ * „Pozostali jeźdźcy ośrodka”: jeźdźcy ośrodka bez wiersza na liście miesiąca, alfabetycznie jak lista.
+ * Zanonimizowani nie mają konta, więc nie ma ich wśród jeźdźców ośrodka (ADR-0001).
+ */
+function otherRiders(
+  riders: readonly SettlementRider[],
+  rows: readonly SettlementRow[],
+  riderHref: (riderKey: string) => string,
+): OtherRider[] {
+  const listed = new Set(rows.map((row) => row.riderKey));
+  return riders
+    .filter((rider) => !listed.has(rider.key))
+    .map((rider) => ({ riderKey: rider.key, name: rider.name ?? UNNAMED_RIDER, href: riderHref(rider.key) }))
+    .sort((a, b) => a.name.localeCompare(b.name, "pl") || a.riderKey.localeCompare(b.riderKey));
+}
+
+/**
  * Strona „Rozliczenia”: karty jeźdźców wybranego miesiąca, podsumowanie „Do zapłaty razem”, stawka
- * ośrodka (dziś) i przełącznik miesięcy.
+ * ośrodka (dziś), przełącznik miesięcy i „Pozostali jeźdźcy ośrodka”.
  */
 export function composeSettlementsPage(input: SettlementsPageInput, now: Date = new Date()): SettlementsView {
   const list = composeSettlementList(input, now);
@@ -342,6 +378,7 @@ export function composeSettlementsPage(input: SettlementsPageInput, now: Date = 
         costsText: row.rate !== null && row.costsAmount > 0 ? row.costsAmountText : null,
       })),
     },
+    others: otherRiders(input.riders, list.rows, input.riderHref),
     isEmpty: list.rows.length === 0,
     emptyText: `${capitalize(formatInMonthYear(input.month.month))} ${SETTLEMENT_TEXTS.empty}`,
   };

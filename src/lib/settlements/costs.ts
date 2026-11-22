@@ -1,12 +1,10 @@
 /**
  * Koszty dodatkowe (GLOSSARY „Koszt dodatkowy”, #96): pozycje rozliczenia poza jazdami — nazwa i kwota
  * w groszach, jednemu jeźdźcowi na jeden miesiąc. „Do zapłaty” z nimi liczy `riderAmounts`
- * (`settlements.ts`); tu tylko kształt, suma i wybór jeźdźca do „Dopisz koszt”.
+ * (`settlements.ts`); tu tylko kształt, suma i pozycje kosztów w rozliczeniu jeźdźca.
  */
 
-import { UNNAMED_RIDER } from "@/lib/bookings/rows";
-import { formatAmountInput, formatInMonthYear, formatMoney } from "@/lib/format";
-import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
+import { formatAmountInput, formatMoney } from "@/lib/format";
 
 /** Koszt dodatkowy jednego jeźdźca w miesiącu, którego dotyczy odczyt (`listMonthCosts`). */
 export interface ExtraCost {
@@ -50,34 +48,4 @@ export function extraCostRows(costs: readonly ExtraCost[]): ExtraCostRow[] {
     amountText: formatMoney(cost.amount),
     amountInput: formatAmountInput(cost.amount),
   }));
-}
-
-/** Jeździec do wyboru w „Dopisz koszt”. */
-export interface CostRiderOption {
-  key: string;
-  name: string;
-}
-
-/** Formularz „Dopisz koszt” na stronie „Rozliczenia”. */
-export interface AddCostView {
-  /** Alfabetycznie po polsku, bez nazwy jako „(bez nazwiska)”. */
-  riders: CostRiderOption[];
-  /** Miesiąc kosztu `RRRR-MM` — oglądany miesiąc. */
-  month: string;
-  /** Np. `Koszt trafi do rozliczenia jeźdźca w listopadzie 2026.` */
-  hint: string;
-}
-
-/**
- * „Dopisz koszt” dla oglądanego miesiąca `RRRR-MM`: jeźdźcy ośrodka do wyboru (`listStableRiders` —
- * konta z jakimkolwiek zapisem w ośrodku, także odwołanym) i podpowiedź, do którego miesiąca trafi koszt.
- */
-export function composeAddCost(riders: readonly { key: string; name: string | null }[], month: string): AddCostView {
-  return {
-    riders: riders
-      .map((rider) => ({ key: rider.key, name: rider.name ?? UNNAMED_RIDER }))
-      .sort((a, b) => a.name.localeCompare(b.name, "pl") || a.key.localeCompare(b.key)),
-    month,
-    hint: `${SETTLEMENT_TEXTS.costs.addHint} ${formatInMonthYear(month)}.`,
-  };
 }

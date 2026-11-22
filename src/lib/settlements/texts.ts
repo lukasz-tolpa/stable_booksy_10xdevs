@@ -22,6 +22,15 @@ export const SETTLEMENT_TEXTS = {
   amountsNeedRate: "Kwoty pojawią się po ustawieniu stawki ośrodka.",
   /** Karta jeźdźca (#105): `Do zapłaty`, wyliczenie `… + koszty 50,00 zł`, `Rozliczenie →`. */
   card: { due: "Do zapłaty", costs: "koszty", open: "Rozliczenie →" },
+  /**
+   * „Pozostali jeźdźcy ośrodka” pod kartami (#106): zwinięta sekcja z liczbą jeźdźców i dopiskiem, w każdym
+   * wierszu link do rozliczenia jeźdźca, gdzie dopisuje się koszt dodatkowy.
+   */
+  others: {
+    heading: "Pozostali jeźdźcy ośrodka",
+    note: "bez jazd i kosztów w tym miesiącu",
+    addCost: "Dopisz koszt →",
+  },
   /** Rozliczenie jeźdźca (#95): `/osrodek/rozliczenia/<jeździec>?miesiac=RRRR-MM`. */
   rider: {
     /** Tytuł karty przeglądarki przed nazwą jeźdźca: `Rozliczenie — Anna Kowalska`. */
@@ -79,7 +88,7 @@ export const SETTLEMENT_TEXTS = {
     end: "Powrót do stawki ośrodka",
     endHint: "Od wybranego miesiąca jeździec płaci stawkę ośrodka; minione miesiące się nie zmieniają.",
     endSubmit: "Usuń stawkę indywidualną",
-    /** Formularz z błędnym jeźdźcem (spreparowany) wraca na listę „Rozliczenia”. */
+    /** Formularz stawki jeźdźca albo kosztu dodatkowego z błędnym jeźdźcem (spreparowany) wraca na listę „Rozliczenia”. */
     unknownRider: "Nie ma takiego jeźdźca.",
   },
   rate: {
@@ -98,18 +107,13 @@ export const SETTLEMENT_TEXTS = {
     fromNext: "Od następnego miesiąca",
     submit: "Zapisz stawkę",
   },
-  /** Koszty dodatkowe (#96): rozliczenie jeźdźca i „Dopisz koszt” na stronie „Rozliczenia”. */
+  /** Koszty dodatkowe (#96) w rozliczeniu jeźdźca — jedyne miejsce, gdzie się je dopisuje (#106). */
   costs: {
     heading: "Koszty dodatkowe",
     /** Nazwa listy kosztów przed nazwą jeźdźca: `Koszty dodatkowe — Anna Kowalska`. */
     listLabel: "Koszty dodatkowe",
     none: "W tym miesiącu nie ma kosztów dodatkowych.",
     add: "Dopisz koszt",
-    /** Pod formularzem na stronie „Rozliczenia”, przed `formatInMonthYear`: `Koszt trafi do rozliczenia w listopadzie 2026.` */
-    addHint: "Koszt trafi do rozliczenia jeźdźca",
-    riderLabel: "Jeździec",
-    riderPlaceholder: "Wybierz jeźdźca",
-    noRiders: "Koszt dopiszesz jeźdźcowi, który miał zapis w Twoim ośrodku.",
     nameLabel: "Nazwa kosztu",
     namePlaceholder: "np. Pensjonat konia",
     amountLabel: "Kwota (zł)",
