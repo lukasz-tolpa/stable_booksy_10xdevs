@@ -41,6 +41,8 @@ export const BOARDING_PAGE_TEXTS = {
     stable: "dzień wyjazdu wpisany przez ośrodek",
     rider: "dzień wyjazdu wpisany przez pensjonariusza",
     me: "dzień wyjazdu wpisany przez Ciebie",
+    /** Pobyt zakończony usunięciem konta pensjonariusza (#120) — widzi go już tylko ośrodek. */
+    accountDeleted: "dzień wyjazdu wpisany przy usunięciu konta pensjonariusza",
   },
   departureLabel: "Dzień wyjazdu",
   endStay: "Zakończ pobyt",
