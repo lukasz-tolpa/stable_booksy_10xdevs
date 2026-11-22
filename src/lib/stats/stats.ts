@@ -5,7 +5,9 @@
 
 import { isRide, SLOT_DURATION_HOURS, slotEndedAt, type SlotEnded } from "@/lib/bookings/rides";
 import { unknownHorseName } from "@/lib/bookings/rows";
+import { HORSE_KIND } from "@/lib/stables/kind";
 import type { DateRange } from "@/lib/schedule/dates";
+import { SLOT_KIND, type SlotKind } from "@/lib/schedule/kind";
 import { buildTopRidersSeries, type TopRiderPoint } from "@/lib/stats/rankings";
 import { computeRiderRows, type StatsRider, type StatsRiderRow } from "@/lib/stats/riders";
 import { buildRideHoursSeries, type RideHoursSeries } from "@/lib/stats/time-series";
@@ -14,10 +16,12 @@ import type { BookingStatus, CancelledBy } from "@/types";
 /** Okres statystyk: zakres dat `RRRR-MM-DD`, oba krańce włącznie. */
 export type StatsPeriod = DateRange;
 
-/** Slot dnia w zakresie potrzebnym statystykom: godzina i limit miejsc instruktora. */
+/** Slot dnia w zakresie potrzebnym statystykom: godzina, limit miejsc instruktora i rodzaj slotu. */
 export interface StatsSlot {
   hour: number;
   seats: number;
+  /** Rodzaj slotu (#115); brak — slot rekreacyjny, jak domyślnie w bazie. */
+  kind?: SlotKind;
 }
 
 /**
@@ -45,12 +49,16 @@ export interface StatsBooking {
   riderId: string | null;
   /** Kto odwołał zapis; `null` dla zapisu aktywnego. */
   cancelledBy: CancelledBy | null;
+  /** Rodzaj slotu zapisu (#115); brak — slot rekreacyjny, jak domyślnie w bazie. */
+  slotKind?: SlotKind;
 }
 
-/** Koń stadniny — aktywny albo zdezaktywowany; statystyki potrzebują tylko nazwy. */
+/** Koń stadniny — aktywny albo zdezaktywowany; statystyki potrzebują nazwy i rodzaju konia. */
 export interface StatsHorse {
   id: number;
   name: string;
+  /** Rodzaj konia (`horses.kind`, #114); brak — koń ośrodka, jak domyślnie w bazie. */
+  kind?: string;
 }
 
 export interface StatsInput {
@@ -72,6 +80,16 @@ export interface StatsHorseRow {
   /** Obciążenie konia: godziny jazd tego konia w okresie. */
   rideHours: number;
 }
+
+/** Jazdy, godziny jazd i obłożenie grafiku slotów jednego rodzaju. */
+export interface StatsSlotKindPart {
+  rides: number;
+  rideHours: number;
+  /** Obłożenie grafiku slotów tego rodzaju; `null` — w ich minionych slotach nie wystawiono miejsc. */
+  occupancyPercent: number | null;
+}
+
+export type StatsBySlotKind = Record<SlotKind, StatsSlotKindPart>;
 
 export interface StatsSummary {
   /** Liczba jazd: aktywnych zapisów, których godzina już się skończyła. */
@@ -107,12 +125,28 @@ export interface StatsView {
    * danych, gdy miejsc nie wystawiono) i konie stojące bezczynnie.
    */
   isEmpty: boolean;
-  /** Tabela koni, od najbardziej obciążonego; z tych samych wierszy strona rysuje wykres obciążenia koni. */
+  /**
+   * Tabela koni ośrodka, od najbardziej obciążonego; z tych samych wierszy strona rysuje wykres obciążenia koni.
+   * Koń spoza listy stada trafia tutaj.
+   */
   horses: StatsHorseRow[];
+  /** Tabela koni pensjonatowych z jazdami w okresie (#119), w tej samej kolejności; pusta — strona jej nie pokazuje. */
+  boardingHorses: StatsHorseRow[];
+  /**
+   * Obłożenie grafiku i godziny jazd osobno dla slotów rekreacyjnych i treningowych (#119); części sumują się
+   * do `summary`. `null` — w okresie nie było minionego slotu treningowego ani jazdy na nim: strona wygląda jak
+   * przed slotami treningowymi.
+   */
+  bySlotKind: StatsBySlotKind | null;
   /** Seria wykresu godzin jazd w czasie; jej suma równa się `summary.rideHours`. */
   rideHoursOverTime: RideHoursSeries;
   /** Seria wykresu pierwszej dziesiątki jeźdźców według godzin jazd; liczby z `riders`. */
   topRiders: TopRiderPoint[];
+}
+
+/** Obłożenie grafiku w procentach, zaokrąglone do całości; `null`, gdy nie wystawiono miejsc. */
+function occupancy(rides: number, seats: number): number | null {
+  return seats === 0 ? null : Math.round((rides / seats) * 100);
 }
 
 /** Czy dzień leży w okresie — porównanie leksykograficzne dat `RRRR-MM-DD`. */
@@ -144,14 +178,37 @@ export function computeStableStats(input: StatsInput, now: Date = new Date()): S
   // Mianownik obłożenia: suma limitów miejsc slotów, których godzina już minęła —
   // ta sama granica „miniony" co dla jazdy. Konie dnia nie wchodzą do mianownika.
   let pastSeats = 0;
+  // Ten sam mianownik osobno dla każdego rodzaju slotu; `pastTrainingSlots` mówi, czy okres miał sloty treningowe.
+  const pastSeatsByKind: Record<SlotKind, number> = { recreation: 0, training: 0 };
+  let pastTrainingSlots = 0;
   for (const day of input.days) {
     if (!inPeriod(day.day, input.period)) continue;
     for (const slot of day.slots) {
-      if (ended(day.day, slot.hour)) pastSeats += slot.seats;
+      if (!ended(day.day, slot.hour)) continue;
+      const kind = slot.kind ?? SLOT_KIND.recreation;
+      pastSeats += slot.seats;
+      pastSeatsByKind[kind] += slot.seats;
+      if (kind === SLOT_KIND.training) pastTrainingSlots += 1;
     }
   }
 
-  const horses = computeHorseRows(input, ended, rideBookings);
+  const ridesByKind: Record<SlotKind, number> = { recreation: 0, training: 0 };
+  for (const booking of rideBookings) ridesByKind[booking.slotKind ?? SLOT_KIND.recreation] += 1;
+  const part = (kind: SlotKind): StatsSlotKindPart => ({
+    rides: ridesByKind[kind],
+    rideHours: ridesByKind[kind] * SLOT_DURATION_HOURS,
+    occupancyPercent: occupancy(ridesByKind[kind], pastSeatsByKind[kind]),
+  });
+  const bySlotKind =
+    pastTrainingSlots > 0 || ridesByKind.training > 0
+      ? { recreation: part(SLOT_KIND.recreation), training: part(SLOT_KIND.training) }
+      : null;
+
+  // Obciążenie konia osobno dla koni ośrodka i koni pensjonatowych; podział po rodzaju konia z listy stada.
+  const boardingIds = new Set(input.horses.filter((horse) => horse.kind === HORSE_KIND.boarding).map((h) => h.id));
+  const horseRows = computeHorseRows(input, ended, rideBookings);
+  const horses = horseRows.filter((row) => !boardingIds.has(row.horseId));
+  const boardingHorses = horseRows.filter((row) => boardingIds.has(row.horseId));
   const riders = computeRiderRows({
     rides: rideBookings,
     // Przy jeźdźcu tylko jego własne odwołania; odwołania ośrodka liczą się w sumie okresu.
@@ -165,12 +222,14 @@ export function computeStableStats(input: StatsInput, now: Date = new Date()): S
     summary: {
       rides,
       rideHours: rides * SLOT_DURATION_HOURS,
-      occupancyPercent: pastSeats === 0 ? null : Math.round((rides / pastSeats) * 100),
+      occupancyPercent: occupancy(rides, pastSeats),
       cancellations,
     },
     riders,
-    isEmpty: pastSeats === 0 && horses.length === 0 && rides === 0 && cancellations === 0,
+    isEmpty: pastSeats === 0 && horseRows.length === 0 && rides === 0 && cancellations === 0,
     horses,
+    boardingHorses,
+    bySlotKind,
     rideHoursOverTime: buildRideHoursSeries(
       input.period,
       rideBookings.map((booking) => booking.day),

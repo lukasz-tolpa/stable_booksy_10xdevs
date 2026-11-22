@@ -69,7 +69,8 @@ test("statystyki okresu są spójne: tabela jeźdźców liczy wszystkie jazdy, t
   });
 
   await test.step("tabela koni liczy tylko jazdy z przydzielonym koniem", async () => {
-    const horses = page.getByRole("table", { name: /^Obciążenie koni w okresie/ });
+    // Bez slotów treningowych tabela koni nazywa się jak dawniej; historia demo je ma (#115), więc „konie ośrodka”.
+    const horses = page.getByRole("table", { name: /^Obciążenie koni (ośrodka )?w okresie/ });
     const horseRides = await columnSum(horses, 0);
     expect(horseRides, "historia demo ma jazdy z koniem").toBeGreaterThan(0);
     expect(horseRides, "historia demo ma jazdy bez konia").toBeLessThan(rides);
@@ -77,6 +78,42 @@ test("statystyki okresu są spójne: tabela jeźdźców liczy wszystkie jazdy, t
 
   await test.step("każdy z trzech wykresów ma dane w tabeli", async () => {
     await expect(page.getByText("Pokaż dane wykresu w tabeli")).toHaveCount(3);
+  });
+});
+
+test("statystyki liczą rekreację i sloty treningowe osobno, a konie ośrodka i konie pensjonatowe w dwóch tabelach", async ({
+  page,
+}) => {
+  await page.goto(STATS_URL);
+  const summary = page.getByRole("region", { name: "Podsumowanie okresu" });
+  await expect(summary, DEMO_HINT).toBeVisible();
+  const rides = await count(summary.getByRole("definition").nth(0));
+
+  const split = page.getByRole("table", { name: /^Rekreacja i sloty treningowe/ });
+  const recreationRow = split.getByRole("row", { name: /^Sloty rekreacyjne/ });
+  const trainingRow = split.getByRole("row", { name: /^Sloty treningowe/ });
+  let recreationRides = 0;
+  let trainingRides = 0;
+
+  await test.step("jazdy slotów rekreacyjnych i treningowych sumują się do podsumowania", async () => {
+    recreationRides = await count(recreationRow.getByRole("cell").nth(0));
+    trainingRides = await count(trainingRow.getByRole("cell").nth(0));
+    expect(trainingRides, "historia demo ma jazdy na slotach treningowych (#115)").toBeGreaterThan(0);
+    expect(recreationRides + trainingRides).toBe(rides);
+    // Przy slotach godzinowych godziny jazd równe są liczbie jazd.
+    await expect(trainingRow.getByRole("cell").nth(1)).toHaveText(new RegExp(`^${trainingRides}\\s*h$`));
+    await expect(trainingRow.getByRole("cell").nth(2)).toHaveText(/^\s*\d+\s*%\s*$/);
+  });
+
+  await test.step("konie ośrodka nie niosą jazd treningowych, konie pensjonatowe mają własną tabelę", async () => {
+    const stableHorses = page.getByRole("table", { name: /^Obciążenie koni ośrodka w okresie/ });
+    const boardingHorses = page.getByRole("table", { name: /^Obciążenie koni pensjonatowych w okresie/ });
+    await expect(boardingHorses.getByRole("rowheader", { name: "Hrabia", exact: true })).toBeVisible();
+    await expect(stableHorses.getByRole("rowheader", { name: "Hrabia", exact: true })).toHaveCount(0);
+    expect(await columnSum(stableHorses, 0)).toBeLessThanOrEqual(recreationRides);
+    const boardingRides = await columnSum(boardingHorses, 0);
+    expect(boardingRides).toBeGreaterThan(0);
+    expect(boardingRides).toBeLessThanOrEqual(trainingRides);
   });
 });
 

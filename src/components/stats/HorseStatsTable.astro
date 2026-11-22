@@ -9,9 +9,11 @@ import type { StatsHorseRow } from "@/lib/stats/stats";
 // tak jak dla tabeli jeźdźców.
 interface Props {
   rows: StatsHorseRow[];
+  /** Nazwa tabeli dla czytników ekranu; osobna dla koni ośrodka i koni pensjonatowych (#119). */
+  caption?: string;
 }
 
-const { rows } = Astro.props;
+const { rows, caption = "Obciążenie koni w okresie: liczba jazd i godziny jazd każdego konia" } = Astro.props;
 ---
 
 {
@@ -20,7 +22,7 @@ const { rows } = Astro.props;
   ) : (
     <Card padding={0} class="overflow-hidden">
       <table class="stats-table">
-        <caption class="sr-only">Obciążenie koni w okresie: liczba jazd i godziny jazd każdego konia</caption>
+        <caption class="sr-only">{caption}</caption>
         <thead>
           <tr>
             <th scope="col">Koń</th>
