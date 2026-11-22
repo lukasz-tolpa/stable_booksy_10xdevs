@@ -172,11 +172,14 @@ test.describe("Rozliczenia właściciela", () => {
     await expect(settlementRiders(page).first(), DEMO_HINT).toBeVisible();
 
     // Kolejność czytania (Tab, czytnik ekranu) to kolejność w dokumencie — ma być tą samą co na ekranie.
+    // „Pozostali jeźdźcy ośrodka” są tylko, gdy jakiś jeździec ośrodka nie ma jazd w miesiącu (zależy od
+    // kont założonych przez wcześniejsze scenariusze).
+    const others = otherRidersToggle(page);
     const blocks = [
       monthNav,
       page.getByRole("heading", { level: 2, name: "Do zapłaty razem" }),
       settlementRiders(page).first(),
-      otherRidersToggle(page),
+      ...((await others.count()) > 0 ? [others] : []),
       page.getByRole("region", { name: "Stawka ośrodka" }),
     ];
     const handles = await Promise.all(blocks.map((block) => block.elementHandle()));
