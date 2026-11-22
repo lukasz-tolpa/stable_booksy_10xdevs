@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import {
   clearStableRatesAndCosts,
   DEMO_HINT,
+  RIDER_A_STATE,
   runSql,
   settlementCard,
   SETTLEMENTS_ROUTE,
@@ -23,6 +24,11 @@ test.use({ storageState: STABLE_STATE });
 
 /** Jeździec z seeda z jazdami w historii demo. */
 const ANNA = { key: "33333333-3333-3333-3333-333333333333", slug: "anna-kowalska" };
+
+/** Adres PDF rozliczenia jeźdźca za miesiąc `RRRR-MM`. */
+function pdfUrl(rider: string, month: string): string {
+  return `${SETTLEMENTS_ROUTE}/${rider}/pdf?miesiac=${month}`;
+}
 
 /** Miesiąc `RRRR-MM` sprzed tygodnia według bazy. */
 function monthWithRides(): string {
@@ -46,6 +52,12 @@ test.describe("PDF rozliczenia jeźdźca", () => {
     await expect(card.getByRole("link", { name: "Ustaw stawkę ośrodka" })).toBeVisible();
     await expect(download).toHaveCount(0);
 
+    // #102: adres PDF bez stawki ośrodka wraca na stronę jeźdźca tego miesiąca, bez pliku i bez błędu.
+    await page.goto(pdfUrl(ANNA.key, month));
+    await expect(page).toHaveURL(riderPage);
+    await expect(card.getByRole("link", { name: "Ustaw stawkę ośrodka" })).toBeVisible();
+    await expect(page.getByRole("alert")).toHaveCount(0);
+
     setStableRate(12345);
     await page.goto(`${SETTLEMENTS_ROUTE}?miesiac=${month}`);
     await expect(page.getByRole("list", { name: "Rozliczenia jeźdźców" })).toBeVisible();
@@ -58,5 +70,35 @@ test.describe("PDF rozliczenia jeźdźca", () => {
     expect(file.suggestedFilename()).toBe(`rozliczenie-${month}-${ANNA.slug}.pdf`);
     const bytes = await readFile(await file.path());
     expect(bytes.subarray(0, 5).toString("latin1")).toBe("%PDF-");
+  });
+
+  test("adres PDF nieznanego jeźdźca to ta sama strona co rozliczenie: „Nie ma takiego jeźdźca.”", async ({ page }) => {
+    const month = monthWithRides();
+    for (const rider of ["00000000-0000-4000-8000-000000000000", "anna"]) {
+      await page.goto(pdfUrl(rider, month));
+      await expect(page).toHaveURL(`${SETTLEMENTS_ROUTE}/${rider}?miesiac=${month}`);
+      await expect(page.getByText("Nie ma takiego jeźdźca.", { exact: true })).toBeVisible();
+    }
+  });
+});
+
+test.describe("PDF rozliczenia tylko dla właściciela", () => {
+  test.use({ storageState: RIDER_A_STATE });
+
+  test("konto jeźdźca nie pobiera PDF rozliczenia — przekierowanie poza przestrzeń ośrodka", async ({ page }) => {
+    const response = await page.request.get(pdfUrl(ANNA.key, monthWithRides()), { maxRedirects: 0 });
+    expect(response.status()).toBe(302);
+    expect(response.headers().location).not.toMatch(new RegExp(SETTLEMENTS_ROUTE));
+  });
+
+  test("bez sesji adres PDF prowadzi do logowania", async ({ browser }) => {
+    const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    try {
+      const response = await context.request.get(pdfUrl(ANNA.key, monthWithRides()), { maxRedirects: 0 });
+      expect(response.status()).toBe(302);
+      expect(response.headers().location).toMatch(/\/auth\/signin/);
+    } finally {
+      await context.close();
+    }
   });
 });

@@ -160,6 +160,14 @@ describe("composeSettlementDocument — kwoty i stopka", () => {
     expect(documentFor(LAST_MONTH).footer).toBe("Wygenerowano 21.11.2026, 14:05");
   });
 
+  // Oracle: AC #102 — każda strona ma w stopce „strona X z Y”.
+  it("numeracja stron „strona X z Y” dla każdej strony", () => {
+    const { pageLabel } = documentFor(LAST_MONTH);
+    expect(pageLabel(1, 2)).toBe("strona 1 z 2");
+    expect(pageLabel(2, 2)).toBe("strona 2 z 2");
+    expect(pageLabel(1, 1)).toBe("strona 1 z 1");
+  });
+
   it("tuż po północy UTC stopka i „stan na” mają już warszawski dzień i godzinę", () => {
     /** 30 listopada 2026, 23:30 UTC = 1 grudnia, 00:30 w Warszawie. */
     const midnight = new Date("2026-11-30T23:30:00Z");

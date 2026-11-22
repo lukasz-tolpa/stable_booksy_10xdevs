@@ -74,6 +74,11 @@ export interface SettlementDocument {
   due: DocumentLine;
   /** Np. `Wygenerowano 21.11.2026, 14:05` (Europe/Warsaw). */
   footer: string;
+  /**
+   * Numeracja w stopce każdej strony: `strona 1 z 2`. Funkcja, bo liczbę stron zna dopiero renderer
+   * (zależy od długości tabel); tekst zostaje w tabeli tekstów rozliczeń.
+   */
+  pageLabel: (page: number, pages: number) => string;
 }
 
 /** Linia „etykieta: wartość”. */
@@ -121,6 +126,7 @@ export function composeSettlementDocument(input: SettlementDocumentInput, now: D
     },
     due: { label: texts.rider.due, value: settlement.dueText },
     footer: `${texts.pdf.generated} ${formatDateTime(now)}`,
+    pageLabel: texts.pdf.pageOf,
   };
 }
 

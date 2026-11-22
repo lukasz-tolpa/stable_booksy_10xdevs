@@ -105,6 +105,22 @@ describe("routeGuardFor", () => {
   });
 });
 
+// Oracle: AC #102 — PDF rozliczenia jeźdźca to trasa właściciela: bez sesji logowanie (middleware przy
+// każdej chronionej trasie), konto jeźdźca do własnej przestrzeni (inna rola), instruktor bez roli
+// właściciela do „Moje sloty”; właściciel przechodzi.
+describe("PDF rozliczenia jeźdźca — trasa właściciela", () => {
+  const PDF = "/osrodek/rozliczenia/33333333-3333-3333-3333-333333333333/pdf";
+
+  it("jest chroniony przestrzenią ośrodka (rola konta instruktora)", () => {
+    expect(routeGuardFor(PDF)).toEqual({ prefix: "/osrodek", role: "instructor" });
+  });
+
+  it("instruktor bez roli właściciela trafia do „Moje sloty”, właściciel zostaje", () => {
+    expect(instructorRedirect(PDF, "instructor")).toBe("/instruktor");
+    expect(instructorRedirect(PDF, "owner")).toBeNull();
+  });
+});
+
 describe("isLegacyHomeRoute", () => {
   it("rozpoznaje stary adres panelu", () => {
     expect(isLegacyHomeRoute("/dashboard")).toBe(true);

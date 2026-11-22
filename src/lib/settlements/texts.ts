@@ -54,6 +54,8 @@ export const SETTLEMENT_TEXTS = {
     costAmount: "Kwota",
     /** Przed `formatDateTime`: `Wygenerowano 21.11.2026, 14:05`. */
     generated: "Wygenerowano",
+    /** Numeracja w stopce każdej strony (#102): `strona 1 z 2`. */
+    pageOf: (page: number, pages: number) => `strona ${String(page)} z ${String(pages)}`,
     /** Nazwa pliku: `rozliczenie-RRRR-MM-<jeździec>.pdf`; bez imienia i nazwiska — `jezdziec`. */
     fileStem: "rozliczenie",
     unnamedSlug: "jezdziec",

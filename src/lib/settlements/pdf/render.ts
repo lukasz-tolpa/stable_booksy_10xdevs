@@ -7,9 +7,9 @@
  * Ładuje go WYŁĄCZNIE punkt końcowy PDF, dynamicznym `import()` — jsPDF i czcionki trafiają do osobnego
  * kawałka paczki workera, którego reszta aplikacji nie wczytuje (limit CPU, spec #100).
  *
- * Miejsca na rozbudowę (#102): `drawFooters` — stopka na każdej stronie, tam dochodzi „strona X z Y”;
- * tabele już przechodzą na kolejne strony z powtórzonym nagłówkiem (`showHead: "everyPage"`), a teksty
- * pod nimi pilnuje `ensureSpace`.
+ * Wiele stron (#102): tabele przechodzą na kolejne strony z powtórzonym nagłówkiem (`showHead: "everyPage"`),
+ * wiersz nie dzieli się między strony, długie nazwy zawijają się w komórce; teksty pod tabelami pilnuje
+ * `ensureSpace`. Stopkę z „strona X z Y” rysuje na końcu `drawFooters`.
  */
 
 import { jsPDF } from "jspdf";
@@ -39,6 +39,11 @@ function createDocument(title: string): jsPDF {
   doc.addFont("Inter-Regular.ttf", FONT, "normal");
   doc.addFileToVFS("Inter-SemiBold.ttf", INTER_SEMIBOLD);
   doc.addFont("Inter-SemiBold.ttf", FONT, "bold");
+  // jspdf-autotable przy każdej komórce woła `getFontList()`, a jsPDF za każdym razem buduje listę od nowa
+  // (14 czcionek standardowych × style + Inter). Czcionki dokumentu już się nie zmienią, więc lista
+  // liczona raz — ~10% czasu generowania przy 25+ jazdach, ten sam plik (#102, limit CPU Workers Free).
+  const fonts = doc.getFontList();
+  doc.getFontList = () => fonts;
   doc.setProperties({ title });
   doc.setTextColor(BLACK);
   doc.setDrawColor(RULE_GRAY);
@@ -109,14 +114,20 @@ const RIDE_COLUMNS: Partial<Styles>[] = [{ cellWidth: 78 }, { cellWidth: 56 }, {
 /** Kolumny tabeli kosztów: nazwa, kwota do prawej. */
 const COST_COLUMNS: Partial<Styles>[] = [{}, { cellWidth: 110, halign: "right" }];
 
-/** Stopka na każdej stronie: data wygenerowania. */
-function drawFooters(doc: jsPDF, footer: string): void {
+/**
+ * Stopka na każdej stronie: data wygenerowania z lewej, „strona X z Y” z prawej. Rysowana na końcu,
+ * gdy liczba stron jest już znana.
+ */
+function drawFooters(doc: jsPDF, document: Pick<SettlementDocument, "footer" | "pageLabel">): void {
   const pages = doc.getNumberOfPages();
+  const baseline = pageHeight(doc) - MARGIN;
+  const right = MARGIN + contentWidth(doc);
   for (let page = 1; page <= pages; page += 1) {
     doc.setPage(page);
     doc.setFont(FONT, "normal");
     doc.setFontSize(SIZE.small);
-    doc.text(footer, MARGIN, pageHeight(doc) - MARGIN);
+    doc.text(document.footer, MARGIN, baseline);
+    doc.text(document.pageLabel(page, pages), right, baseline, { align: "right" });
   }
 }
 
@@ -158,6 +169,6 @@ export function renderSettlementPdf(document: SettlementDocument): Uint8Array<Ar
   doc.text(document.due.label, MARGIN, baseline);
   doc.text(document.due.value, MARGIN + contentWidth(doc), baseline, { align: "right" });
 
-  drawFooters(doc, document.footer);
+  drawFooters(doc, document);
   return new Uint8Array(doc.output("arraybuffer"));
 }
