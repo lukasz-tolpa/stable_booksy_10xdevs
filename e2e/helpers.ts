@@ -291,6 +291,23 @@ export function settlementCard(page: Page): Locator {
   return page.getByRole("region", { name: /^Rozliczenie za / });
 }
 
+/**
+ * Pełna lista jazd rozliczenia jeźdźca (#109): rozwija zwiniętą sekcję „Pokaż wszystkie jazdy (N)” i zwraca
+ * listę „Jazdy — {jeździec}” (bez nazwy — listę jazd dowolnego jeźdźca). W miesiącu bez jazd sekcji nie ma.
+ */
+export async function showAllRides(page: Page, rider?: string): Promise<Locator> {
+  const list = page.getByRole("list", { name: rider === undefined ? /^Jazdy — / : `Jazdy — ${rider}` });
+  await expect(list, "lista jazd jest domyślnie zwinięta").toBeHidden();
+  await page.getByText(/^Pokaż wszystkie jazdy \(\d+\)$/).click();
+  await expect(list).toBeVisible();
+  return list;
+}
+
+/** Koszty dodatkowe w rozliczeniu jeźdźca: region „Koszty dodatkowe” z listą kosztów i formularzami. */
+export function riderCostsRegion(page: Page): Locator {
+  return page.getByRole("region", { name: "Koszty dodatkowe" });
+}
+
 /** Nagłówek zwiniętej sekcji „Pozostali jeźdźcy ośrodka” (#106) — kliknięcie ją rozwija. */
 export function otherRidersToggle(page: Page): Locator {
   return page.getByText("Pozostali jeźdźcy ośrodka", { exact: true });

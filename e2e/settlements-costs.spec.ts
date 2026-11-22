@@ -8,6 +8,7 @@ import {
   otherRidersToggle,
   pricedSettlementRows,
   RIDER_SETTLEMENT_URL,
+  riderCostsRegion,
   settlementCard,
   settlementRiders,
   SETTLEMENTS_ROUTE,
@@ -73,8 +74,10 @@ test.describe("Koszty dodatkowe", () => {
     const month = new URL(riderUrl).searchParams.get("miesiac");
     const name = (await page.getByRole("heading", { level: 1 }).innerText()).trim();
     const card = settlementCard(page);
-    const costs = card.getByRole("list", { name: `Koszty dodatkowe — ${name}` }).getByRole("listitem");
-    const addForm = card.getByRole("form", { name: "Dopisz koszt" });
+    const costsRegion = riderCostsRegion(page);
+    const costs = costsRegion.getByRole("list", { name: `Koszty dodatkowe — ${name}` }).getByRole("listitem");
+    const addForm = costsRegion.getByRole("form", { name: "Dopisz koszt" });
+    const costsLine = card.getByText(/^Koszty dodatkowe: /);
     const ridesAmount = first.rides * RATE;
 
     const expectBackHere = () => {
@@ -84,7 +87,8 @@ test.describe("Koszty dodatkowe", () => {
     };
 
     await test.step("bez kosztów „Do zapłaty” to kwota za jazdy", async () => {
-      await expect(card.getByText("W tym miesiącu nie ma kosztów dodatkowych.", { exact: true })).toBeVisible();
+      await expect(costsRegion.getByText("W tym miesiącu nie ma kosztów dodatkowych.", { exact: true })).toBeVisible();
+      await expect(costsLine, "bez kosztów karta nie ma sumy kosztów").toHaveCount(0);
       expect(await due(card)).toBe(ridesAmount);
     });
 
@@ -108,6 +112,7 @@ test.describe("Koszty dodatkowe", () => {
       await expect(costs).toHaveCount(1);
       await expect(costs.first().getByText("Pensjonat konia", { exact: true })).toBeVisible();
       await expect(costs.first().getByText(/^800,00\szł$/)).toBeVisible();
+      expect(grosze(await costsLine.innerText()), "suma kosztów w karcie").toBe(80000);
       expect(await due(card)).toBe(ridesAmount + 80000);
     });
 
@@ -140,7 +145,8 @@ test.describe("Koszty dodatkowe", () => {
       await page.waitForURL(/sukces=1/);
       expectBackHere();
       await expect(costs).toHaveCount(0);
-      await expect(card.getByText("W tym miesiącu nie ma kosztów dodatkowych.", { exact: true })).toBeVisible();
+      await expect(costsRegion.getByText("W tym miesiącu nie ma kosztów dodatkowych.", { exact: true })).toBeVisible();
+      await expect(costsLine).toHaveCount(0);
       expect(await due(card)).toBe(ridesAmount);
     });
   });
@@ -182,14 +188,15 @@ test.describe("Koszty dodatkowe", () => {
 
     await test.step("dopisany koszt jest w rozliczeniu, a „Do zapłaty” to sam koszt", async () => {
       const card = settlementCard(page);
-      const addForm = card.getByRole("form", { name: "Dopisz koszt" });
+      const costsRegion = riderCostsRegion(page);
+      const addForm = costsRegion.getByRole("form", { name: "Dopisz koszt" });
       await addForm.getByLabel("Nazwa kosztu").fill("Wypożyczenie siodła");
       await addForm.getByLabel("Kwota (zł)").fill("50,50");
       await addForm.getByRole("button", { name: "Dopisz koszt", exact: true }).click();
       await page.waitForURL(/sukces=1/);
-      await expect(card.getByRole("list", { name: `Koszty dodatkowe — ${rider}` }).getByRole("listitem")).toHaveCount(
-        1,
-      );
+      await expect(
+        costsRegion.getByRole("list", { name: `Koszty dodatkowe — ${rider}` }).getByRole("listitem"),
+      ).toHaveCount(1);
       expect(await due(card)).toBe(5050);
     });
 

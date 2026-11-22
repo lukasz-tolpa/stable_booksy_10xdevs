@@ -1,5 +1,5 @@
 ---
-// Stawka jeźdźca w rozliczeniu jeźdźca (#97): stawka, po której jeździec płaci teraz, z dopiskiem
+// Stawka jeźdźca w rozliczeniu jeźdźca (#97; od #109 na dole strony): stawka, po której jeździec płaci teraz, z dopiskiem
 // „stawka ośrodka” / „stawka indywidualna”, zaplanowana zmiana z „Usuń zaplanowaną zmianę”, formularz
 // stawki indywidualnej „od tego / od następnego miesiąca” i — gdy obowiązuje stawka indywidualna —
 // „Usuń stawkę indywidualną” od wybranego miesiąca (powrót do stawki ośrodka). Formularze bez JavaScriptu;
@@ -33,14 +33,14 @@ const { rate, riderKey, month } = Astro.props;
 const texts = SETTLEMENT_TEXTS.riderRate;
 ---
 
-<section class="section" aria-labelledby="rider-rate-heading">
+<section aria-labelledby="rider-rate-heading">
   <Card>
-    <h2 id="rider-rate-heading">{texts.heading}</h2>
+    <h2 id="rider-rate-heading" class="eyebrow">{texts.heading}</h2>
     {
       rate.currentText && (
         <div class="current">
           <p>
-            {texts.current} <strong class="mono-nums">{rate.currentText}</strong>
+            {texts.current} <strong class="money">{rate.currentText}</strong>
           </p>
           {rate.sourceText && <Tag>{rate.sourceText}</Tag>}
         </div>
@@ -51,7 +51,7 @@ const texts = SETTLEMENT_TEXTS.riderRate;
       rate.planned && (
         <div class="planned">
           <p>
-            {texts.planned}: <span class="mono-nums">{rate.planned.text}</span>
+            {texts.planned}: <span class="money">{rate.planned.text}</span>
           </p>
           <form method="post" action="/api/settlements/rider-rate-delete">
             <input type="hidden" name={MONTH_PARAM} value={month} />
@@ -94,13 +94,12 @@ const texts = SETTLEMENT_TEXTS.riderRate;
 </section>
 
 <style>
-  .section {
-    display: block;
-    margin-top: 18px;
-  }
   h2 {
     margin: 0 0 10px;
-    font-size: 20px;
+  }
+  .money {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
   }
   .current {
     display: flex;

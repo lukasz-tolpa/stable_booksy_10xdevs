@@ -124,6 +124,13 @@ export interface RiderSettlementView {
    * decyzja co w punkcie końcowym); inaczej `null` i przycisku nie ma.
    */
   pdfHref: string | null;
+  /**
+   * Suma kosztów dodatkowych w karcie rozliczenia (#109), np. `Koszty dodatkowe: 850,50 zł`; bez kosztów
+   * `null`. Zdanie, nie sama kwota — jedyną samą kwotą karty jest „Do zapłaty”.
+   */
+  costsLine: string | null;
+  /** Nagłówek zwiniętej listy jazd, np. `Pokaż wszystkie jazdy (77)`; w miesiącu bez jazd `null` — listy nie ma. */
+  ridesToggle: string | null;
 }
 
 export function composeRiderSettlementPage(
@@ -135,6 +142,8 @@ export function composeRiderSettlementPage(
     nav: composeMonthNav(input.month, input.monthHref),
     settlement,
     pdfHref: isSettlementPdfAvailable(settlement, now) ? input.pdfHref : null,
+    costsLine: settlement.costs.length === 0 ? null : `${SETTLEMENT_TEXTS.rider.costs} ${settlement.costsAmountText}`,
+    ridesToggle: settlement.rides === 0 ? null : SETTLEMENT_TEXTS.rider.showAllRides(settlement.rides),
   };
 }
 

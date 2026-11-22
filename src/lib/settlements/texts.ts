@@ -37,7 +37,6 @@ export const SETTLEMENT_TEXTS = {
   rider: {
     /** Tytuł karty przeglądarki przed nazwą jeźdźca: `Rozliczenie — Anna Kowalska`. */
     title: "Rozliczenie",
-    lead: "Rozliczenie jeźdźca za wybrany miesiąc: jego jazdy razy stawka plus koszty dodatkowe.",
     /** Nagłówek karty przed `formatMonthYear`: `Rozliczenie za listopad 2026`. */
     forMonth: "Rozliczenie za",
     back: "Wróć do rozliczeń",
@@ -45,9 +44,13 @@ export const SETTLEMENT_TEXTS = {
     rides: "Jazdy:",
     /** Nagłówek sekcji jazd i początek nazwy listy jazd (`Jazdy — Anna Kowalska`). */
     ridesHeading: "Jazdy",
+    /** Nagłówek zwiniętej listy jazd (#109): `Pokaż wszystkie jazdy (77)`. */
+    showAllRides: (rides: number) => `Pokaż wszystkie jazdy (${String(rides)})`,
     /** Dopisek o źródle stawki przy kwocie za jazdy. */
     source: { stable: "stawka ośrodka", individual: "stawka indywidualna" },
     due: "Do zapłaty",
+    /** Suma kosztów dodatkowych w karcie rozliczenia (#109), przed kwotą: `Koszty dodatkowe: 850,50 zł`. */
+    costs: "Koszty dodatkowe:",
     /** Bez stawki ośrodka: prośba zamiast kwot, link na „Rozliczenia”, gdzie jest formularz stawki. */
     needsRate: "Ustaw stawkę ośrodka",
     needsRateHint: "Kwoty pojawią się po ustawieniu stawki ośrodka na stronie „Rozliczenia”.",

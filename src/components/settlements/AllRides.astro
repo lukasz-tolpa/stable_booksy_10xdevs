@@ -1,0 +1,81 @@
+---
+// Pełna lista jazd w rozliczeniu jeźdźca (#109), pod kartą rozliczenia: natywne <details> (bez
+// JavaScriptu), domyślnie zwinięte, z nagłówkiem „Pokaż wszystkie jazdy (N)”; w środku wspólna lista jazd
+// Podsumowania miesiąca (`RideList`, bez zmian). W miesiącu bez jazd strona tej sekcji nie renderuje.
+// Renderuje `RiderSettlementView` z `@/lib/settlements/rider` — nagłówek i wiersze są już policzone.
+//
+// KONTRAKT e2e: `summary` z tekstem „Pokaż wszystkie jazdy (N)”; po rozwinięciu `list` „Jazdy — {jeździec}”,
+// jedna pozycja na jazdę.
+import RideList from "@/components/month-summary/RideList.astro";
+import type { SummaryRideRow } from "@/lib/month-summary/summary";
+import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
+
+interface Props {
+  /** Nagłówek, np. `Pokaż wszystkie jazdy (77)` (`RiderSettlementView.ridesToggle`). */
+  toggle: string;
+  rides: SummaryRideRow[];
+  /** Nazwa jeźdźca w nazwie listy: `Jazdy — Anna Kowalska`. */
+  riderName: string;
+}
+
+const { toggle, rides, riderName } = Astro.props;
+---
+
+<details class="all">
+  <summary>{toggle}</summary>
+  <div class="all__list">
+    <RideList rides={rides} label={`${SETTLEMENT_TEXTS.rider.ridesHeading} — ${riderName}`} />
+  </div>
+</details>
+
+<style>
+  .all {
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+  }
+  summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    /* 44 px to minimalny cel dotykowy — cały nagłówek rozwija listę. */
+    min-height: 52px;
+    padding: 10px 18px;
+    font-weight: 600;
+    color: var(--primary);
+    cursor: pointer;
+    list-style: none;
+  }
+  summary::-webkit-details-marker {
+    display: none;
+  }
+  summary::before {
+    content: "";
+    flex: none;
+    width: 7px;
+    height: 7px;
+    margin-right: 4px;
+    border-right: 2px solid var(--primary);
+    border-bottom: 2px solid var(--primary);
+    transform: rotate(-45deg);
+    transition: transform 0.15s;
+  }
+  /* `open` ustawia przeglądarka, nie szablon — stąd :global dla samego atrybutu. */
+  :global(.all[open]) > summary::before {
+    transform: rotate(45deg);
+  }
+  summary:hover {
+    color: var(--primary-strong);
+    text-decoration: underline;
+  }
+  summary:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    border-radius: var(--r-lg);
+  }
+  .all__list {
+    padding: 4px 18px 16px;
+    border-top: 1px solid var(--border);
+  }
+</style>

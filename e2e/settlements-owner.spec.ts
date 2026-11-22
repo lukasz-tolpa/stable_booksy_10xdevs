@@ -8,10 +8,12 @@ import {
   otherRidersToggle,
   RIDER_A_STATE,
   RIDER_SETTLEMENT_URL,
+  riderCostsRegion,
   settlementCard,
   settlementRiders,
   settlementRows,
   SETTLEMENTS_ROUTE,
+  showAllRides,
   signIn,
   STABLE_STATE,
 } from "./helpers";
@@ -111,11 +113,9 @@ test.describe("Rozliczenia właściciela", () => {
       const name = (await page.getByRole("heading", { level: 1 }).innerText()).trim();
       expect(first.text.startsWith(name), `wiersz listy „${first.text}” to jeździec „${name}”`).toBe(true);
       const card = settlementCard(page);
-      const rides = await card
-        .getByRole("list", { name: `Jazdy — ${name}` })
-        .getByRole("listitem")
-        .count();
+      const rides = await (await showAllRides(page, name)).getByRole("listitem").count();
       expect(rides, "liczba jazd na liście jazd = liczba jazd w wierszu listy").toBe(first.rides);
+      await expect(page.getByText(`Pokaż wszystkie jazdy (${String(rides)})`, { exact: true })).toBeVisible();
 
       const line = card.getByText(/^Jazdy: \d+ × /);
       await expect(line).toHaveText(new RegExp(`^Jazdy: ${String(rides)} × 123,45\\szł = `));
@@ -128,6 +128,41 @@ test.describe("Rozliczenia właściciela", () => {
       await page.getByRole("link", { name: "Wróć do rozliczeń" }).click();
       await page.waitForURL(/\/osrodek\/rozliczenia\?miesiac=/);
       expect(new URL(page.url()).searchParams.get("miesiac")).toBe(new URL(listUrl).searchParams.get("miesiac"));
+    });
+
+    await test.step("rozliczenie jeźdźca na telefonie: „Do zapłaty”, lista jazd, koszty, stawka — bez przewijania w bok", async () => {
+      const listUrl = page.url();
+      await page.setViewportSize({ width: 390, height: 844 });
+      await settlementRiders(page).first().getByRole("link").click();
+      await page.waitForURL(RIDER_SETTLEMENT_URL);
+
+      // Kolejność czytania (Tab, czytnik ekranu) to kolejność w dokumencie — ma być tą samą co na ekranie.
+      const blocks = [
+        page.getByRole("heading", { level: 1 }),
+        page.getByRole("navigation", { name: "Wybór miesiąca" }),
+        settlementCard(page).getByText("Do zapłaty", { exact: true }),
+        page.getByText(/^Pokaż wszystkie jazdy \(\d+\)$/),
+        riderCostsRegion(page),
+        page.getByRole("region", { name: "Stawka jeźdźca" }),
+      ];
+      for (const block of blocks) await expect(block).toBeVisible();
+      const handles = await Promise.all(blocks.map((block) => block.elementHandle()));
+      const inOrder = await page.evaluate(
+        (elements) =>
+          elements
+            .slice(1)
+            .every(
+              (element, i) => (elements[i].compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0,
+            ),
+        handles,
+      );
+      expect(inOrder, "kolejność bloków w dokumencie").toBe(true);
+
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      expect(overflow, "strona jest szersza niż ekran 390 px").toBeLessThanOrEqual(0);
+
+      await page.setViewportSize({ width: 1280, height: 800 });
+      await page.goto(listUrl);
     });
 
     await test.step("zaplanowana zmiana od następnego miesiąca nie zmienia kwot i daje się usunąć", async () => {

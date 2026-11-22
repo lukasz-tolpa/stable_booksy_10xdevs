@@ -231,9 +231,23 @@ describe("composeRiderSettlementPage — strona rozliczenia jeźdźca", () => {
     expect(view.settlement.emptyText).toBeNull();
   });
 
-  it("miesiąc bez jazd jeźdźca to spokojny stan pusty zamiast listy jazd", () => {
+  it("miesiąc bez jazd jeźdźca to spokojny stan pusty zamiast listy jazd i bez „Pokaż wszystkie jazdy”", () => {
     const view = composeRiderSettlementPage({ ...input(), monthHref, pdfHref }, NOW);
     expect(view.settlement.emptyText).toBe("W październiku 2026 nie było jazd.");
+    expect(view.ridesToggle).toBeNull();
+  });
+
+  // Oracle: AC #109 — pełna lista jazd zwinięta pod „Pokaż wszystkie jazdy (N)”, N = liczba jazd rozliczenia.
+  it("lista jazd zwinięta pod „Pokaż wszystkie jazdy (N)” z liczbą jazd rozliczenia", () => {
+    const view = composeRiderSettlementPage(
+      {
+        ...input({ bookings: [ride("2026-10-02"), ride("2026-10-03", { status: "cancelled" }), ride("2026-10-09")] }),
+        monthHref,
+        pdfHref,
+      },
+      NOW,
+    );
+    expect(view.ridesToggle).toBe("Pokaż wszystkie jazdy (2)");
   });
 
   // Oracle: AC #101 — „Pobierz PDF” tylko, gdy PDF jest dostępny (stawka ośrodka, jazdy albo koszty).
@@ -249,6 +263,48 @@ describe("composeRiderSettlementPage — strona rozliczenia jeźdźca", () => {
 
     expect(priced.pdfHref).toBe(pdfHref);
     expect(unpriced.pdfHref).toBeNull();
+  });
+});
+
+// Oracle: AC #109 — karta rozliczenia na górze strony pokazuje sumę kosztów dodatkowych zdaniem z modelu
+// widoku (nie samą kwotą — jedyną samą kwotą karty jest „Do zapłaty”); bez kosztów tego zdania nie ma.
+describe("composeRiderSettlementPage — suma kosztów dodatkowych w karcie", () => {
+  const monthHref = (month: string) => `/osrodek/rozliczenia/anna?miesiac=${month}`;
+  const pdfHref = "/osrodek/rozliczenia/anna/pdf?miesiac=2026-10";
+
+  it("z kosztami: „Koszty dodatkowe: suma” tylko kosztów tego jeźdźca", () => {
+    const view = composeRiderSettlementPage(
+      {
+        ...input({
+          bookings: [ride("2026-10-02")],
+          costs: [cost(1, 80000), cost(2, 5050, "Wypożyczenie siodła"), cost(3, 99900, "Pensjonat konia", "piotr")],
+        }),
+        monthHref,
+        pdfHref,
+      },
+      NOW,
+    );
+    expect(view.costsLine).toBe(`Koszty dodatkowe: ${zl("850,50 zł")}`);
+  });
+
+  it("bez kosztów zdania o kosztach nie ma", () => {
+    const view = composeRiderSettlementPage(
+      {
+        ...input({ bookings: [ride("2026-10-02")], costs: [cost(3, 99900, "Pensjonat konia", "piotr")] }),
+        monthHref,
+        pdfHref,
+      },
+      NOW,
+    );
+    expect(view.costsLine).toBeNull();
+  });
+
+  it("przed pierwszą stawką ośrodka suma kosztów też jest widoczna", () => {
+    const view = composeRiderSettlementPage(
+      { ...input({ rates: [], costs: [cost(1, 80000)] }), monthHref, pdfHref },
+      NOW,
+    );
+    expect(view.costsLine).toBe(`Koszty dodatkowe: ${zl("800,00 zł")}`);
   });
 });
 

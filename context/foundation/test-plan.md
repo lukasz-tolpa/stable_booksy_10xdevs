@@ -349,7 +349,12 @@ się nie zapisał.`); the inactive-account screen (`/instruktor/konto-nieaktywne
   superuser before and after (`session_replication_role = replica`, since `SB027` binds `postgres` too) — the database is left
   without rates. The settlements specs share their steps from `e2e/helpers.ts` (`clearStableRates`, `clearStableRatesAndCosts`,
   `setStableRate`, `runSql`, `grosze`, `settlementRiders` / `settlementRows` / `pricedSettlementRows`, `settlementCard`,
-  `emptySettlementsMonth`, `RIDER_SETTLEMENT_URL`); crafted-form checks post with `page.request.post` and an `Origin` header
+  `emptySettlementsMonth`, `RIDER_SETTLEMENT_URL`, `showAllRides`, `riderCostsRegion`). The rider settlement (#109) reads top-down in
+  document order: h1, month switcher, the region „Rozliczenie za {month}” („Do zapłaty” paragraph — its amount the only amount-only
+  element of the card —, `Jazdy: N × …` line with the rate-source tag, `Koszty dodatkowe: …` only when there are costs, „Pobierz PDF”),
+  the collapsed `<summary>` „Pokaż wszystkie jazdy (N)” (`showAllRides(page, rider)` checks it is collapsed, clicks it and returns
+  the `list` „Jazdy — {rider}”; absent in a month without rides), the region „Koszty dodatkowe” (`riderCostsRegion`), the region
+  „Stawka jeźdźca”; the owner spec checks that order and no horizontal scroll at 390 px in a step; crafted-form checks post with `page.request.post` and an `Origin` header
   (Astro's origin check) and `maxRedirects: 0`, reading `error=` from the `Location`. `settlements-costs.spec.ts` (#96) adds, corrects and deletes extra costs on the rider settlement (`list`
   „Koszty dodatkowe — {rider}”, `form` „Dopisz koszt” / „Popraw koszt {name}”, „Popraw” is a `<summary>` — click it by text); a rider
   without rides gets a cost through the list page's collapsed „Pozostali jeźdźcy ośrodka” (#106: a `<summary>` — click it by text,
