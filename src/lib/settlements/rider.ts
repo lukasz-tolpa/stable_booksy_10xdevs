@@ -4,7 +4,8 @@
  * „Do zapłaty” = kwota za jazdy + suma kosztów.
  *
  * `composeRiderSettlement` zwraca jeden obiekt bez adresów strony, żeby PDF rozliczenia (KAN-91)
- * wyrenderował go także poza stroną; `composeRiderSettlementPage` dokłada przełącznik miesięcy i adres „Pobierz PDF”.
+ * wyrenderował go także poza stroną; `composeRiderSettlementPage` dokłada przełącznik miesięcy i adres
+ * „Pobierz PDF”.
  * Kwoty liczy `riderAmounts` — to samo, co wiersz listy „Rozliczenia”.
  */
 
