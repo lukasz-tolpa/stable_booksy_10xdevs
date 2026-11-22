@@ -218,10 +218,14 @@ export function runSql(sql: string, what: string, extraFlags: string[] = []): st
   return result.stdout;
 }
 
+/** Pensjonariuszka z seeda (#117) — jej jazdy na Hrabi liczą się po stawce treningowej z opłatą za pensjonat. */
+export const BOARDER = { key: "12121212-1212-1212-1212-121212121212", name: "Katarzyna Zając", horse: "Hrabia" };
+
 /**
- * Usuwa stawki ośrodka z seeda (także indywidualne), a z `costs` — również koszty dodatkowe ośrodka. Obowiązującej
- * zmiany stawki nie usunie nikt poza superuserem z wyłączonymi wyzwalaczami (`session_replication_role =
- * replica`), bo reguła czasu SB027 dotyczy także jego. Specyfikacje biegną po kolei — każda zostawia bazę bez nich.
+ * Usuwa stawki ośrodka z seeda (obu rodzajów, także indywidualne) i opłaty za pensjonat jego koni (#117),
+ * a z `costs` — również koszty dodatkowe ośrodka. Obowiązującej zmiany stawki ani opłaty nie usunie nikt poza
+ * superuserem z wyłączonymi wyzwalaczami (`session_replication_role = replica`), bo reguły czasu SB027/SB061
+ * dotyczą także jego. Specyfikacje biegną po kolei — każda zostawia bazę bez nich.
  */
 function clearSettlementData(costs: boolean): void {
   runSql(
@@ -229,6 +233,7 @@ function clearSettlementData(costs: boolean): void {
     begin;
     set local session_replication_role = replica;
     delete from public.rates r using public.stables s where s.id = r.stable_id and s.name = '${STABLE_NAME}';
+    delete from public.boarding_fees f using public.stables s where s.id = f.stable_id and s.name = '${STABLE_NAME}';
     ${costs ? `delete from public.extra_costs c using public.stables s where s.id = c.stable_id and s.name = '${STABLE_NAME}';` : ""}
     commit;
   `,
@@ -267,13 +272,20 @@ export function settlementRiders(page: Page): Locator {
   return page.getByRole("list", { name: "Rozliczenia jeźdźców" }).getByRole("listitem");
 }
 
-/** Karty listy: tekst, liczba jazd i „Do zapłaty” — pierwsza kwota karty (`null` — bez kwoty, ośrodek bez stawki). */
+/**
+ * Karty listy jeźdźców rekreacyjnych: tekst, liczba jazd i „Do zapłaty” — pierwsza kwota karty (`null` — bez
+ * kwoty, ośrodek bez stawki). Bez karty pensjonariuszki `BOARDER` — jej kwota to stawka treningowa i opłata
+ * za pensjonat (#117, `settlements-boarder.spec.ts`); bez nich ma samą liczbę jazd, a do „Razem” wnosi 0.
+ */
 export async function settlementRows(page: Page): Promise<{ text: string; rides: number; amount: number | null }[]> {
-  return (await settlementRiders(page).allInnerTexts()).map((text) => ({
-    text,
-    rides: Number(/(\d+) jazd/.exec(text)?.[1] ?? Number.NaN),
-    amount: text.includes("zł") ? grosze(text) : null,
-  }));
+  const texts = await settlementRiders(page).allInnerTexts();
+  return texts
+    .filter((text) => !text.startsWith(BOARDER.name))
+    .map((text) => ({
+      text,
+      rides: Number(/(\d+) jazd/.exec(text)?.[1] ?? Number.NaN),
+      amount: text.includes("zł") ? grosze(text) : null,
+    }));
 }
 
 /** Wiersze listy ośrodka ze stawką — każdy musi mieć kwotę. */
