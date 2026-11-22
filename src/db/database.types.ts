@@ -32,6 +32,41 @@ export type Database = {
   };
   public: {
     Tables: {
+      boarding_fees: {
+        Row: {
+          amount: number;
+          created_at: string;
+          from_month: string;
+          horse_id: number;
+          id: number;
+          stable_id: number;
+        };
+        Insert: {
+          amount: number;
+          created_at?: string;
+          from_month: string;
+          horse_id: number;
+          id?: never;
+          stable_id: number;
+        };
+        Update: {
+          amount?: number;
+          created_at?: string;
+          from_month?: string;
+          horse_id?: number;
+          id?: never;
+          stable_id?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "boarding_fees_horse_fkey";
+            columns: ["horse_id", "stable_id"];
+            isOneToOne: false;
+            referencedRelation: "horse_owners";
+            referencedColumns: ["horse_id", "stable_id"];
+          },
+        ];
+      };
       bookings: {
         Row: {
           cancelled_at: string | null;
@@ -424,6 +459,7 @@ export type Database = {
           amount: number | null;
           from_month: string;
           id: number;
+          kind: string;
           rider_id: string | null;
           stable_id: number;
         };
@@ -431,6 +467,7 @@ export type Database = {
           amount?: number | null;
           from_month: string;
           id?: never;
+          kind?: string;
           rider_id?: string | null;
           stable_id: number;
         };
@@ -438,6 +475,7 @@ export type Database = {
           amount?: number | null;
           from_month?: string;
           id?: never;
+          kind?: string;
           rider_id?: string | null;
           stable_id?: number;
         };
