@@ -3,13 +3,17 @@ import { CalendarCheck, Check, CircleAlert, Info, Plus } from "lucide-react";
 import { ServerError } from "@/components/auth/ServerError";
 import { SubmitButton } from "@/components/auth/SubmitButton";
 import { formatClockHour } from "@/lib/format";
+import type { PlaceListItem } from "@/lib/places/queries";
 import type { FormInstructor } from "@/lib/schedule/form";
 import type { SlotSeats } from "@/lib/schedule/queries";
-import { hoursError, seatFieldName } from "@/lib/schedule/schema";
+import { hoursError, placeFieldName, seatFieldName } from "@/lib/schedule/schema";
 import {
+  columnPlace,
   fillAll,
+  fillPlace,
   lastRideLabel,
   parseSeatInput,
+  placeAt,
   seatAt,
   seatKey,
   sheetRows,
@@ -17,6 +21,7 @@ import {
   withoutInstructor,
   workingHours,
   type HourFill,
+  type PlaceMap,
   type SeatMap,
 } from "@/lib/schedule/sheet";
 import { cn } from "@/lib/utils";
@@ -34,6 +39,10 @@ import type { HorseListItem } from "@/lib/stables/queries";
  * zakresu, więc godziny spoza niego nie są wysyłane. Wszystko, co arkusz liczy, pochodzi
  * z `@/lib/schedule/sheet`; przekroczenie liczby koni nie blokuje zapisu — strażnikiem jest
  * baza (SB007).
+ *
+ * Plac slotu (#113) to ukryte pole na instruktora i godzinę (`placeFieldName`) z `placeAt`. Przy kilku
+ * placach do wyboru nagłówek kolumny ma listę placu całego wiersza instruktora (`fillPlace`), a komórka —
+ * poprawkę pojedynczej godziny; przy jednym placu nagłówek tylko go pokazuje.
  */
 
 interface Props {
@@ -45,6 +54,14 @@ interface Props {
   selectedInstructorIds: number[];
   instructors: FormInstructor[];
   seats: SlotSeats[];
+  /** Place do wyboru (`placeDefaults` z `@/lib/schedule/form`): aktywne i nieaktywne już użyte w dniu. */
+  places: PlaceListItem[];
+  /** Plac każdego slotu na starcie (`placeDefaults().places`). */
+  slotPlaces: PlaceMap;
+  /** Plac slotu bez wpisu i wiersza — pierwszy aktywny plac ośrodka. */
+  defaultPlaceId: number | null;
+  /** Czy pokazać wybór placu (więcej niż jeden plac do wyboru). */
+  choosePlace: boolean;
   /** Data dnia, z którego pochodzi szkic (`prefillSourceDay` z `@/lib/schedule/form`), albo `null`. */
   prefillFrom: string | null;
   serverError?: string | null;
@@ -55,6 +72,9 @@ const controlClass =
 
 const stepButtonClass =
   "grid size-8 flex-none cursor-pointer place-items-center rounded-md text-[17px] text-foreground transition-colors hover:bg-surface-3 focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-default disabled:opacity-30 disabled:hover:bg-transparent";
+
+const placeSelectClass =
+  "max-w-[10rem] cursor-pointer rounded-md border border-border-2 bg-surface px-1.5 py-1 text-[12.5px] text-foreground transition-colors hover:border-faint focus:border-primary focus:ring-[3px] focus:ring-primary-soft focus:outline-none";
 
 const shortcutClass =
   "cursor-pointer rounded border border-border-2 bg-surface px-1.5 py-0.5 font-mono text-[11.5px] font-normal whitespace-nowrap transition-colors hover:bg-surface-3 focus-visible:outline-2 focus-visible:outline-primary";
@@ -172,6 +192,41 @@ function HourFillCell({ total, horseCount, fill }: { total: number; horseCount: 
   );
 }
 
+/** Lista placów: w nagłówku kolumny (plac wiersza; `null` — godziny na różnych placach) i w komórce. */
+function PlaceSelect({
+  label,
+  value,
+  places,
+  onChange,
+}: {
+  label: string;
+  value: number | null;
+  places: PlaceListItem[];
+  onChange: (placeId: number) => void;
+}) {
+  return (
+    <select
+      aria-label={label}
+      value={value ?? ""}
+      onChange={(e) => {
+        onChange(Number(e.target.value));
+      }}
+      className={placeSelectClass}
+    >
+      {value === null && (
+        <option value="" disabled>
+          różne place
+        </option>
+      )}
+      {places.map((place) => (
+        <option key={place.id} value={place.id}>
+          {place.active ? place.name : `${place.name} (nieaktywny)`}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 interface Choice {
   id: number;
   name: string;
@@ -252,6 +307,10 @@ export default function ScheduleDayForm({
   selectedInstructorIds,
   instructors,
   seats: initialSeats,
+  places,
+  slotPlaces,
+  defaultPlaceId,
+  choosePlace,
   prefillFrom,
   serverError,
 }: Props) {
@@ -262,6 +321,7 @@ export default function ScheduleDayForm({
   const [seats, setSeats] = useState<SeatMap>(() =>
     Object.fromEntries(initialSeats.map((slot) => [seatKey(slot.instructorId, slot.hour), slot.seats])),
   );
+  const [placeMap, setPlaceMap] = useState<PlaceMap>(slotPlaces);
   const [submitted, setSubmitted] = useState(false);
 
   // Zły zakres widać od razu, gdy obie godziny są wybrane; niewybraną godzinę — dopiero po próbie zapisu.
@@ -299,6 +359,7 @@ export default function ScheduleDayForm({
   );
 
   const lastRide = lastRideLabel(openHour, closeHour);
+  const placeNames = new Map(places.map((place) => [place.id, place.name]));
 
   return (
     <form method="POST" action="/api/schedule/save" onSubmit={handleSubmit} noValidate>
@@ -423,6 +484,8 @@ export default function ScheduleDayForm({
           <p className="text-muted-foreground mb-3 text-[13px]">
             Każda komórka to slot instruktora, a limit miejsc to liczba jeźdźców, których przyjmie w tej godzinie (0 —
             nie prowadzi jazdy).
+            {choosePlace &&
+              " Plac ustawiasz dla całego instruktora w nagłówku kolumny, a pod limitem — dla jednej godziny."}
           </p>
           <div className="border-border-2 overflow-x-auto rounded-lg border">
             <table className="w-full border-collapse text-[14px]">
@@ -438,6 +501,22 @@ export default function ScheduleDayForm({
                     <th key={instructor.id} scope="col" className="px-2 py-2.5 text-center align-top">
                       <span className="block text-[13px] font-semibold [overflow-wrap:anywhere]">
                         {instructor.name}
+                      </span>
+                      <span className="mt-1.5 flex justify-center">
+                        {choosePlace ? (
+                          <PlaceSelect
+                            label={`Plac — ${instructor.name}`}
+                            value={columnPlace(placeMap, instructor.id, hours, defaultPlaceId)}
+                            places={places}
+                            onChange={(placeId) => {
+                              setPlaceMap((prev) => fillPlace(prev, instructor.id, hours, placeId));
+                            }}
+                          />
+                        ) : (
+                          <span className="text-muted-foreground text-[12.5px] font-normal">
+                            {placeNames.get(columnPlace(placeMap, instructor.id, hours, defaultPlaceId) ?? -1)}
+                          </span>
+                        )}
                       </span>
                       <span className="mt-1.5 flex flex-wrap justify-center gap-1">
                         {FILL_SHORTCUTS.map(({ value, label }) => (
@@ -477,18 +556,37 @@ export default function ScheduleDayForm({
                       >
                         {hourLabel}
                       </th>
-                      {workingInstructors.map((instructor) => (
-                        <td key={instructor.id} className="px-2 py-2 text-center">
-                          <SeatStepper
-                            name={seatFieldName(instructor.id, row.hour)}
-                            label={`${instructor.name}, ${hourLabel}`}
-                            value={seatAt(seats, instructor.id, row.hour)}
-                            onChange={(value) => {
-                              setSeats((prev) => ({ ...prev, [seatKey(instructor.id, row.hour)]: value }));
-                            }}
-                          />
-                        </td>
-                      ))}
+                      {workingInstructors.map((instructor) => {
+                        const placeId = placeAt(placeMap, instructor.id, row.hour, defaultPlaceId);
+
+                        return (
+                          <td key={instructor.id} className="px-2 py-2 text-center">
+                            <div className="inline-flex flex-col items-center gap-1">
+                              <SeatStepper
+                                name={seatFieldName(instructor.id, row.hour)}
+                                label={`${instructor.name}, ${hourLabel}`}
+                                value={seatAt(seats, instructor.id, row.hour)}
+                                onChange={(value) => {
+                                  setSeats((prev) => ({ ...prev, [seatKey(instructor.id, row.hour)]: value }));
+                                }}
+                              />
+                              {placeId !== null && (
+                                <input type="hidden" name={placeFieldName(instructor.id, row.hour)} value={placeId} />
+                              )}
+                              {choosePlace && (
+                                <PlaceSelect
+                                  label={`Plac — ${instructor.name}, ${hourLabel}`}
+                                  value={placeId}
+                                  places={places}
+                                  onChange={(next) => {
+                                    setPlaceMap((prev) => ({ ...prev, [seatKey(instructor.id, row.hour)]: next }));
+                                  }}
+                                />
+                              )}
+                            </div>
+                          </td>
+                        );
+                      })}
                       <td className="px-3 py-2 text-right whitespace-nowrap">
                         <HourFillCell total={row.total} horseCount={selected.length} fill={row.fill} />
                       </td>

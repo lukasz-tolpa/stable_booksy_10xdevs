@@ -9,6 +9,8 @@ export interface SlotSeats {
   instructorId: number;
   hour: number;
   seats: number;
+  /** Plac slotu (`schedule_slots.place_id`, #113). */
+  placeId: number;
 }
 
 export interface ScheduleDayData {
@@ -22,7 +24,7 @@ export interface ScheduleDayData {
 }
 
 const DAY_COLUMNS =
-  "id, day, open_hour, close_hour, schedule_day_horses(horse_id), schedule_day_instructors(instructor_id, schedule_slots(hour, seats))";
+  "id, day, open_hour, close_hour, schedule_day_horses(horse_id), schedule_day_instructors(instructor_id, schedule_slots(hour, seats, place_id))";
 
 interface RawScheduleDay {
   id: number;
@@ -30,7 +32,10 @@ interface RawScheduleDay {
   open_hour: number;
   close_hour: number;
   schedule_day_horses: { horse_id: number }[];
-  schedule_day_instructors: { instructor_id: number; schedule_slots: { hour: number; seats: number }[] }[];
+  schedule_day_instructors: {
+    instructor_id: number;
+    schedule_slots: { hour: number; seats: number; place_id: number }[];
+  }[];
 }
 
 function toScheduleDay(row: RawScheduleDay): ScheduleDayData {
@@ -42,7 +47,12 @@ function toScheduleDay(row: RawScheduleDay): ScheduleDayData {
     horseIds: row.schedule_day_horses.map((entry) => entry.horse_id),
     instructorIds: row.schedule_day_instructors.map((entry) => entry.instructor_id),
     seats: row.schedule_day_instructors.flatMap((entry) =>
-      entry.schedule_slots.map((slot) => ({ instructorId: entry.instructor_id, hour: slot.hour, seats: slot.seats })),
+      entry.schedule_slots.map((slot) => ({
+        instructorId: entry.instructor_id,
+        hour: slot.hour,
+        seats: slot.seats,
+        placeId: slot.place_id,
+      })),
     ),
   };
 }
@@ -89,7 +99,7 @@ export async function getLatestScheduleDay(client: Client, stableId: number): Pr
 }
 
 /**
- * Zapis całego dnia — godziny, konie, instruktorzy i limity miejsc — jednym wywołaniem
+ * Zapis całego dnia — godziny, konie, instruktorzy, limity miejsc i place slotów — jednym wywołaniem
  * `public.save_schedule_day`. Funkcja działa w jednej transakcji i jest jedyną drogą zapisu
  * grafiku (bezpośredni zapis do tabel jest odebrany), więc udaje się w całości albo wcale,
  * a każda odmowa wraca jako kod z `src/lib/schedule/errors.ts`. Stadnina pochodzi z sesji.
@@ -101,7 +111,12 @@ export async function saveScheduleDay(client: Client, input: ScheduleDayInput): 
     p_close_hour: input.closeHour,
     p_horse_ids: [...new Set(input.horseIds)],
     p_instructor_ids: [...new Set(input.instructorIds)],
-    p_seats: input.seats.map((slot) => ({ instructor_id: slot.instructorId, hour: slot.hour, seats: slot.seats })),
+    p_seats: input.seats.map((slot) => ({
+      instructor_id: slot.instructorId,
+      hour: slot.hour,
+      seats: slot.seats,
+      ...(slot.placeId === undefined ? {} : { place_id: slot.placeId }),
+    })),
   });
 
   if (error) {

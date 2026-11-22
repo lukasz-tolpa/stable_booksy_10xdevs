@@ -1,5 +1,7 @@
 import type { InstructorListItem } from "@/lib/instructors/queries";
+import type { PlaceListItem } from "@/lib/places/queries";
 import type { ScheduleDayData, SlotSeats } from "@/lib/schedule/queries";
+import { seatKey, type PlaceMap } from "@/lib/schedule/sheet";
 import type { HorseListItem } from "@/lib/stables/queries";
 
 /** Pola instruktora, których potrzebuje formularz grafiku. */
@@ -110,4 +112,43 @@ export function instructorDefaults(
 
   // Brakująca godzina w `seats` to limit 0 (formularz i `save_schedule_day`).
   return { selectedInstructorIds, seats: [], selectableInstructors };
+}
+
+export interface PlaceDefaults {
+  /** Plac każdego slotu, którym startuje formularz (`seatKey` → plac); brak wpisu — plac wiersza albo domyślny. */
+  places: PlaceMap;
+  /** Place do wyboru, w kolejności założenia: aktywne i nieaktywne, na których dzień już ma sloty. */
+  selectablePlaces: PlaceListItem[];
+  /** Pierwszy założony aktywny plac — tam baza kładzie slot bez wskazanego placu; `null` — brak placów. */
+  defaultPlaceId: number | null;
+  /** Czy formularz pokazuje wybór placu — przy jednym placu do wyboru nie ma czego wybierać. */
+  choosePlace: boolean;
+}
+
+/**
+ * Place, którymi startuje formularz grafiku dnia. Ułożony dzień pokazuje plac każdego swojego slotu —
+ * także plac zdezaktywowany po ułożeniu, bo zostaje w dniach już ułożonych. Szkic podpowiada plac
+ * każdego slotu z ostatnio ułożonego dnia, ale tylko aktywny: nieaktywny plac w nowym dniu baza
+ * odrzuca (SB031), więc taki slot startuje na placu wiersza albo domyślnym.
+ */
+export function placeDefaults(
+  scheduleDay: ScheduleDayData | null,
+  latestDay: ScheduleDayData | null,
+  places: PlaceListItem[],
+): PlaceDefaults {
+  const inDay = new Set(scheduleDay?.seats.map((slot) => slot.placeId) ?? []);
+  const selectablePlaces = places.filter((place) => place.active || inDay.has(place.id)).sort((a, b) => a.id - b.id);
+  const selectable = new Set(selectablePlaces.map((place) => place.id));
+  const hint = scheduleDay ?? latestDay;
+
+  return {
+    places: Object.fromEntries(
+      (hint?.seats ?? [])
+        .filter((slot) => selectable.has(slot.placeId))
+        .map((slot) => [seatKey(slot.instructorId, slot.hour), slot.placeId]),
+    ),
+    selectablePlaces,
+    defaultPlaceId: selectablePlaces.find((place) => place.active)?.id ?? null,
+    choosePlace: selectablePlaces.length > 1,
+  };
 }

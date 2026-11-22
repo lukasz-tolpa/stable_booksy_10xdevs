@@ -14,7 +14,8 @@ export async function getMySlots(client: Client, instructorId: number, from: str
   const { data, error } = await client
     .from("schedule_slots")
     // Slot wskazuje dzień przez przypisanie instruktora do dnia (złożony FK), nie wprost.
-    .select("hour, seats, schedule_day_instructors!inner(schedule_days!inner(day))")
+    // Plac przez FK `place_id`; RLS `places` pokazuje instruktorowi place jego ośrodka (#113).
+    .select("hour, seats, places(name), schedule_day_instructors!inner(schedule_days!inner(day))")
     .eq("instructor_id", instructorId)
     .gte("schedule_day_instructors.schedule_days.day", from);
 
@@ -26,6 +27,7 @@ export async function getMySlots(client: Client, instructorId: number, from: str
     day: row.schedule_day_instructors.schedule_days.day,
     hour: row.hour,
     seats: row.seats,
+    placeName: row.places.name,
   }));
 }
 

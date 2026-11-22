@@ -21,12 +21,17 @@ export interface OwnerRequest {
  * Wspólny początek endpointów strony Instruktorzy (po walidacji formularza): klient, sesja
  * i ośrodek właściciela — albo gotowa odpowiedź. Ośrodek bierzemy z sesji, nigdy z formularza;
  * baza i tak sprawdza go jeszcze raz (RLS, funkcje zaproszeń). Awarię sesji albo odczytu ośrodka
- * logujemy pod `scope` i zamieniamy na polski komunikat — nie na niezalogowany 500.
+ * logujemy pod `scope` i zamieniamy na polski komunikat — nie na niezalogowany 500. `back` to powrót
+ * na stronę formularza z komunikatem (domyślnie Instruktorzy; strona „Place” podaje swój, #113).
  */
-export async function ownerRequest(context: APIContext, scope: string): Promise<OwnerRequest | Response> {
+export async function ownerRequest(
+  context: APIContext,
+  scope: string,
+  back: (context: APIContext, error: string) => Response = backToInstructors,
+): Promise<OwnerRequest | Response> {
   const supabase = createClient(context.request.headers, context.cookies);
   if (!supabase) {
-    return backToInstructors(context, SUPABASE_NOT_CONFIGURED);
+    return back(context, SUPABASE_NOT_CONFIGURED);
   }
 
   const owner = await resolveOwner(asSessionClient(supabase), (userId) => getOwnedStableId(supabase, userId));
@@ -37,9 +42,9 @@ export async function ownerRequest(context: APIContext, scope: string): Promise<
     case "signed-out":
       return context.redirect(SIGN_IN_ROUTE);
     case "no-stable":
-      return backToInstructors(context, INSTRUCTOR_NO_STABLE);
+      return back(context, INSTRUCTOR_NO_STABLE);
     case "outage":
       logError(scope, owner.error);
-      return backToInstructors(context, OUTAGE_MESSAGE);
+      return back(context, OUTAGE_MESSAGE);
   }
 }

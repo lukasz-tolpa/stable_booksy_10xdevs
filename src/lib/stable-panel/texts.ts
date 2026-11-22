@@ -43,6 +43,7 @@ export const PANEL_TEXTS = {
     schedule: "Grafik",
     bookings: "Zapisy",
     horses: "Konie",
+    places: "Place",
     instructors: "Instruktorzy",
     monthSummary: "Podsumowanie miesiąca",
     settlements: "Rozliczenia",

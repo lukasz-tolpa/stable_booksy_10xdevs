@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hoursError, parseScheduleDayForm, seatFieldName } from "@/lib/schedule/schema";
+import { hoursError, parseScheduleDayForm, placeFieldName, seatFieldName } from "@/lib/schedule/schema";
 
 function form(entries: [string, string][]): FormData {
   const data = new FormData();
@@ -43,6 +43,31 @@ describe("parseScheduleDayForm", () => {
         { instructorId: 8, hour: 10, seats: 0 },
       ],
     });
+  });
+
+  it("czyta plac każdego slotu; slot bez pola placu zostawia wybór placu bazie", () => {
+    const result = parseScheduleDayForm(
+      form([
+        ...DAY,
+        ["instructorIds", "7"],
+        [seatFieldName(7, 10), "2"],
+        [placeFieldName(7, 10), "31"],
+        [seatFieldName(7, 11), "1"],
+      ]),
+    );
+
+    expect(result.data?.seats).toEqual([
+      { instructorId: 7, hour: 10, seats: 2, placeId: 31 },
+      { instructorId: 7, hour: 11, seats: 1 },
+    ]);
+  });
+
+  it("odrzuca plac, który nie jest identyfikatorem", () => {
+    const result = parseScheduleDayForm(
+      form([...DAY, ["instructorIds", "7"], [seatFieldName(7, 10), "1"], [placeFieldName(7, 10), "hala"]]),
+    );
+
+    expect(result.success).toBe(false);
   });
 
   it("dzień bez instruktorów jest poprawny", () => {

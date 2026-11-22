@@ -13,6 +13,8 @@ export interface MySlotInput {
   day: string;
   hour: number;
   seats: number;
+  /** Plac slotu (#113). */
+  placeName: string;
 }
 
 /** Aktywny zapis na slot instruktora — z `get_my_slot_bookings`. */
@@ -63,6 +65,7 @@ export interface MySlotRider {
 
 export interface MySlotView {
   hour: number;
+  placeName: string;
   seats: number;
   taken: number;
   riders: MySlotRider[];
@@ -128,7 +131,7 @@ export function composeMySlots(input: MySlotsInput): MySlotsDay[] {
       a.name.localeCompare(b.name, "pl"),
     );
     const daySlots = days.get(slot.day) ?? [];
-    daySlots.push({ hour: slot.hour, seats: slot.seats, taken: riders.length, riders });
+    daySlots.push({ hour: slot.hour, placeName: slot.placeName, seats: slot.seats, taken: riders.length, riders });
     days.set(slot.day, daySlots);
   }
 
