@@ -224,7 +224,6 @@ describe("composeSettlementsPage — strona „Rozliczenia”", () => {
       composeSettlementsPage({ ...input({ bookings, rates }), riders: [], monthHref, riderHref }, NOW).summary;
 
     expect(summaryOf([ride("2026-10-02", "anna", "Anna")])).toEqual({
-      total: 12000,
       totalText: zl("120,00 zł"),
       totalLabel: `Razem: ${zl("120,00 zł")}`,
       countsText: "1 jeździec · 1 jazda",
@@ -236,7 +235,6 @@ describe("composeSettlementsPage — strona „Rozliczenia”", () => {
         ride("2026-10-03", "piotr", "Piotr"),
       ]),
     ).toEqual({
-      total: 36000,
       totalText: zl("360,00 zł"),
       totalLabel: `Razem: ${zl("360,00 zł")}`,
       countsText: "2 jeźdźców · 3 jazdy",
@@ -247,20 +245,18 @@ describe("composeSettlementsPage — strona „Rozliczenia”", () => {
       ride("2026-10-05", key, key.toUpperCase()),
     ]);
     expect(summaryOf(five)).toEqual({
-      total: 120000,
       totalText: zl("1 200,00 zł"),
       totalLabel: `Razem: ${zl("1 200,00 zł")}`,
       countsText: "5 jeźdźców · 10 jazd",
     });
   });
 
-  it("podsumowanie bez stawki ośrodka: suma `null`, liczby jeźdźców i jazd zostają", () => {
+  it("podsumowanie bez stawki ośrodka: bez sumy, liczby jeźdźców i jazd zostają", () => {
     const view = composeSettlementsPage(
       { ...input({ rates: [], bookings: [ride("2026-10-02", "anna", "Anna")] }), riders: [], monthHref, riderHref },
       NOW,
     );
     expect(view.summary).toEqual({
-      total: null,
       totalText: null,
       totalLabel: null,
       countsText: "1 jeździec · 1 jazda",
@@ -294,8 +290,7 @@ describe("composeSettlementsPage — strona „Rozliczenia”", () => {
         name: row.name,
         ridesText: row.ridesText,
         rateText: row.rateText,
-        rateSource: row.rate?.source,
-        rateSourceText: row.rateSourceText,
+        rateTag: row.rateTag,
         ridesAmountText: row.ridesAmountText,
         costsText: row.costsText,
         dueText: row.dueText,
@@ -305,18 +300,16 @@ describe("composeSettlementsPage — strona „Rozliczenia”", () => {
         name: "Anna Kowalska",
         ridesText: "2 jazdy",
         rateText: zl("90,00 zł"),
-        rateSource: "individual",
-        rateSourceText: "stawka indywidualna",
+        rateTag: { text: "stawka indywidualna", variant: "primary" },
         ridesAmountText: zl("180,00 zł"),
-        costsText: zl("1 500,00 zł"),
+        costsText: `koszty ${zl("1 500,00 zł")}`,
         dueText: zl("1 680,00 zł"),
       },
       {
         name: "Piotr Nowak",
         ridesText: "1 jazda",
         rateText: zl("120,00 zł"),
-        rateSource: "stable",
-        rateSourceText: "stawka ośrodka",
+        rateTag: { text: "stawka ośrodka", variant: "neutral" },
         ridesAmountText: zl("120,00 zł"),
         costsText: null,
         dueText: zl("120,00 zł"),
@@ -341,7 +334,7 @@ describe("composeSettlementsPage — strona „Rozliczenia”", () => {
     expect(view.list.rows[0]).toMatchObject({
       ridesText: "1 jazda",
       rateText: null,
-      rateSourceText: null,
+      rateTag: null,
       ridesAmountText: null,
       costsText: null,
       dueText: null,

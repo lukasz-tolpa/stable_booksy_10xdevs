@@ -1,13 +1,11 @@
-import type { APIRoute } from "astro";
 import { firstErrorMessage } from "@/lib/auth/schemas";
 import { formValue } from "@/lib/form-data";
 import { logError } from "@/lib/log";
 import { COST_DELETE_FAILED, COST_NOT_FOUND } from "@/lib/settlements/errors";
 import { settlementOwner } from "@/lib/settlements/owner-request";
 import { deleteCost } from "@/lib/settlements/queries";
-import { backToSettlements, costReturn, returnMonth } from "@/lib/settlements/redirect";
+import { costFormEndpoint } from "@/lib/settlements/redirect";
 import { costIdSchema } from "@/lib/settlements/schemas";
-import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
 
 export const prerender = false;
 
@@ -16,16 +14,9 @@ const SCOPE = "api:settlements/cost-delete";
 /**
  * „Usuń” koszt dodatkowy (#96), także w minionym miesiącu. Cudzy albo już usunięty koszt to zero
  * usuniętych wierszy. Powrót do rozliczenia jeźdźca tego samego miesiąca; formularz bez jeźdźca
- * (spreparowany) wraca na listę z błędem.
+ * (spreparowany) odrzuca `costFormEndpoint`, nic nie zapisując.
  */
-export const POST: APIRoute = async (context) => {
-  const form = await context.request.formData();
-  const month = returnMonth(form);
-  const back = costReturn(context, form, month);
-  if (back === null) {
-    return backToSettlements(context, month, SETTLEMENT_TEXTS.riderRate.unknownRider);
-  }
-
+export const POST = costFormEndpoint(async (context, { form, back }) => {
   const parsed = costIdSchema.safeParse({ costId: formValue(form, "costId") });
   if (!parsed.success) {
     return back(firstErrorMessage(parsed.error));
@@ -48,4 +39,4 @@ export const POST: APIRoute = async (context) => {
   }
 
   return back();
-};
+});

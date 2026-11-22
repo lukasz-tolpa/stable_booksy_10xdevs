@@ -3,9 +3,9 @@
 // wyliczenie „N jazd × stawka [źródło stawki] = kwota za jazdy + koszty”, na dole „Rozliczenie →”.
 // Cała karta to jeden link do rozliczenia jeźdźca oglądanego miesiąca. Bez stawki ośrodka karta ma samą
 // liczbę jazd, a nad kartami stoi zdanie, że kwoty czekają na stawkę. Stawka indywidualna ma dopisek
-// w kolorze marki, stawka ośrodka — neutralny.
-// Renderuje karty z `SettlementsView` (`@/lib/settlements/settlements`) — kolejność, kwoty i adresy
-// są już policzone.
+// wyróżniony, stawka ośrodka — neutralny.
+// Renderuje karty z `SettlementsView` (`@/lib/settlements/settlements`) — kolejność, kwoty, adresy,
+// teksty i wariant dopisku są już policzone.
 //
 // KONTRAKT e2e: `list` „Rozliczenia jeźdźców”, jedna pozycja na jeźdźca: link, którego tekst zaczyna się
 // od nazwy; pierwsza kwota w pozycji to „Do zapłaty”, potem „N jazd…”.
@@ -44,7 +44,7 @@ const texts = SETTLEMENT_TEXTS;
                 <>
                   <span>×</span>
                   <span>{row.rateText}</span>
-                  <Tag variant={row.rate?.source === "individual" ? "primary" : "neutral"}>{row.rateSourceText}</Tag>
+                  {row.rateTag && <Tag variant={row.rateTag.variant}>{row.rateTag.text}</Tag>}
                   <span>=</span>
                   <span>{row.ridesAmountText}</span>
                 </>
@@ -52,7 +52,7 @@ const texts = SETTLEMENT_TEXTS;
               {row.costsText && (
                 <>
                   <span>+</span>
-                  <span>{`${texts.card.costs} ${row.costsText}`}</span>
+                  <span>{row.costsText}</span>
                 </>
               )}
             </span>

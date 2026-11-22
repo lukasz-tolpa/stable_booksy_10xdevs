@@ -342,9 +342,10 @@ się nie zapisał.`); the inactive-account screen (`/instruktor/konto-nieaktywne
   `Zapisz stawkę` and `Usuń zaplanowaną zmianę`), the same month switcher and the `list` „Rozliczenia jeźdźców” (#105: one card per
   rider, the whole card one link — name first, then „Do zapłaty” as the card's first amount, then `"{n} jazd…" × rate`, the
   rate-source tag `stawka ośrodka` / `stawka indywidualna`, rides amount, `koszty …` only when > 0 — amounts and tag only once the
-  stable has a stable rate); the side column's sum is one element `Razem: …` („Razem:” visually hidden, absent without a rate). Below
-  1000 px the page is one column — month and sum, cards, „Pozostali jeźdźcy ośrodka”, rate (the owner spec checks the order by bounding boxes at
-  390 px); amounts carry non-breaking spaces, match them with `\s`. The spec deletes the stable's rates as
+  stable has a stable rate); the side column's sum is one element `Razem: …` („Razem:” visually hidden, absent without a rate). The document
+  order is the reading order — month and sum, cards, „Pozostali jeźdźcy ośrodka”, rate — and below 1000 px also the visual order
+  (one column); the owner spec's phone test checks it as document order (`compareDocumentPosition`, not bounding boxes) at
+  390 px, together with the single no-horizontal-scroll check; amounts carry non-breaking spaces, match them with `\s`. The spec deletes the stable's rates as
   superuser before and after (`session_replication_role = replica`, since `SB027` binds `postgres` too) — the database is left
   without rates. The settlements specs share their steps from `e2e/helpers.ts` (`clearStableRates`, `clearStableRatesAndCosts`,
   `setStableRate`, `runSql`, `grosze`, `settlementRiders` / `settlementRows` / `pricedSettlementRows`, `settlementCard`,

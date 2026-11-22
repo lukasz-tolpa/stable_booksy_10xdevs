@@ -18,7 +18,7 @@ const texts = SETTLEMENT_TEXTS;
 ---
 
 <Card padding={18}>
-  <h2 class="label">{texts.totalHeading}</h2>
+  <h2 class="eyebrow">{texts.totalHeading}</h2>
   {
     summary.totalText ? (
       <p class="amount">
@@ -33,14 +33,8 @@ const texts = SETTLEMENT_TEXTS;
 </Card>
 
 <style>
-  .label {
+  h2 {
     margin: 0;
-    font-family: var(--font-sans);
-    font-size: 12.5px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--muted);
   }
   .amount {
     margin: 6px 0 0;

@@ -1,4 +1,4 @@
-import { expect, test, type Locator } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import {
   clearStableRates,
   DEMO_HINT,
@@ -148,22 +148,6 @@ test.describe("Rozliczenia właściciela", () => {
       await expect(rateRegion.getByRole("button", { name: "Usuń zaplanowaną zmianę" })).toHaveCount(0);
       await expect(total).toHaveText(before);
     });
-
-    await test.step("na telefonie jedna kolumna: miesiąc i suma, karty, pozostali jeźdźcy, stawka — bez przewijania w bok", async () => {
-      await page.setViewportSize({ width: 390, height: 844 });
-      await page.reload();
-      const top = async (locator: Locator) => (await locator.boundingBox())?.y ?? Number.NaN;
-      const order = [
-        await top(page.getByRole("navigation", { name: "Wybór miesiąca" })),
-        await top(total),
-        await top(settlementRiders(page).first()),
-        await top(otherRidersToggle(page)),
-        await top(rateRegion),
-      ];
-      expect(order, "kolejność bloków od góry").toEqual([...order].sort((a, b) => a - b));
-      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-      expect(overflow, "strona jest szersza niż ekran 390 px").toBeLessThanOrEqual(0);
-    });
   });
 
   test("nieznany jeździec w adresie to spokojny stan „Nie ma takiego jeźdźca.”", async ({ page }) => {
@@ -174,10 +158,39 @@ test.describe("Rozliczenia właściciela", () => {
     }
   });
 
-  test("Rozliczenia mieszczą się w telefonie bez poziomego przewijania", async ({ page }) => {
+  test("na telefonie jedna kolumna czytana po kolei: miesiąc i suma, karty, pozostali jeźdźcy, stawka — bez przewijania w bok", async ({
+    page,
+  }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(SETTLEMENTS_ROUTE);
     await expect(page.getByRole("heading", { level: 1, name: "Rozliczenia" })).toBeVisible();
+    const monthNav = page.getByRole("navigation", { name: "Wybór miesiąca" });
+    if (await emptySettlementsMonth(page).isVisible()) {
+      await monthNav.getByRole("link", { name: "Poprzedni" }).click();
+      await page.waitForURL(/miesiac=\d{4}-\d{2}$/);
+    }
+    await expect(settlementRiders(page).first(), DEMO_HINT).toBeVisible();
+
+    // Kolejność czytania (Tab, czytnik ekranu) to kolejność w dokumencie — ma być tą samą co na ekranie.
+    const blocks = [
+      monthNav,
+      page.getByRole("heading", { level: 2, name: "Do zapłaty razem" }),
+      settlementRiders(page).first(),
+      otherRidersToggle(page),
+      page.getByRole("region", { name: "Stawka ośrodka" }),
+    ];
+    const handles = await Promise.all(blocks.map((block) => block.elementHandle()));
+    const inOrder = await page.evaluate(
+      (elements) =>
+        elements
+          .slice(1)
+          .every(
+            (element, i) => (elements[i].compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0,
+          ),
+      handles,
+    );
+    expect(inOrder, "kolejność bloków w dokumencie").toBe(true);
+
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow, "strona jest szersza niż ekran 390 px").toBeLessThanOrEqual(0);
   });

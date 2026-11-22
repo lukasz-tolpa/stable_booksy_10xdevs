@@ -261,15 +261,24 @@ export interface SettlementLinkRow extends SettlementRow {
   href: string;
   /** Stawka jeźdźca w miesiącu, np. `120,00 zł`; `null` — bez stawki ośrodka. */
   rateText: string | null;
-  /** Koszty dodatkowe jeźdźca, tylko gdy są i ośrodek ma stawkę; `null` — karta ich nie pokazuje. */
+  /**
+   * Pigułka źródła stawki przy stawce: indywidualna wyróżniona (`primary`), ośrodka neutralna;
+   * `null` — bez stawki ośrodka.
+   */
+  rateTag: RateTag | null;
+  /** Np. `koszty 1 500,00 zł`, tylko gdy są i ośrodek ma stawkę; `null` — karta ich nie pokazuje. */
   costsText: string | null;
+}
+
+/** Pigułka źródła stawki na karcie jeźdźca — wariant to wariant `Tag` (`@/components/ui/Tag.astro`). */
+export interface RateTag {
+  text: string;
+  variant: "neutral" | "primary";
 }
 
 /** „Do zapłaty razem” w bocznej kolumnie strony „Rozliczenia” (#105). */
 export interface SettlementsSummary {
-  /** Suma miesiąca w groszach (`SettlementList.total`); `null` — bez stawki ośrodka. */
-  total: number | null;
-  /** Np. `12 340,00 zł`; `null` — bez stawki ośrodka. */
+  /** Suma miesiąca (`SettlementList.total`), np. `12 340,00 zł`; `null` — bez stawki ośrodka. */
   totalText: string | null;
   /** Suma dla czytników ekranu, np. `Razem: 12 340,00 zł` (`SettlementList.totalText`); `null` — bez stawki. */
   totalLabel: string | null;
@@ -362,7 +371,6 @@ export function composeSettlementsPage(input: SettlementsPageInput, now: Date = 
   return {
     nav: composeMonthNav(input.month, input.monthHref),
     summary: {
-      total: list.total,
       totalText: moneyText(list.total),
       totalLabel: list.totalText,
       countsText: `${formatCount(list.rows.length, RIDER_FORMS)} · ${formatCount(rides, RIDE_FORMS)}`,
@@ -374,8 +382,13 @@ export function composeSettlementsPage(input: SettlementsPageInput, now: Date = 
         ...row,
         href: input.riderHref(row.riderKey),
         rateText: moneyText(row.rate?.amount ?? null),
+        rateTag:
+          row.rate === null || row.rateSourceText === null
+            ? null
+            : { text: row.rateSourceText, variant: row.rate.source === "individual" ? "primary" : "neutral" },
         // Bez stawki karta ma samą liczbę jazd — koszty widać w rozliczeniu jeźdźca.
-        costsText: row.rate !== null && row.costsAmount > 0 ? row.costsAmountText : null,
+        costsText:
+          row.rate !== null && row.costsAmount > 0 ? `${SETTLEMENT_TEXTS.card.costs} ${row.costsAmountText}` : null,
       })),
     },
     others: otherRiders(input.riders, list.rows, input.riderHref),

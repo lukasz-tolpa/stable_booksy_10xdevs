@@ -1,38 +1,54 @@
 import type { APIContext } from "astro";
 import { describe, expect, it } from "vitest";
-import { costReturn } from "@/lib/settlements/redirect";
+import { costFormEndpoint } from "@/lib/settlements/redirect";
 
 const RIDER = "0b0f3a52-6c1e-4d8a-9f3b-2a7c5e1d4f60";
 
-/** Kontekst punktu końcowego w zakresie, którego używa powrót: przekierowanie na adres. */
-const context = {
-  redirect: (path: string) => new Response(null, { status: 302, headers: { Location: path } }),
-} as unknown as APIContext;
-
-function form(fields: Record<string, string>): FormData {
-  const data = new FormData();
+/** Wysłany formularz kosztu: punkt końcowy czyta pola z żądania i odpowiada przekierowaniem. */
+function contextWith(fields: Record<string, string>): APIContext {
+  const body = new FormData();
   for (const [name, value] of Object.entries(fields)) {
-    data.set(name, value);
+    body.set(name, value);
   }
-  return data;
+  return {
+    request: new Request("http://localhost/api/settlements/cost", { method: "POST", body }),
+    redirect: (path: string) => new Response(null, { status: 302, headers: { Location: path } }),
+  } as unknown as APIContext;
 }
 
 // Oracle: AC #106 — formularz kosztu dodatkowego zawsze wraca do rozliczenia jeźdźca tego samego
 // miesiąca; powrotu na listę „Rozliczenia” już nie ma (formularz „Dopisz koszt” na liście zniknął).
-describe("costReturn — powrót formularza kosztu dodatkowego", () => {
-  it("sukces i błąd wracają do rozliczenia jeźdźca z pola `powrot`, w tym samym miesiącu", () => {
-    const back = costReturn(context, form({ powrot: RIDER }), "2026-10");
-    expect(back?.().headers.get("Location")).toBe(`/osrodek/rozliczenia/${RIDER}?miesiac=2026-10&sukces=1`);
-    expect(back?.("Zła kwota").headers.get("Location")).toBe(
-      `/osrodek/rozliczenia/${RIDER}?miesiac=2026-10&error=Z%C5%82a%20kwota`,
-    );
+// Przegląd #104 — formularz bez jeźdźca w `powrot` (spreparowany) odmawia przed zapisem w jednym miejscu,
+// neutralnym komunikatem.
+describe("costFormEndpoint — formularz kosztu dodatkowego i jego powrót", () => {
+  it("sukces i błąd wracają do rozliczenia jeźdźca z pola `powrot`, w tym samym miesiącu", async () => {
+    const endpoint = costFormEndpoint((_context, { form, month, back }) => {
+      expect(form.get("name")).toBe("Pensjonat konia");
+      expect(month).toBe("2026-10");
+      return Promise.resolve(back());
+    });
+    const ok = await endpoint(contextWith({ powrot: RIDER, miesiac: "2026-10", name: "Pensjonat konia" }));
+    expect(ok.headers.get("Location")).toBe(`/osrodek/rozliczenia/${RIDER}?miesiac=2026-10&sukces=1`);
+
+    const failing = costFormEndpoint((_context, { back }) => Promise.resolve(back("Zła kwota")));
+    const error = await failing(contextWith({ powrot: RIDER, miesiac: "2026-10" }));
+    expect(error.headers.get("Location")).toBe(`/osrodek/rozliczenia/${RIDER}?miesiac=2026-10&error=Z%C5%82a%20kwota`);
   });
 
-  // Spreparowany formularz: nie ma rozliczenia, do którego wrócić — punkt końcowy odmawia przed zapisem.
+  // Spreparowany formularz: nie ma rozliczenia, do którego wrócić — nic się nie wykonuje, powrót na listę.
   it.each([[{}], [{ powrot: "" }], [{ powrot: "nie-konto" }]])(
-    "bez jeźdźca w `powrot` (%j) nie ma powrotu",
-    (fields) => {
-      expect(costReturn(context, form(fields), "2026-10")).toBeNull();
+    "bez jeźdźca w `powrot` (%j) odmawia przed zapisem i wraca na „Rozliczenia”",
+    async (fields) => {
+      let handled = false;
+      const endpoint = costFormEndpoint((_context, { back }) => {
+        handled = true;
+        return Promise.resolve(back());
+      });
+      const response = await endpoint(contextWith({ ...fields, miesiac: "2026-10" }));
+      expect(handled).toBe(false);
+      expect(response.headers.get("Location")).toBe(
+        `/osrodek/rozliczenia?miesiac=2026-10&error=${encodeURIComponent("Nie udało się przetworzyć formularza.")}`,
+      );
     },
   );
 });

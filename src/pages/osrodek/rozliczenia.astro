@@ -26,10 +26,11 @@ import { createClient } from "@/lib/supabase";
 // `@/lib/settlements/settlements`; tu tylko odczyt i render. Miesiąc żyje w adresie (`?miesiac=RRRR-MM`),
 // formularze stawki wracają na niego z `?sukces=1` albo `?error=`.
 // Układ (#105, wariant B): główna kolumna z kartami jeźdźców i „Pozostałymi jeźdźcami ośrodka”, boczna
-// — przełącznik miesięcy, suma i stawka ośrodka, przyklejona od 1000 px. Koszt dodatkowy dopisuje się tylko
-// w rozliczeniu jeźdźca (#106), do którego prowadzą linki pozostałych jeźdźców. Na telefonie jedna kolumna:
-// miesiąc i suma, karty, pozostali jeźdźcy, stawka — kolejność z siatki (boczna kolumna rozpada się na swoje
-// bloki), bez JavaScriptu.
+// — przełącznik miesięcy i suma (przyklejone od 1000 px), pod nimi stawka ośrodka (nieprzyklejona, więc
+// wysoka kolumna nie ucina formularza). Koszt dodatkowy dopisuje się tylko w rozliczeniu jeźdźca (#106),
+// do którego prowadzą linki pozostałych jeźdźców. Dokument idzie w kolejności czytania: miesiąc i suma,
+// główna kolumna, stawka — na telefonie to zarazem kolejność na ekranie (jedna kolumna), od 1000 px siatka
+// przenosi miesiąc z sumą i stawkę do bocznej kolumny. Bez JavaScriptu.
 const { profile } = Astro.locals;
 const SCOPE = "page:osrodek/rozliczenia";
 const texts = SETTLEMENT_TEXTS;
@@ -87,18 +88,9 @@ const nav = view?.nav ?? composeMonthNav(month, settlementsHref);
         <span class="heading__month">· {nav.label}</span>
       </h1>
 
-      <div class="side">
-        <div class="side__summary">
-          <MonthNav nav={nav} stacked />
-          {view && <SettlementsTotal summary={view.summary} />}
-        </div>
-        {
-          view && (
-            <div class="side__rate">
-              <StableRate rate={view.rate} month={month.month} />
-            </div>
-          )
-        }
+      <div class="summary">
+        <MonthNav nav={nav} stacked />
+        {view && <SettlementsTotal summary={view.summary} />}
       </div>
 
       <div class="main">
@@ -142,6 +134,14 @@ const nav = view?.nav ?? composeMonthNav(month, settlementsHref);
           )
         }
       </div>
+
+      {
+        view && (
+          <div class="rate">
+            <StableRate rate={view.rate} month={month.month} />
+          </div>
+        )
+      }
     </div>
   </main>
 </Layout>
@@ -150,33 +150,32 @@ const nav = view?.nav ?? composeMonthNav(month, settlementsHref);
   .page {
     padding-block: 24px 56px;
   }
-  /* Telefon: jedna kolumna; boczna kolumna rozpada się na bloki, stawka schodzi na koniec. */
+  /* Telefon: jedna kolumna w kolejności dokumentu — miesiąc i suma, główna kolumna, stawka. */
   .layout {
     display: grid;
     gap: 16px;
   }
-  .side {
-    display: contents;
-  }
-  .side__rate {
-    order: 1;
-  }
   .main,
-  .side__summary,
-  .side__rate {
+  .summary,
+  .rate {
     min-width: 0;
   }
-  .side__summary {
+  .summary {
     display: grid;
     gap: 12px;
   }
+  /*
+   * Od 1000 px boczna kolumna: miesiąc z sumą zajmuje wiersze nagłówka i główny (rozciągliwy), więc
+   * przykleja się przez całą długość kart; stawka stoi w ostatnim wierszu, pod nią, i przewija się normalnie.
+   */
   @media (width >= 1000px) {
     .layout {
       grid-template-columns: minmax(0, 1fr) 300px;
       grid-template-areas:
-        "heading side"
-        "main side";
-      grid-template-rows: auto 1fr;
+        "heading summary"
+        "main summary"
+        "main rate";
+      grid-template-rows: auto 1fr auto;
       align-items: start;
       column-gap: 24px;
     }
@@ -186,12 +185,13 @@ const nav = view?.nav ?? composeMonthNav(month, settlementsHref);
     .main {
       grid-area: main;
     }
-    .side {
-      grid-area: side;
-      display: grid;
-      gap: 12px;
+    .summary {
+      grid-area: summary;
       position: sticky;
       top: 88px;
+    }
+    .rate {
+      grid-area: rate;
     }
   }
   h1 {

@@ -7,6 +7,8 @@ export const SETTLEMENT_TEXTS = {
   failure: "Nie udało się wczytać rozliczeń.",
   retry: "Odśwież stronę za chwilę.",
   saved: "Zapisano.",
+  /** Formularz, którego punkt końcowy nie umie obsłużyć (spreparowany, np. koszt bez jeźdźca) — nic się nie zapisuje. */
+  formRefused: "Nie udało się przetworzyć formularza.",
   /** Dokończenie zdania stanu pustego po „W październiku 2026” (`formatInMonthYear`). */
   empty: "nie ma nic do rozliczenia.",
   emptyHint: "Wybierz inny miesiąc strzałkami.",
@@ -88,7 +90,7 @@ export const SETTLEMENT_TEXTS = {
     end: "Powrót do stawki ośrodka",
     endHint: "Od wybranego miesiąca jeździec płaci stawkę ośrodka; minione miesiące się nie zmieniają.",
     endSubmit: "Usuń stawkę indywidualną",
-    /** Formularz stawki jeźdźca albo kosztu dodatkowego z błędnym jeźdźcem (spreparowany) wraca na listę „Rozliczenia”. */
+    /** Formularz z błędnym jeźdźcem (spreparowany) wraca na listę „Rozliczenia”. */
     unknownRider: "Nie ma takiego jeźdźca.",
   },
   rate: {
