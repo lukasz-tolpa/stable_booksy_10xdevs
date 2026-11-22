@@ -101,7 +101,7 @@ test("statystyki liczą rekreację i sloty treningowe osobno, a konie ośrodka i
     expect(trainingRides, "historia demo ma jazdy na slotach treningowych (#115)").toBeGreaterThan(0);
     expect(recreationRides + trainingRides).toBe(rides);
     // Przy slotach godzinowych godziny jazd równe są liczbie jazd.
-    expect(await count(trainingRow.getByRole("cell").nth(1))).toBe(trainingRides);
+    await expect(trainingRow.getByRole("cell").nth(1)).toHaveText(new RegExp(`^${trainingRides}\\s*h$`));
     await expect(trainingRow.getByRole("cell").nth(2)).toHaveText(/^\d+\s*%$/);
   });
 
