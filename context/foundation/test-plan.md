@@ -339,9 +339,12 @@ się nie zapisał.`); the inactive-account screen (`/instruktor/konto-nieaktywne
   (now shown to every instructor with an account; „Grafik” only with the schedule permission). The settlements page (`/osrodek/rozliczenia`,
   `settlements-owner.spec.ts`) has the region „Stawka ośrodka” (field „Nowa stawka (zł)”, radios `Od tego miesiąca (…)` /
   `Od następnego miesiąca (…)` — take them by role `radio`, a `^`-anchored `getByLabel` misses the wrapped label —, buttons
-  `Zapisz stawkę` and `Usuń zaplanowaną zmianę`), the same month switcher and the `list` „Rozliczenia jeźdźców” (name, `"{n} jazd…"`,
-  the rate-source tag `stawka ośrodka` / `stawka indywidualna`, amount — tag and amount only once the stable has a stable rate)
-  with `Razem: …` under it; amounts carry non-breaking spaces, match them with `\s`. The spec deletes the stable's rates as
+  `Zapisz stawkę` and `Usuń zaplanowaną zmianę`), the same month switcher and the `list` „Rozliczenia jeźdźców” (#105: one card per
+  rider, the whole card one link — name first, then „Do zapłaty” as the card's first amount, then `"{n} jazd…" × rate`, the
+  rate-source tag `stawka ośrodka` / `stawka indywidualna`, rides amount, `koszty …` only when > 0 — amounts and tag only once the
+  stable has a stable rate); the side column's sum is one element `Razem: …` („Razem:” visually hidden, absent without a rate). Below
+  1000 px the page is one column — month and sum, cards, „Dopisz koszt”, rate (the owner spec checks the order by bounding boxes at
+  390 px); amounts carry non-breaking spaces, match them with `\s`. The spec deletes the stable's rates as
   superuser before and after (`session_replication_role = replica`, since `SB027` binds `postgres` too) — the database is left
   without rates. The settlements specs share their steps from `e2e/helpers.ts` (`clearStableRates`, `clearStableRatesAndCosts`,
   `setStableRate`, `runSql`, `grosze`, `settlementRiders` / `settlementRows` / `pricedSettlementRows`, `settlementCard`,

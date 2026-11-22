@@ -4,20 +4,24 @@
  */
 export const SETTLEMENT_TEXTS = {
   heading: "Rozliczenia",
-  lead: "Kwoty jeźdźców ośrodka w wybranym miesiącu: liczba jazd razy stawka plus koszty dodatkowe.",
   failure: "Nie udało się wczytać rozliczeń.",
   retry: "Odśwież stronę za chwilę.",
   saved: "Zapisano.",
   /** Dokończenie zdania stanu pustego po „W październiku 2026” (`formatInMonthYear`). */
   empty: "nie ma nic do rozliczenia.",
   emptyHint: "Wybierz inny miesiąc strzałkami.",
-  /** Sekcja listy jeźdźców i nazwa listy dla czytników ekranu. */
-  ridersHeading: "Jeźdźcy",
+  /** Nazwa listy kart jeźdźców dla czytników ekranu. */
   ridersList: "Rozliczenia jeźdźców",
-  /** Suma miesiąca, np. `Razem: 12 340,00 zł`. */
+  /** Suma miesiąca: etykieta przed kwotą dla czytników ekranu, np. `Razem: 12 340,00 zł`. */
   total: "Razem:",
-  /** Zamiast kwot na liście, gdy ośrodek nie ma stawki. */
+  /** Nagłówek sumy w bocznej kolumnie (#105). */
+  totalHeading: "Do zapłaty razem",
+  /** Suma bez stawki ośrodka. */
+  noTotal: "—",
+  /** Nad kartami, gdy ośrodek nie ma stawki. */
   amountsNeedRate: "Kwoty pojawią się po ustawieniu stawki ośrodka.",
+  /** Karta jeźdźca (#105): `Do zapłaty`, wyliczenie `… + koszty 50,00 zł`, `Rozliczenie →`. */
+  card: { due: "Do zapłaty", costs: "koszty", open: "Rozliczenie →" },
   /** Rozliczenie jeźdźca (#95): `/osrodek/rozliczenia/<jeździec>?miesiac=RRRR-MM`. */
   rider: {
     /** Tytuł karty przeglądarki przed nazwą jeźdźca: `Rozliczenie — Anna Kowalska`. */
@@ -80,8 +84,6 @@ export const SETTLEMENT_TEXTS = {
   },
   rate: {
     heading: "Stawka ośrodka",
-    /** Przed `formatInMonthYear`: `Stawka ośrodka w październiku 2026: 120,00 zł`. */
-    inMonth: "Stawka ośrodka",
     current: "Obowiązuje teraz:",
     planned: "Zaplanowana zmiana",
     deletePlanned: "Usuń zaplanowaną zmianę",

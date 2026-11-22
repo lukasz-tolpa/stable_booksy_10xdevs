@@ -173,7 +173,7 @@ describe("composeSettlementsPage — strona „Rozliczenia”", () => {
   const monthHref = (month: string) => `/osrodek/rozliczenia?miesiac=${month}`;
   const riderHref = (riderKey: string) => `/osrodek/rozliczenia/${riderKey}?miesiac=2026-10`;
 
-  it("pokazuje stawkę ośrodka dziś, zaplanowaną zmianę i stawkę wybranego miesiąca", () => {
+  it("pokazuje stawkę ośrodka dziś, zaplanowaną zmianę i przełącznik miesięcy", () => {
     const view = composeSettlementsPage(
       {
         ...input({
@@ -195,7 +195,6 @@ describe("composeSettlementsPage — strona „Rozliczenia”", () => {
         { value: "nastepny", label: "Od następnego miesiąca (grudzień 2026)", checked: false },
       ],
     });
-    expect(view.monthRateText).toBe(`Stawka ośrodka w październiku 2026: ${zl("120,00 zł")}`);
     expect(view.nav).toEqual({
       label: "październik 2026",
       previousHref: "/osrodek/rozliczenia?miesiac=2026-09",
@@ -209,7 +208,6 @@ describe("composeSettlementsPage — strona „Rozliczenia”", () => {
     expect(view.rate.current).toBeNull();
     expect(view.rate.currentText).toBeNull();
     expect(view.rate.planned).toBeNull();
-    expect(view.monthRateText).toBeNull();
     expect(view.list.needsRate).toBe(true);
   });
 
@@ -217,6 +215,134 @@ describe("composeSettlementsPage — strona „Rozliczenia”", () => {
     const view = composeSettlementsPage({ ...input(), monthHref, riderHref }, NOW);
     expect(view.isEmpty).toBe(true);
     expect(view.emptyText).toBe("W październiku 2026 nie ma nic do rozliczenia.");
+  });
+
+  // Oracle: AC #105 — podsumowanie w bocznej kolumnie: „Do zapłaty razem” i „N jeźdźców · N jazd”.
+  it("podsumowanie: suma miesiąca i „N jeźdźców · N jazd” z odmianą", () => {
+    const summaryOf = (bookings: SettlementBooking[], rates: RateChange[] = [STABLE_120]) =>
+      composeSettlementsPage({ ...input({ bookings, rates }), monthHref, riderHref }, NOW).summary;
+
+    expect(summaryOf([ride("2026-10-02", "anna", "Anna")])).toEqual({
+      total: 12000,
+      totalText: zl("120,00 zł"),
+      totalLabel: `Razem: ${zl("120,00 zł")}`,
+      countsText: "1 jeździec · 1 jazda",
+    });
+    expect(
+      summaryOf([
+        ride("2026-10-02", "anna", "Anna"),
+        ride("2026-10-09", "anna", "Anna"),
+        ride("2026-10-03", "piotr", "Piotr"),
+      ]),
+    ).toEqual({
+      total: 36000,
+      totalText: zl("360,00 zł"),
+      totalLabel: `Razem: ${zl("360,00 zł")}`,
+      countsText: "2 jeźdźców · 3 jazdy",
+    });
+
+    const five = ["a", "b", "c", "d", "e"].flatMap((key) => [
+      ride("2026-10-02", key, key.toUpperCase()),
+      ride("2026-10-05", key, key.toUpperCase()),
+    ]);
+    expect(summaryOf(five)).toEqual({
+      total: 120000,
+      totalText: zl("1 200,00 zł"),
+      totalLabel: `Razem: ${zl("1 200,00 zł")}`,
+      countsText: "5 jeźdźców · 10 jazd",
+    });
+  });
+
+  it("podsumowanie bez stawki ośrodka: suma `null`, liczby jeźdźców i jazd zostają", () => {
+    const view = composeSettlementsPage(
+      { ...input({ rates: [], bookings: [ride("2026-10-02", "anna", "Anna")] }), monthHref, riderHref },
+      NOW,
+    );
+    expect(view.summary).toEqual({
+      total: null,
+      totalText: null,
+      totalLabel: null,
+      countsText: "1 jeździec · 1 jazda",
+    });
+  });
+
+  // Oracle: AC #105 — karta: „N jazd × stawka [źródło] = kwota za jazdy + koszty”, „Do zapłaty”;
+  // koszty tylko gdy > 0, bez stawki ośrodka sama liczba jazd.
+  it("karta jeźdźca: stawka miesiąca i źródło, kwota za jazdy, koszty tylko gdy są, „Do zapłaty”", () => {
+    const view = composeSettlementsPage(
+      {
+        ...input({
+          month: NOVEMBER,
+          bookings: [
+            ride("2026-11-02", "anna", "Anna Kowalska"),
+            ride("2026-11-09", "anna", "Anna Kowalska"),
+            ride("2026-11-03", "piotr", "Piotr Nowak"),
+          ],
+          rates: [STABLE_120, { id: 7, riderKey: "anna", fromMonth: "2026-11", amount: 9000 }],
+          costs: [cost("anna", "Anna Kowalska", 150000)],
+        }),
+        monthHref,
+        riderHref,
+      },
+      NOW,
+    );
+
+    expect(
+      view.list.rows.map((row) => ({
+        name: row.name,
+        ridesText: row.ridesText,
+        rateText: row.rateText,
+        rateSource: row.rate?.source,
+        rateSourceText: row.rateSourceText,
+        ridesAmountText: row.ridesAmountText,
+        costsText: row.costsText,
+        dueText: row.dueText,
+      })),
+    ).toEqual([
+      {
+        name: "Anna Kowalska",
+        ridesText: "2 jazdy",
+        rateText: zl("90,00 zł"),
+        rateSource: "individual",
+        rateSourceText: "stawka indywidualna",
+        ridesAmountText: zl("180,00 zł"),
+        costsText: zl("1 500,00 zł"),
+        dueText: zl("1 680,00 zł"),
+      },
+      {
+        name: "Piotr Nowak",
+        ridesText: "1 jazda",
+        rateText: zl("120,00 zł"),
+        rateSource: "stable",
+        rateSourceText: "stawka ośrodka",
+        ridesAmountText: zl("120,00 zł"),
+        costsText: null,
+        dueText: zl("120,00 zł"),
+      },
+    ]);
+  });
+
+  it("karta jeźdźca bez stawki ośrodka ma samą liczbę jazd", () => {
+    const view = composeSettlementsPage(
+      {
+        ...input({
+          rates: [],
+          bookings: [ride("2026-10-02", "anna", "Anna")],
+          costs: [cost("anna", "Anna", 5000)],
+        }),
+        monthHref,
+        riderHref,
+      },
+      NOW,
+    );
+    expect(view.list.rows[0]).toMatchObject({
+      ridesText: "1 jazda",
+      rateText: null,
+      rateSourceText: null,
+      ridesAmountText: null,
+      costsText: null,
+      dueText: null,
+    });
   });
 
   it("wiersz jeźdźca prowadzi do jego rozliczenia", () => {

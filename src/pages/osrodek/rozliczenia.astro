@@ -4,7 +4,8 @@ import AddCost from "@/components/settlements/AddCost.astro";
 import Layout from "@/layouts/Layout.astro";
 import Topbar from "@/components/Topbar.astro";
 import MonthNav from "@/components/month-summary/MonthNav.astro";
-import SettlementRows from "@/components/settlements/SettlementRows.astro";
+import SettlementCards from "@/components/settlements/SettlementCards.astro";
+import SettlementsTotal from "@/components/settlements/SettlementsTotal.astro";
 import StableRate from "@/components/settlements/StableRate.astro";
 import Card from "@/components/ui/Card.astro";
 import EmptyState from "@/components/ui/EmptyState.astro";
@@ -25,6 +26,9 @@ import { createClient } from "@/lib/supabase";
 // przestrzeń ośrodka jest tylko dla właściciela; stawki chroni dodatkowo RLS. Liczy
 // `@/lib/settlements/settlements`; tu tylko odczyt i render. Miesiąc żyje w adresie (`?miesiac=RRRR-MM`),
 // formularze stawki i „Dopisz koszt” (#96) wracają na niego z `?sukces=1` albo `?error=`.
+// Układ (#105, wariant B): główna kolumna z kartami jeźdźców, boczna — przełącznik miesięcy, suma i stawka
+// ośrodka, przyklejona od 1000 px. Na telefonie jedna kolumna: miesiąc i suma, karty, „Dopisz koszt”, stawka
+// — kolejność z siatki (boczna kolumna rozpada się na swoje bloki), bez JavaScriptu.
 const { profile } = Astro.locals;
 const SCOPE = "page:osrodek/rozliczenia";
 const texts = SETTLEMENT_TEXTS;
@@ -76,52 +80,62 @@ const nav = view?.nav ?? composeMonthNav(month, settlementsHref);
 <Layout title={texts.heading}>
   <Topbar />
   <main class="container-narrow page">
-    <h1>{texts.heading}</h1>
-    <p class="lead">{texts.lead}</p>
+    <div class="layout">
+      <h1 class="heading">
+        {texts.heading}
+        <span class="heading__month">· {nav.label}</span>
+      </h1>
 
-    {
-      saved && (
-        <div class="notice">
-          <Banner variant="success">{texts.saved}</Banner>
+      <div class="side">
+        <div class="side__summary">
+          <MonthNav nav={nav} stacked />
+          {view && <SettlementsTotal summary={view.summary} />}
         </div>
-      )
-    }
-    {
-      error && (
-        <div class="notice">
-          <Banner variant="error">{error}</Banner>
-        </div>
-      )
-    }
+        {
+          view && (
+            <div class="side__rate">
+              <StableRate rate={view.rate} month={month.month} />
+            </div>
+          )
+        }
+      </div>
 
-    {view && <StableRate rate={view.rate} month={month.month} />}
+      <div class="main">
+        {
+          saved && (
+            <div class="notice">
+              <Banner variant="success">{texts.saved}</Banner>
+            </div>
+          )
+        }
+        {
+          error && (
+            <div class="notice">
+              <Banner variant="error">{error}</Banner>
+            </div>
+          )
+        }
+        {
+          !view ? (
+            <FailureState>
+              <p>{texts.failure}</p>
+              <p>{texts.retry}</p>
+            </FailureState>
+          ) : view.isEmpty ? (
+            <Card>
+              <EmptyState>
+                <p>{view.emptyText}</p>
+                <p>{texts.emptyHint}</p>
+              </EmptyState>
+            </Card>
+          ) : (
+            <SettlementCards list={view.list} />
+          )
+        }
 
-    <div class="month">
-      <MonthNav nav={nav} />
+        {addCost && <AddCost form={addCost} />}
+      </div>
     </div>
-
-    {
-      !view ? (
-        <FailureState>
-          <p>{texts.failure}</p>
-          <p>{texts.retry}</p>
-        </FailureState>
-      ) : view.isEmpty ? (
-        <Card>
-          <EmptyState>
-            <p>{view.emptyText}</p>
-            <p>{texts.emptyHint}</p>
-          </EmptyState>
-        </Card>
-      ) : (
-        <section aria-labelledby="riders-heading">
-          <h2 id="riders-heading">{texts.ridersHeading}</h2>
-          <SettlementRows list={view.list} monthRateText={view.monthRateText} />
-        </section>
-      )
-    }
-
-    {addCost && <AddCost form={addCost} />}
   </main>
 </Layout>
 
@@ -129,23 +143,59 @@ const nav = view?.nav ?? composeMonthNav(month, settlementsHref);
   .page {
     padding-block: 24px 56px;
   }
+  /* Telefon: jedna kolumna; boczna kolumna rozpada się na bloki, stawka schodzi na koniec. */
+  .layout {
+    display: grid;
+    gap: 16px;
+  }
+  .side {
+    display: contents;
+  }
+  .side__rate {
+    order: 1;
+  }
+  .main,
+  .side__summary,
+  .side__rate {
+    min-width: 0;
+  }
+  .side__summary {
+    display: grid;
+    gap: 12px;
+  }
+  @media (width >= 1000px) {
+    .layout {
+      grid-template-columns: minmax(0, 1fr) 300px;
+      grid-template-areas:
+        "heading side"
+        "main side";
+      grid-template-rows: auto 1fr;
+      align-items: start;
+      column-gap: 24px;
+    }
+    .heading {
+      grid-area: heading;
+    }
+    .main {
+      grid-area: main;
+    }
+    .side {
+      grid-area: side;
+      display: grid;
+      gap: 12px;
+      position: sticky;
+      top: 88px;
+    }
+  }
   h1 {
-    font-size: 32px;
+    margin: 0;
+    font-size: 30px;
   }
-  h2 {
-    margin: 0 0 8px;
-    font-size: 20px;
-  }
-  .lead {
-    margin: 10px 0 0;
-    font-size: 15.5px;
+  .heading__month {
+    font-weight: 500;
     color: var(--muted);
-    max-width: 62ch;
   }
   .notice {
-    margin-top: 18px;
-  }
-  .month {
-    margin-top: 18px;
+    margin-bottom: 14px;
   }
 </style>

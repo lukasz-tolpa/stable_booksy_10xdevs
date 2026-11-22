@@ -267,7 +267,7 @@ export function settlementRiders(page: Page): Locator {
   return page.getByRole("list", { name: "Rozliczenia jeźdźców" }).getByRole("listitem");
 }
 
-/** Wiersze listy: tekst, liczba jazd i kwota (`null` — bez kwoty, ośrodek bez stawki). */
+/** Karty listy: tekst, liczba jazd i „Do zapłaty” — pierwsza kwota karty (`null` — bez kwoty, ośrodek bez stawki). */
 export async function settlementRows(page: Page): Promise<{ text: string; rides: number; amount: number | null }[]> {
   return (await settlementRiders(page).allInnerTexts()).map((text) => ({
     text,

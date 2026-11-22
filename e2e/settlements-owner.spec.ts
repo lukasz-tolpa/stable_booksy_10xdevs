@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
 import {
   clearStableRates,
   DEMO_HINT,
@@ -146,6 +146,22 @@ test.describe("Rozliczenia właściciela", () => {
       await expect(planned).toHaveCount(0);
       await expect(rateRegion.getByRole("button", { name: "Usuń zaplanowaną zmianę" })).toHaveCount(0);
       await expect(total).toHaveText(before);
+    });
+
+    await test.step("na telefonie jedna kolumna: miesiąc i suma, karty, „Dopisz koszt”, stawka — bez przewijania w bok", async () => {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.reload();
+      const top = async (locator: Locator) => (await locator.boundingBox())?.y ?? Number.NaN;
+      const order = [
+        await top(page.getByRole("navigation", { name: "Wybór miesiąca" })),
+        await top(total),
+        await top(settlementRiders(page).first()),
+        await top(page.getByRole("region", { name: "Dopisz koszt" })),
+        await top(rateRegion),
+      ];
+      expect(order, "kolejność bloków od góry").toEqual([...order].sort((a, b) => a - b));
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      expect(overflow, "strona jest szersza niż ekran 390 px").toBeLessThanOrEqual(0);
     });
   });
 

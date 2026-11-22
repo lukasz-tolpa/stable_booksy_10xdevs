@@ -1,0 +1,59 @@
+---
+// „Do zapłaty razem” w bocznej kolumnie strony „Rozliczenia” (#105): suma miesiąca dużą kwotą i pod nią
+// „N jeźdźców · N jazd”. Bez stawki ośrodka zamiast kwoty „—”. Renderuje `SettlementsSummary`
+// z `@/lib/settlements/settlements`.
+//
+// KONTRAKT e2e: suma to jeden element z samym tekstem „Razem: {kwota}” — wizualnie ukryty, dla czytników
+// ekranu; widoczna kwota obok jest przed nimi ukryta. Bez stawki takiego elementu nie ma.
+import Card from "@/components/ui/Card.astro";
+import type { SettlementsSummary } from "@/lib/settlements/settlements";
+import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
+
+interface Props {
+  summary: SettlementsSummary;
+}
+
+const { summary } = Astro.props;
+const texts = SETTLEMENT_TEXTS;
+---
+
+<Card padding={18}>
+  <h2 class="label">{texts.totalHeading}</h2>
+  {
+    summary.totalText ? (
+      <p class="amount">
+        <span class="sr-only">{summary.totalLabel}</span>
+        <span aria-hidden="true">{summary.totalText}</span>
+      </p>
+    ) : (
+      <p class="amount">{texts.noTotal}</p>
+    )
+  }
+  <p class="counts">{summary.countsText}</p>
+</Card>
+
+<style>
+  .label {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .amount {
+    margin: 6px 0 0;
+    font-size: 32px;
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+  .counts {
+    margin: 4px 0 0;
+    font-size: 14px;
+    color: var(--muted);
+  }
+</style>

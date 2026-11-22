@@ -1,10 +1,11 @@
 ---
 // Pigułka stanu przy wierszu listy: „odwołany”, „bez konia”. Neutralna świadomie NIE kasztanowa,
 // żeby nie czytała się jak akcent (DESIGN.md §7); `warn` wyróżnia zapis, który czeka na ośrodek
-// (zapis bez konia, US 48).
+// (zapis bez konia, US 48); `primary` wyróżnia wyjątek w kolorze marki, np. „stawka indywidualna”
+// na karcie jeźdźca w Rozliczeniach (#105).
 //
 // KONTRAKT: cały tekst elementu to podana treść — e2e szuka tych słów dokładnym dopasowaniem.
-type Variant = "neutral" | "warn";
+type Variant = "neutral" | "warn" | "primary";
 
 interface Props {
   variant?: Variant;
@@ -13,7 +14,7 @@ interface Props {
 const { variant = "neutral" } = Astro.props;
 ---
 
-<span class:list={["tag", variant === "warn" && "tag--warn"]}><slot /></span>
+<span class:list={["tag", variant === "warn" && "tag--warn", variant === "primary" && "tag--primary"]}><slot /></span>
 
 <style>
   .tag {
@@ -29,5 +30,9 @@ const { variant = "neutral" } = Astro.props;
   .tag--warn {
     background: var(--warn-soft);
     color: var(--warn-ink);
+  }
+  .tag--primary {
+    background: var(--primary-soft);
+    color: var(--primary-strong);
   }
 </style>
