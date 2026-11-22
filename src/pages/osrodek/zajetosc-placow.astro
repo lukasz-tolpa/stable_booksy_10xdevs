@@ -1,0 +1,61 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import Topbar from "@/components/Topbar.astro";
+import PlaceOccupancyGrid from "@/components/place-occupancy/PlaceOccupancyGrid.astro";
+import { loadPlaceOccupancy, type PlaceOccupancyState } from "@/lib/place-occupancy/load";
+import { DAY_PARAM, OWNER_PLACE_OCCUPANCY_ROUTE, placeOccupancyHref } from "@/lib/place-occupancy/routes";
+import { PLACE_OCCUPANCY_TEXTS } from "@/lib/place-occupancy/texts";
+import { parseScheduleDate, todayIso } from "@/lib/schedule/dates";
+import { getOwnedStableId } from "@/lib/stables/queries";
+import { createClient } from "@/lib/supabase";
+import { logError } from "@/lib/log";
+
+// Zajętość placów ośrodka (#116) — ten sam model i ta sama siatka co u pensjonariusza, więc właściciel widzi
+// to, co oni. Dostęp pilnuje middleware (przestrzeń ośrodka — tylko właściciel).
+const { profile } = Astro.locals;
+const texts = PLACE_OCCUPANCY_TEXTS;
+const day = parseScheduleDate(Astro.url.searchParams.get(DAY_PARAM)) ?? todayIso();
+
+const supabase = createClient(Astro.request.headers, Astro.cookies);
+
+let state: PlaceOccupancyState = { kind: "failed" };
+
+if (supabase && profile) {
+  try {
+    const stableId = await getOwnedStableId(supabase, profile.id);
+    if (stableId !== null) {
+      state = await loadPlaceOccupancy(supabase, stableId, day, "page:osrodek/zajetosc-placow");
+    }
+  } catch (error) {
+    logError("page:osrodek/zajetosc-placow", error);
+  }
+}
+---
+
+<Layout title={texts.title}>
+  <Topbar />
+  <main class="container-narrow page">
+    <h1>{texts.title}</h1>
+    <p class="page-lead">{texts.ownerLead}</p>
+    <PlaceOccupancyGrid
+      state={state}
+      day={day}
+      dayHref={(target: string) => placeOccupancyHref(OWNER_PLACE_OCCUPANCY_ROUTE, target)}
+    />
+  </main>
+</Layout>
+
+<style>
+  .page {
+    padding-block: 24px 56px;
+  }
+  h1 {
+    font-size: 32px;
+  }
+  .page-lead {
+    margin: 10px 0 0;
+    font-size: 15.5px;
+    color: var(--muted);
+    max-width: 62ch;
+  }
+</style>

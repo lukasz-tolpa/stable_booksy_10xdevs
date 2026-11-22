@@ -213,7 +213,7 @@ describe("composeSideColumn", () => {
   const accounts = [{ instructor_id: 1 }, { instructor_id: 3 }, { instructor_id: 4 }];
   const places = [{ active: true }, { active: false }];
 
-  it("prowadzi do sekcji ośrodka: Grafik na jutro, Zapisy na dziś, Konie, Pensjonariusze, Place, Instruktorzy, Podsumowanie miesiąca, Rozliczenia, Statystyki", () => {
+  it("prowadzi do sekcji ośrodka: Grafik na jutro, Zapisy na dziś, Konie, Pensjonariusze, Place, Zajętość placów, Instruktorzy, Podsumowanie miesiąca, Rozliczenia, Statystyki", () => {
     const links = composeSideColumn(
       { today: TODAY, week, horses, instructors, accounts, places, monthBookings: [], settlementsTotal: null },
       NOW,
@@ -225,6 +225,7 @@ describe("composeSideColumn", () => {
       ["Konie", "/osrodek/konie"],
       ["Pensjonariusze", "/osrodek/pensjonariusze"],
       ["Place", "/osrodek/place"],
+      ["Zajętość placów", "/osrodek/zajetosc-placow"],
       ["Instruktorzy", "/osrodek/instruktorzy"],
       ["Podsumowanie miesiąca", "/osrodek/podsumowanie"],
       ["Rozliczenia", "/osrodek/rozliczenia"],
@@ -244,6 +245,7 @@ describe("composeSideColumn", () => {
       ["2 aktywne", false],
       ["1 koń pensjonatowy", false],
       ["1 aktywny", false],
+      ["dowolny dzień", false],
       ["2 z 3 z kontem", false],
       ["listopad: 0 jazd", false],
       [null, false],
@@ -333,13 +335,25 @@ describe("composeSideColumn", () => {
       NOW,
     );
 
-    expect(links.map((link) => link.fact)).toEqual([null, null, null, null, null, null, null, null, "dowolny okres"]);
+    expect(links.map((link) => link.fact)).toEqual([
+      null,
+      null,
+      null,
+      null,
+      null,
+      "dowolny dzień",
+      null,
+      null,
+      null,
+      "dowolny okres",
+    ]);
     expect(links.map((link) => link.href)).toEqual([
       "/osrodek/grafik?dzien=2026-11-21",
       "/osrodek/zapisy?dzien=2026-11-20",
       "/osrodek/konie",
       "/osrodek/pensjonariusze",
       "/osrodek/place",
+      "/osrodek/zajetosc-placow",
       "/osrodek/instruktorzy",
       "/osrodek/podsumowanie",
       "/osrodek/rozliczenia",
@@ -465,8 +479,8 @@ describe("composeSettlementsLink — Rozliczenia w bocznej kolumnie i w główne
       NOW,
     );
 
-    expect(links[7]).toEqual(composeSettlementsLink({ today: TODAY, settlementsTotal }));
-    expect(links[7]?.fact).toBe("listopad: 480,00 zł");
+    expect(links[8]).toEqual(composeSettlementsLink({ today: TODAY, settlementsTotal }));
+    expect(links[8]?.fact).toBe("listopad: 480,00 zł");
   });
 });
 

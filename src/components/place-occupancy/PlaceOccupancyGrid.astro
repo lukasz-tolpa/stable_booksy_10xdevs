@@ -1,0 +1,261 @@
+---
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import Card from "@/components/ui/Card.astro";
+import DayNav from "@/components/ui/DayNav.astro";
+import EmptyState from "@/components/ui/EmptyState.astro";
+import FailureState from "@/components/ui/FailureState.astro";
+import Tag from "@/components/ui/Tag.astro";
+import { formatLongDateWithYear } from "@/lib/format";
+import type { PlaceOccupancyState } from "@/lib/place-occupancy/load";
+import { DAY_PARAM, STABLE_PARAM } from "@/lib/place-occupancy/routes";
+import { PLACE_OCCUPANCY_TEXTS } from "@/lib/place-occupancy/texts";
+import { addDays } from "@/lib/schedule/dates";
+import { SLOT_KIND } from "@/lib/schedule/kind";
+
+// Zajętość placów dnia (#116) — wspólna dla strony pensjonariusza i widoku właściciela: nawigacja dniami,
+// wybór dnia i siatka godzina × plac z `composePlaceOccupancy`. Jedna kolumna na telefonie; od 700 px komórki
+// placów stoją obok siebie — w tej samej kolejności co w dokumencie (bez `order`).
+interface Props {
+  state: PlaceOccupancyState;
+  day: string;
+  /** Adres dnia na tej stronie. */
+  dayHref: (day: string) => string;
+  /** Ośrodek wybrany na stronie pensjonariusza — wraca z formularzem wyboru dnia. */
+  stableId?: number;
+}
+
+const { state, day, dayHref, stableId } = Astro.props;
+const texts = PLACE_OCCUPANCY_TEXTS;
+// Dzień ułożony — siatka; `null` przy awarii, odmowie albo dniu bez grafiku.
+const grid = state.kind === "view" && state.view.scheduled ? state.view : null;
+---
+
+<DayNav label={texts.dayNav}>
+  <a slot="prev" href={dayHref(addDays(day, -1))}>
+    <ChevronLeft className="size-4" />
+    {texts.previous}
+  </a>
+  <Fragment slot="date">{formatLongDateWithYear(day)}</Fragment>
+  <a slot="next" href={dayHref(addDays(day, 1))}>
+    {texts.next}
+    <ChevronRight className="size-4" />
+  </a>
+</DayNav>
+
+<form method="get" class="daypick">
+  {stableId !== undefined && <input type="hidden" name={STABLE_PARAM} value={stableId} />}
+  <label for="dzien">{texts.pickDay}</label>
+  <input type="date" id="dzien" name={DAY_PARAM} value={day} />
+  <button type="submit">{texts.show}</button>
+</form>
+
+{
+  state.kind === "failed" ? (
+    <FailureState>
+      <p>{texts.failure}</p>
+      <p>{texts.retry}</p>
+    </FailureState>
+  ) : state.kind === "refused" ? (
+    <Card>
+      <EmptyState>
+        {state.message.map((line) => (
+          <p>{line}</p>
+        ))}
+      </EmptyState>
+    </Card>
+  ) : grid ? (
+    <Card>
+      <ol class="hours" aria-label={texts.grid} style={`--places: ${String(grid.places.length)}`}>
+        {grid.hours.map((entry) => (
+          <li class="hour">
+            <span class="hour__label">{entry.label}</span>
+            {entry.empty ? (
+              <p class="hour__empty">{texts.emptyHour}</p>
+            ) : (
+              <ul class="cells">
+                {entry.cells.map((cell) => (
+                  <li
+                    class:list={["cell", cell.slots.length === 0 && "cell--empty"]}
+                    aria-label={`${cell.placeName}, ${entry.label}`}
+                  >
+                    <span class="cell__place">{cell.placeName}</span>
+                    {cell.slots.length === 0 ? (
+                      <span class="cell__none">{texts.emptyCell}</span>
+                    ) : (
+                      <ul class="slots">
+                        {cell.slots.map((slot) => (
+                          <li class="slot">
+                            <span class="slot__who">{slot.instructorName}</span>
+                            <Tag variant={slot.kind === SLOT_KIND.training ? "primary" : "neutral"}>
+                              {slot.kindLabel}
+                            </Tag>
+                            <span class="slot__taken">{slot.takenLabel}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {cell.totalLabel && <span class="cell__total">{cell.totalLabel}</span>}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </li>
+        ))}
+      </ol>
+    </Card>
+  ) : (
+    <Card>
+      <EmptyState>
+        {texts.unscheduled.map((line) => (
+          <p>{line}</p>
+        ))}
+      </EmptyState>
+    </Card>
+  )
+}
+
+<style>
+  .daypick {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 22px;
+  }
+  .daypick label {
+    font-size: 14.5px;
+    font-weight: 600;
+  }
+  .daypick input {
+    min-height: 44px;
+    padding: 10px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border-2);
+    border-radius: var(--r);
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 14.5px;
+    color: var(--fg);
+    color-scheme: light;
+  }
+  .daypick input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-soft);
+  }
+  .daypick button {
+    min-height: 44px;
+    padding: 11px 18px;
+    border-radius: 999px;
+    border: 1px solid var(--border-2);
+    background: var(--surface);
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--fg);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .daypick button:hover {
+    background: var(--surface-2);
+  }
+  .daypick button:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+
+  .hours,
+  .cells,
+  .slots {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .hours {
+    display: grid;
+    gap: 10px;
+  }
+  .hour {
+    display: grid;
+    gap: 8px;
+    padding: 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+  }
+  .hour__label {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .hour__empty,
+  .cell__none {
+    margin: 0;
+    font-size: 13.5px;
+    color: var(--muted);
+  }
+  .cells {
+    display: grid;
+    gap: 8px;
+  }
+  .cell {
+    display: grid;
+    align-content: start;
+    gap: 6px;
+    min-width: 0;
+    padding: 10px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+  }
+  .cell--empty {
+    background: transparent;
+    border-style: dashed;
+  }
+  .cell__place {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .slots {
+    display: grid;
+    gap: 6px;
+  }
+  .slot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 10px;
+  }
+  .slot__who {
+    font-weight: 600;
+    font-size: 14.5px;
+  }
+  .slot__taken,
+  .cell__total {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 13.5px;
+  }
+  .cell__total {
+    color: var(--muted);
+  }
+
+  @media (width >= 700px) {
+    .hour {
+      grid-template-columns: 64px minmax(0, 1fr);
+      align-items: start;
+    }
+    .hour__label {
+      padding-top: 10px;
+    }
+    .hour__empty {
+      padding-top: 10px;
+    }
+    .cells {
+      grid-template-columns: repeat(var(--places), minmax(0, 1fr));
+    }
+  }
+</style>

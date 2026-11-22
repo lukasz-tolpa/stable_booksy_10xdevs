@@ -131,19 +131,6 @@ export function saveBoardingFee(client: Client, fee: BoardingFeeWrite) {
 export function deleteBoardingFee(client: Client, stableId: number, feeId: number) {
   return client.from("boarding_fees").delete().eq("id", feeId).eq("stable_id", stableId).select("id, horse_id");
 }
-
-/** Czy jeździec ma choć jednego konia pensjonatowego — wtedy nawigacja pokazuje „Moje konie”. Rzuca przy błędzie. */
-export async function hasBoardingHorses(client: Client, riderId: string): Promise<boolean> {
-  const { count, error } = await client
-    .from("horse_owners")
-    .select("horse_id", { count: "exact", head: true })
-    .eq("rider_id", riderId);
-  if (error) {
-    throw error;
-  }
-  return (count ?? 0) > 0;
-}
-
 /**
  * Konie pensjonatowe jeźdźca w jednym ośrodku z pobytami — ktoś, kim jeździec jest w dniu ośrodka (#115,
  * `riderStandingOn`). Filtr po koncie i ośrodku jawnie obok RLS. Rzuca przy błędzie odczytu.

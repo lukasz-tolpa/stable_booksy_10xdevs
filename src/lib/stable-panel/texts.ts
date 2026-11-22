@@ -46,6 +46,8 @@ export const PANEL_TEXTS = {
     /** Konie pensjonatowe i pobyty (#114) — strona `/osrodek/pensjonariusze`. */
     boarders: "Pensjonariusze",
     places: "Place",
+    /** Zajętość placów (#116) — strona `/osrodek/zajetosc-placow`. */
+    placeOccupancy: "Zajętość placów",
     instructors: "Instruktorzy",
     monthSummary: "Podsumowanie miesiąca",
     settlements: "Rozliczenia",
@@ -53,6 +55,7 @@ export const PANEL_TEXTS = {
     tomorrowScheduled: "jutro: ułożony",
     tomorrowUnscheduled: "jutro: brak grafiku",
     anyPeriod: "dowolny okres",
+    anyDay: "dowolny dzień",
     /** Przy „Rozliczeniach”, gdy ośrodek nie ma stawki (zamiast sumy miesiąca). */
     setRate: "Ustaw stawkę",
     /** `dziś: 3` — zapisy dziś. */
