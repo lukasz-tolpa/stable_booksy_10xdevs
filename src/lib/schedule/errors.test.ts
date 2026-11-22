@@ -6,6 +6,7 @@ import {
   INSTRUCTOR_HAS_BOOKINGS,
   INSTRUCTOR_INACTIVE,
   INSTRUCTOR_NOT_IN_STABLE,
+  KIND_CHANGE_HAS_BOOKINGS,
   PLACE_CHANGE_HAS_BOOKINGS,
   PLACE_INACTIVE,
   PLACE_NOT_IN_STABLE,
@@ -37,6 +38,7 @@ describe("isScheduleRefusal", () => {
     PLACE_NOT_IN_STABLE,
     PLACE_INACTIVE,
     PLACE_CHANGE_HAS_BOOKINGS,
+    KIND_CHANGE_HAS_BOOKINGS,
   ])("kod %s to odmowa reguły grafiku", (code) => {
     expect(isScheduleRefusal(code)).toBe(true);
   });
@@ -200,6 +202,19 @@ describe("scheduleErrorMessage", () => {
     );
   });
 
+  it("zmiana rodzaju slotu z zapisami (SB048) wskazuje godzinę i liczbę zapisów we właściwej odmianie", () => {
+    expect(KIND_CHANGE_HAS_BOOKINGS).toBe("SB048");
+    expect(scheduleErrorMessage(KIND_CHANGE_HAS_BOOKINGS, '{"hour": 11, "bookings": 1}')).toBe(
+      "Nie można zmienić rodzaju slotu o 11:00 — ma 1 aktywny zapis. Zostaw slotowi jego rodzaj albo najpierw doprowadź do jego odwołania.",
+    );
+    expect(scheduleErrorMessage(KIND_CHANGE_HAS_BOOKINGS, '{"hour": 9, "bookings": 2}')).toBe(
+      "Nie można zmienić rodzaju slotu o 9:00 — ma 2 aktywne zapisy. Zostaw slotowi jego rodzaj albo najpierw doprowadź do ich odwołania.",
+    );
+    expect(scheduleErrorMessage(KIND_CHANGE_HAS_BOOKINGS)).toBe(
+      "Nie można zmienić rodzaju slotu, który ma aktywne zapisy. Zostaw slotowi jego rodzaj albo najpierw doprowadź do ich odwołania.",
+    );
+  });
+
   it("kody grafiku są rozróżnialne", () => {
     const codes = [
       SCHEDULE_DATE_CONFLICT,
@@ -215,6 +230,7 @@ describe("scheduleErrorMessage", () => {
       PLACE_NOT_IN_STABLE,
       PLACE_INACTIVE,
       PLACE_CHANGE_HAS_BOOKINGS,
+      KIND_CHANGE_HAS_BOOKINGS,
     ];
 
     expect(new Set(codes).size).toBe(codes.length);
@@ -271,6 +287,7 @@ describe("dopisek o właścicielu przy odmowach, których instruktor nie rozwią
       [SEATS_BELOW_BOOKINGS, undefined],
       [INSTRUCTOR_HAS_BOOKINGS, '{"bookings": 3}'],
       [PLACE_CHANGE_HAS_BOOKINGS, '{"hour": 11, "bookings": 1}'],
+      [KIND_CHANGE_HAS_BOOKINGS, '{"hour": 11, "bookings": 1}'],
     ];
     for (const [code, detail] of cases) {
       const owner = scheduleErrorMessage(code, detail, "owner");

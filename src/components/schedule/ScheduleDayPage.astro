@@ -13,6 +13,7 @@ import {
   horseDefaults,
   instructorDefaults,
   pastDaySummary,
+  kindDefaults,
   placeDefaults,
   prefillSourceDay,
 } from "@/lib/schedule/form";
@@ -179,6 +180,7 @@ const dayLabel = formatLongDateWithYear(day);
         slotPlaces={placeForm.places}
         defaultPlaceId={placeForm.defaultPlaceId}
         choosePlace={placeForm.choosePlace}
+        slotKinds={kindDefaults(scheduleDay, latestDay)}
         prefillFrom={prefillSourceDay(scheduleDay, latestDay)}
         serverError={error}
         client:load

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   horseDefaults,
   instructorDefaults,
+  kindDefaults,
   pastDaySummary,
   placeDefaults,
   prefillSourceDay,
@@ -22,8 +23,8 @@ describe("instructorDefaults", () => {
     const saved = day(
       [1, 2],
       [
-        { instructorId: 1, hour: 10, seats: 2, placeId: 1 },
-        { instructorId: 2, hour: 10, seats: 1, placeId: 1 },
+        { instructorId: 1, hour: 10, seats: 2, placeId: 1, kind: "recreation" },
+        { instructorId: 2, hour: 10, seats: 1, placeId: 1, kind: "recreation" },
       ],
     );
 
@@ -38,8 +39,8 @@ describe("instructorDefaults", () => {
     const latest = day(
       [1, 2],
       [
-        { instructorId: 1, hour: 10, seats: 2, placeId: 1 },
-        { instructorId: 2, hour: 10, seats: 1, placeId: 1 },
+        { instructorId: 1, hour: 10, seats: 2, placeId: 1, kind: "recreation" },
+        { instructorId: 2, hour: 10, seats: 1, placeId: 1, kind: "recreation" },
       ],
     );
 
@@ -141,7 +142,13 @@ function placeDay(slots: [instructorId: number, hour: number, placeId: number][]
   return {
     ...day(
       [...new Set(slots.map(([instructorId]) => instructorId))],
-      slots.map(([instructorId, hour, placeId]) => ({ instructorId, hour, seats: 1, placeId })),
+      slots.map(([instructorId, hour, placeId]) => ({
+        instructorId,
+        hour,
+        seats: 1,
+        placeId,
+        kind: "recreation" as const,
+      })),
     ),
   };
 }
@@ -188,5 +195,36 @@ describe("placeDefaults", () => {
       defaultPlaceId: 21,
       choosePlace: false,
     });
+  });
+});
+
+function kindDay(slots: [instructorId: number, hour: number, kind: "recreation" | "training"][]): ScheduleDayData {
+  return day(
+    [...new Set(slots.map(([instructorId]) => instructorId))],
+    slots.map(([instructorId, hour, kind]) => ({ instructorId, hour, seats: 1, placeId: 21, kind })),
+  );
+}
+
+describe("kindDefaults", () => {
+  it("ułożony dzień pokazuje rodzaj każdego swojego slotu", () => {
+    const saved = kindDay([
+      [1, 10, "training"],
+      [1, 11, "recreation"],
+    ]);
+
+    expect(kindDefaults(saved, null)).toEqual({ "1.10": "training", "1.11": "recreation" });
+  });
+
+  it("szkic kopiuje rodzaj każdego slotu z ostatnio ułożonego dnia", () => {
+    const latest = kindDay([
+      [1, 10, "training"],
+      [3, 10, "recreation"],
+    ]);
+
+    expect(kindDefaults(null, latest)).toEqual({ "1.10": "training", "3.10": "recreation" });
+  });
+
+  it("nowy dzień bez żadnego ułożonego wcześniej nie ma rodzajów — sloty startują jako rekreacyjne", () => {
+    expect(kindDefaults(null, null)).toEqual({});
   });
 });

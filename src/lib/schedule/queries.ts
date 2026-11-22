@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/db/database.types";
+import { toSlotKind, type SlotKind } from "@/lib/schedule/kind";
 import type { ScheduleDayInput } from "@/lib/schedule/schema";
 
 type Client = SupabaseClient<Database>;
@@ -11,6 +12,8 @@ export interface SlotSeats {
   seats: number;
   /** Plac slotu (`schedule_slots.place_id`, #113). */
   placeId: number;
+  /** Rodzaj slotu (`schedule_slots.kind`, #115). */
+  kind: SlotKind;
 }
 
 export interface ScheduleDayData {
@@ -24,7 +27,7 @@ export interface ScheduleDayData {
 }
 
 const DAY_COLUMNS =
-  "id, day, open_hour, close_hour, schedule_day_horses(horse_id), schedule_day_instructors(instructor_id, schedule_slots(hour, seats, place_id))";
+  "id, day, open_hour, close_hour, schedule_day_horses(horse_id), schedule_day_instructors(instructor_id, schedule_slots(hour, seats, place_id, kind))";
 
 interface RawScheduleDay {
   id: number;
@@ -34,7 +37,7 @@ interface RawScheduleDay {
   schedule_day_horses: { horse_id: number }[];
   schedule_day_instructors: {
     instructor_id: number;
-    schedule_slots: { hour: number; seats: number; place_id: number }[];
+    schedule_slots: { hour: number; seats: number; place_id: number; kind: string }[];
   }[];
 }
 
@@ -52,6 +55,7 @@ function toScheduleDay(row: RawScheduleDay): ScheduleDayData {
         hour: slot.hour,
         seats: slot.seats,
         placeId: slot.place_id,
+        kind: toSlotKind(slot.kind),
       })),
     ),
   };
@@ -99,7 +103,7 @@ export async function getLatestScheduleDay(client: Client, stableId: number): Pr
 }
 
 /**
- * Zapis całego dnia — godziny, konie, instruktorzy, limity miejsc i place slotów — jednym wywołaniem
+ * Zapis całego dnia — godziny, konie, instruktorzy, limity miejsc, place i rodzaje slotów — jednym wywołaniem
  * `public.save_schedule_day`. Funkcja działa w jednej transakcji i jest jedyną drogą zapisu
  * grafiku (bezpośredni zapis do tabel jest odebrany), więc udaje się w całości albo wcale,
  * a każda odmowa wraca jako kod z `src/lib/schedule/errors.ts`. Stadnina pochodzi z sesji.
@@ -116,6 +120,7 @@ export async function saveScheduleDay(client: Client, input: ScheduleDayInput): 
       hour: slot.hour,
       seats: slot.seats,
       ...(slot.placeId === undefined ? {} : { place_id: slot.placeId }),
+      ...(slot.kind === undefined ? {} : { kind: slot.kind }),
     })),
   });
 

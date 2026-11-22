@@ -1,7 +1,7 @@
 import type { InstructorListItem } from "@/lib/instructors/queries";
 import type { PlaceListItem } from "@/lib/places/queries";
 import type { ScheduleDayData, SlotSeats } from "@/lib/schedule/queries";
-import { seatKey, type PlaceMap } from "@/lib/schedule/sheet";
+import { seatKey, type KindMap, type PlaceMap } from "@/lib/schedule/sheet";
 import type { HorseListItem } from "@/lib/stables/queries";
 
 /** Pola instruktora, których potrzebuje formularz grafiku. */
@@ -151,4 +151,15 @@ export function placeDefaults(
     defaultPlaceId: selectablePlaces.find((place) => place.active)?.id ?? null,
     choosePlace: selectablePlaces.length > 1,
   };
+}
+
+/**
+ * Rodzaj każdego slotu, którym startuje formularz grafiku dnia (#115): ułożony dzień pokazuje swój stan,
+ * a szkic kopiuje rodzaj każdego slotu z ostatnio ułożonego dnia. Slot bez wpisu startuje z rodzajem
+ * wiersza instruktora albo jako rekreacyjny (`kindAt`) — tak jak nowy slot w bazie.
+ */
+export function kindDefaults(scheduleDay: ScheduleDayData | null, latestDay: ScheduleDayData | null): KindMap {
+  const hint = scheduleDay ?? latestDay;
+
+  return Object.fromEntries((hint?.seats ?? []).map((slot) => [seatKey(slot.instructorId, slot.hour), slot.kind]));
 }

@@ -5,12 +5,16 @@ import { SubmitButton } from "@/components/auth/SubmitButton";
 import { formatClockHour } from "@/lib/format";
 import type { PlaceListItem } from "@/lib/places/queries";
 import type { FormInstructor } from "@/lib/schedule/form";
+import { SLOT_KIND, SLOT_KIND_LABELS, toSlotKind, type SlotKind } from "@/lib/schedule/kind";
 import type { SlotSeats } from "@/lib/schedule/queries";
-import { hoursError, placeFieldName, seatFieldName } from "@/lib/schedule/schema";
+import { hoursError, kindFieldName, placeFieldName, seatFieldName } from "@/lib/schedule/schema";
 import {
+  columnKind,
   columnPlace,
   fillAll,
+  fillKind,
   fillPlace,
+  kindAt,
   lastRideLabel,
   parseSeatInput,
   placeAt,
@@ -21,6 +25,7 @@ import {
   withoutInstructor,
   workingHours,
   type HourFill,
+  type KindMap,
   type PlaceMap,
   type SeatMap,
 } from "@/lib/schedule/sheet";
@@ -43,6 +48,10 @@ import type { HorseListItem } from "@/lib/stables/queries";
  * Plac slotu (#113) to ukryte pole na instruktora i godzinę (`placeFieldName`) z `placeAt`. Przy kilku
  * placach do wyboru nagłówek kolumny ma listę placu całego wiersza instruktora (`fillPlace`), a komórka —
  * poprawkę pojedynczej godziny; przy jednym placu nagłówek tylko go pokazuje.
+ *
+ * Rodzaj slotu (#115) — tak samo: ukryte pole `kindFieldName` z `kindAt`, lista rodzaju w nagłówku kolumny dla
+ * całego wiersza instruktora (`fillKind`) i poprawka godziny w komórce. „Koni zajętych” liczy tylko sloty
+ * rekreacyjne — na slocie treningowym pensjonariusze jadą na swoich koniach (`sheetRows`).
  */
 
 interface Props {
@@ -62,6 +71,8 @@ interface Props {
   defaultPlaceId: number | null;
   /** Czy pokazać wybór placu (więcej niż jeden plac do wyboru). */
   choosePlace: boolean;
+  /** Rodzaj każdego slotu na starcie (`kindDefaults` z `@/lib/schedule/form`). */
+  slotKinds: KindMap;
   /** Data dnia, z którego pochodzi szkic (`prefillSourceDay` z `@/lib/schedule/form`), albo `null`. */
   prefillFrom: string | null;
   serverError?: string | null;
@@ -227,6 +238,41 @@ function PlaceSelect({
   );
 }
 
+const KIND_OPTIONS: SlotKind[] = [SLOT_KIND.recreation, SLOT_KIND.training];
+
+/** Lista rodzaju slotu: w nagłówku kolumny (rodzaj wiersza; `null` — godziny różnych rodzajów) i w komórce. */
+function KindSelect({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: SlotKind | null;
+  onChange: (kind: SlotKind) => void;
+}) {
+  return (
+    <select
+      aria-label={label}
+      value={value ?? ""}
+      onChange={(e) => {
+        onChange(toSlotKind(e.target.value));
+      }}
+      className={placeSelectClass}
+    >
+      {value === null && (
+        <option value="" disabled>
+          różne rodzaje
+        </option>
+      )}
+      {KIND_OPTIONS.map((kind) => (
+        <option key={kind} value={kind}>
+          {SLOT_KIND_LABELS[kind]}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 interface Choice {
   id: number;
   name: string;
@@ -311,6 +357,7 @@ export default function ScheduleDayForm({
   slotPlaces,
   defaultPlaceId,
   choosePlace,
+  slotKinds,
   prefillFrom,
   serverError,
 }: Props) {
@@ -322,6 +369,7 @@ export default function ScheduleDayForm({
     Object.fromEntries(initialSeats.map((slot) => [seatKey(slot.instructorId, slot.hour), slot.seats])),
   );
   const [placeMap, setPlaceMap] = useState<PlaceMap>(slotPlaces);
+  const [kindMap, setKindMap] = useState<KindMap>(slotKinds);
   const [submitted, setSubmitted] = useState(false);
 
   // Zły zakres widać od razu, gdy obie godziny są wybrane; niewybraną godzinę — dopiero po próbie zapisu.
@@ -356,6 +404,7 @@ export default function ScheduleDayForm({
     workingInstructors.map((instructor) => instructor.id),
     seats,
     selected.length,
+    kindMap,
   );
 
   const lastRide = lastRideLabel(openHour, closeHour);
@@ -485,7 +534,9 @@ export default function ScheduleDayForm({
             Każda komórka to slot instruktora, a limit miejsc to liczba jeźdźców, których przyjmie w tej godzinie (0 —
             nie prowadzi jazdy).
             {choosePlace &&
-              " Plac ustawiasz dla całego instruktora w nagłówku kolumny, a pod limitem — dla jednej godziny."}
+              " Plac ustawiasz dla całego instruktora w nagłówku kolumny, a pod limitem — dla jednej godziny."}{" "}
+            Tak samo rodzaj slotu: slot rekreacyjny prowadzi jazdy na koniach ośrodka, a na slot treningowy zapisują się
+            pensjonariusze na swoich koniach — dlatego konie liczą się tylko w slotach rekreacyjnych.
           </p>
           <div className="border-border-2 overflow-x-auto rounded-lg border">
             <table className="w-full border-collapse text-[14px]">
@@ -517,6 +568,15 @@ export default function ScheduleDayForm({
                             {placeNames.get(columnPlace(placeMap, instructor.id, hours, defaultPlaceId) ?? -1)}
                           </span>
                         )}
+                      </span>
+                      <span className="mt-1.5 flex justify-center">
+                        <KindSelect
+                          label={`Rodzaj — ${instructor.name}`}
+                          value={columnKind(kindMap, instructor.id, hours)}
+                          onChange={(kind) => {
+                            setKindMap((prev) => fillKind(prev, instructor.id, hours, kind));
+                          }}
+                        />
                       </span>
                       <span className="mt-1.5 flex flex-wrap justify-center gap-1">
                         {FILL_SHORTCUTS.map(({ value, label }) => (
@@ -558,6 +618,7 @@ export default function ScheduleDayForm({
                       </th>
                       {workingInstructors.map((instructor) => {
                         const placeId = placeAt(placeMap, instructor.id, row.hour, defaultPlaceId);
+                        const kind = kindAt(kindMap, instructor.id, row.hour);
 
                         return (
                           <td key={instructor.id} className="px-2 py-2 text-center">
@@ -583,6 +644,14 @@ export default function ScheduleDayForm({
                                   }}
                                 />
                               )}
+                              <input type="hidden" name={kindFieldName(instructor.id, row.hour)} value={kind} />
+                              <KindSelect
+                                label={`Rodzaj — ${instructor.name}, ${hourLabel}`}
+                                value={kind}
+                                onChange={(next) => {
+                                  setKindMap((prev) => ({ ...prev, [seatKey(instructor.id, row.hour)]: next }));
+                                }}
+                              />
                             </div>
                           </td>
                         );

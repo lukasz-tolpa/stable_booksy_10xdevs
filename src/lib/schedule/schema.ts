@@ -1,12 +1,14 @@
 import { z } from "zod";
 import { formInt, formValue, formValues } from "@/lib/form-data";
 import { isValidIsoDate } from "@/lib/schedule/dates";
+import { SLOT_KIND } from "@/lib/schedule/kind";
 
 const SEATS_MESSAGE = "Limit miejsc musi być liczbą całkowitą, zero lub więcej";
 /** Górna granica kolumny `schedule_slots.seats` (smallint); realnie ogranicza ją liczba koni. */
 const MAX_SEATS = 32767;
 
 const PLACE_MESSAGE = "Nieprawidłowy plac";
+const KIND_MESSAGE = "Nieprawidłowy rodzaj slotu";
 
 const OPEN_HOUR_MESSAGE = "Godzina otwarcia musi być z zakresu 0-23";
 const CLOSE_HOUR_MESSAGE = "Godzina zamknięcia musi być z zakresu 1-24";
@@ -68,6 +70,8 @@ export const scheduleDaySchema = z
         placeId: formInt(PLACE_MESSAGE)
           .pipe(z.number().positive({ error: PLACE_MESSAGE }))
           .optional(),
+        // Rodzaj slotu (#115); bez niego baza zostawia slotowi jego rodzaj, a nowy slot jest rekreacyjny.
+        kind: z.enum([SLOT_KIND.recreation, SLOT_KIND.training], { error: KIND_MESSAGE }).optional(),
       }),
     ),
   })
@@ -80,6 +84,11 @@ export function seatFieldName(instructorId: number, hour: number): string {
   return `seats.${String(instructorId)}.${String(hour)}`;
 }
 
+/** Nazwa pola rodzaju slotu w formularzu grafiku: jedno pole na instruktora i godzinę, obok limitu miejsc (#115). */
+export function kindFieldName(instructorId: number, hour: number): string {
+  return `kind.${String(instructorId)}.${String(hour)}`;
+}
+
 const SEAT_FIELD = /^seats\.(\d+)\.(\d+)$/;
 
 /** Nazwa pola placu slotu w formularzu grafiku: jedno pole na instruktora i godzinę, obok limitu miejsc. */
@@ -90,11 +99,12 @@ export function placeFieldName(instructorId: number, hour: number): string {
 /**
  * Formularz grafiku dnia → dane do zapisu. Limity instruktora, którego nie wskazano w tym
  * dniu, są pomijane (odznaczony instruktor nie wystawia miejsc); puste pole limitu to zero.
- * Plac slotu idzie z pola `placeFieldName` tej samej komórki; puste albo brakujące — bez placu.
+ * Plac slotu idzie z pola `placeFieldName` tej samej komórki, rodzaj — z `kindFieldName`; puste albo
+ * brakujące — bez placu albo rodzaju.
  */
 export function parseScheduleDayForm(form: FormData) {
   const instructorIds = formValues(form, "instructorIds");
-  const seats: { instructorId: string; hour: string; seats: string; placeId?: string }[] = [];
+  const seats: { instructorId: string; hour: string; seats: string; placeId?: string; kind?: string }[] = [];
 
   for (const [name, value] of form.entries()) {
     const match = SEAT_FIELD.exec(name);
@@ -102,11 +112,13 @@ export function parseScheduleDayForm(form: FormData) {
       continue;
     }
     const placeId = formValue(form, placeFieldName(Number(match[1]), Number(match[2])));
+    const kind = formValue(form, kindFieldName(Number(match[1]), Number(match[2])));
     seats.push({
       instructorId: match[1],
       hour: match[2],
       seats: value.trim() === "" ? "0" : value,
       ...(placeId === "" ? {} : { placeId }),
+      ...(kind === "" ? {} : { kind }),
     });
   }
 

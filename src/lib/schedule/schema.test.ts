@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hoursError, parseScheduleDayForm, placeFieldName, seatFieldName } from "@/lib/schedule/schema";
+import { hoursError, kindFieldName, parseScheduleDayForm, placeFieldName, seatFieldName } from "@/lib/schedule/schema";
 
 function form(entries: [string, string][]): FormData {
   const data = new FormData();
@@ -60,6 +60,35 @@ describe("parseScheduleDayForm", () => {
       { instructorId: 7, hour: 10, seats: 2, placeId: 31 },
       { instructorId: 7, hour: 11, seats: 1 },
     ]);
+  });
+
+  it("czyta rodzaj każdego slotu; slot bez pola rodzaju zostawia rodzaj bazie", () => {
+    const result = parseScheduleDayForm(
+      form([
+        ...DAY,
+        ["instructorIds", "7"],
+        [seatFieldName(7, 10), "2"],
+        [kindFieldName(7, 10), "training"],
+        [seatFieldName(7, 11), "1"],
+        [kindFieldName(7, 11), "recreation"],
+        [seatFieldName(7, 12), "1"],
+      ]),
+    );
+
+    expect(result.data?.seats).toEqual([
+      { instructorId: 7, hour: 10, seats: 2, kind: "training" },
+      { instructorId: 7, hour: 11, seats: 1, kind: "recreation" },
+      { instructorId: 7, hour: 12, seats: 1 },
+    ]);
+  });
+
+  it("odrzuca nieznany rodzaj slotu z polskim komunikatem", () => {
+    const result = parseScheduleDayForm(
+      form([...DAY, ["instructorIds", "7"], [seatFieldName(7, 10), "1"], [kindFieldName(7, 10), "skoki"]]),
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.message).toBe("Nieprawidłowy rodzaj slotu");
   });
 
   it("odrzuca plac, który nie jest identyfikatorem", () => {
