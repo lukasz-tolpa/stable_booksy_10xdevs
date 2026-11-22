@@ -96,7 +96,11 @@ const headingId = "calendar-heading";
     background: var(--surface-2);
     color: var(--muted);
   }
-  /* Trzy poziomy wyróżnienia względem najintensywniejszego dnia — tokeny leśnej zieleni marki. */
+  /*
+   * Trzy poziomy wyróżnienia na tle dni z jazdami — wyraźnie różne jasności z palety (DESIGN.md §2):
+   * jasny odcień zieleni z ciemnym tekstem (7,0:1), zieleń marki (7,1:1), najciemniejsza zieleń tekstu
+   * głównego (16,3:1). Kontrast z sRGB po przycięciu do gamutu, jak w DESIGN.md.
+   */
   .day--1 {
     background: var(--primary-tint);
     color: var(--primary-strong);
@@ -106,7 +110,7 @@ const headingId = "calendar-heading";
     color: var(--surface);
   }
   .day--3 {
-    background: var(--primary-strong);
+    background: var(--fg);
     color: var(--surface);
   }
   a.day:hover {

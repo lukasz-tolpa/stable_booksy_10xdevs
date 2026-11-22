@@ -1,9 +1,11 @@
 import { expect, test } from "@playwright/test";
 import {
   calendarRideDays,
-  clearStableRates,
+  clearStableRatesAndCosts,
   DEMO_HINT,
   emptySettlementsMonth,
+  expectDocumentOrder,
+  expectNoHorizontalScroll,
   grosze,
   INSTRUCTOR_EMAIL,
   otherRidersToggle,
@@ -16,6 +18,7 @@ import {
   settlementRiders,
   settlementRows,
   SETTLEMENTS_ROUTE,
+  setStableRate,
   showAllRides,
   signIn,
   STABLE_STATE,
@@ -39,8 +42,9 @@ import {
  */
 test.describe("Rozliczenia właściciela", () => {
   test.use({ storageState: STABLE_STATE });
-  test.beforeAll(clearStableRates);
-  test.afterAll(clearStableRates);
+  // Bez stawek i kosztów dodatkowych: na liście są tylko jeźdźcy z jazdami (kroki rozliczenia jeźdźca ich potrzebują).
+  test.beforeAll(clearStableRatesAndCosts);
+  test.afterAll(clearStableRatesAndCosts);
 
   test("właściciel ustawia stawkę ośrodka: kwota jeźdźca = liczba jazd × stawka, „Razem” = suma wierszy", async ({
     page,
@@ -172,43 +176,6 @@ test.describe("Rozliczenia właściciela", () => {
       await page.goto(listUrl);
     });
 
-    await test.step("rozliczenie jeźdźca na telefonie: „Do zapłaty”, kalendarz, zestawienie, lista jazd, koszty, stawka — bez przewijania w bok", async () => {
-      const listUrl = page.url();
-      await page.setViewportSize({ width: 390, height: 844 });
-      await settlementRiders(page).first().getByRole("link").click();
-      await page.waitForURL(RIDER_SETTLEMENT_URL);
-
-      // Kolejność czytania (Tab, czytnik ekranu) to kolejność w dokumencie — ma być tą samą co na ekranie.
-      const blocks = [
-        page.getByRole("heading", { level: 1 }),
-        page.getByRole("navigation", { name: "Wybór miesiąca" }),
-        settlementCard(page).getByText("Do zapłaty", { exact: true }),
-        riderCalendar(page),
-        riderBreakdown(page),
-        page.getByText(/^Pokaż wszystkie jazdy \(\d+\)$/),
-        riderCostsRegion(page),
-        page.getByRole("region", { name: "Stawka jeźdźca" }),
-      ];
-      for (const block of blocks) await expect(block).toBeVisible();
-      const handles = await Promise.all(blocks.map((block) => block.elementHandle()));
-      const inOrder = await page.evaluate(
-        (elements) =>
-          elements
-            .slice(1)
-            .every(
-              (element, i) => (elements[i].compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0,
-            ),
-        handles,
-      );
-      expect(inOrder, "kolejność bloków w dokumencie").toBe(true);
-
-      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-      expect(overflow, "strona jest szersza niż ekran 390 px").toBeLessThanOrEqual(0);
-
-      await page.setViewportSize({ width: 1280, height: 800 });
-      await page.goto(listUrl);
-    });
-
     await test.step("zaplanowana zmiana od następnego miesiąca nie zmienia kwot i daje się usunąć", async () => {
       const before = await total.innerText();
       await rateRegion.getByLabel("Nowa stawka (zł)").fill("150");
@@ -250,31 +217,51 @@ test.describe("Rozliczenia właściciela", () => {
     }
     await expect(settlementRiders(page).first(), DEMO_HINT).toBeVisible();
 
-    // Kolejność czytania (Tab, czytnik ekranu) to kolejność w dokumencie — ma być tą samą co na ekranie.
     // „Pozostali jeźdźcy ośrodka” są tylko, gdy jakiś jeździec ośrodka nie ma jazd w miesiącu (zależy od
     // kont założonych przez wcześniejsze scenariusze).
     const others = otherRidersToggle(page);
-    const blocks = [
+    await expectDocumentOrder(page, [
       monthNav,
       page.getByRole("heading", { level: 2, name: "Do zapłaty razem" }),
       settlementRiders(page).first(),
       ...((await others.count()) > 0 ? [others] : []),
       page.getByRole("region", { name: "Stawka ośrodka" }),
-    ];
-    const handles = await Promise.all(blocks.map((block) => block.elementHandle()));
-    const inOrder = await page.evaluate(
-      (elements) =>
-        elements
-          .slice(1)
-          .every(
-            (element, i) => (elements[i].compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0,
-          ),
-      handles,
-    );
-    expect(inOrder, "kolejność bloków w dokumencie").toBe(true);
+    ]);
+    await expectNoHorizontalScroll(page);
+  });
 
-    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-    expect(overflow, "strona jest szersza niż ekran 390 px").toBeLessThanOrEqual(0);
+  test("rozliczenie jeźdźca na telefonie: „Do zapłaty”, kalendarz, zestawienie, lista jazd, koszty, stawka — bez przewijania w bok", async ({
+    page,
+  }) => {
+    // „Do zapłaty” jest tylko przy stawce ośrodka — scenariusz ustawia ją sam i po sobie usuwa.
+    clearStableRatesAndCosts();
+    setStableRate(12345);
+    try {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.goto(SETTLEMENTS_ROUTE);
+      if (await emptySettlementsMonth(page).isVisible()) {
+        await page.getByRole("navigation", { name: "Wybór miesiąca" }).getByRole("link", { name: "Poprzedni" }).click();
+        await page.waitForURL(/miesiac=\d{4}-\d{2}$/);
+      }
+      // Bez kosztów na liście są tylko jeźdźcy z jazdami.
+      await expect(settlementRiders(page).first(), DEMO_HINT).toBeVisible();
+      await settlementRiders(page).first().getByRole("link").click();
+      await page.waitForURL(RIDER_SETTLEMENT_URL);
+
+      await expectDocumentOrder(page, [
+        page.getByRole("heading", { level: 1 }),
+        page.getByRole("navigation", { name: "Wybór miesiąca" }),
+        settlementCard(page).getByText("Do zapłaty", { exact: true }),
+        riderCalendar(page),
+        riderBreakdown(page),
+        page.getByText(/^Pokaż wszystkie jazdy \(\d+\)$/),
+        riderCostsRegion(page),
+        page.getByRole("region", { name: "Stawka jeźdźca" }),
+      ]);
+      await expectNoHorizontalScroll(page);
+    } finally {
+      clearStableRatesAndCosts();
+    }
   });
 });
 

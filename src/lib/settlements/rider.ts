@@ -83,7 +83,11 @@ function settlementRides(input: RiderSettlementInput, now: Date): SummaryBooking
 
 /** Rozliczenie jeźdźca za miesiąc. `now` jak w statystykach — w bieżącym miesiącu jazdy do teraz. */
 export function composeRiderSettlement(input: RiderSettlementInput, now: Date = new Date()): RiderSettlement {
-  const rides = settlementRides(input, now);
+  return settlementOf(input, settlementRides(input, now));
+}
+
+/** Rozliczenie z gotowych jazd rozliczenia (`settlementRides`) — strona liczy z nich też kalendarz i zestawienie. */
+function settlementOf(input: RiderSettlementInput, rides: SummaryBooking[]): RiderSettlement {
   const amounts = riderAmounts({
     riderKey: input.rider.key,
     month: input.month.month,
@@ -161,22 +165,32 @@ export interface RiderBreakdown {
   horses: BreakdownItem[];
 }
 
-/** Liczba jazd na klucz (`key`), z nazwą do pokazania; malejąco, przy remisie alfabetycznie po polsku. */
-function countRides(
+/** Liczba jazd na klucz (`keyOf`), w kolejności pierwszej jazdy z danym kluczem, razem z tą jazdą. */
+function tallyRides(
   rides: SummaryBooking[],
-  pick: (ride: SummaryBooking) => { key: string; name: string },
-): BreakdownItem[] {
-  const counts = new Map<string, { name: string; rides: number }>();
+  keyOf: (ride: SummaryBooking) => string,
+): Map<string, { first: SummaryBooking; rides: number }> {
+  const tally = new Map<string, { first: SummaryBooking; rides: number }>();
   for (const ride of rides) {
-    const { key, name } = pick(ride);
-    const entry = counts.get(key);
+    const key = keyOf(ride);
+    const entry = tally.get(key);
     if (entry) {
       entry.rides += 1;
     } else {
-      counts.set(key, { name, rides: 1 });
+      tally.set(key, { first: ride, rides: 1 });
     }
   }
-  return [...counts.values()]
+  return tally;
+}
+
+/** Pozycje zestawienia na klucz (`keyOf`) z nazwą (`nameOf`); malejąco, przy remisie alfabetycznie po polsku. */
+function countRides(
+  rides: SummaryBooking[],
+  keyOf: (ride: SummaryBooking) => string,
+  nameOf: (ride: SummaryBooking) => string,
+): BreakdownItem[] {
+  return [...tallyRides(rides, keyOf).values()]
+    .map((entry) => ({ name: nameOf(entry.first), rides: entry.rides }))
     .sort((a, b) => b.rides - a.rides || a.name.localeCompare(b.name, "pl"))
     .map((entry) => ({ ...entry, ridesText: formatCount(entry.rides, RIDE_FORMS) }));
 }
@@ -184,12 +198,17 @@ function countRides(
 function composeBreakdown(rides: SummaryBooking[]): RiderBreakdown {
   return {
     // Instruktor po identyfikatorze — dwóch instruktorów o tym samym nazwisku to dwie pozycje.
-    instructors: countRides(rides, (ride) => ({ key: String(ride.instructor.id), name: ride.instructor.name })),
-    horses: countRides(rides, (ride) => {
-      const name = ride.horseName ?? NO_HORSE;
+    instructors: countRides(
+      rides,
+      (ride) => String(ride.instructor.id),
+      (ride) => ride.instructor.name,
+    ),
+    horses: countRides(
+      rides,
       // Klucz konia odróżnia jazdę bez konia od konia, który nazywałby się tak samo.
-      return { key: ride.horseName === null ? "" : `koń:${name}`, name };
-    }),
+      (ride) => (ride.horseName === null ? "" : `koń:${ride.horseName}`),
+      (ride) => ride.horseName ?? NO_HORSE,
+    ),
   };
 }
 
@@ -199,13 +218,14 @@ export interface CalendarDay {
   date: string;
   /** Numer dnia miesiąca. */
   day: number;
-  /** Jazdy jeźdźca w tym dniu — te same, co w „Jazdy: N” (`rideRows`). */
+  /** Jazdy jeźdźca w tym dniu — te same, co w „Jazdy: N”. */
   rides: number;
   /** Zapisy dnia — ten sam adres co data w liście jazd; tylko w dniu z jazdami, inaczej `null`. */
   href: string | null;
   /**
-   * Wyróżnienie względem najintensywniejszego dnia miesiąca: 1–3 w tercjach jego liczby jazd (pełna
-   * tercja — 3), 0 — dzień bez jazd. Liczba jest zawsze widoczna, więc kolor nie jest jedyną informacją.
+   * Wyróżnienie na tle dni z jazdami: najmniej jazd — 1, najwięcej — 3, pomiędzy w tercjach tej
+   * rozpiętości; ta sama liczba jazd we wszystkich dniach — 3; 0 — dzień bez jazd. Liczba jest zawsze
+   * widoczna, więc kolor nie jest jedyną informacją.
    */
   level: CalendarLevel;
   /** Opis dla czytnika ekranu, np. `3 listopada: 4 jazdy`. */
@@ -227,39 +247,40 @@ function leadingBlanks(firstDay: string): number {
   return (new Date(`${firstDay}T00:00:00Z`).getUTCDay() + 6) % 7;
 }
 
-/** Poziom wyróżnienia dnia: tercja liczby jazd najintensywniejszego dnia (`busiest`), w której wypada dzień. */
-function calendarLevel(rides: number, busiest: number): CalendarLevel {
+/**
+ * Poziom wyróżnienia dnia z `rides` jazdami, gdy dni z jazdami mają od `fewest` do `most` jazd: tercja
+ * tej rozpiętości, w której wypada dzień (najmniej — 1, najwięcej — 3); bez rozpiętości — 3.
+ */
+function calendarLevel(rides: number, fewest: number, most: number): CalendarLevel {
   if (rides === 0) return 0;
-  const thirds = (3 * rides) / busiest;
-  if (thirds <= 1) return 1;
-  return thirds <= 2 ? 2 : 3;
+  if (most === fewest) return 3;
+  const third = Math.floor((3 * (rides - fewest)) / (most - fewest));
+  if (third === 0) return 1;
+  return third === 1 ? 2 : 3;
 }
 
-/** Kalendarz z wierszy jazd rozliczenia — liczby w dniach sumują się do „Jazdy: N”. */
-function composeCalendar(month: SummaryMonth, rideRows: SummaryRideRow[]): RiderCalendar {
+/** Kalendarz z jazd rozliczenia — liczby w dniach sumują się do „Jazdy: N”, adres dnia jak w liście jazd. */
+function composeCalendar(
+  month: SummaryMonth,
+  rides: SummaryBooking[],
+  dayHref: RiderSettlementInput["dayHref"],
+): RiderCalendar {
   const texts = SETTLEMENT_TEXTS.rider.calendar;
-  const perDay = new Map<string, { rides: number; href: string | null }>();
-  for (const row of rideRows) {
-    const entry = perDay.get(row.day);
-    if (entry) {
-      entry.rides += 1;
-    } else {
-      perDay.set(row.day, { rides: 1, href: row.dayHref });
-    }
-  }
-
-  const busiest = Math.max(0, ...[...perDay.values()].map((entry) => entry.rides));
+  const perDay = tallyRides(rides, (ride) => ride.day);
+  const counts = [...perDay.values()].map((entry) => entry.rides);
+  const fewest = Math.min(...counts);
+  const most = Math.max(...counts);
 
   const cells: (CalendarDay | null)[] = Array.from({ length: leadingBlanks(month.from) }, () => null);
   for (let date = month.from, day = 1; date <= month.to; date = addDays(date, 1), day += 1) {
-    const { rides, href } = perDay.get(date) ?? { rides: 0, href: null };
+    const dayRides = perDay.get(date)?.rides ?? 0;
     cells.push({
       date,
       day,
-      rides,
-      href,
-      level: calendarLevel(rides, busiest),
-      label: texts.dayLabel(formatLongDayMonth(date), formatCount(rides, RIDE_FORMS)),
+      rides: dayRides,
+      href: dayRides > 0 && dayHref ? dayHref(date) : null,
+      level: calendarLevel(dayRides, fewest, most),
+      label: texts.dayLabel(formatLongDayMonth(date), formatCount(dayRides, RIDE_FORMS)),
     });
   }
   return { weekdays: texts.weekdays, cells };
@@ -269,16 +290,18 @@ export function composeRiderSettlementPage(
   input: RiderSettlementPageInput,
   now: Date = new Date(),
 ): RiderSettlementView {
-  const settlement = composeRiderSettlement(input, now);
-  const hasRides = settlement.rides > 0;
+  // Jedne jazdy karty, kalendarza i zestawienia — wybrane raz.
+  const rides = settlementRides(input, now);
+  const settlement = settlementOf(input, rides);
+  const hasRides = rides.length > 0;
   return {
     nav: composeMonthNav(input.month, input.monthHref),
     settlement,
     pdfHref: isSettlementPdfAvailable(settlement, now) ? input.pdfHref : null,
     costsLine: settlement.costs.length === 0 ? null : `${SETTLEMENT_TEXTS.rider.costs} ${settlement.costsAmountText}`,
     ridesToggle: settlement.rides === 0 ? null : SETTLEMENT_TEXTS.rider.showAllRides(settlement.rides),
-    calendar: hasRides ? composeCalendar(input.month, settlement.rideRows) : null,
-    breakdown: hasRides ? composeBreakdown(settlementRides(input, now)) : null,
+    calendar: hasRides ? composeCalendar(input.month, rides, input.dayHref) : null,
+    breakdown: hasRides ? composeBreakdown(rides) : null,
   };
 }
 

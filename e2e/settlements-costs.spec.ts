@@ -4,6 +4,7 @@ import {
   DEMO_HINT,
   emptySettlementsMonth,
   grosze,
+  openSettlementsWithOtherRiders,
   otherRiders,
   otherRidersToggle,
   pricedSettlementRows,
@@ -154,14 +155,15 @@ test.describe("Koszty dodatkowe", () => {
   test("„Pozostali jeźdźcy ośrodka”: koszt dopisany jeźdźcowi bez jazd w jego rozliczeniu, na liście 0 jazd i koszt", async ({
     page,
   }) => {
-    await openSettlementsWithRides(page);
+    // Miesiąc z jeźdźcem ośrodka bez jazd — może to być miesiąc bez żadnej karty na liście.
+    await openSettlementsWithOtherRiders(page);
     const before = await pricedSettlementRows(page);
     let rider = "";
 
     await test.step("rozwinięta sekcja „Pozostali jeźdźcy ośrodka” pokazuje jeźdźców spoza listy", async () => {
       await expect(otherRiders(page).first(), "sekcja jest domyślnie zwinięta").toBeHidden();
       await otherRidersToggle(page).click();
-      await expect(otherRiders(page).first(), "demo ma jeźdźców bez jazd (konta e2e)").toBeVisible();
+      await expect(otherRiders(page).first()).toBeVisible();
       const names = (await otherRiders(page).allInnerTexts()).map((text) => text.replace("Dopisz koszt →", "").trim());
       for (const name of names) {
         expect(

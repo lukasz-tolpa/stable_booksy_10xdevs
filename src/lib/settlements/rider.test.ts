@@ -481,7 +481,7 @@ describe("composeRiderSettlementPage — kalendarz miesiąca", () => {
     expect(days.reduce((sum, cell) => sum + cell.rides, 0)).toBe(3);
   });
 
-  it("poziom wyróżnienia 1–3 w tercjach najbardziej intensywnego dnia, 0 — dzień bez jazd", () => {
+  it("poziom wyróżnienia 1–3 w tercjach rozpiętości dni z jazdami (najmniej — 1, najwięcej — 3), 0 — dzień bez jazd", () => {
     // 1–6 października: dzień N ma N jazd; najintensywniejszy dzień ma 6.
     const bookings = [1, 2, 3, 4, 5, 6].flatMap((count) =>
       Array.from({ length: count }, (_, hour) => ride(`2026-10-0${String(count)}`, { hour: 8 + hour })),
@@ -499,6 +499,22 @@ describe("composeRiderSettlementPage — kalendarz miesiąca", () => {
       [5, 3],
       [6, 3],
       [0, 0],
+    ]);
+  });
+
+  it("3, 4 i 5 jazd w dniu to trzy różne poziomy — liczy się rozpiętość, nie tercje najintensywniejszego dnia", () => {
+    const bookings = [3, 4, 5].flatMap((count) =>
+      Array.from({ length: count }, (_, hour) => ride(`2026-10-0${String(count)}`, { hour: 8 + hour })),
+    );
+    const levels = calendarOf("2026-10", bookings)
+      .cells.filter((cell) => cell !== null)
+      .filter((cell) => cell.rides > 0)
+      .map((cell) => [cell.rides, cell.level]);
+
+    expect(levels).toEqual([
+      [3, 1],
+      [4, 2],
+      [5, 3],
     ]);
   });
 

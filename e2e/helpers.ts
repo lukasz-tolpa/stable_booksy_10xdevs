@@ -343,3 +343,45 @@ export function otherRidersToggle(page: Page): Locator {
 export function otherRiders(page: Page): Locator {
   return page.getByRole("list", { name: "Pozostali jeźdźcy ośrodka" }).getByRole("listitem");
 }
+
+/**
+ * Bloki strony w podanej kolejności dokumentu. Kolejność czytania (Tab, czytnik ekranu) to kolejność
+ * w dokumencie — ma być tą samą co na ekranie (np. jedna kolumna na telefonie). Każdy blok musi być widoczny.
+ */
+export async function expectDocumentOrder(page: Page, blocks: Locator[]): Promise<void> {
+  for (const block of blocks) await expect(block).toBeVisible();
+  const handles = await Promise.all(blocks.map((block) => block.elementHandle()));
+  const inOrder = await page.evaluate(
+    (elements) =>
+      elements
+        .slice(1)
+        .every((element, i) => (elements[i].compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0),
+    handles,
+  );
+  expect(inOrder, "kolejność bloków w dokumencie").toBe(true);
+}
+
+/** Strona mieści się w szerokości okna — bez przewijania w bok. */
+export async function expectNoHorizontalScroll(page: Page): Promise<void> {
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  const width = page.viewportSize()?.width ?? 0;
+  expect(overflow, `strona jest szersza niż ekran ${String(width)} px`).toBeLessThanOrEqual(0);
+}
+
+/**
+ * Lista „Rozliczenia” w najbliższym miesiącu wstecz (od bieżącego), w którym jest sekcja „Pozostali jeźdźcy
+ * ośrodka” — jest w nim jeździec ośrodka bez jazd i kosztów. Warunek bierze się ze strony, nie z kolejności
+ * specyfikacji: historia demo sięga 24 dni wstecz, więc najpóźniej miesiąc przed nią ma takich jeźdźców także
+ * zaraz po `db reset` + `db:demo`, bez kont i zapisów z innych scenariuszy.
+ */
+export async function openSettlementsWithOtherRiders(page: Page): Promise<void> {
+  await page.goto(SETTLEMENTS_ROUTE);
+  for (let back = 0; (await otherRidersToggle(page).count()) === 0; back += 1) {
+    expect(back, "żaden z 12 ostatnich miesięcy nie ma jeźdźca ośrodka bez jazd").toBeLessThan(12);
+    const month = new URL(page.url()).searchParams.get("miesiac");
+    await page.getByRole("navigation", { name: "Wybór miesiąca" }).getByRole("link", { name: "Poprzedni" }).click();
+    await page.waitForURL(
+      (url) => /^\d{4}-\d{2}$/.test(url.searchParams.get("miesiac") ?? "") && url.searchParams.get("miesiac") !== month,
+    );
+  }
+}
