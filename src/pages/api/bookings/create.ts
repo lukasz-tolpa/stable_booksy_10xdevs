@@ -49,13 +49,14 @@ export const POST: APIRoute = async (context) => {
     day: formValue(form, "day"),
     instructorId: formValue(form, "instructorId"),
     hour: formValue(form, "hour"),
+    horseId: formValue(form, "horseId"),
   });
 
   if (!parsed.success) {
     return backToStable(context, rawStableId, rawDay, { error: firstErrorMessage(parsed.error) });
   }
 
-  const { stableId, day, instructorId, hour } = parsed.data;
+  const { stableId, day, instructorId, hour, horseId } = parsed.data;
 
   // Guardy dat PRZED mutacją: baza nie pilnuje przeszłości (RLS przepuszcza INSERT
   // w miniony dzień), więc to jedyna linia obrony. Próg `hasSlotStarted`, ten sam co przy
@@ -90,7 +91,8 @@ export const POST: APIRoute = async (context) => {
       return backToStable(context, stableId, day, { error: "Ośrodek nie ułożył grafiku na ten dzień." });
     }
 
-    await createBooking(supabase, { scheduleDayId: scheduleDay.id, instructorId, hour, riderId: user.id });
+    // Koń z formularza tylko przy slocie treningowym (#115); czy jest koniem jeźdźca, rozstrzyga baza (SB051).
+    await createBooking(supabase, { scheduleDayId: scheduleDay.id, instructorId, hour, riderId: user.id, horseId });
   } catch (error) {
     // Guardraile żyją w bazie; tutaj wyłącznie tłumaczymy ich kody na komunikat.
     return backToStable(context, stableId, day, {

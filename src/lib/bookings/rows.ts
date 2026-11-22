@@ -1,7 +1,9 @@
 import type { DayBooking } from "@/lib/bookings/queries";
 import { hasSlotStarted, unknownInstructorName } from "@/lib/bookings/slots";
 import { cancelledByLabel } from "@/lib/bookings/status";
+import { stayCoversDay } from "@/lib/boarding/month";
 import { placeNamer, type PlaceName } from "@/lib/places/names";
+import { SLOT_KIND, type SlotKind } from "@/lib/schedule/kind";
 import type { SlotSeats } from "@/lib/schedule/queries";
 import { seatKey } from "@/lib/schedule/sheet";
 
@@ -10,8 +12,9 @@ import { seatKey } from "@/lib/schedule/sheet";
  * przydział konia, odwołanie) i pod nimi odwołane, z oznaczeniem, kto odwołał.
  *
  * Koń przy zapisie jest opcjonalny (ADR-0002) — przydziela go ośrodek. Nazwy koni dokłada się
- * z listy stada, bo `bookings` wskazuje konia przez przydział do dnia, nie wprost. `now` jest
- * wstrzykiwane parametrem, żeby testy nie zależały od zegara.
+ * z listy stada (także koni pensjonatowych). Przy slocie treningowym (#115) koniem jest koń pensjonatowy
+ * zapisanego pensjonariusza z pobytem w dniu jazdy — tylko takie konie są do wyboru (regułę pilnuje baza,
+ * `bookings_slot_rules`). `now` jest wstrzykiwane parametrem, żeby testy nie zależały od zegara.
  */
 
 /**
@@ -51,13 +54,16 @@ export interface ActiveBookingRow {
   riderName: string;
   /** Plac slotu zapisu (#113); `null` — slotu nie ma w grafiku dnia (nie powinno się zdarzyć przy aktywnym). */
   placeName: string | null;
+  /** Rodzaj slotu zapisu (#115); slotu spoza grafiku dnia — rekreacyjny, jak w bazie. */
+  kind: SlotKind;
   /** Przydzielony koń; `null` — zapis bez konia (wiersz jest wyróżniony `NO_HORSE`). */
   horseId: number | null;
   /** Nazwa przydzielonego konia albo `NO_HORSE`. */
   horseName: string;
   /**
-   * Konie do wyboru: pracujące tego dnia, bez koni przydzielonych do innego aktywnego zapisu
-   * o tej samej godzinie (baza i tak odmówi — indeks `bookings_horse_hour_key`).
+   * Konie do wyboru: przy slocie rekreacyjnym pracujące tego dnia, przy treningowym konie pensjonatowe
+   * jeźdźca z pobytem w dniu jazdy — bez koni przydzielonych do innego aktywnego zapisu o tej samej godzinie
+   * (baza i tak odmówi — indeks `bookings_horse_hour_key`).
    */
   horseOptions: HorseOption[];
   /** Godzina się nie zaczęła (Europe/Warsaw) — ten sam próg co przy odwołaniu przez jeźdźca. */
@@ -80,6 +86,15 @@ export interface DayBookingSections {
   cancelled: CancelledBookingRow[];
 }
 
+/** Pobyt konia pensjonatowego ośrodka z właścicielem — wiersz `get_stable_boarding_horses` (#114). */
+export interface BoardingHorseStay {
+  horseId: number;
+  /** Pensjonariusz; `null` — konto usunięte (koń bez właściciela). */
+  riderId: string | null;
+  arrivalDay: string;
+  departureDay: string | null;
+}
+
 export interface DayBookingSectionsInput {
   bookings: DayBooking[];
   /** Całe stado stadniny — źródło nazw, także koni nieaktywnych. */
@@ -90,6 +105,8 @@ export interface DayBookingSectionsInput {
   slots: SlotSeats[];
   /** Place ośrodka, także nieaktywne — źródło nazw. */
   places: PlaceName[];
+  /** Pobyty koni pensjonatowych ośrodka — konie do wyboru przy slotach treningowych (#115). */
+  boardingStays: BoardingHorseStay[];
   /** Dzień listy, ISO. */
   day: string;
   /** Chwila, względem której liczymy próg „slot już się zaczął" (`hasSlotStarted`). */
@@ -118,8 +135,20 @@ export function composeDayBookingSections(input: DayBookingSectionsInput): DayBo
   const { bookings, horses, dayHorseIds, day, now = new Date() } = input;
   const placeName = placeNamer(input.places);
   const slotPlaces = new Map(input.slots.map((slot) => [seatKey(slot.instructorId, slot.hour), slot.placeId]));
+  const slotKinds = new Map(input.slots.map((slot) => [seatKey(slot.instructorId, slot.hour), slot.kind]));
   const horseNames = new Map(horses.map((horse) => [horse.id, horse.name]));
-  const dayHorses = dayHorseIds.map((id) => ({ id, name: horseNames.get(id) ?? unknownHorseName(id) })).sort(byName);
+  const named = (id: number): HorseOption => ({ id, name: horseNames.get(id) ?? unknownHorseName(id) });
+  const dayHorses = dayHorseIds.map(named).sort(byName);
+  // Konie pensjonatowe każdego pensjonariusza, których pobyt obejmuje dzień listy.
+  const boarderHorses = new Map<string, HorseOption[]>();
+  for (const stay of input.boardingStays) {
+    if (stay.riderId === null || !stayCoversDay(stay, day)) continue;
+    const horsesOfRider = boarderHorses.get(stay.riderId) ?? [];
+    if (!horsesOfRider.some((horse) => horse.id === stay.horseId)) {
+      horsesOfRider.push(named(stay.horseId));
+    }
+    boarderHorses.set(stay.riderId, horsesOfRider);
+  }
   const activeBookings = bookings.filter((booking) => booking.status === "active");
 
   const active = activeBookings
@@ -129,16 +158,22 @@ export function composeDayBookingSections(input: DayBookingSectionsInput): DayBo
           .filter((other) => other.id !== booking.id && other.hour === booking.hour && other.horseId !== null)
           .map((other) => other.horseId),
       );
+      const kind = slotKinds.get(seatKey(booking.instructorId, booking.hour)) ?? SLOT_KIND.recreation;
+      const candidates =
+        kind === SLOT_KIND.training
+          ? [...(booking.riderId === null ? [] : (boarderHorses.get(booking.riderId) ?? []))].sort(byName)
+          : dayHorses;
       return {
         id: booking.id,
         hour: booking.hour,
         instructorName: booking.instructorName ?? unknownInstructorName(booking.instructorId),
         riderName: riderLabel(booking),
         placeName: placeOf(slotPlaces.get(seatKey(booking.instructorId, booking.hour)), placeName),
+        kind,
         horseId: booking.horseId,
         horseName:
           booking.horseId === null ? NO_HORSE : (horseNames.get(booking.horseId) ?? unknownHorseName(booking.horseId)),
-        horseOptions: dayHorses.filter((horse) => !takenByOthers.has(horse.id)),
+        horseOptions: candidates.filter((horse) => !takenByOthers.has(horse.id)),
         cancellable: !hasSlotStarted(day, booking.hour, now),
       };
     })

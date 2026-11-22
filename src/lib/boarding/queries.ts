@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/db/database.types";
 import type { MyBoardingHorseRow, StableBoardingRow } from "@/lib/boarding/view";
+import type { StandingHorse } from "@/lib/bookings/slots";
 
 type Client = SupabaseClient<Database>;
 
@@ -75,4 +76,28 @@ export async function hasBoardingHorses(client: Client, riderId: string): Promis
     throw error;
   }
   return (count ?? 0) > 0;
+}
+
+/**
+ * Konie pensjonatowe jeźdźca w jednym ośrodku z pobytami — ktoś, kim jeździec jest w dniu ośrodka (#115,
+ * `riderStandingOn`). Filtr po koncie i ośrodku jawnie obok RLS. Rzuca przy błędzie odczytu.
+ */
+export async function listMyBoardingHorsesAt(
+  client: Client,
+  riderId: string,
+  stableId: number,
+): Promise<StandingHorse[]> {
+  const { data, error } = await client
+    .from("horse_owners")
+    .select("horse_id, horses(name), horse_stays(arrival_day, departure_day)")
+    .eq("rider_id", riderId)
+    .eq("stable_id", stableId);
+  if (error) {
+    throw error;
+  }
+  return data.map((row) => ({
+    id: row.horse_id,
+    name: row.horses.name,
+    stays: row.horse_stays.map((stay) => ({ arrivalDay: stay.arrival_day, departureDay: stay.departure_day })),
+  }));
 }

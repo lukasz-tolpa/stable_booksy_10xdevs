@@ -1,11 +1,26 @@
 import { describe, expect, it } from "vitest";
 import type { DayBooking } from "@/lib/bookings/queries";
-import { composeDayBookingSections } from "@/lib/bookings/rows";
+import { composeDayBookingSections, type BoardingHorseStay } from "@/lib/bookings/rows";
+import type { SlotSeats } from "@/lib/schedule/queries";
 
 const HORSES = [
   { id: 1, name: "Bella" },
   { id: 2, name: "Kasztan" },
   { id: 3, name: "Iskra" },
+  { id: 31, name: "Hrabia" },
+  { id: 32, name: "Hrabina" },
+  { id: 33, name: "Baron" },
+  { id: 34, name: "Cudzy" },
+];
+
+const KASIA = "rider-kasia";
+
+/** Konie pensjonatowe: Hrabia i Hrabina Kasi w pobycie, Baron Kasi wyjechał przed dniem listy, Cudzy - Piotra. */
+const BOARDING: BoardingHorseStay[] = [
+  { horseId: 31, riderId: KASIA, arrivalDay: "2026-08-01", departureDay: null },
+  { horseId: 32, riderId: KASIA, arrivalDay: "2026-11-01", departureDay: null },
+  { horseId: 33, riderId: KASIA, arrivalDay: "2026-08-01", departureDay: "2026-11-13" },
+  { horseId: 34, riderId: "rider-piotr", arrivalDay: "2026-08-01", departureDay: null },
 ];
 
 const PLACES = [
@@ -14,9 +29,10 @@ const PLACES = [
 ];
 
 /** Sloty dnia: Joanna o 10 na Hali, o 11 na Dużym placu. */
-const SLOTS = [
-  { instructorId: 1, hour: 10, seats: 2, placeId: 21 },
-  { instructorId: 1, hour: 11, seats: 2, placeId: 22 },
+const SLOTS: SlotSeats[] = [
+  { instructorId: 1, hour: 10, seats: 2, placeId: 21, kind: "recreation" },
+  { instructorId: 1, hour: 11, seats: 2, placeId: 22, kind: "recreation" },
+  { instructorId: 2, hour: 10, seats: 3, placeId: 22, kind: "training" },
 ];
 
 /** Dzień listy jutro względem „teraz" — żaden zapis nie zaczął się, chyba że test mówi inaczej. */
@@ -31,6 +47,7 @@ function booking(overrides: Partial<DayBooking>): DayBooking {
     instructorId: 1,
     instructorName: "Joanna Wrona",
     horseId: null,
+    riderId: "rider-anna",
     riderName: "Anna Kowalska",
     anonymised: false,
     status: "active",
@@ -46,6 +63,7 @@ function sections(bookings: DayBooking[], options: { dayHorseIds?: number[]; day
     dayHorseIds: options.dayHorseIds ?? [1, 2],
     slots: SLOTS,
     places: PLACES,
+    boardingStays: BOARDING,
     day: options.day ?? DAY,
     now: NOW,
   });
@@ -106,6 +124,31 @@ describe("composeDayBookingSections — zapisy aktywne", () => {
     expect(optionsOf(2)).toEqual(["Kasztan"]);
     // Inna godzina — Bella wolna.
     expect(optionsOf(3)).toEqual(["Bella", "Kasztan"]);
+  });
+
+  // Oracle: AC #115 — zapisy dnia pokazują rodzaj slotu i konia pensjonariusza; przydział przy slocie
+  // treningowym tylko w granicach koni tego samego pensjonariusza z pobytem w dniu jazdy.
+  it("zapis na slot treningowy ma rodzaj slotu, konia pensjonariusza i do wyboru tylko jego konie z pobytem", () => {
+    const rows = sections([
+      booking({ id: 1, instructorId: 2, instructorName: "Karol Jasny", riderId: KASIA, horseId: 31 }),
+      booking({ id: 2 }),
+    ]).active;
+
+    const training = rows.find((r) => r.id === 1);
+    expect(training).toMatchObject({ kind: "training", horseName: "Hrabia" });
+    expect(training?.horseOptions).toEqual([
+      { id: 31, name: "Hrabia" },
+      { id: 32, name: "Hrabina" },
+    ]);
+    expect(rows.find((r) => r.id === 2)).toMatchObject({ kind: "recreation" });
+  });
+
+  it("zapis na slot treningowy bez jeźdźca (konto usunięte) nie ma koni do wyboru", () => {
+    const [row] = sections([
+      booking({ instructorId: 2, instructorName: "Karol Jasny", riderId: null, anonymised: true, horseId: 31 }),
+    ]).active;
+
+    expect(row.horseOptions).toEqual([]);
   });
 
   it("zapis daje się odwołać przed terminem, a nie od chwili, gdy jego godzina się zaczęła (Europe/Warsaw)", () => {

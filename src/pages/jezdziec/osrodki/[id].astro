@@ -6,10 +6,20 @@ import Card from "@/components/ui/Card.astro";
 import DayNav from "@/components/ui/DayNav.astro";
 import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
+import Tag from "@/components/ui/Tag.astro";
 import Layout from "@/layouts/Layout.astro";
 import { ROLE_HOME } from "@/lib/auth/roles";
+import { listMyBoardingHorsesAt } from "@/lib/boarding/queries";
 import { getMyBookings, getSlotOccupancy } from "@/lib/bookings/queries";
-import { computeSlotHours, currentWarsawHour, slotStatusLabel, type SlotHour } from "@/lib/bookings/slots";
+import {
+  computeSlotHours,
+  currentWarsawHour,
+  riderSeesDay,
+  riderStandingOn,
+  slotStatusLabel,
+  type SlotHour,
+} from "@/lib/bookings/slots";
+import { SLOT_KIND, TRAINING_SLOT_TAG } from "@/lib/schedule/kind";
 import { formatClockHour, formatFreeSeats, formatLongDateWithYear } from "@/lib/format";
 import { listStableInstructors } from "@/lib/instructors/queries";
 import { listStablePlaces } from "@/lib/places/queries";
@@ -45,29 +55,36 @@ if (id !== null && supabase && user) {
     stable = await getStableById(supabase, id);
 
     if (stable) {
-      scheduleDay = await getScheduleDay(supabase, id, day);
-    }
-
-    if (stable && scheduleDay) {
-      const [instructors, places, occupancy, myBookings] = await Promise.all([
-        listStableInstructors(supabase, id),
-        listStablePlaces(supabase, id),
-        getSlotOccupancy(supabase, id, day),
-        getMyBookings(supabase, scheduleDay.id, user.id),
+      const [day_, myHorses] = await Promise.all([
+        getScheduleDay(supabase, id, day),
+        listMyBoardingHorsesAt(supabase, user.id, id),
       ]);
+      // Jeździec rekreacyjny nie widzi dnia z samymi slotami treningowymi (#115) — dla niego to dzień nieułożony.
+      const standing = riderStandingOn(myHorses, day);
+      scheduleDay = day_ && riderSeesDay(day_.seats, standing) ? day_ : null;
 
-      // Sloty = instruktor × godzina z limitem miejsc (ADR-0002); reguła odczytu żyje
-      // w `computeSlotHours` (czysta, testowana jednostkowo).
-      hours = computeSlotHours({
-        openHour: scheduleDay.openHour,
-        closeHour: scheduleDay.closeHour,
-        instructors,
-        places,
-        seats: scheduleDay.seats,
-        occupancy,
-        myBookings,
-        currentHour: day === today ? currentWarsawHour() : null,
-      });
+      if (scheduleDay) {
+        const [instructors, places, occupancy, myBookings] = await Promise.all([
+          listStableInstructors(supabase, id),
+          listStablePlaces(supabase, id),
+          getSlotOccupancy(supabase, id, day),
+          getMyBookings(supabase, scheduleDay.id, user.id),
+        ]);
+
+        // Sloty = instruktor × godzina z limitem miejsc (ADR-0002); reguła odczytu — także rodzaju slotu wobec
+        // jeźdźca (#115) — żyje w `computeSlotHours` (czysta, testowana jednostkowo).
+        hours = computeSlotHours({
+          openHour: scheduleDay.openHour,
+          closeHour: scheduleDay.closeHour,
+          instructors,
+          places,
+          seats: scheduleDay.seats,
+          occupancy,
+          myBookings,
+          currentHour: day === today ? currentWarsawHour() : null,
+          standing,
+        });
+      }
     }
   } catch (error) {
     loadFailed = true;
@@ -178,12 +195,30 @@ const dayLabel = formatLongDateWithYear(day);
                               {slot.placeName}
                             </span>
                             <span class="slot__seats">{formatFreeSeats(slot.freeSeats, slot.seats)}</span>
+                            {slot.kind === SLOT_KIND.training && <Tag variant="primary">{TRAINING_SLOT_TAG}</Tag>}
                             {label === null ? (
                               <form method="post" action="/api/bookings/create">
                                 <input type="hidden" name="stableId" value={id} />
                                 <input type="hidden" name="day" value={day} />
                                 <input type="hidden" name="instructorId" value={slot.instructorId} />
                                 <input type="hidden" name="hour" value={entry.hour} />
+                                {/* Slot treningowy: jedyny koń pensjonariusza jedzie od razu, przy kilku — wybór. */}
+                                {slot.horses.length === 1 && (
+                                  <span class="slot__horse">na koniu {slot.horses[0].name}</span>
+                                )}
+                                {slot.horses.length > 1 && (
+                                  <label class="slot__horse">
+                                    Koń
+                                    <select
+                                      name="horseId"
+                                      aria-label={`Koń — ${slot.instructorName}, ${formatClockHour(entry.hour)}`}
+                                    >
+                                      {slot.horses.map((horse) => (
+                                        <option value={horse.id}>{horse.name}</option>
+                                      ))}
+                                    </select>
+                                  </label>
+                                )}
                                 <button type="submit" class="slot__book">
                                   Zapisz się
                                 </button>
@@ -389,6 +424,32 @@ const dayLabel = formatLongDateWithYear(day);
   }
   .slot form {
     margin-left: auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px 12px;
+  }
+  .slot__horse {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13.5px;
+    color: var(--muted);
+  }
+  .slot__horse select {
+    min-height: 44px;
+    padding: 8px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border-2);
+    border-radius: var(--r);
+    font-family: var(--font-body);
+    font-size: 14.5px;
+    color: var(--fg);
+  }
+  .slot__horse select:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
   }
   .slot__book,
   .slot__tag {

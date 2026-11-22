@@ -26,8 +26,8 @@ const HORSE_COUNT = 3;
  * i „Twój zapis” mogą stać obok siebie tylko w różnych godzinach.
  */
 const SEATS: SlotSeats[] = [
-  { instructorId: 1, hour: 10, seats: 3, placeId: 1 },
-  { instructorId: 2, hour: 11, seats: 2, placeId: 1 },
+  { instructorId: 1, hour: 10, seats: 3, placeId: 1, kind: "recreation" },
+  { instructorId: 2, hour: 11, seats: 2, placeId: 1, kind: "recreation" },
 ];
 
 /** Jedno miejsce zajęte u Joanny; u Karola komplet, w tym zapis oglądającego jeźdźca. */
@@ -68,6 +68,8 @@ export function landingDemo(): LandingDemo {
     occupancy: OCCUPANCY,
     myBookings: MY_BOOKINGS,
     currentHour: null,
+    // Ilustracja pokazuje dzień jeźdźca rekreacyjnego.
+    standing: { boarder: false },
   });
 
   return {

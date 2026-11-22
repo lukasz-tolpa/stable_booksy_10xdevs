@@ -8,6 +8,7 @@ import GhostButton from "@/components/ui/GhostButton.astro";
 import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
 import Tag from "@/components/ui/Tag.astro";
+import { SLOT_KIND, TRAINING_SLOT_TAG } from "@/lib/schedule/kind";
 import { formatClockHour, formatLongDate, formatTakenSeats } from "@/lib/format";
 import { composeMySlots, type MySlotsDay } from "@/lib/my-slots/compose";
 import { getOwnInstructor } from "@/lib/instructors/queries";
@@ -112,6 +113,7 @@ if (supabase && profile) {
                       {/* Cały tekst tego elementu to sama godzina. */}
                       <span class="slot__when">{formatClockHour(slot.hour)}</span>
                       <span class="slot__place">{slot.placeName}</span>
+                      {slot.kind === SLOT_KIND.training && <Tag variant="primary">{TRAINING_SLOT_TAG}</Tag>}
                       <span class="slot__seats">{formatTakenSeats(slot.taken, slot.seats)}</span>
                     </div>
                     {slot.riders.length === 0 ? (

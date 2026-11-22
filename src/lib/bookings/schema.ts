@@ -13,6 +13,14 @@ export const bookingSchema = z.object({
   day: z.string().refine(isValidIsoDate, { error: "Nieprawidłowa data" }),
   instructorId: formInt("Nieprawidłowy instruktor").pipe(z.number().positive({ error: "Nieprawidłowy instruktor" })),
   hour: formInt("Nieprawidłowa godzina").pipe(z.number().max(23, { error: "Nieprawidłowa godzina" })),
+  // Koń pensjonatowy wybrany przy zapisie na slot treningowy (#115); pusty albo brak — baza przydzieli jedynego
+  // konia pensjonariusza. Czy koń jest jego i stoi w ośrodku w dniu jazdy, rozstrzyga baza (SB051).
+  horseId: z
+    .string()
+    .trim()
+    .refine((value) => value === "" || /^[1-9]\d*$/.test(value), { error: "Nieprawidłowy koń" })
+    .transform((value) => (value === "" ? undefined : Number(value)))
+    .optional(),
 });
 
 export type BookingInput = z.infer<typeof bookingSchema>;

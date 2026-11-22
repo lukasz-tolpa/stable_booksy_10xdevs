@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/db/database.types";
 import type { MySlotBookingInput, MySlotHorseOptionInput, MySlotInput } from "@/lib/my-slots/compose";
 import type { DateRange } from "@/lib/schedule/dates";
+import { toSlotKind } from "@/lib/schedule/kind";
 
 type Client = SupabaseClient<Database>;
 
@@ -15,7 +16,7 @@ export async function getMySlots(client: Client, instructorId: number, from: str
     .from("schedule_slots")
     // Slot wskazuje dzień przez przypisanie instruktora do dnia (złożony FK), nie wprost.
     // Plac przez FK `place_id`; RLS `places` pokazuje instruktorowi place jego ośrodka (#113).
-    .select("hour, seats, places(name), schedule_day_instructors!inner(schedule_days!inner(day))")
+    .select("hour, seats, kind, places(name), schedule_day_instructors!inner(schedule_days!inner(day))")
     .eq("instructor_id", instructorId)
     .gte("schedule_day_instructors.schedule_days.day", from);
 
@@ -28,6 +29,7 @@ export async function getMySlots(client: Client, instructorId: number, from: str
     hour: row.hour,
     seats: row.seats,
     placeName: row.places.name,
+    kind: toSlotKind(row.kind),
   }));
 }
 
@@ -104,7 +106,8 @@ export async function getMyMonthBookings(client: Client, days: DateRange): Promi
 /**
  * Konie do przydziału przy aktywnych zapisach na sloty zalogowanego instruktora od podanego dnia —
  * przez RPC `get_my_slot_horse_options`: konie pracujące tego dnia ze znacznikiem „zajęty o tej
- * godzinie”, bez danych jeźdźca ani instruktora, który ma zajętego konia (#81).
+ * godzinie”, bez danych jeźdźca ani instruktora, który ma zajętego konia (#81); przy slocie treningowym
+ * konie pensjonatowe zapisanego pensjonariusza z pobytem w dniu jazdy (#115).
  */
 export async function getMySlotHorseOptions(client: Client, from: string): Promise<MySlotHorseOptionInput[]> {
   const { data, error } = await client.rpc("get_my_slot_horse_options", { p_from: from });

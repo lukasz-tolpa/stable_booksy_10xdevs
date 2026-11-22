@@ -23,3 +23,11 @@ export function stayOverlapsMonth(stay: BoardingStay, month: string): boolean {
 export function isBoarderInMonth(stays: readonly BoardingStay[], month: string): boolean {
   return stays.some((stay) => stayOverlapsMonth(stay, month));
 }
+
+/**
+ * Czy pobyt obejmuje dzień `RRRR-MM-DD` (dzień przyjazdu i wyjazdu włącznie) — koń pensjonatowy przy slocie
+ * treningowym tego dnia (#115). Bliźniak `private.stay_covers_day` (migracja 20261202090000).
+ */
+export function stayCoversDay(stay: BoardingStay, day: string): boolean {
+  return stay.arrivalDay <= day && (stay.departureDay === null || stay.departureDay >= day);
+}

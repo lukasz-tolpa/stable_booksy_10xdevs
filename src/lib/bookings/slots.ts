@@ -1,5 +1,7 @@
+import { isBoarderInMonth, stayCoversDay, type BoardingStay } from "@/lib/boarding/month";
 import { placeNamer, type PlaceName } from "@/lib/places/names";
 import { isPastDate, SCHEDULE_TIME_ZONE, todayIso } from "@/lib/schedule/dates";
+import { SLOT_KIND, type SlotKind } from "@/lib/schedule/kind";
 import type { SlotSeats } from "@/lib/schedule/queries";
 
 /**
@@ -9,6 +11,11 @@ import type { SlotSeats } from "@/lib/schedule/queries";
  * Slot to jedna godzina jednego instruktora z limitem miejsc. Godziny pracy to przedział
  * półotwarty [openHour, closeHour). Pomijane są sloty z limitem zero i godziny, które się
  * zaczęły; godzina bez żadnego pokazanego slotu znika w całości.
+ *
+ * Rodzaj slotu wobec jeźdźca (#115, GLOSSARY „Slot treningowy”): jeździec rekreacyjny nie dostaje slotów
+ * treningowych ani dni, w których są wyłącznie takie (`riderSeesDay`); pensjonariusz (reguła „pensjonariusz
+ * w miesiącu”, `riderStandingOn`) dostaje sloty treningowe z końmi do zapisu, a rekreacyjne — jako nie dla
+ * siebie. Odmowy i tak podnosi baza (wyzwalacz `bookings_slot_rules`); tu tylko to, co jeździec widzi.
  */
 
 /** Liczba aktywnych zapisów w slocie — z `get_slot_occupancy`, bez tożsamości jeźdźców. */
@@ -27,19 +34,66 @@ export interface MySlot {
 /**
  * `free` — są wolne miejsca; `mine` — własny aktywny zapis; `full` — brak wolnych miejsc;
  * `unavailable` — jeździec ma już aktywny zapis o tej godzinie u innego instruktora (baza
- * odmówiłaby drugiego zapisu na tę godzinę).
+ * odmówiłaby drugiego zapisu na tę godzinę); `not_for_me` — slot rekreacyjny u pensjonariusza (SB049);
+ * `no_horse` — slot treningowy, a żaden koń pensjonariusza nie stoi tego dnia w ośrodku (SB053).
  */
-export type SlotStatus = "free" | "mine" | "full" | "unavailable";
+export type SlotStatus = "free" | "mine" | "full" | "unavailable" | "not_for_me" | "no_horse";
 
 const SLOT_STATUS_LABELS: Record<Exclude<SlotStatus, "free">, string> = {
   mine: "Twój zapis",
   full: "Brak miejsc",
   unavailable: "Masz już zapis o tej godzinie",
+  not_for_me: "Slot rekreacyjny — nie dla pensjonariuszy",
+  no_horse: "Twój koń nie stoi tego dnia w ośrodku",
 };
 
 /** Podpis pigułki slotu, na który nie da się zapisać; `null` — wolny slot ma przycisk zapisu. */
 export function slotStatusLabel(status: SlotStatus): string | null {
   return status === "free" ? null : SLOT_STATUS_LABELS[status];
+}
+
+/** Koń pensjonatowy jeźdźca do zapisu na slot treningowy. */
+export interface RiderHorse {
+  id: number;
+  name: string;
+}
+
+/**
+ * Kim jest jeździec w ośrodku w oglądanym dniu: rekreacyjny albo pensjonariusz (reguła „pensjonariusz
+ * w miesiącu”) z końmi, których pobyt obejmuje ten dzień.
+ */
+export type RiderStanding = { boarder: false } | { boarder: true; horses: RiderHorse[] };
+
+/** Koń pensjonatowy jeźdźca w ośrodku z pobytami — z `listMyBoardingHorses`. */
+export interface StandingHorse extends RiderHorse {
+  stays: readonly BoardingStay[];
+}
+
+/**
+ * Jeździec wobec dnia ośrodka: pensjonariusz, gdy pobyt choć jednego jego konia w tym ośrodku zachodzi
+ * na miesiąc dnia (`isBoarderInMonth`), z końmi, których pobyt obejmuje dzień (`stayCoversDay`), alfabetycznie.
+ */
+export function riderStandingOn(horses: readonly StandingHorse[], day: string): RiderStanding {
+  const stays = horses.flatMap((horse) => horse.stays);
+  if (!isBoarderInMonth(stays, day.slice(0, 7))) {
+    return { boarder: false };
+  }
+
+  return {
+    boarder: true,
+    horses: horses
+      .filter((horse) => horse.stays.some((stay) => stayCoversDay(stay, day)))
+      .map(({ id, name }) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name, "pl") || a.id - b.id),
+  };
+}
+
+/**
+ * Czy jeździec widzi ułożony dzień: pensjonariusz — zawsze, jeździec rekreacyjny — tylko gdy dzień ma choć
+ * jeden slot rekreacyjny z miejscami (dzień z samymi slotami treningowymi jest dla niego nieułożony).
+ */
+export function riderSeesDay(seats: readonly SlotSeats[], standing: RiderStanding): boolean {
+  return standing.boarder || seats.some((slot) => slot.kind === SLOT_KIND.recreation && slot.seats > 0);
 }
 
 export interface RiderSlot {
@@ -50,6 +104,10 @@ export interface RiderSlot {
   seats: number;
   freeSeats: number;
   status: SlotStatus;
+  /** Rodzaj slotu (#115). */
+  kind: SlotKind;
+  /** Konie pensjonariusza do zapisu na slot treningowy (jeden — przydzielony od razu, kilka — wybór); inaczej pusto. */
+  horses: RiderHorse[];
 }
 
 export interface SlotHour {
@@ -73,6 +131,8 @@ export interface SlotHoursInput {
    * dni przyszłych. Slot o godzinie <= currentHour uznajemy za rozpoczęty (jazda już trwa).
    */
   currentHour: number | null;
+  /** Jeździec wobec oglądanego dnia (`riderStandingOn`). */
+  standing: RiderStanding;
 }
 
 /** Nazwa zastępcza instruktora spoza listy — wiersz z identyfikatorem zamiast wywróconego widoku. */
@@ -85,9 +145,17 @@ function slotKey(instructorId: number, hour: number): string {
   return `${String(instructorId)}:${String(hour)}`;
 }
 
-function statusOf(slot: SlotSeats, freeSeats: number, mine: Set<string>, myHours: Set<number>): SlotStatus {
+function statusOf(
+  slot: SlotSeats,
+  freeSeats: number,
+  mine: Set<string>,
+  myHours: Set<number>,
+  standing: RiderStanding,
+): SlotStatus {
   if (mine.has(slotKey(slot.instructorId, slot.hour))) return "mine";
   if (myHours.has(slot.hour)) return "unavailable";
+  if (standing.boarder && slot.kind === SLOT_KIND.recreation) return "not_for_me";
+  if (standing.boarder && standing.horses.length === 0) return "no_horse";
   return freeSeats > 0 ? "free" : "full";
 }
 
@@ -99,8 +167,11 @@ export function computeSlotHours(input: SlotHoursInput): SlotHour[] {
   const myHours = new Set(input.myBookings.map((booking) => booking.hour));
   const byHour = new Map<number, RiderSlot[]>();
 
+  const { standing } = input;
+
   for (const slot of input.seats) {
     if (slot.seats <= 0) continue;
+    if (!standing.boarder && slot.kind === SLOT_KIND.training) continue;
     if (slot.hour < input.openHour || slot.hour >= input.closeHour) continue;
     if (input.currentHour !== null && slot.hour <= input.currentHour) continue;
 
@@ -112,7 +183,9 @@ export function computeSlotHours(input: SlotHoursInput): SlotHour[] {
       placeName: placeName(slot.placeId),
       seats: slot.seats,
       freeSeats,
-      status: statusOf(slot, freeSeats, mine, myHours),
+      status: statusOf(slot, freeSeats, mine, myHours, standing),
+      kind: slot.kind,
+      horses: standing.boarder && slot.kind === SLOT_KIND.training ? standing.horses : [],
     });
     byHour.set(slot.hour, slots);
   }

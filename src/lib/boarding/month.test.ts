@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isBoarderInMonth, stayOverlapsMonth, type BoardingStay } from "@/lib/boarding/month";
+import { isBoarderInMonth, stayCoversDay, stayOverlapsMonth, type BoardingStay } from "@/lib/boarding/month";
 
 function stay(arrivalDay: string, departureDay: string | null): BoardingStay {
   return { arrivalDay, departureDay };
@@ -54,5 +54,20 @@ describe("isBoarderInMonth — pensjonariusz w miesiącu", () => {
     const stays = [stay("2026-01-10", "2026-09-30"), stay("2026-02-01", "2026-10-14")];
     expect(isBoarderInMonth(stays, "2026-10")).toBe(true);
     expect(isBoarderInMonth(stays, "2026-11")).toBe(false);
+  });
+});
+
+// Bliźniak private.stay_covers_day (migracja 20261202090000, #115) — koń przy slocie treningowym.
+describe("stayCoversDay — pobyt obejmuje dzień jazdy", () => {
+  it("dzień przyjazdu i dzień wyjazdu należą do pobytu, dzień przed i po — nie", () => {
+    const ended = stay("2026-11-10", "2026-11-12");
+    expect(stayCoversDay(ended, "2026-11-09")).toBe(false);
+    expect(stayCoversDay(ended, "2026-11-10")).toBe(true);
+    expect(stayCoversDay(ended, "2026-11-12")).toBe(true);
+    expect(stayCoversDay(ended, "2026-11-13")).toBe(false);
+  });
+
+  it("pobyt bez dnia wyjazdu obejmuje każdy dzień od przyjazdu", () => {
+    expect(stayCoversDay(stay("2026-11-10", null), "2027-05-01")).toBe(true);
   });
 });

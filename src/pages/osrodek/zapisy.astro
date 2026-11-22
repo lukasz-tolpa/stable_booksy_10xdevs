@@ -9,11 +9,13 @@ import DayNav from "@/components/ui/DayNav.astro";
 import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
 import Tag from "@/components/ui/Tag.astro";
+import { listStableBoardingHorses } from "@/lib/boarding/queries";
 import { getDayBookings } from "@/lib/bookings/queries";
 import { composeDayBookingSections, NO_HORSE, type DayBookingSections } from "@/lib/bookings/rows";
 import { stableBookingSuccessMessage } from "@/lib/bookings/stable-redirect";
 import { formatClockHour, formatLongDateWithYear } from "@/lib/format";
 import { addDays, parseScheduleDate, todayIso } from "@/lib/schedule/dates";
+import { SLOT_KIND, TRAINING_SLOT_TAG } from "@/lib/schedule/kind";
 import { getScheduleDay, type ScheduleDayData } from "@/lib/schedule/queries";
 import { listStablePlaces } from "@/lib/places/queries";
 import { getOwnedStableId, listStableHorses } from "@/lib/stables/queries";
@@ -43,10 +45,11 @@ if (supabase && profile) {
     if (stableId !== null) {
       scheduleDay = await getScheduleDay(supabase, stableId, day);
       if (scheduleDay) {
-        const [bookings, horses, places] = await Promise.all([
+        const [bookings, horses, places, boarding] = await Promise.all([
           getDayBookings(supabase, scheduleDay.id),
           listStableHorses(supabase, stableId),
           listStablePlaces(supabase, stableId),
+          listStableBoardingHorses(supabase),
         ]);
         sections = composeDayBookingSections({
           bookings,
@@ -54,6 +57,13 @@ if (supabase && profile) {
           dayHorseIds: scheduleDay.horseIds,
           slots: scheduleDay.seats,
           places,
+          // Konie pensjonariuszy z pobytami — do wyboru przy slotach treningowych (#115).
+          boardingStays: boarding.map((row) => ({
+            horseId: row.horse_id,
+            riderId: row.rider_id,
+            arrivalDay: row.arrival_day,
+            departureDay: row.departure_day,
+          })),
           day,
         });
       }
@@ -139,6 +149,7 @@ const successMessage = stableBookingSuccessMessage(success);
                       <span class="row__meta">
                         <span class="row__strong">{row.instructorName}</span>
                         {row.placeName && <span class="row__sub">{row.placeName}</span>}
+                        {row.kind === SLOT_KIND.training && <Tag variant="primary">{TRAINING_SLOT_TAG}</Tag>}
                         <span class="row__sub">{row.riderName}</span>
                         {/* Zapis bez konia jest wyróżniony pigułką (US 48). */}
                         {row.horseId === null ? (

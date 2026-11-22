@@ -14,13 +14,24 @@ describe("landingDemo", () => {
             seats: 3,
             freeSeats: 2,
             status: "free",
+            kind: "recreation",
+            horses: [],
           },
         ],
       },
       {
         hour: 11,
         slots: [
-          { instructorId: 2, instructorName: "Karol Jasny", placeName: "Hala", seats: 2, freeSeats: 0, status: "mine" },
+          {
+            instructorId: 2,
+            instructorName: "Karol Jasny",
+            placeName: "Hala",
+            seats: 2,
+            freeSeats: 0,
+            status: "mine",
+            kind: "recreation",
+            horses: [],
+          },
         ],
       },
     ]);

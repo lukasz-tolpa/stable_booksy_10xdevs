@@ -53,6 +53,8 @@ export interface DayBooking {
   instructorName: string | null;
   /** Przydzielony koń; `null` — zapis jeszcze bez konia (odwołany nigdy go nie ma). */
   horseId: number | null;
+  /** Konto jeźdźca; `null` — jeździec zanonimizowany. Konie pensjonariusza przy slocie treningowym (#115). */
+  riderId: string | null;
   riderName: string | null;
   /** Zapis bez jeźdźca: konto usunięto, miniony zapis został w historii ośrodka (ADR-0001). */
   anonymised: boolean;
@@ -91,6 +93,7 @@ export async function getDayBookings(client: Client, scheduleDayId: number): Pro
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     instructorName: row.instructors?.name ?? null,
     horseId: row.horse_id,
+    riderId: row.rider_id,
     // `profiles` jest `null` dla zapisu bez jeźdźca, a także gdy RLS ukryje profil.
     riderName: row.profiles?.full_name ?? null,
     anonymised: row.rider_id === null,
@@ -120,8 +123,8 @@ export interface RiderBooking {
  * tylko z dni grafiku `from…to` włącznie (Podsumowanie miesiąca).
  *
  * Dzień i ośrodek idą przez FK `bookings → schedule_days → stables`, instruktor przez
- * `instructor_id`, koń przez złożony FK `bookings_assigned_horse_fkey` do
- * `schedule_day_horses` (zapis bez konia daje `null`). Filtr po `rider_id` jest jawny
+ * `instructor_id`, koń przez FK `bookings_horse_fkey` do katalogu koni (zapis bez konia daje `null`;
+ * jeździec czyta katalog koni, także koni pensjonatowych — #115). Filtr po `rider_id` jest jawny
  * (lekcja S-04): polityka SELECT jest szersza niż intencja tej funkcji.
  */
 export async function getRiderBookings(client: Client, riderId: string, days?: DateRange): Promise<RiderBooking[]> {
@@ -130,7 +133,7 @@ export async function getRiderBookings(client: Client, riderId: string, days?: D
   let query = client
     .from("bookings")
     .select(
-      "id, hour, status, cancelled_by, instructor_id, schedule_days!inner(day, stable_id, stables(name)), instructors(name), schedule_day_horses!bookings_assigned_horse_fkey(horses(name))",
+      "id, hour, status, cancelled_by, instructor_id, schedule_days!inner(day, stable_id, stables(name)), instructors(name), horses(name)",
     )
     .eq("rider_id", riderId);
   if (days) {
@@ -158,8 +161,7 @@ export async function getRiderBookings(client: Client, riderId: string, days?: D
     stableName: row.schedule_days?.stables?.name ?? "(ośrodek)",
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     instructorName: row.instructors?.name ?? null,
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    horseName: row.schedule_day_horses?.horses?.name ?? null,
+    horseName: row.horses?.name ?? null,
   }));
 }
 
@@ -328,13 +330,18 @@ export interface CreateBookingInput {
   hour: number;
   /** Zawsze z sesji, nigdy z formularza — wymusza to też polityka INSERT. */
   riderId: string;
+  /**
+   * Koń pensjonatowy wybrany przy zapisie na slot treningowy (#115); bez niego baza przydziela jedynego konia
+   * pensjonariusza z pobytem w dniu jazdy (przy kilku — SB052). Czy koń jest jego, sprawdza baza (SB051).
+   */
+  horseId?: number;
 }
 
 /**
  * Zapis na miejsce u instruktora — pojedynczy INSERT pod RLS. Odmowy podnosi baza
- * (wyzwalacz `bookings_seat_limit`, indeks `bookings_rider_hour_key`): SB009 brak miejsc,
- * 23505 drugi zapis na tę godzinę, 23503 slot zniknął, 23514 poza godzinami; wołający
- * tłumaczy je przez `bookingErrorMessage`.
+ * (wyzwalacze `bookings_seat_limit` i `bookings_slot_rules`, indeks `bookings_rider_hour_key`): SB009 brak
+ * miejsc, 23505 drugi zapis na tę godzinę, 23503 slot zniknął, 23514 poza godzinami, SB049–SB053 rodzaj slotu
+ * i koń pensjonariusza (#115); wołający tłumaczy je przez `bookingErrorMessage`.
  *
  * Odczyt zwrotny (`select("id").single()`): sukces endpointu ma być niemożliwy bez
  * utrwalonego wiersza — przekierowanie samo w sobie niczego nie dowodzi (test-plan, ryzyko #3).
@@ -350,6 +357,7 @@ export async function createBooking(client: Client, input: CreateBookingInput): 
       instructor_id: input.instructorId,
       hour: input.hour,
       rider_id: input.riderId,
+      ...(input.horseId === undefined ? {} : { horse_id: input.horseId }),
     })
     .select("id")
     .single();

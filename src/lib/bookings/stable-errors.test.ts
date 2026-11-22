@@ -19,6 +19,16 @@ describe("horseAssignmentErrorMessage", () => {
     );
   });
 
+  // Oracle: AC #115 — przy slocie treningowym tylko koń pensjonatowy tego samego pensjonariusza z pobytem.
+  it("koń spoza koni pensjonariusza przy slocie treningowym (SB051) — wybierz jego konia", () => {
+    expect(horseAssignmentErrorMessage("SB051")).toBe(
+      "Przy slocie treningowym jeździec jedzie na swoim koniu pensjonatowym, który stoi w ośrodku w dniu jazdy. Wybierz jednego z jego koni.",
+    );
+    expect(instructorHorseAssignmentErrorMessage("SB051")).toBe(horseAssignmentErrorMessage("SB051"));
+    expect(isHorseAssignmentRefusal("SB051")).toBe(true);
+    expect(isInstructorHorseAssignmentRefusal("SB051")).toBe(true);
+  });
+
   it("zapis odwołany w międzyczasie (23514, konia ma tylko aktywny zapis)", () => {
     expect(horseAssignmentErrorMessage("23514")).toBe(
       "Zapis został odwołany — konia przydziela się tylko do aktywnych zapisów.",
