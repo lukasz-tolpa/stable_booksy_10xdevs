@@ -184,3 +184,15 @@ from public.bookings b
 join public.schedule_days sd on sd.id = b.schedule_day_id
 join public.stables s on s.id = sd.stable_id
 where s.name = 'Stadnina Pod Dębem' and sd.day < current_date;
+
+-- #113 Place (spec #112): w historii Karol prowadzi jazdy na "Duży plac", Joanna zostaje na "Hala"
+-- (pierwszy plac osrodka, na ktory trafily sloty bez placu). Idempotentne.
+update public.schedule_slots sl
+   set place_id = p.id
+  from public.schedule_days sd, public.instructors i, public.places p
+ where sd.id = sl.schedule_day_id
+   and i.id = sl.instructor_id and i.name = 'Karol Jasny'
+   and p.stable_id = sd.stable_id and p.name = 'Duży plac'
+   and sd.stable_id = (select id from public.stables where name = 'Stadnina Pod Dębem')
+   and sd.day < current_date
+   and sl.place_id is distinct from p.id;

@@ -210,3 +210,17 @@ from (
 join public.stables s on s.name = b.stable_name
 join public.schedule_days sd on sd.stable_id = s.id
 join public.instructors i on i.stable_id = s.id and i.name = b.instructor_name;
+
+-- ---------------------------------------------------------------------------
+-- #113 Place (spec #112). Kazdy osrodek dostal przy zalozeniu plac "Plac" (wyzwalacz
+-- stables_default_place), a sloty bez placu trafily na niego. Pod Dębem ma dwa place:
+-- "Hala" (dawny "Plac", jutrzejsze sloty Joanny) i "Duży plac"; Nad Rzeką zostaje z jednym.
+-- ---------------------------------------------------------------------------
+
+update public.places p
+   set name = 'Hala'
+  from public.stables s
+ where s.id = p.stable_id and s.name = 'Stadnina Pod Dębem' and p.name = 'Plac';
+
+insert into public.places (stable_id, name)
+select s.id, 'Duży plac' from public.stables s where s.name = 'Stadnina Pod Dębem';
