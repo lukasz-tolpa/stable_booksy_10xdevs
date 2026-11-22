@@ -1,0 +1,55 @@
+---
+// Wybór „od tego / od następnego miesiąca” w formularzach stawki ośrodka i stawki jeźdźca (#94, #97):
+// radia pola `from` z miesiącem w etykiecie, policzone w module (`rateChoices`).
+//
+// KONTRAKT e2e: radia „Od tego miesiąca (…)” / „Od następnego miesiąca (…)” — brać po roli `radio`.
+import type { RateChoice } from "@/lib/settlements/settlements";
+
+interface Props {
+  legend: string;
+  choices: RateChoice[];
+}
+
+const { legend, choices } = Astro.props;
+---
+
+<fieldset>
+  <legend>{legend}</legend>
+  {
+    choices.map((choice) => (
+      <label class="choice">
+        <input type="radio" name="from" value={choice.value} checked={choice.checked} />
+        {choice.label}
+      </label>
+    ))
+  }
+</fieldset>
+
+<style>
+  fieldset {
+    display: grid;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  legend {
+    padding: 0;
+    margin-bottom: 6px;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .choice {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    font-size: 15px;
+  }
+  .choice input {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--primary);
+  }
+</style>

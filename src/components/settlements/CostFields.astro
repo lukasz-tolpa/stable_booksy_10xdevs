@@ -1,0 +1,51 @@
+---
+// Pola kosztu dodatkowego (#96): „Nazwa kosztu” i „Kwota (zł)” — wspólne dla „Dopisz koszt” (rozliczenie
+// jeźdźca i strona „Rozliczenia”) i „Popraw”. Wartości do poprawki przychodzą gotowe z modułu
+// (`ExtraCostRow.amountInput`).
+import FormField from "@/components/settlements/FormField.astro";
+import { COST_NAME_MAX } from "@/lib/settlements/schemas";
+import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
+
+interface Props {
+  /** Unikalny początek identyfikatorów pól na stronie. */
+  idPrefix: string;
+  name?: string;
+  amount?: string;
+}
+
+const { idPrefix, name = "", amount = "" } = Astro.props;
+const texts = SETTLEMENT_TEXTS.costs;
+---
+
+<div class="fields">
+  <div class="name">
+    <FormField
+      id={`${idPrefix}-name`}
+      label={texts.nameLabel}
+      name="name"
+      value={name}
+      maxlength={COST_NAME_MAX}
+      placeholder={texts.namePlaceholder}
+    />
+  </div>
+  <div class="amount">
+    <FormField id={`${idPrefix}-amount`} label={texts.amountLabel} name="amount" value={amount} inputmode="decimal" />
+  </div>
+</div>
+
+<style>
+  .fields {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 14px;
+  }
+  .name {
+    flex: 2 1 220px;
+    min-width: 0;
+  }
+  .amount {
+    flex: 1 1 140px;
+    min-width: 0;
+    max-width: 220px;
+  }
+</style>

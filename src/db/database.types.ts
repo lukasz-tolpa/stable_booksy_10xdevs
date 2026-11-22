@@ -100,6 +100,54 @@ export type Database = {
           },
         ];
       };
+      extra_costs: {
+        Row: {
+          amount: number;
+          created_at: string;
+          id: number;
+          month: string;
+          name: string;
+          rider_id: string;
+          stable_id: number;
+          updated_at: string;
+        };
+        Insert: {
+          amount: number;
+          created_at?: string;
+          id?: never;
+          month: string;
+          name: string;
+          rider_id: string;
+          stable_id: number;
+          updated_at?: string;
+        };
+        Update: {
+          amount?: number;
+          created_at?: string;
+          id?: never;
+          month?: string;
+          name?: string;
+          rider_id?: string;
+          stable_id?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "extra_costs_rider_id_fkey";
+            columns: ["rider_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "extra_costs_stable_id_fkey";
+            columns: ["stable_id"];
+            isOneToOne: false;
+            referencedRelation: "stables";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       horses: {
         Row: {
           active: boolean;
@@ -251,6 +299,45 @@ export type Database = {
           role?: string;
         };
         Relationships: [];
+      };
+      rates: {
+        Row: {
+          amount: number | null;
+          from_month: string;
+          id: number;
+          rider_id: string | null;
+          stable_id: number;
+        };
+        Insert: {
+          amount?: number | null;
+          from_month: string;
+          id?: never;
+          rider_id?: string | null;
+          stable_id: number;
+        };
+        Update: {
+          amount?: number | null;
+          from_month?: string;
+          id?: never;
+          rider_id?: string | null;
+          stable_id?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "rates_rider_id_fkey";
+            columns: ["rider_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "rates_stable_id_fkey";
+            columns: ["stable_id"];
+            isOneToOne: false;
+            referencedRelation: "stables";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       schedule_day_horses: {
         Row: {

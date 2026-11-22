@@ -2,11 +2,15 @@ import { describe, expect, it } from "vitest";
 import {
   composeLastMonth,
   composeMonthSummaryLink,
+  composeSettlementsLink,
   composeSideColumn,
   composeWeek,
   historyPeriod,
   lastMonthPeriod,
 } from "@/lib/stable-panel/panel";
+import { resolveSummaryMonth } from "@/lib/month-summary/month";
+import type { RateChange } from "@/lib/settlements/rates";
+import { composeSettlementList, type SettlementBooking } from "@/lib/settlements/settlements";
 import type { StatsBooking, StatsScheduleDay } from "@/lib/stats/stats";
 
 // Piątek 20 listopada 2026 — „dziś” we wszystkich przypadkach.
@@ -201,8 +205,11 @@ describe("composeSideColumn", () => {
   // Konto ma też instruktor nieaktywny (4) — nie liczy się, bo nie jest aktywny.
   const accounts = [{ instructor_id: 1 }, { instructor_id: 3 }, { instructor_id: 4 }];
 
-  it("prowadzi do sekcji ośrodka: Grafik na jutro, Zapisy na dziś, Konie, Instruktorzy, Podsumowanie miesiąca, Statystyki", () => {
-    const links = composeSideColumn({ today: TODAY, week, horses, instructors, accounts, monthBookings: [] }, NOW);
+  it("prowadzi do sekcji ośrodka: Grafik na jutro, Zapisy na dziś, Konie, Instruktorzy, Podsumowanie miesiąca, Rozliczenia, Statystyki", () => {
+    const links = composeSideColumn(
+      { today: TODAY, week, horses, instructors, accounts, monthBookings: [], settlementsTotal: null },
+      NOW,
+    );
 
     expect(links.map((link) => [link.name, link.href])).toEqual([
       ["Grafik", "/osrodek/grafik?dzien=2026-11-21"],
@@ -210,12 +217,16 @@ describe("composeSideColumn", () => {
       ["Konie", "/osrodek/konie"],
       ["Instruktorzy", "/osrodek/instruktorzy"],
       ["Podsumowanie miesiąca", "/osrodek/podsumowanie"],
+      ["Rozliczenia", "/osrodek/rozliczenia"],
       ["Statystyki", "/osrodek/statystyki"],
     ]);
   });
 
   it("przy każdym linku krótka informacja: jutro bez grafiku, aktywne zapisy dziś, aktywne konie, instruktorzy z kontem spośród aktywnych", () => {
-    const links = composeSideColumn({ today: TODAY, week, horses, instructors, accounts, monthBookings: [] }, NOW);
+    const links = composeSideColumn(
+      { today: TODAY, week, horses, instructors, accounts, monthBookings: [], settlementsTotal: null },
+      NOW,
+    );
 
     expect(links.map((link) => [link.fact, link.warn])).toEqual([
       ["jutro: brak grafiku", true],
@@ -223,6 +234,7 @@ describe("composeSideColumn", () => {
       ["2 aktywne", false],
       ["2 z 3 z kontem", false],
       ["listopad: 0 jazd", false],
+      [null, false],
       ["dowolny okres", false],
     ]);
   });
@@ -244,6 +256,7 @@ describe("composeSideColumn", () => {
           booking("2026-11-21"),
           booking("2026-11-05", { status: "cancelled", horseId: null, cancelledBy: "rider" }),
         ],
+        settlementsTotal: null,
       },
       NOW,
     );
@@ -254,7 +267,15 @@ describe("composeSideColumn", () => {
   it("jutro z grafikiem to „jutro: ułożony” bez ostrzeżenia", () => {
     const scheduledTomorrow = composeWeek({ today: TODAY, days: [scheduleDay("2026-11-21", [1])], bookings: [] });
     const [schedule] = composeSideColumn(
-      { today: TODAY, week: scheduledTomorrow, horses, instructors, accounts, monthBookings: [] },
+      {
+        today: TODAY,
+        week: scheduledTomorrow,
+        horses,
+        instructors,
+        accounts,
+        monthBookings: [],
+        settlementsTotal: null,
+      },
       NOW,
     );
 
@@ -270,6 +291,7 @@ describe("composeSideColumn", () => {
         instructors,
         accounts,
         monthBookings: [],
+        settlementsTotal: null,
       })[2]?.fact;
 
     expect([factFor(1), factFor(4), factFor(5), factFor(12), factFor(22)]).toEqual([
@@ -283,17 +305,26 @@ describe("composeSideColumn", () => {
 
   it("część, której nie udało się wczytać, zostawia link bez informacji", () => {
     const links = composeSideColumn(
-      { today: TODAY, week: null, horses: null, instructors, accounts: null, monthBookings: null },
+      {
+        today: TODAY,
+        week: null,
+        horses: null,
+        instructors,
+        accounts: null,
+        monthBookings: null,
+        settlementsTotal: null,
+      },
       NOW,
     );
 
-    expect(links.map((link) => link.fact)).toEqual([null, null, null, null, null, "dowolny okres"]);
+    expect(links.map((link) => link.fact)).toEqual([null, null, null, null, null, null, "dowolny okres"]);
     expect(links.map((link) => link.href)).toEqual([
       "/osrodek/grafik?dzien=2026-11-21",
       "/osrodek/zapisy?dzien=2026-11-20",
       "/osrodek/konie",
       "/osrodek/instruktorzy",
       "/osrodek/podsumowanie",
+      "/osrodek/rozliczenia",
       "/osrodek/statystyki",
     ]);
   });
@@ -330,6 +361,93 @@ describe("composeMonthSummaryLink — wejście do Podsumowania miesiąca w głó
       href: "/osrodek/podsumowanie",
       fact: null,
     });
+  });
+});
+
+describe("composeSettlementsLink — Rozliczenia w bocznej kolumnie i w głównej kolumnie (telefon)", () => {
+  const NOW = new Date("2026-11-20T13:30:00Z");
+  const NOVEMBER = resolveSummaryMonth(null, TODAY);
+  const ride = (day: string, riderKey: string, hour = 10): SettlementBooking => ({
+    day,
+    hour,
+    status: "active",
+    riderKey,
+    riderName: riderKey,
+  });
+  const novemberRides = [
+    ride("2026-11-02", "anna"),
+    ride("2026-11-09", "anna"),
+    ride("2026-11-03", "piotr"),
+    // Poprzedni miesiąc i nadchodząca jazda nie wchodzą do sumy bieżącego miesiąca.
+    ride("2026-10-30", "anna"),
+    ride("2026-11-21", "piotr"),
+  ];
+  const RATE_120: RateChange = { id: 1, riderKey: null, fromMonth: "2026-11", amount: 12000 };
+
+  // Oracle: AC #98 — informacja to suma bieżącego miesiąca z listy rozliczeń (ta sama co na stronie
+  // „Rozliczenia”), np. „listopad: 360,00 zł”; bez stawki — „Ustaw stawkę”; awaria — link bez informacji.
+  it("podaje sumę bieżącego miesiąca z listy rozliczeń, np. „listopad: 360,00 zł”", () => {
+    const settlementsTotal = composeSettlementList(
+      { month: NOVEMBER, bookings: novemberRides, rates: [RATE_120], costs: [] },
+      NOW,
+    );
+
+    expect(composeSettlementsLink({ today: TODAY, settlementsTotal })).toEqual({
+      name: "Rozliczenia",
+      href: "/osrodek/rozliczenia",
+      fact: "listopad: 360,00 zł",
+      warn: false,
+    });
+  });
+
+  it("suma pochodzi z listy rozliczeń, nie z własnego liczenia — także suma zero przy stawce bez jazd", () => {
+    expect(
+      composeSettlementsLink({ today: TODAY, settlementsTotal: { total: 1_234_000, needsRate: false } }).fact,
+    ).toBe("listopad: 12 340,00 zł");
+    expect(composeSettlementsLink({ today: TODAY, settlementsTotal: { total: 0, needsRate: false } }).fact).toBe(
+      "listopad: 0,00 zł",
+    );
+  });
+
+  it("ośrodek bez stawki: zamiast sumy prośba „Ustaw stawkę”, wyróżniona jak jutro bez grafiku", () => {
+    const settlementsTotal = composeSettlementList(
+      { month: NOVEMBER, bookings: novemberRides, rates: [], costs: [] },
+      NOW,
+    );
+
+    expect(composeSettlementsLink({ today: TODAY, settlementsTotal })).toMatchObject({
+      href: "/osrodek/rozliczenia",
+      fact: "Ustaw stawkę",
+      warn: true,
+    });
+  });
+
+  it("bez wczytanej listy rozliczeń link zostaje, bez informacji", () => {
+    expect(composeSettlementsLink({ today: TODAY, settlementsTotal: null })).toEqual({
+      name: "Rozliczenia",
+      href: "/osrodek/rozliczenia",
+      fact: null,
+      warn: false,
+    });
+  });
+
+  it("w bocznej kolumnie stoi po Podsumowaniu miesiąca, z tą samą informacją", () => {
+    const settlementsTotal = { total: 48000, needsRate: false };
+    const links = composeSideColumn(
+      {
+        today: TODAY,
+        week: null,
+        horses: null,
+        instructors: null,
+        accounts: null,
+        monthBookings: null,
+        settlementsTotal,
+      },
+      NOW,
+    );
+
+    expect(links[5]).toEqual(composeSettlementsLink({ today: TODAY, settlementsTotal }));
+    expect(links[5]?.fact).toBe("listopad: 480,00 zł");
   });
 });
 

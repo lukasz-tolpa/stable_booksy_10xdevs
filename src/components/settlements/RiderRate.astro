@@ -1,0 +1,156 @@
+---
+// Stawka jeźdźca w rozliczeniu jeźdźca (#97): stawka, po której jeździec płaci teraz, z dopiskiem
+// „stawka ośrodka” / „stawka indywidualna”, zaplanowana zmiana z „Usuń zaplanowaną zmianę”, formularz
+// stawki indywidualnej „od tego / od następnego miesiąca” i — gdy obowiązuje stawka indywidualna —
+// „Usuń stawkę indywidualną” od wybranego miesiąca (powrót do stawki ośrodka). Formularze bez JavaScriptu;
+// ukryte pola `jezdziec` i `miesiac` wracają na rozliczenie tego jeźdźca w oglądanym miesiącu.
+// Renderuje `RiderRateView` z `@/lib/settlements/rider-rate`.
+//
+// KONTRAKT e2e: `region` „Stawka jeźdźca”; formularze (`form`) „Nowa stawka indywidualna” (pole „Nowa
+// stawka indywidualna (zł)”, radia „Od tego miesiąca (…)” / „Od następnego miesiąca (…)”, przycisk
+// „Zapisz stawkę indywidualną”) i „Powrót do stawki ośrodka” (te same radia, przycisk „Usuń stawkę
+// indywidualną”); kwota obok „Obowiązuje teraz:” to osobny element; zaplanowana zmiana to jeden element
+// „od {miesiąca} {rok}: {kwota albo „stawka ośrodka”}”.
+import FormField from "@/components/settlements/FormField.astro";
+import RateFromChoices from "@/components/settlements/RateFromChoices.astro";
+import Card from "@/components/ui/Card.astro";
+import GhostButton from "@/components/ui/GhostButton.astro";
+import Tag from "@/components/ui/Tag.astro";
+import { MONTH_PARAM } from "@/lib/month-summary/month";
+import { RIDER_PARAM } from "@/lib/settlements/redirect";
+import type { RiderRateView } from "@/lib/settlements/rider-rate";
+import { RIDER_RATE_KIND } from "@/lib/settlements/schemas";
+import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
+
+interface Props {
+  rate: RiderRateView;
+  riderKey: string;
+  /** Oglądany miesiąc `RRRR-MM` — formularze wracają na niego. */
+  month: string;
+}
+
+const { rate, riderKey, month } = Astro.props;
+const texts = SETTLEMENT_TEXTS.riderRate;
+---
+
+<section class="section" aria-labelledby="rider-rate-heading">
+  <Card>
+    <h2 id="rider-rate-heading">{texts.heading}</h2>
+    {
+      rate.currentText && (
+        <div class="current">
+          <p>
+            {texts.current} <strong class="mono-nums">{rate.currentText}</strong>
+          </p>
+          {rate.sourceText && <Tag>{rate.sourceText}</Tag>}
+        </div>
+      )
+    }
+    <p class="hint">{texts.hint}</p>
+    {
+      rate.planned && (
+        <div class="planned">
+          <p>
+            {texts.planned}: <span class="mono-nums">{rate.planned.text}</span>
+          </p>
+          <form method="post" action="/api/settlements/rider-rate-delete">
+            <input type="hidden" name={MONTH_PARAM} value={month} />
+            <input type="hidden" name={RIDER_PARAM} value={riderKey} />
+            <input type="hidden" name="rateId" value={rate.planned.id} />
+            <GhostButton>{texts.deletePlanned}</GhostButton>
+          </form>
+        </div>
+      )
+    }
+
+    <form method="post" action="/api/settlements/rider-rate" class="change" aria-label={texts.set}>
+      <input type="hidden" name={MONTH_PARAM} value={month} />
+      <input type="hidden" name={RIDER_PARAM} value={riderKey} />
+      <input type="hidden" name="kind" value={RIDER_RATE_KIND.set} />
+      <div class="amount">
+        <FormField id="rider-rate-amount" label={texts.amountLabel} name="amount" inputmode="decimal" />
+      </div>
+      <RateFromChoices legend={SETTLEMENT_TEXTS.rate.fromLegend} choices={rate.choices} />
+      <div>
+        <GhostButton>{texts.submit}</GhostButton>
+      </div>
+    </form>
+
+    {
+      rate.canEnd && (
+        <form method="post" action="/api/settlements/rider-rate" class="change" aria-label={texts.end}>
+          <input type="hidden" name={MONTH_PARAM} value={month} />
+          <input type="hidden" name={RIDER_PARAM} value={riderKey} />
+          <input type="hidden" name="kind" value={RIDER_RATE_KIND.end} />
+          <RateFromChoices legend={texts.end} choices={rate.choices} />
+          <div class="actions">
+            <GhostButton>{texts.endSubmit}</GhostButton>
+            <p class="hint">{texts.endHint}</p>
+          </div>
+        </form>
+      )
+    }
+  </Card>
+</section>
+
+<style>
+  .section {
+    display: block;
+    margin-top: 18px;
+  }
+  h2 {
+    margin: 0 0 10px;
+    font-size: 20px;
+  }
+  .current {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+  }
+  .current p {
+    margin: 0;
+    font-size: 15.5px;
+  }
+  .current strong {
+    font-size: 18px;
+  }
+  .hint {
+    margin: 4px 0 0;
+    font-size: 13.5px;
+    color: var(--muted);
+    max-width: 62ch;
+  }
+  .planned {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .planned p {
+    margin: 0;
+    flex: 1 1 24ch;
+  }
+  .change {
+    display: grid;
+    gap: 14px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+  .amount {
+    max-width: 260px;
+  }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+  }
+  .actions .hint {
+    margin: 0;
+  }
+</style>

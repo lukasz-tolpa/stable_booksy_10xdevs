@@ -40,6 +40,11 @@ export function todayIso(now: Date = new Date()): string {
   return formatIsoDate(now);
 }
 
+/** Bieżący miesiąc `RRRR-MM` w strefie ośrodka. */
+export function currentMonth(now: Date = new Date()): string {
+  return todayIso(now).slice(0, 7);
+}
+
 /** Czy ciąg jest poprawną datą kalendarzową — odrzuca też 2026-02-30 i 2026-13-01. */
 export function isValidIsoDate(raw: string): boolean {
   if (!ISO_DATE.test(raw)) {

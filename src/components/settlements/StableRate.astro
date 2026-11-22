@@ -1,0 +1,131 @@
+---
+// Stawka ośrodka na górze strony „Rozliczenia” (#94): stawka obowiązująca teraz albo prośba „Ustaw
+// stawkę ośrodka”, zaplanowana zmiana z „Usuń zaplanowaną zmianę” i formularz nowej stawki „od tego /
+// od następnego miesiąca”. Formularze bez JavaScriptu; ukryte pole `miesiac` wraca na oglądany miesiąc.
+// Renderuje `StableRateView` z `@/lib/settlements/settlements`.
+//
+// KONTRAKT e2e: pole „Nowa stawka (zł)”, radia „Od tego miesiąca (…)” / „Od następnego miesiąca (…)”,
+// przyciski „Zapisz stawkę” i „Usuń zaplanowaną zmianę”; zaplanowana zmiana to jeden element z tekstem
+// „od {miesiąca} {rok}: {kwota}”.
+import FormField from "@/components/settlements/FormField.astro";
+import RateFromChoices from "@/components/settlements/RateFromChoices.astro";
+import Card from "@/components/ui/Card.astro";
+import GhostButton from "@/components/ui/GhostButton.astro";
+import { MONTH_PARAM } from "@/lib/month-summary/month";
+import type { StableRateView } from "@/lib/settlements/settlements";
+import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
+
+interface Props {
+  rate: StableRateView;
+  /** Oglądany miesiąc `RRRR-MM` — formularze wracają na niego. */
+  month: string;
+}
+
+const { rate, month } = Astro.props;
+const texts = SETTLEMENT_TEXTS.rate;
+---
+
+<section class="section" aria-labelledby="rate-heading">
+  <Card>
+    <h2 id="rate-heading">{texts.heading}</h2>
+    {
+      rate.currentText ? (
+        <p class="current">
+          {texts.current} <strong class="mono-nums">{rate.currentText}</strong>
+        </p>
+      ) : (
+        <div class="missing">
+          <p class="missing__ask">{texts.missing}</p>
+          <p class="hint">{texts.missingHint}</p>
+        </div>
+      )
+    }
+    {
+      rate.planned && (
+        <div class="planned">
+          <p>
+            {texts.planned}: <span class="mono-nums">{rate.planned.text}</span>
+          </p>
+          <form method="post" action="/api/settlements/rate-delete">
+            <input type="hidden" name={MONTH_PARAM} value={month} />
+            <input type="hidden" name="rateId" value={rate.planned.id} />
+            <GhostButton>{texts.deletePlanned}</GhostButton>
+          </form>
+        </div>
+      )
+    }
+
+    <form method="post" action="/api/settlements/rate" class="change">
+      <input type="hidden" name={MONTH_PARAM} value={month} />
+      <div class="amount">
+        <FormField id="rate-amount" label={texts.amountLabel} name="amount" inputmode="decimal" />
+      </div>
+      <RateFromChoices legend={texts.fromLegend} choices={rate.choices} />
+      <div class="actions">
+        <GhostButton>{texts.submit}</GhostButton>
+        {rate.currentText && <p class="hint">{texts.changeHint}</p>}
+      </div>
+    </form>
+  </Card>
+</section>
+
+<style>
+  .section {
+    display: block;
+    margin-top: 18px;
+  }
+  h2 {
+    margin: 0 0 10px;
+    font-size: 20px;
+  }
+  .current {
+    margin: 0;
+    font-size: 15.5px;
+  }
+  .current strong {
+    font-size: 18px;
+  }
+  .missing__ask {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 600;
+  }
+  .hint {
+    margin: 4px 0 0;
+    font-size: 13.5px;
+    color: var(--muted);
+    max-width: 62ch;
+  }
+  .planned {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .planned p {
+    margin: 0;
+    flex: 1 1 24ch;
+  }
+  .change {
+    display: grid;
+    gap: 14px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+  .amount {
+    max-width: 260px;
+  }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+  }
+  .actions .hint {
+    margin: 0;
+  }
+</style>

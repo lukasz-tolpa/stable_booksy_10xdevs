@@ -1,0 +1,170 @@
+---
+// Koszty dodatkowe w rozliczeniu jeźdźca (#96), w slocie `costs` karty `RiderSettlement`: lista kosztów
+// miesiąca z nazwą i kwotą, przy każdym „Popraw” (natywne <details> z formularzem, bez JavaScriptu)
+// i „Usuń”, pod listą formularz „Dopisz koszt”. Formularze wracają na to rozliczenie i ten miesiąc
+// (ukryte pola `miesiac` i `powrot`). Renderuje `RiderSettlement.costs` — kwoty są już policzone.
+//
+// KONTRAKT e2e: `list` „Koszty dodatkowe — {jeździec}”, jedna pozycja na koszt: nazwa, kwota (osobny
+// element z samą kwotą), „Popraw” (summary) z `form` „Popraw koszt {nazwa}” i przyciskiem „Zapisz koszt”,
+// przycisk „Usuń”; `form` „Dopisz koszt” z polami „Nazwa kosztu”, „Kwota (zł)” i przyciskiem „Dopisz koszt”.
+import CostFields from "@/components/settlements/CostFields.astro";
+import GhostButton from "@/components/ui/GhostButton.astro";
+import { MONTH_PARAM } from "@/lib/month-summary/month";
+import { RETURN_RIDER_FIELD, RIDER_PARAM } from "@/lib/settlements/redirect";
+import type { RiderSettlement } from "@/lib/settlements/rider";
+import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
+
+interface Props {
+  settlement: RiderSettlement;
+}
+
+const { settlement } = Astro.props;
+const texts = SETTLEMENT_TEXTS.costs;
+const headingId = "costs-heading";
+---
+
+<section class="costs" aria-labelledby={headingId}>
+  <h3 id={headingId}>{texts.heading}</h3>
+  {
+    settlement.costs.length === 0 ? (
+      <p class="none">{texts.none}</p>
+    ) : (
+      <ul class="list" aria-label={`${texts.listLabel} — ${settlement.name}`}>
+        {settlement.costs.map((cost) => (
+          <li class="cost">
+            <div class="cost__head">
+              <span class="cost__name">{cost.name}</span>
+              <span class="cost__amount mono-nums">{cost.amountText}</span>
+            </div>
+            <div class="cost__actions">
+              <details class="edit">
+                <summary>{texts.edit}</summary>
+                <form
+                  method="post"
+                  action="/api/settlements/cost-update"
+                  class="edit__form"
+                  aria-label={`${texts.editForm} ${cost.name}`}
+                >
+                  <input type="hidden" name={MONTH_PARAM} value={settlement.month} />
+                  <input type="hidden" name={RETURN_RIDER_FIELD} value={settlement.riderKey} />
+                  <input type="hidden" name="costId" value={cost.id} />
+                  <CostFields idPrefix={`cost-${String(cost.id)}`} name={cost.name} amount={cost.amountInput} />
+                  <div>
+                    <GhostButton>{texts.save}</GhostButton>
+                  </div>
+                </form>
+              </details>
+              <form method="post" action="/api/settlements/cost-delete">
+                <input type="hidden" name={MONTH_PARAM} value={settlement.month} />
+                <input type="hidden" name={RETURN_RIDER_FIELD} value={settlement.riderKey} />
+                <input type="hidden" name="costId" value={cost.id} />
+                <GhostButton>{texts.delete}</GhostButton>
+              </form>
+            </div>
+          </li>
+        ))}
+      </ul>
+    )
+  }
+
+  <form method="post" action="/api/settlements/cost" class="add" aria-label={texts.add}>
+    <input type="hidden" name={MONTH_PARAM} value={settlement.month} />
+    <input type="hidden" name={RETURN_RIDER_FIELD} value={settlement.riderKey} />
+    <input type="hidden" name={RIDER_PARAM} value={settlement.riderKey} />
+    <CostFields idPrefix="cost-new" />
+    <div>
+      <GhostButton>{texts.add}</GhostButton>
+    </div>
+  </form>
+</section>
+
+<style>
+  .costs {
+    display: block;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  h3 {
+    margin: 0 0 8px;
+    font-size: 16px;
+  }
+  .none {
+    margin: 0;
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .cost {
+    padding: 8px 0;
+  }
+  .cost + .cost {
+    border-top: 1px solid var(--border);
+  }
+  .cost__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 4px 12px;
+  }
+  .cost__name {
+    flex: 1 1 16ch;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .cost__amount {
+    flex: none;
+    font-weight: 600;
+  }
+  .cost__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 8px 10px;
+    margin-top: 6px;
+  }
+  .edit {
+    flex: 1 1 auto;
+  }
+  summary {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 4px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--primary);
+    cursor: pointer;
+    list-style: none;
+  }
+  summary::-webkit-details-marker {
+    display: none;
+  }
+  summary:hover {
+    color: var(--primary-strong);
+    text-decoration: underline;
+  }
+  summary:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  .edit__form,
+  .add {
+    display: grid;
+    gap: 12px;
+  }
+  .edit__form {
+    margin-top: 6px;
+  }
+  .add {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+</style>

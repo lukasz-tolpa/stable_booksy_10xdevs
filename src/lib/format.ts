@@ -100,6 +100,22 @@ const MONTH_NAMES = [
   "grudzień",
 ] as const;
 
+/** Nazwy miesięcy w dopełniaczu: „od stycznia”, „od października”. */
+const MONTH_NAMES_GENITIVE = [
+  "stycznia",
+  "lutego",
+  "marca",
+  "kwietnia",
+  "maja",
+  "czerwca",
+  "lipca",
+  "sierpnia",
+  "września",
+  "października",
+  "listopada",
+  "grudnia",
+] as const;
+
 /** Nazwy miesięcy w miejscowniku: „w styczniu”, „w październiku”. */
 const MONTH_NAMES_LOCATIVE = [
   "styczniu",
@@ -139,6 +155,12 @@ export function formatInMonthYear(month: string): string {
   const name = MONTH_NAMES_LOCATIVE[index] ?? month;
   const preposition = /^[wf][^aąeęioóuy]/.test(name) ? "we" : "w";
   return `${preposition} ${name} ${year}`;
+}
+
+/** Początek obowiązywania od miesiąca kalendarzowego (`RRRR-MM`), np. `od stycznia 2027` — zmiana stawki. */
+export function formatFromMonth(month: string): string {
+  const { year, index } = monthParts(month);
+  return `od ${MONTH_NAMES_GENITIVE[index] ?? month} ${year}`;
 }
 
 /** Godziny pracy dnia `[open, close)`, np. `10:00–16:00` — od pierwszego slotu do końca ostatniego. */
@@ -200,3 +222,32 @@ export const BOOKING_FORMS: PluralForms = { one: "zapis", few: "zapisy", many: "
 export const RIDE_FORMS: PluralForms = { one: "jazda", few: "jazdy", many: "jazd" };
 /** Odmiana „jeździec” po liczebniku: `1 jeździec`, `2 jeźdźców`, `5 jeźdźców`. */
 export const RIDER_FORMS: PluralForms = { one: "jeździec", few: "jeźdźców", many: "jeźdźców" };
+
+const NBSP = " ";
+
+/**
+ * Kwota w groszach (liczba całkowita) po polsku, np. `1 250,00 zł` — rozliczenia (#94). Zawsze dwa
+ * miejsca po przecinku; tysiące od czterech cyfr oddzielone twardą spacją (`formatNumber` grupuje
+ * dopiero od pięciu), twarda spacja także przed „zł”, żeby kwota nie łamała się w wierszu.
+ */
+export function formatMoney(grosze: number): string {
+  const sign = grosze < 0 ? "-" : "";
+  const abs = Math.abs(Math.trunc(grosze));
+  const zloty = String(Math.floor(abs / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, NBSP);
+  const fraction = String(abs % 100).padStart(2, "0");
+  return `${sign}${zloty},${fraction}${NBSP}zł`;
+}
+
+/**
+ * Kwota w groszach jako wartość pola formularza, np. `750,50` — bez „zł” i separatorów tysięcy, żeby
+ * „Popraw” koszt dodatkowy (#96) odesłał ją bez zmian (`parseAmount`).
+ */
+export function formatAmountInput(grosze: number): string {
+  const abs = Math.abs(Math.trunc(grosze));
+  return `${String(Math.floor(abs / 100))},${String(abs % 100).padStart(2, "0")}`;
+}
+
+/** Tekst z wielką literą na początku — np. zdanie zaczynające się od `formatInMonthYear`: `W październiku 2026 …`. */
+export function capitalize(text: string): string {
+  return `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
+}

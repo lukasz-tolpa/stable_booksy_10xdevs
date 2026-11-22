@@ -28,7 +28,7 @@ export interface SummaryMonth extends DateRange {
 }
 
 /** Miesiąc przesunięty o `offset` miesięcy — w UTC, jak arytmetyka dni grafiku. */
-function shiftMonth(month: string, offset: number): string {
+export function shiftMonth(month: string, offset: number): string {
   const [year, monthNumber] = month.split("-").map(Number);
   return new Date(Date.UTC(year, monthNumber - 1 + offset, 1)).toISOString().slice(0, 7);
 }

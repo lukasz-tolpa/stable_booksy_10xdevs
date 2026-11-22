@@ -15,6 +15,7 @@
 import { isRide, slotEndedAt, type RideCandidate } from "@/lib/bookings/rides";
 import { NO_HORSE, UNNAMED_RIDER } from "@/lib/bookings/rows";
 import {
+  capitalize,
   formatClockHour,
   formatCount,
   formatInMonthYear,
@@ -223,8 +224,7 @@ export function composeMonthNav(month: SummaryMonth, monthHref: (month: string) 
 
 /** Tekst stanu pustego roli, np. `W październiku 2026 nie było jazd.`, `We wrześniu 2026 nie jeździłeś.` */
 export function emptyMonthText(month: SummaryMonth, viewer: SummaryViewer): string {
-  const inMonth = formatInMonthYear(month.month);
-  return `${inMonth.charAt(0).toUpperCase()}${inMonth.slice(1)} ${MONTH_SUMMARY_TEXTS.empty[viewer]}`;
+  return `${capitalize(formatInMonthYear(month.month))} ${MONTH_SUMMARY_TEXTS.empty[viewer]}`;
 }
 
 /** Widok podsumowania jednej listy jeźdźców (właściciel, instruktor). `now` jak w statystykach. */

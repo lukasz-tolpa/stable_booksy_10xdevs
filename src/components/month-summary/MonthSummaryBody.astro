@@ -2,7 +2,8 @@
 // Treść strony Podsumowania miesiąca, wspólna dla właściciela, instruktora i jeźdźca: nagłówek, opis
 // roli, przełącznik miesięcy, potem stan — awaria odczytu (`view === null`), pusty miesiąc albo lista.
 // Lista jeźdźców (`list`, właściciel i instruktor) renderuje się tu; inna lista (jeździec: ośrodek po
-// ośrodku) idzie w domyślny slot. Slot `filter` — formularz między przełącznikiem a listą (właściciel).
+// ośrodku) idzie w domyślny slot. Slot `filter` — formularz między przełącznikiem a listą (właściciel);
+// slot `related` — link pod opisem roli (właściciel: Rozliczenia tego miesiąca).
 // Przełącznik zostaje także przy awarii — da się przejść do innego miesiąca.
 import MonthNav from "@/components/month-summary/MonthNav.astro";
 import RiderRides from "@/components/month-summary/RiderRides.astro";
@@ -27,6 +28,7 @@ const texts = MONTH_SUMMARY_TEXTS;
 
 <h1>{texts.heading}</h1>
 <p class="lead">{lead}</p>
+<slot name="related" />
 
 <MonthNav nav={nav} />
 
