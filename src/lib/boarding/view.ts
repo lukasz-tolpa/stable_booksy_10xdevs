@@ -10,8 +10,8 @@ import { addDays } from "@/lib/schedule/dates";
  * przeglądarki — regułę pilnuje `public.set_stay_departure`.
  */
 
-/** Kto ostatnio ustawił dzień wyjazdu — `horse_stays.departure_set_by`. */
-export type DepartureSetBy = "stable" | "rider";
+/** Kto ostatnio ustawił dzień wyjazdu — `horse_stays.departure_set_by` (`account_deleted` — usunięcie konta, #120). */
+export type DepartureSetBy = "stable" | "rider" | "account_deleted";
 
 /** Wiersz `public.get_stable_boarding_horses()` — jeden na pobyt; `rider_*` NULL — konto usunięte. */
 export interface StableBoardingRow {
@@ -96,6 +96,8 @@ function setByText(stay: Stay, viewer: "stable" | "rider"): string | null {
       return texts.setBy.stable;
     case "rider":
       return viewer === "rider" ? texts.setBy.me : texts.setBy.rider;
+    case "account_deleted":
+      return texts.setBy.accountDeleted;
     default:
       return null;
   }

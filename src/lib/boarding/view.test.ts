@@ -129,6 +129,26 @@ describe("composeStableBoarders — strona „Pensjonariusze” właściciela", 
     expect(view.boarders[1].horses[0].newStay).toBeNull();
   });
 
+  // Oracle: AC #120 — usunięcie konta pensjonariusza kończy pobyt w dniu usunięcia; ośrodek widzi konia
+  // bez właściciela z zakończonym pobytem i wie, skąd wziął się dzień wyjazdu.
+  it("pobyt zakończony usunięciem konta: ośrodek widzi, kto wpisał dzień wyjazdu", () => {
+    const [boarder] = composeStableBoarders(
+      [
+        row({
+          rider_id: null,
+          rider_name: null,
+          rider_email: null,
+          departure_day: TODAY,
+          departure_set_by: "account_deleted",
+        }),
+      ],
+      TODAY,
+    ).boarders;
+    expect(boarder.name).toBe("Konie bez właściciela");
+    expect(boarder.horses[0].current).toBe(false);
+    expect(boarder.horses[0].stays[0].setByText).toBe("dzień wyjazdu wpisany przy usunięciu konta pensjonariusza");
+  });
+
   it("pensjonariusz bez imienia w profilu występuje pod adresem e-mail", () => {
     const [boarder] = composeStableBoarders([row({ rider_name: null })], TODAY).boarders;
     expect(boarder.name).toBe("katarzyna.zajac@example.com");
