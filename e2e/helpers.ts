@@ -291,6 +291,49 @@ export function settlementCard(page: Page): Locator {
   return page.getByRole("region", { name: /^Rozliczenie za / });
 }
 
+/**
+ * Pełna lista jazd rozliczenia jeźdźca (#109): rozwija zwiniętą sekcję „Pokaż wszystkie jazdy (N)” i zwraca
+ * listę „Jazdy — {jeździec}” (bez nazwy — listę jazd dowolnego jeźdźca). W miesiącu bez jazd sekcji nie ma.
+ */
+export async function showAllRides(page: Page, rider?: string): Promise<Locator> {
+  const list = page.getByRole("list", { name: rider === undefined ? /^Jazdy — / : `Jazdy — ${rider}` });
+  await expect(list, "lista jazd jest domyślnie zwinięta").toBeHidden();
+  await page.getByText(/^Pokaż wszystkie jazdy \(\d+\)$/).click();
+  await expect(list).toBeVisible();
+  return list;
+}
+
+/** Koszty dodatkowe w rozliczeniu jeźdźca: region „Koszty dodatkowe” z listą kosztów i formularzami. */
+export function riderCostsRegion(page: Page): Locator {
+  return page.getByRole("region", { name: "Koszty dodatkowe" });
+}
+
+/** Kalendarz miesiąca w rozliczeniu jeźdźca (#110): region „Kalendarz”. */
+export function riderCalendar(page: Page): Locator {
+  return page.getByRole("region", { name: "Kalendarz", exact: true });
+}
+
+/** Zestawienie „Z kim i na czym” w rozliczeniu jeźdźca (#110). */
+export function riderBreakdown(page: Page): Locator {
+  return page.getByRole("region", { name: "Z kim i na czym", exact: true });
+}
+
+/**
+ * Dni kalendarza z jazdami (#110): linki o nazwie „3 listopada: 4 jazdy” — opis, liczba jazd (widoczna
+ * w polu) i adres zapisów dnia.
+ */
+export async function calendarRideDays(page: Page): Promise<{ label: string; rides: number; href: string }[]> {
+  const links = riderCalendar(page).getByRole("link");
+  const days = [];
+  for (const link of await links.all()) {
+    const label = (await link.getAttribute("aria-label")) ?? "";
+    const rides = Number(/: (\d+) jazd/.exec(label)?.[1] ?? Number.NaN);
+    await expect(link, `liczba jazd widoczna w polu „${label}”`).toContainText(String(rides));
+    days.push({ label, rides, href: (await link.getAttribute("href")) ?? "" });
+  }
+  return days;
+}
+
 /** Nagłówek zwiniętej sekcji „Pozostali jeźdźcy ośrodka” (#106) — kliknięcie ją rozwija. */
 export function otherRidersToggle(page: Page): Locator {
   return page.getByText("Pozostali jeźdźcy ośrodka", { exact: true });
@@ -299,4 +342,46 @@ export function otherRidersToggle(page: Page): Locator {
 /** Rozwinięta lista „Pozostali jeźdźcy ośrodka”: jedna pozycja na jeźdźca z linkiem „Dopisz koszt →”. */
 export function otherRiders(page: Page): Locator {
   return page.getByRole("list", { name: "Pozostali jeźdźcy ośrodka" }).getByRole("listitem");
+}
+
+/**
+ * Bloki strony w podanej kolejności dokumentu. Kolejność czytania (Tab, czytnik ekranu) to kolejność
+ * w dokumencie — ma być tą samą co na ekranie (np. jedna kolumna na telefonie). Każdy blok musi być widoczny.
+ */
+export async function expectDocumentOrder(page: Page, blocks: Locator[]): Promise<void> {
+  for (const block of blocks) await expect(block).toBeVisible();
+  const handles = await Promise.all(blocks.map((block) => block.elementHandle()));
+  const inOrder = await page.evaluate(
+    (elements) =>
+      elements
+        .slice(1)
+        .every((element, i) => (elements[i].compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0),
+    handles,
+  );
+  expect(inOrder, "kolejność bloków w dokumencie").toBe(true);
+}
+
+/** Strona mieści się w szerokości okna — bez przewijania w bok. */
+export async function expectNoHorizontalScroll(page: Page): Promise<void> {
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  const width = page.viewportSize()?.width ?? 0;
+  expect(overflow, `strona jest szersza niż ekran ${String(width)} px`).toBeLessThanOrEqual(0);
+}
+
+/**
+ * Lista „Rozliczenia” w najbliższym miesiącu wstecz (od bieżącego), w którym jest sekcja „Pozostali jeźdźcy
+ * ośrodka” — jest w nim jeździec ośrodka bez jazd i kosztów. Warunek bierze się ze strony, nie z kolejności
+ * specyfikacji: historia demo sięga 24 dni wstecz, więc najpóźniej miesiąc przed nią ma takich jeźdźców także
+ * zaraz po `db reset` + `db:demo`, bez kont i zapisów z innych scenariuszy.
+ */
+export async function openSettlementsWithOtherRiders(page: Page): Promise<void> {
+  await page.goto(SETTLEMENTS_ROUTE);
+  for (let back = 0; (await otherRidersToggle(page).count()) === 0; back += 1) {
+    expect(back, "żaden z 12 ostatnich miesięcy nie ma jeźdźca ośrodka bez jazd").toBeLessThan(12);
+    const month = new URL(page.url()).searchParams.get("miesiac");
+    await page.getByRole("navigation", { name: "Wybór miesiąca" }).getByRole("link", { name: "Poprzedni" }).click();
+    await page.waitForURL(
+      (url) => /^\d{4}-\d{2}$/.test(url.searchParams.get("miesiac") ?? "") && url.searchParams.get("miesiac") !== month,
+    );
+  }
 }

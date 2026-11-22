@@ -344,15 +344,26 @@ się nie zapisał.`); the inactive-account screen (`/instruktor/konto-nieaktywne
   rate-source tag `stawka ośrodka` / `stawka indywidualna`, rides amount, `koszty …` only when > 0 — amounts and tag only once the
   stable has a stable rate); the side column's sum is one element `Razem: …` („Razem:” visually hidden, absent without a rate). The document
   order is the reading order — month and sum, cards, „Pozostali jeźdźcy ośrodka”, rate — and below 1000 px also the visual order
-  (one column); the owner spec's phone test checks it as document order (`compareDocumentPosition`, not bounding boxes) at
-  390 px, together with the single no-horizontal-scroll check; amounts carry non-breaking spaces, match them with `\s`. The spec deletes the stable's rates as
+  (one column); the owner spec's phone test checks it as document order (`expectDocumentOrder` — `compareDocumentPosition`, not bounding boxes) at
+  390 px, together with the single no-horizontal-scroll check (`expectNoHorizontalScroll`); amounts carry non-breaking spaces, match them with `\s`. The spec deletes the stable's rates as
   superuser before and after (`session_replication_role = replica`, since `SB027` binds `postgres` too) — the database is left
   without rates. The settlements specs share their steps from `e2e/helpers.ts` (`clearStableRates`, `clearStableRatesAndCosts`,
   `setStableRate`, `runSql`, `grosze`, `settlementRiders` / `settlementRows` / `pricedSettlementRows`, `settlementCard`,
-  `emptySettlementsMonth`, `RIDER_SETTLEMENT_URL`); crafted-form checks post with `page.request.post` and an `Origin` header
+  `emptySettlementsMonth`, `RIDER_SETTLEMENT_URL`, `showAllRides`, `riderCostsRegion`, `riderCalendar`, `riderBreakdown`,
+  `calendarRideDays`, `expectDocumentOrder`, `expectNoHorizontalScroll`, `openSettlementsWithOtherRiders`). The rider settlement (#109, #110) reads top-down in
+  document order: h1, month switcher, the region „Rozliczenie za {month}” („Do zapłaty” paragraph — its amount the only amount-only
+  element of the card —, `Jazdy: N × …` line with the rate-source tag, `Koszty dodatkowe: …` only when there are costs, „Pobierz PDF”),
+  the region „Kalendarz” (#110: one `link` per day with rides, named „3 listopada: 4 jazdy”, to that day's Zapisy — `calendarRideDays`
+  returns label, count and href; the owner spec sums them to `Jazdy: N` and opens the earliest day, where the rider's active bookings
+  equal the day's count) and the region „Z kim i na czym” (`list` „Instruktorzy”, `list` „Konie”) — both absent in a month without rides —,
+  the collapsed `<summary>` „Pokaż wszystkie jazdy (N)” (`showAllRides(page, rider)` checks it is collapsed, clicks it and returns
+  the `list` „Jazdy — {rider}”; absent in a month without rides), the region „Koszty dodatkowe” (`riderCostsRegion`), the region
+  „Stawka jeźdźca”; the owner spec checks that order and no horizontal scroll at 390 px in its own test (it sets the stable rate itself and
+  clears rates and costs after); crafted-form checks post with `page.request.post` and an `Origin` header
   (Astro's origin check) and `maxRedirects: 0`, reading `error=` from the `Location`. `settlements-costs.spec.ts` (#96) adds, corrects and deletes extra costs on the rider settlement (`list`
   „Koszty dodatkowe — {rider}”, `form` „Dopisz koszt” / „Popraw koszt {name}”, „Popraw” is a `<summary>` — click it by text); a rider
-  without rides gets a cost through the list page's collapsed „Pozostali jeźdźcy ośrodka” (#106: a `<summary>` — click it by text,
+  without rides gets a cost through the list page's collapsed „Pozostali jeźdźcy ośrodka” (#106; `openSettlementsWithOtherRiders` steps back
+  from the current month to the first one that has the section, so the test passes alone right after `db reset` + `db:demo`; a `<summary>` — click it by text,
   `otherRidersToggle`; then the `list` „Pozostali jeźdźcy ośrodka”, `otherRiders`, links named `{rider} Dopisz koszt →`); „Do zapłaty” is read from its `paragraph`, because cost amounts are
   amount-only elements too; it deletes the stable's rates and extra costs as superuser before and after. `settlements-pdf.spec.ts` (spec #100) opens Anna's settlement for the month of the database's `current_date - 7` (demo rides there even early in a month), checks there is no link „Pobierz PDF” without a stable rate (nor on the list page), then clicks it with `page.waitForEvent("download")` and checks `suggestedFilename()` and the leading `%PDF-` bytes — the PDF text is not read (Vitest `document.test.ts` covers the content). Two describes: without a stable rate (beforeAll clears) and with one (beforeAll clears and sets it), one `test` per outcome. Its edges (#102): the PDF address without a stable rate lands on the rider page (no alert), the PDF address of the next month (database's `private.warsaw_month_start() + 1 month`, with a rate) lands on the rider page of that month instead of downloading (a download would fail `page.goto` with „Download is starting”), an unknown or malformed rider key lands on the rider page's „Nie ma takiego jeźdźca.”, and access is checked with `request.get(…, { maxRedirects: 0 })` (rider account → 302 outside the stable area, no session → 302 to sign-in). Multi-page output and „strona X z Y” are Vitest (`pdf/render.test.ts` counts `/Type /Page` objects and spies on `pageLabel`). The landing page (`landing.spec.ts`,
   guest, no storage state) repeats link names: "Załóż konto jeźdźca" and

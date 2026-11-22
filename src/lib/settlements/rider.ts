@@ -9,8 +9,9 @@
  * Kwoty liczy `riderAmounts` — to samo, co wiersz listy „Rozliczenia”.
  */
 
-import { formatCount, formatMoney, formatMonthYear, RIDE_FORMS } from "@/lib/format";
-import { UNNAMED_RIDER } from "@/lib/bookings/rows";
+import { formatCount, formatLongDayMonth, formatMoney, formatMonthYear, RIDE_FORMS } from "@/lib/format";
+import { NO_HORSE, UNNAMED_RIDER } from "@/lib/bookings/rows";
+import { addDays } from "@/lib/schedule/dates";
 import type { SummaryMonth } from "@/lib/month-summary/month";
 import {
   composeMonthNav,
@@ -71,13 +72,22 @@ export interface RiderSettlement extends RiderAmounts {
   needsRate: boolean;
 }
 
-/** Rozliczenie jeźdźca za miesiąc. `now` jak w statystykach — w bieżącym miesiącu jazdy do teraz. */
-export function composeRiderSettlement(input: RiderSettlementInput, now: Date = new Date()): RiderSettlement {
-  const rides = monthRides(
+/** Jazdy rozliczenia: jazdy tego jeźdźca w miesiącu (`monthRides`), chronologicznie. */
+function settlementRides(input: RiderSettlementInput, now: Date): SummaryBooking[] {
+  return monthRides(
     input.bookings.filter((booking) => booking.riderKey === input.rider.key),
     input.month,
     now,
   );
+}
+
+/** Rozliczenie jeźdźca za miesiąc. `now` jak w statystykach — w bieżącym miesiącu jazdy do teraz. */
+export function composeRiderSettlement(input: RiderSettlementInput, now: Date = new Date()): RiderSettlement {
+  return settlementOf(input, settlementRides(input, now));
+}
+
+/** Rozliczenie z gotowych jazd rozliczenia (`settlementRides`) — strona liczy z nich też kalendarz i zestawienie. */
+function settlementOf(input: RiderSettlementInput, rides: SummaryBooking[]): RiderSettlement {
   const amounts = riderAmounts({
     riderKey: input.rider.key,
     month: input.month.month,
@@ -124,17 +134,174 @@ export interface RiderSettlementView {
    * decyzja co w punkcie końcowym); inaczej `null` i przycisku nie ma.
    */
   pdfHref: string | null;
+  /**
+   * Suma kosztów dodatkowych w karcie rozliczenia (#109), np. `Koszty dodatkowe: 850,50 zł`; bez kosztów
+   * `null`. Zdanie, nie sama kwota — jedyną samą kwotą karty jest „Do zapłaty”.
+   */
+  costsLine: string | null;
+  /** Nagłówek zwiniętej listy jazd, np. `Pokaż wszystkie jazdy (77)`; w miesiącu bez jazd `null` — listy nie ma. */
+  ridesToggle: string | null;
+  /** Kalendarz miesiąca z jazdami jeźdźca (#110); w miesiącu bez jazd `null`. */
+  calendar: RiderCalendar | null;
+  /** Zestawienie „Z kim i na czym” (#110); w miesiącu bez jazd `null`. */
+  breakdown: RiderBreakdown | null;
+}
+
+/** Pozycja zestawienia: instruktor albo koń z liczbą jazd. */
+export interface BreakdownItem {
+  name: string;
+  rides: number;
+  /** Np. `3 jazdy` — dla czytnika ekranu przy samej liczbie. */
+  ridesText: string;
+}
+
+/**
+ * Zestawienie „Z kim i na czym” (#110): z kim (instruktorzy) i na czym (konie) jeździec jeździł w miesiącu.
+ * Obie listy malejąco po liczbie jazd, przy remisie alfabetycznie po polsku; suma każdej = liczba jazd.
+ */
+export interface RiderBreakdown {
+  instructors: BreakdownItem[];
+  /** Jazda bez konia to pozycja „bez konia” — ten sam tekst co w liście jazd. */
+  horses: BreakdownItem[];
+}
+
+/** Liczba jazd na klucz (`keyOf`), w kolejności pierwszej jazdy z danym kluczem, razem z tą jazdą. */
+function tallyRides(
+  rides: SummaryBooking[],
+  keyOf: (ride: SummaryBooking) => string,
+): Map<string, { first: SummaryBooking; rides: number }> {
+  const tally = new Map<string, { first: SummaryBooking; rides: number }>();
+  for (const ride of rides) {
+    const key = keyOf(ride);
+    const entry = tally.get(key);
+    if (entry) {
+      entry.rides += 1;
+    } else {
+      tally.set(key, { first: ride, rides: 1 });
+    }
+  }
+  return tally;
+}
+
+/** Pozycje zestawienia na klucz (`keyOf`) z nazwą (`nameOf`); malejąco, przy remisie alfabetycznie po polsku. */
+function countRides(
+  rides: SummaryBooking[],
+  keyOf: (ride: SummaryBooking) => string,
+  nameOf: (ride: SummaryBooking) => string,
+): BreakdownItem[] {
+  return [...tallyRides(rides, keyOf).values()]
+    .map((entry) => ({ name: nameOf(entry.first), rides: entry.rides }))
+    .sort((a, b) => b.rides - a.rides || a.name.localeCompare(b.name, "pl"))
+    .map((entry) => ({ ...entry, ridesText: formatCount(entry.rides, RIDE_FORMS) }));
+}
+
+function composeBreakdown(rides: SummaryBooking[]): RiderBreakdown {
+  return {
+    // Instruktor po identyfikatorze — dwóch instruktorów o tym samym nazwisku to dwie pozycje.
+    instructors: countRides(
+      rides,
+      (ride) => String(ride.instructor.id),
+      (ride) => ride.instructor.name,
+    ),
+    horses: countRides(
+      rides,
+      // Klucz konia odróżnia jazdę bez konia od konia, który nazywałby się tak samo.
+      (ride) => (ride.horseName === null ? "" : `koń:${ride.horseName}`),
+      (ride) => ride.horseName ?? NO_HORSE,
+    ),
+  };
+}
+
+/** Dzień kalendarza rozliczenia jeźdźca. */
+export interface CalendarDay {
+  /** `RRRR-MM-DD`. */
+  date: string;
+  /** Numer dnia miesiąca. */
+  day: number;
+  /** Jazdy jeźdźca w tym dniu — te same, co w „Jazdy: N”. */
+  rides: number;
+  /** Zapisy dnia — ten sam adres co data w liście jazd; tylko w dniu z jazdami, inaczej `null`. */
+  href: string | null;
+  /**
+   * Wyróżnienie na tle dni z jazdami: najmniej jazd — 1, najwięcej — 3, pomiędzy w tercjach tej
+   * rozpiętości; ta sama liczba jazd we wszystkich dniach — 3; 0 — dzień bez jazd. Liczba jest zawsze
+   * widoczna, więc kolor nie jest jedyną informacją.
+   */
+  level: CalendarLevel;
+  /** Opis dla czytnika ekranu, np. `3 listopada: 4 jazdy`. */
+  label: string;
+}
+
+export type CalendarLevel = 0 | 1 | 2 | 3;
+
+/** Kalendarz miesiąca (#110): pola od poniedziałku tygodnia z 1. dniem miesiąca. */
+export interface RiderCalendar {
+  /** Nagłówki kolumn od poniedziałku: `pon` … `nd`. */
+  weekdays: readonly string[];
+  /** Puste pola (`null`) przed 1. dniem miesiąca, potem każdy dzień miesiąca. */
+  cells: (CalendarDay | null)[];
+}
+
+/** Ile pól przed 1. dniem miesiąca: poniedziałek — 0, niedziela — 6. Data kalendarzowa, więc w UTC. */
+function leadingBlanks(firstDay: string): number {
+  return (new Date(`${firstDay}T00:00:00Z`).getUTCDay() + 6) % 7;
+}
+
+/**
+ * Poziom wyróżnienia dnia z `rides` jazdami, gdy dni z jazdami mają od `fewest` do `most` jazd: tercja
+ * tej rozpiętości, w której wypada dzień (najmniej — 1, najwięcej — 3); bez rozpiętości — 3.
+ */
+function calendarLevel(rides: number, fewest: number, most: number): CalendarLevel {
+  if (rides === 0) return 0;
+  if (most === fewest) return 3;
+  const third = Math.floor((3 * (rides - fewest)) / (most - fewest));
+  if (third === 0) return 1;
+  return third === 1 ? 2 : 3;
+}
+
+/** Kalendarz z jazd rozliczenia — liczby w dniach sumują się do „Jazdy: N”, adres dnia jak w liście jazd. */
+function composeCalendar(
+  month: SummaryMonth,
+  rides: SummaryBooking[],
+  dayHref: RiderSettlementInput["dayHref"],
+): RiderCalendar {
+  const texts = SETTLEMENT_TEXTS.rider.calendar;
+  const perDay = tallyRides(rides, (ride) => ride.day);
+  const counts = [...perDay.values()].map((entry) => entry.rides);
+  const fewest = Math.min(...counts);
+  const most = Math.max(...counts);
+
+  const cells: (CalendarDay | null)[] = Array.from({ length: leadingBlanks(month.from) }, () => null);
+  for (let date = month.from, day = 1; date <= month.to; date = addDays(date, 1), day += 1) {
+    const dayRides = perDay.get(date)?.rides ?? 0;
+    cells.push({
+      date,
+      day,
+      rides: dayRides,
+      href: dayRides > 0 && dayHref ? dayHref(date) : null,
+      level: calendarLevel(dayRides, fewest, most),
+      label: texts.dayLabel(formatLongDayMonth(date), formatCount(dayRides, RIDE_FORMS)),
+    });
+  }
+  return { weekdays: texts.weekdays, cells };
 }
 
 export function composeRiderSettlementPage(
   input: RiderSettlementPageInput,
   now: Date = new Date(),
 ): RiderSettlementView {
-  const settlement = composeRiderSettlement(input, now);
+  // Jedne jazdy karty, kalendarza i zestawienia — wybrane raz.
+  const rides = settlementRides(input, now);
+  const settlement = settlementOf(input, rides);
+  const hasRides = rides.length > 0;
   return {
     nav: composeMonthNav(input.month, input.monthHref),
     settlement,
     pdfHref: isSettlementPdfAvailable(settlement, now) ? input.pdfHref : null,
+    costsLine: settlement.costs.length === 0 ? null : `${SETTLEMENT_TEXTS.rider.costs} ${settlement.costsAmountText}`,
+    ridesToggle: settlement.rides === 0 ? null : SETTLEMENT_TEXTS.rider.showAllRides(settlement.rides),
+    calendar: hasRides ? composeCalendar(input.month, rides, input.dayHref) : null,
+    breakdown: hasRides ? composeBreakdown(rides) : null,
   };
 }
 

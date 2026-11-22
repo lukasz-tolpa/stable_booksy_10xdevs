@@ -1,84 +1,116 @@
 ---
-// Rozliczenie jeźdźca za miesiąc (#95): „Jazdy: N × stawka = kwota” z dopiskiem o źródle stawki, lista
-// jazd (`RideList`, wspólna z Podsumowaniem miesiąca) albo stan pusty, na dole „Do zapłaty”. Bez stawki
-// ośrodka — liczba jazd i prośba „Ustaw stawkę ośrodka” (link na „Rozliczenia”) zamiast kwot.
-// Renderuje `RiderSettlement` z `@/lib/settlements/rider` — liczby i teksty są już policzone.
-//
-// Miejsca na rozbudowę: slot `costs` — koszty dodatkowe między jazdami a „Do zapłaty” (#96); slot
-// `actions` — przyciski pod „Do zapłaty”, np. „Pobierz PDF” (KAN-91).
+// Karta rozliczenia jeźdźca za miesiąc na górze strony (#95, układ #109 — wariant C prototypu): etykieta
+// „Rozliczenie za {miesiąc}”, „Do zapłaty” dużą kwotą, pod nią wyliczenie „Jazdy: N × stawka = kwota”
+// z dopiskiem o źródle stawki i — gdy są — suma kosztów dodatkowych; „Pobierz PDF” w tym samym bloku.
+// Bez stawki ośrodka — liczba jazd i prośba „Ustaw stawkę ośrodka” (link na „Rozliczenia”) zamiast kwot.
+// Renderuje `RiderSettlementView` z `@/lib/settlements/rider` — liczby, teksty i adres PDF są już policzone.
+// Lista jazd, koszty dodatkowe i stawka jeźdźca stoją pod kartą, na stronie.
 //
 // KONTRAKT e2e: `region` „Rozliczenie za {miesiąc}”; wiersz „Jazdy: N × … = …” w jednym elemencie;
-// lista jazd — `list` „Jazdy — {jeździec}”, jedna pozycja na jazdę; „Do zapłaty” i kwota to osobne
-// elementy jednego akapitu.
-import RideList from "@/components/month-summary/RideList.astro";
+// „Do zapłaty” i kwota to osobne elementy jednego akapitu, a kwota to jedyny element karty z samą kwotą;
+// suma kosztów to jeden element „Koszty dodatkowe: {kwota}”; link „Pobierz PDF”.
+import { Download } from "lucide-react";
+import GhostButton from "@/components/ui/GhostButton.astro";
 import Card from "@/components/ui/Card.astro";
-import EmptyState from "@/components/ui/EmptyState.astro";
 import Tag from "@/components/ui/Tag.astro";
-import type { RiderSettlement } from "@/lib/settlements/rider";
+import type { RiderSettlementView } from "@/lib/settlements/rider";
 import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
 
 interface Props {
-  settlement: RiderSettlement;
+  view: RiderSettlementView;
   /** Strona z formularzem stawki ośrodka (lista „Rozliczenia” tego miesiąca). */
   rateHref: string;
 }
 
-const { settlement, rateHref } = Astro.props;
-const texts = SETTLEMENT_TEXTS.rider;
+const { view, rateHref } = Astro.props;
+const { settlement } = view;
+const texts = SETTLEMENT_TEXTS;
 const headingId = "settlement-heading";
 ---
 
 <section aria-labelledby={headingId}>
   <Card>
-    <h2 id={headingId}>{`${texts.forMonth} ${settlement.monthLabel}`}</h2>
-
-    <div class="rides-head">
-      <p class="line mono-nums">{settlement.ridesLine}</p>
-      {settlement.rateSourceText && <Tag>{settlement.rateSourceText}</Tag>}
-    </div>
-
-    {
-      settlement.needsRate && (
-        <div class="needs-rate">
-          <a href={rateHref}>{texts.needsRate}</a>
-          <p>{texts.needsRateHint}</p>
+    <h2 id={headingId} class="eyebrow">{`${texts.rider.forMonth} ${settlement.monthLabel}`}</h2>
+    <div class="body">
+      <div class="figures">
+        {
+          settlement.dueText && (
+            <p class="due">
+              <span class="due__label">{texts.rider.due}</span>
+              <strong class="due__amount">{settlement.dueText}</strong>
+            </p>
+          )
+        }
+        <div class="calc">
+          <div class="calc__rides">
+            <p class="line">{settlement.ridesLine}</p>
+            {settlement.rateSourceText && <Tag>{settlement.rateSourceText}</Tag>}
+          </div>
+          {view.costsLine && <p class="line">{view.costsLine}</p>}
         </div>
-      )
-    }
-
-    <div class="rides">
+        {
+          settlement.needsRate && (
+            <div class="needs-rate">
+              <a href={rateHref}>{texts.rider.needsRate}</a>
+              <p>{texts.rider.needsRateHint}</p>
+            </div>
+          )
+        }
+      </div>
       {
-        settlement.emptyText ? (
-          <EmptyState>
-            <p>{settlement.emptyText}</p>
-          </EmptyState>
-        ) : (
-          <RideList rides={settlement.rideRows} label={`${texts.ridesHeading} — ${settlement.name}`} />
+        view.pdfHref && (
+          <div class="actions">
+            <GhostButton href={view.pdfHref}>
+              <Download className="size-4" />
+              {texts.pdf.download}
+            </GhostButton>
+          </div>
         )
       }
     </div>
-
-    <slot name="costs" />
-
-    {
-      settlement.dueText && (
-        <p class="due">
-          <span>{texts.due}</span>
-          <strong class="mono-nums">{settlement.dueText}</strong>
-        </p>
-      )
-    }
-
-    <slot name="actions" />
   </Card>
 </section>
 
 <style>
   h2 {
-    margin: 0 0 12px;
-    font-size: 20px;
+    margin: 0;
   }
-  .rides-head {
+  .body {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 14px 24px;
+  }
+  .figures {
+    flex: 1 1 22rem;
+    min-width: 0;
+  }
+  .due {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 8px 0 0;
+  }
+  .due__label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .due__amount {
+    font-size: 36px;
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+  .calc {
+    display: grid;
+    gap: 4px;
+    margin-top: 10px;
+  }
+  .calc__rides {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -86,8 +118,9 @@ const headingId = "settlement-heading";
   }
   .line {
     margin: 0;
-    font-size: 16px;
-    font-weight: 600;
+    font-size: 15px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
   }
   .needs-rate {
     margin-top: 10px;
@@ -113,21 +146,7 @@ const headingId = "settlement-heading";
     font-size: 14px;
     color: var(--muted);
   }
-  .rides {
-    margin-top: 12px;
-    padding-top: 6px;
-    border-top: 1px solid var(--border);
-  }
-  .due {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 4px 12px;
-    margin: 14px 0 0;
-    padding-top: 12px;
-    border-top: 1px solid var(--border);
-    font-size: 17px;
-    font-weight: 600;
+  .actions {
+    flex: none;
   }
 </style>

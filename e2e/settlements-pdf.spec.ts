@@ -8,6 +8,7 @@ import {
   settlementCard,
   SETTLEMENTS_ROUTE,
   setStableRate,
+  showAllRides,
   STABLE_STATE,
 } from "./helpers";
 
@@ -63,7 +64,8 @@ test.describe("PDF rozliczenia jeźdźca — ośrodek bez stawki", () => {
 
     await test.step("rozliczenie Anny ma jazdy i prośbę „Ustaw stawkę ośrodka”", async () => {
       await page.goto(riderUrl(ANNA.key, monthWithRides()));
-      await expect(card.getByRole("list", { name: /^Jazdy — / }), DEMO_HINT).toBeVisible();
+      await expect(page.getByText(/^Pokaż wszystkie jazdy \(\d+\)$/), DEMO_HINT).toBeVisible();
+      await showAllRides(page, ANNA.name);
       await expect(card.getByRole("link", { name: "Ustaw stawkę ośrodka" })).toBeVisible();
     });
 

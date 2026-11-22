@@ -1,0 +1,84 @@
+---
+// Zestawienie „Z kim i na czym” w rozliczeniu jeźdźca (#110, wariant C prototypu), obok kalendarza: dwie
+// krótkie listy — instruktorzy i konie — z nazwą i liczbą jazd (dla czytnika „3 jazdy”).
+// Renderuje `RiderBreakdown` z `@/lib/settlements/rider` — kolejność i liczby są już policzone.
+//
+// KONTRAKT e2e: `region` „Z kim i na czym”; w nim `list` „Instruktorzy” i `list` „Konie”, jedna pozycja na
+// instruktora / konia (także „bez konia”).
+import Card from "@/components/ui/Card.astro";
+import type { BreakdownItem, RiderBreakdown } from "@/lib/settlements/rider";
+import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
+
+interface Props {
+  breakdown: RiderBreakdown;
+}
+
+const { breakdown } = Astro.props;
+const texts = SETTLEMENT_TEXTS.rider.breakdown;
+const headingId = "breakdown-heading";
+const lists: { id: string; heading: string; items: BreakdownItem[] }[] = [
+  { id: "breakdown-instructors", heading: texts.instructors, items: breakdown.instructors },
+  { id: "breakdown-horses", heading: texts.horses, items: breakdown.horses },
+];
+---
+
+<section aria-labelledby={headingId}>
+  <Card padding={18}>
+    <h2 id={headingId} class="eyebrow">{texts.heading}</h2>
+    {
+      lists.map((list) => (
+        <>
+          <h3 id={list.id}>{list.heading}</h3>
+          <ul aria-labelledby={list.id}>
+            {list.items.map((item) => (
+              <li>
+                <span class="name">{item.name}</span>
+                <span class="count">
+                  <span aria-hidden="true">{item.rides}</span>
+                  <span class="sr-only">{item.ridesText}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
+      ))
+    }
+  </Card>
+</section>
+
+<style>
+  h2 {
+    margin: 0;
+  }
+  h3 {
+    margin: 14px 0 2px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  li {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  li:last-child {
+    border-bottom: 0;
+  }
+  .name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .count {
+    flex: none;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+</style>

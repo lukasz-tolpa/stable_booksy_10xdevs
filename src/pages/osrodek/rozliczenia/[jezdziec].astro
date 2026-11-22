@@ -1,16 +1,18 @@
 ---
-import { ArrowLeft, Download } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Banner from "@/components/Banner.astro";
 import Layout from "@/layouts/Layout.astro";
 import Topbar from "@/components/Topbar.astro";
 import MonthNav from "@/components/month-summary/MonthNav.astro";
+import AllRides from "@/components/settlements/AllRides.astro";
+import RiderBreakdown from "@/components/settlements/RiderBreakdown.astro";
+import RiderCalendar from "@/components/settlements/RiderCalendar.astro";
 import RiderCosts from "@/components/settlements/RiderCosts.astro";
 import RiderRate from "@/components/settlements/RiderRate.astro";
 import RiderSettlement from "@/components/settlements/RiderSettlement.astro";
 import Card from "@/components/ui/Card.astro";
 import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
-import GhostButton from "@/components/ui/GhostButton.astro";
 import { STABLE_DAY_BOOKINGS_ROUTE } from "@/lib/bookings/stable-redirect";
 import { logError } from "@/lib/log";
 import { MONTH_PARAM, resolveSummaryMonth } from "@/lib/month-summary/month";
@@ -29,6 +31,10 @@ import { createClient } from "@/lib/supabase";
 // Dostęp pilnuje middleware (przestrzeń ośrodka tylko dla właściciela, mapa tras w @/lib/auth/roles);
 // profil jeźdźca i stawki chroni RLS. Liczy `@/lib/settlements/rider`; tu tylko odczyt i render.
 // Jeździec spoza ośrodka, zanonimizowany albo nieznany — spokojny stan „Nie ma takiego jeźdźca.”.
+// Układ (#109, wariant C prototypu), dokument w kolejności ekranu: powrót i jeździec, banery, przełącznik
+// miesięcy, karta rozliczenia z „Do zapłaty” i „Pobierz PDF”, kalendarz miesiąca i zestawienie „Z kim i na
+// czym” (#110; od ok. 760 px obok siebie), zwinięta lista jazd (w miesiącu bez jazd — tekst pustego
+// miesiąca zamiast kalendarza, zestawienia i listy), koszty dodatkowe, na dole stawka jeźdźca. Bez JavaScriptu.
 const { profile } = Astro.locals;
 const SCOPE = "page:osrodek/rozliczenia/[jezdziec]";
 const texts = SETTLEMENT_TEXTS;
@@ -95,62 +101,59 @@ const title = view ? `${texts.rider.title} — ${view.settlement.name}` : texts.
     </a>
 
     <h1>{view ? view.settlement.name : texts.rider.title}</h1>
-    <p class="lead">{texts.rider.lead}</p>
 
-    {
-      saved && (
-        <div class="notice">
-          <Banner variant="success">{texts.saved}</Banner>
-        </div>
-      )
-    }
-    {
-      error && (
-        <div class="notice">
-          <Banner variant="error">{error}</Banner>
-        </div>
-      )
-    }
+    <div class="stack">
+      {saved && <Banner variant="success">{texts.saved}</Banner>}
+      {error && <Banner variant="error">{error}</Banner>}
 
-    {
-      notFound ? (
-        <div class="state">
+      {
+        notFound ? (
           <Card>
             <EmptyState>
               <p>{texts.rider.notFound}</p>
               <p>{texts.rider.notFoundHint}</p>
             </EmptyState>
           </Card>
-        </div>
-      ) : (
-        <>
-          {riderRate && riderKey && <RiderRate rate={riderRate} riderKey={riderKey} month={month.month} />}
-          {nav && (
-            <div class="month">
-              <MonthNav nav={nav} />
-            </div>
-          )}
-          {view ? (
-            <RiderSettlement settlement={view.settlement} rateHref={listHref}>
-              <RiderCosts slot="costs" settlement={view.settlement} />
-              {view.pdfHref && (
-                <div slot="actions" class="actions">
-                  <GhostButton href={view.pdfHref}>
-                    <Download className="size-4" />
-                    {texts.pdf.download}
-                  </GhostButton>
-                </div>
-              )}
-            </RiderSettlement>
-          ) : (
-            <FailureState>
-              <p>{texts.rider.failure}</p>
-              <p>{texts.retry}</p>
-            </FailureState>
-          )}
-        </>
-      )
-    }
+        ) : (
+          <>
+            {nav && <MonthNav nav={nav} />}
+            {view ? (
+              <>
+                <RiderSettlement view={view} rateHref={listHref} />
+                {view.calendar && view.breakdown && (
+                  <div class="overview">
+                    <RiderCalendar calendar={view.calendar} />
+                    <RiderBreakdown breakdown={view.breakdown} />
+                  </div>
+                )}
+                {view.ridesToggle ? (
+                  <AllRides
+                    toggle={view.ridesToggle}
+                    rides={view.settlement.rideRows}
+                    riderName={view.settlement.name}
+                  />
+                ) : (
+                  view.settlement.emptyText && (
+                    <Card>
+                      <EmptyState>
+                        <p>{view.settlement.emptyText}</p>
+                      </EmptyState>
+                    </Card>
+                  )
+                )}
+                <RiderCosts settlement={view.settlement} />
+                {riderRate && riderKey && <RiderRate rate={riderRate} riderKey={riderKey} month={month.month} />}
+              </>
+            ) : (
+              <FailureState>
+                <p>{texts.rider.failure}</p>
+                <p>{texts.retry}</p>
+              </FailureState>
+            )}
+          </>
+        )
+      }
+    </div>
   </main>
 </Layout>
 
@@ -181,18 +184,24 @@ const title = view ? `${texts.rider.title} — ${view.settlement.name}` : texts.
     font-size: 32px;
     overflow-wrap: anywhere;
   }
-  .lead {
-    margin: 10px 0 0;
-    font-size: 15.5px;
-    color: var(--muted);
-    max-width: 62ch;
-  }
-  .month,
-  .state,
-  .notice {
+  /* Bloki strony jeden pod drugim, w kolejności dokumentu — na każdej szerokości. */
+  .stack {
+    display: grid;
+    gap: 16px;
     margin-top: 18px;
   }
-  .actions {
-    margin-top: 14px;
+  .stack > :global(*) {
+    min-width: 0;
+  }
+  /* Kalendarz i zestawienie: na telefonie jedno pod drugim, od ok. 760 px obok siebie. */
+  .overview {
+    display: grid;
+    gap: 16px;
+    align-items: start;
+  }
+  @media (width >= 760px) {
+    .overview {
+      grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+    }
   }
 </style>

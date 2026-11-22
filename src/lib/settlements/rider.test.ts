@@ -231,9 +231,23 @@ describe("composeRiderSettlementPage — strona rozliczenia jeźdźca", () => {
     expect(view.settlement.emptyText).toBeNull();
   });
 
-  it("miesiąc bez jazd jeźdźca to spokojny stan pusty zamiast listy jazd", () => {
+  it("miesiąc bez jazd jeźdźca to spokojny stan pusty zamiast listy jazd i bez „Pokaż wszystkie jazdy”", () => {
     const view = composeRiderSettlementPage({ ...input(), monthHref, pdfHref }, NOW);
     expect(view.settlement.emptyText).toBe("W październiku 2026 nie było jazd.");
+    expect(view.ridesToggle).toBeNull();
+  });
+
+  // Oracle: AC #109 — pełna lista jazd zwinięta pod „Pokaż wszystkie jazdy (N)”, N = liczba jazd rozliczenia.
+  it("lista jazd zwinięta pod „Pokaż wszystkie jazdy (N)” z liczbą jazd rozliczenia", () => {
+    const view = composeRiderSettlementPage(
+      {
+        ...input({ bookings: [ride("2026-10-02"), ride("2026-10-03", { status: "cancelled" }), ride("2026-10-09")] }),
+        monthHref,
+        pdfHref,
+      },
+      NOW,
+    );
+    expect(view.ridesToggle).toBe("Pokaż wszystkie jazdy (2)");
   });
 
   // Oracle: AC #101 — „Pobierz PDF” tylko, gdy PDF jest dostępny (stawka ośrodka, jazdy albo koszty).
@@ -249,6 +263,48 @@ describe("composeRiderSettlementPage — strona rozliczenia jeźdźca", () => {
 
     expect(priced.pdfHref).toBe(pdfHref);
     expect(unpriced.pdfHref).toBeNull();
+  });
+});
+
+// Oracle: AC #109 — karta rozliczenia na górze strony pokazuje sumę kosztów dodatkowych zdaniem z modelu
+// widoku (nie samą kwotą — jedyną samą kwotą karty jest „Do zapłaty”); bez kosztów tego zdania nie ma.
+describe("composeRiderSettlementPage — suma kosztów dodatkowych w karcie", () => {
+  const monthHref = (month: string) => `/osrodek/rozliczenia/anna?miesiac=${month}`;
+  const pdfHref = "/osrodek/rozliczenia/anna/pdf?miesiac=2026-10";
+
+  it("z kosztami: „Koszty dodatkowe: suma” tylko kosztów tego jeźdźca", () => {
+    const view = composeRiderSettlementPage(
+      {
+        ...input({
+          bookings: [ride("2026-10-02")],
+          costs: [cost(1, 80000), cost(2, 5050, "Wypożyczenie siodła"), cost(3, 99900, "Pensjonat konia", "piotr")],
+        }),
+        monthHref,
+        pdfHref,
+      },
+      NOW,
+    );
+    expect(view.costsLine).toBe(`Koszty dodatkowe: ${zl("850,50 zł")}`);
+  });
+
+  it("bez kosztów zdania o kosztach nie ma", () => {
+    const view = composeRiderSettlementPage(
+      {
+        ...input({ bookings: [ride("2026-10-02")], costs: [cost(3, 99900, "Pensjonat konia", "piotr")] }),
+        monthHref,
+        pdfHref,
+      },
+      NOW,
+    );
+    expect(view.costsLine).toBeNull();
+  });
+
+  it("przed pierwszą stawką ośrodka suma kosztów też jest widoczna", () => {
+    const view = composeRiderSettlementPage(
+      { ...input({ rates: [], costs: [cost(1, 80000)] }), monthHref, pdfHref },
+      NOW,
+    );
+    expect(view.costsLine).toBe(`Koszty dodatkowe: ${zl("800,00 zł")}`);
   });
 });
 
@@ -335,5 +391,217 @@ describe("composeRiderSettlement — stawka indywidualna", () => {
     );
     expect(settlement.rateSourceText).toBe("stawka ośrodka");
     expect(settlement.due).toBe(24000);
+  });
+});
+
+// Oracle: AC #110 — kalendarz miesiąca w rozliczeniu jeźdźca: pola od poniedziałku tygodnia z 1. dniem
+// miesiąca (puste pola przed nim), dzień z liczbą jazd rozliczenia, adresem zapisów dnia, poziomem
+// wyróżnienia i opisem dla czytnika. W pustym miesiącu kalendarza nie ma.
+describe("composeRiderSettlementPage — kalendarz miesiąca", () => {
+  const monthHref = (month: string) => `/osrodek/rozliczenia/anna?miesiac=${month}`;
+  const pdfHref = "/osrodek/rozliczenia/anna/pdf?miesiac=2026-10";
+  const dayHref = (day: string) => `/osrodek/zapisy?dzien=${day}`;
+
+  function calendarOf(month: string, bookings: SummaryBooking[]) {
+    const view = composeRiderSettlementPage(
+      { ...input({ month: resolveSummaryMonth(month, TODAY), bookings, dayHref }), monthHref, pdfHref },
+      NOW,
+    );
+    if (view.calendar === null) throw new Error("brak kalendarza");
+    return view.calendar;
+  }
+
+  it("miesiąc od poniedziałku nie ma pustych pól, od niedzieli — sześć przed 1. dniem", () => {
+    // 1 czerwca 2026 to poniedziałek, 1 lutego 2026 — niedziela.
+    const june = calendarOf("2026-06", [ride("2026-06-03")]);
+    const february = calendarOf("2026-02", [ride("2026-02-03")]);
+
+    expect(june.cells[0]).toMatchObject({ day: 1, date: "2026-06-01" });
+    expect(february.cells.slice(0, 6)).toEqual([null, null, null, null, null, null]);
+    expect(february.cells[6]).toMatchObject({ day: 1, date: "2026-02-01" });
+  });
+
+  it.each([
+    ["2026-02", 28],
+    ["2026-06", 30],
+    ["2026-10", 31],
+  ])("%s ma %i dni", (month, days) => {
+    const calendar = calendarOf(month, [ride(`${month}-03`)]);
+    const monthDays = calendar.cells.filter((cell) => cell !== null);
+    expect(monthDays).toHaveLength(days);
+    expect(monthDays.at(-1)).toMatchObject({ day: days, date: `${month}-${String(days)}` });
+  });
+
+  it("w miesiącu bez jazd jeźdźca kalendarza nie ma — także gdy są tylko odwołania i jazdy innych", () => {
+    const view = composeRiderSettlementPage(
+      {
+        ...input({
+          bookings: [ride("2026-10-02", { status: "cancelled" }), ride("2026-10-03", { riderKey: "piotr" })],
+          dayHref,
+        }),
+        monthHref,
+        pdfHref,
+      },
+      NOW,
+    );
+    expect(view.calendar).toBeNull();
+  });
+
+  it("liczba jazd w dniu jak w „Jazdy: N” — bez odwołanych, w bieżącym miesiącu do teraz; adres tylko przy jazdach", () => {
+    const view = composeRiderSettlementPage(
+      {
+        ...input({
+          month: NOVEMBER,
+          // Dziś 14:30: jazda o 13 się skończyła, o 14 jeszcze trwa, jutrzejsza nadchodzi.
+          bookings: [
+            ride("2026-11-02", { hour: 9 }),
+            ride("2026-11-02", { hour: 11, horseName: null }),
+            ride("2026-11-03", { status: "cancelled" }),
+            ride("2026-11-05", { riderKey: "piotr", riderName: "Piotr Nowak" }),
+            ride(TODAY, { hour: 13 }),
+            ride(TODAY, { hour: 14 }),
+            ride("2026-11-21"),
+          ],
+          dayHref,
+        }),
+        monthHref,
+        pdfHref,
+      },
+      NOW,
+    );
+    const days = (view.calendar?.cells ?? []).filter((cell) => cell !== null);
+    const byDate = new Map(days.map((cell) => [cell.date, cell]));
+
+    expect(byDate.get("2026-11-02")).toMatchObject({ rides: 2, href: "/osrodek/zapisy?dzien=2026-11-02" });
+    expect(byDate.get(TODAY)).toMatchObject({ rides: 1, href: `/osrodek/zapisy?dzien=${TODAY}` });
+    for (const date of ["2026-11-01", "2026-11-03", "2026-11-05", "2026-11-21"]) {
+      expect(byDate.get(date), date).toMatchObject({ rides: 0, href: null });
+    }
+    expect(view.settlement.ridesLine).toMatch(/^Jazdy: 3 × /);
+    expect(days.reduce((sum, cell) => sum + cell.rides, 0)).toBe(3);
+  });
+
+  it("poziom wyróżnienia 1–3 w tercjach rozpiętości dni z jazdami (najmniej — 1, najwięcej — 3), 0 — dzień bez jazd", () => {
+    // 1–6 października: dzień N ma N jazd; najintensywniejszy dzień ma 6.
+    const bookings = [1, 2, 3, 4, 5, 6].flatMap((count) =>
+      Array.from({ length: count }, (_, hour) => ride(`2026-10-0${String(count)}`, { hour: 8 + hour })),
+    );
+    const levels = calendarOf("2026-10", bookings)
+      .cells.filter((cell) => cell !== null)
+      .slice(0, 7)
+      .map((cell) => [cell.rides, cell.level]);
+
+    expect(levels).toEqual([
+      [1, 1],
+      [2, 1],
+      [3, 2],
+      [4, 2],
+      [5, 3],
+      [6, 3],
+      [0, 0],
+    ]);
+  });
+
+  it("3, 4 i 5 jazd w dniu to trzy różne poziomy — liczy się rozpiętość, nie tercje najintensywniejszego dnia", () => {
+    const bookings = [3, 4, 5].flatMap((count) =>
+      Array.from({ length: count }, (_, hour) => ride(`2026-10-0${String(count)}`, { hour: 8 + hour })),
+    );
+    const levels = calendarOf("2026-10", bookings)
+      .cells.filter((cell) => cell !== null)
+      .filter((cell) => cell.rides > 0)
+      .map((cell) => [cell.rides, cell.level]);
+
+    expect(levels).toEqual([
+      [3, 1],
+      [4, 2],
+      [5, 3],
+    ]);
+  });
+
+  it("gdy każdy dzień z jazdami ma po jednej jeździe, wszystkie mają najwyższy poziom", () => {
+    const days = calendarOf("2026-10", [ride("2026-10-02"), ride("2026-10-09")]).cells.filter((cell) => cell !== null);
+    expect(days.filter((cell) => cell.level === 3).map((cell) => cell.day)).toEqual([2, 9]);
+    expect(days.filter((cell) => cell.level !== 3).every((cell) => cell.level === 0)).toBe(true);
+  });
+
+  it("opis dnia dla czytnika z polską odmianą: 1 jazda, 2–4 jazdy, 5+ jazd", () => {
+    const bookings = [
+      ride("2026-11-02"),
+      ...[9, 10, 11, 12].map((hour) => ride("2026-11-03", { hour })),
+      ...[9, 10, 11, 12, 13].map((hour) => ride("2026-11-04", { hour })),
+    ];
+    const days = calendarOf("2026-11", bookings).cells.filter((cell) => cell !== null);
+
+    expect(days.slice(0, 4).map((cell) => cell.label)).toEqual([
+      "1 listopada: 0 jazd",
+      "2 listopada: 1 jazda",
+      "3 listopada: 4 jazdy",
+      "4 listopada: 5 jazd",
+    ]);
+  });
+
+  it("nagłówki dni tygodnia od poniedziałku", () => {
+    expect(calendarOf("2026-11", [ride("2026-11-02")]).weekdays).toEqual(["pon", "wt", "śr", "czw", "pt", "sob", "nd"]);
+  });
+});
+
+// Oracle: AC #110 — zestawienie „Z kim i na czym”: instruktorzy i konie z liczbą jazd rozliczenia,
+// malejąco, przy remisie alfabetycznie po polsku; jazda bez konia to pozycja „bez konia”; sumy obu list
+// równe liczbie jazd. W pustym miesiącu zestawienia nie ma.
+describe("composeRiderSettlementPage — zestawienie „Z kim i na czym”", () => {
+  const monthHref = (month: string) => `/osrodek/rozliczenia/anna?miesiac=${month}`;
+  const pdfHref = "/osrodek/rozliczenia/anna/pdf?miesiac=2026-10";
+  const JOANNA = { id: 2, name: "Joanna Wrona" };
+  const BARTOSZ = { id: 3, name: "Bartosz Lis" };
+
+  it("instruktorzy i konie malejąco, remis alfabetycznie po polsku, „bez konia” jak w liście jazd, sumy = N", () => {
+    const view = composeRiderSettlementPage(
+      {
+        ...input({
+          bookings: [
+            ride("2026-10-01", { hour: 9 }),
+            ride("2026-10-01", { hour: 10 }),
+            ride("2026-10-02", { horseName: null }),
+            ride("2026-10-05", { instructor: JOANNA, horseName: "Tango" }),
+            ride("2026-10-06", { instructor: BARTOSZ, horseName: "Śnieżka" }),
+            ride("2026-10-07", { instructor: BARTOSZ, horseName: "Tango", status: "cancelled" }),
+            ride("2026-10-08", { instructor: JOANNA, riderKey: "piotr", riderName: "Piotr Nowak" }),
+          ],
+        }),
+        monthHref,
+        pdfHref,
+      },
+      NOW,
+    );
+    const breakdown = view.breakdown;
+    if (breakdown === null) throw new Error("brak zestawienia");
+    const pairs = (items: { name: string; rides: number }[]) => items.map((item) => [item.name, item.rides]);
+
+    expect(pairs(breakdown.instructors)).toEqual([
+      ["Marek Dębowski", 3],
+      ["Bartosz Lis", 1],
+      ["Joanna Wrona", 1],
+    ]);
+    // Po polsku „Ś” stoi przed „T”, a wielkość liter nie decyduje — „bez konia” przed „Śnieżka”.
+    expect(pairs(breakdown.horses)).toEqual([
+      ["Iskra", 2],
+      ["bez konia", 1],
+      ["Śnieżka", 1],
+      ["Tango", 1],
+    ]);
+    expect(breakdown.horses.find((item) => item.name === "bez konia")?.name).toBe(
+      view.settlement.rideRows.find((row) => row.withoutHorse)?.horseName,
+    );
+    expect(breakdown.instructors[0].ridesText).toBe("3 jazdy");
+
+    const sum = (items: { rides: number }[]) => items.reduce((acc, item) => acc + item.rides, 0);
+    expect(sum(breakdown.instructors)).toBe(view.settlement.rides);
+    expect(sum(breakdown.horses)).toBe(view.settlement.rides);
+    expect(view.settlement.rides).toBe(5);
+  });
+
+  it("w miesiącu bez jazd zestawienia nie ma", () => {
+    const view = composeRiderSettlementPage({ ...input({ costs: [cost(1, 80000)] }), monthHref, pdfHref }, NOW);
+    expect(view.breakdown).toBeNull();
   });
 });

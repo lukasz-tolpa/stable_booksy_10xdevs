@@ -1,17 +1,25 @@
 import { expect, test } from "@playwright/test";
 import {
-  clearStableRates,
+  calendarRideDays,
+  clearStableRatesAndCosts,
   DEMO_HINT,
   emptySettlementsMonth,
+  expectDocumentOrder,
+  expectNoHorizontalScroll,
   grosze,
   INSTRUCTOR_EMAIL,
   otherRidersToggle,
   RIDER_A_STATE,
   RIDER_SETTLEMENT_URL,
+  riderBreakdown,
+  riderCalendar,
+  riderCostsRegion,
   settlementCard,
   settlementRiders,
   settlementRows,
   SETTLEMENTS_ROUTE,
+  setStableRate,
+  showAllRides,
   signIn,
   STABLE_STATE,
 } from "./helpers";
@@ -30,11 +38,13 @@ import {
  *
  * Rozliczenie jeźdźca (#95): wiersz listy prowadzi do rozliczenia tego samego miesiąca; liczba jazd
  * zgadza się z listą jazd i z wierszem listy, kwota = N × stawka, „Do zapłaty” = kwota za jazdy.
+ * Kalendarz (#110): liczby w dniach sumują się do N, a dzień prowadzi do zapisów tego dnia.
  */
 test.describe("Rozliczenia właściciela", () => {
   test.use({ storageState: STABLE_STATE });
-  test.beforeAll(clearStableRates);
-  test.afterAll(clearStableRates);
+  // Bez stawek i kosztów dodatkowych: na liście są tylko jeźdźcy z jazdami (kroki rozliczenia jeźdźca ich potrzebują).
+  test.beforeAll(clearStableRatesAndCosts);
+  test.afterAll(clearStableRatesAndCosts);
 
   test("właściciel ustawia stawkę ośrodka: kwota jeźdźca = liczba jazd × stawka, „Razem” = suma wierszy", async ({
     page,
@@ -111,11 +121,9 @@ test.describe("Rozliczenia właściciela", () => {
       const name = (await page.getByRole("heading", { level: 1 }).innerText()).trim();
       expect(first.text.startsWith(name), `wiersz listy „${first.text}” to jeździec „${name}”`).toBe(true);
       const card = settlementCard(page);
-      const rides = await card
-        .getByRole("list", { name: `Jazdy — ${name}` })
-        .getByRole("listitem")
-        .count();
+      const rides = await (await showAllRides(page, name)).getByRole("listitem").count();
       expect(rides, "liczba jazd na liście jazd = liczba jazd w wierszu listy").toBe(first.rides);
+      await expect(page.getByText(`Pokaż wszystkie jazdy (${String(rides)})`, { exact: true })).toBeVisible();
 
       const line = card.getByText(/^Jazdy: \d+ × /);
       await expect(line).toHaveText(new RegExp(`^Jazdy: ${String(rides)} × 123,45\\szł = `));
@@ -128,6 +136,44 @@ test.describe("Rozliczenia właściciela", () => {
       await page.getByRole("link", { name: "Wróć do rozliczeń" }).click();
       await page.waitForURL(/\/osrodek\/rozliczenia\?miesiac=/);
       expect(new URL(page.url()).searchParams.get("miesiac")).toBe(new URL(listUrl).searchParams.get("miesiac"));
+    });
+
+    await test.step("kalendarz jeźdźca: jazdy w dniach sumują się do „Jazdy: N”, dzień prowadzi do jego zapisów", async () => {
+      const listUrl = page.url();
+      await settlementRiders(page).first().getByRole("link").click();
+      await page.waitForURL(RIDER_SETTLEMENT_URL);
+      const name = (await page.getByRole("heading", { level: 1 }).innerText()).trim();
+      const rides = Number(
+        /^Jazdy: (\d+) × /.exec(
+          await settlementCard(page)
+            .getByText(/^Jazdy: \d+ × /)
+            .innerText(),
+        )?.[1],
+      );
+
+      const days = await calendarRideDays(page);
+      expect(days.length, DEMO_HINT).toBeGreaterThan(0);
+      expect(
+        days.reduce((sum, day) => sum + day.rides, 0),
+        "suma jazd w dniach kalendarza = „Jazdy: N”",
+      ).toBe(rides);
+      await expect(riderBreakdown(page).getByRole("list", { name: "Instruktorzy" })).toBeVisible();
+
+      // Najwcześniejszy dzień z jazdami jest miniony, więc każdy aktywny zapis jeźdźca tego dnia to jazda.
+      const [first] = days;
+      expect(first.href).toMatch(/^\/osrodek\/zapisy\?dzien=\d{4}-\d{2}-\d{2}$/);
+      await riderCalendar(page).getByRole("link", { name: first.label, exact: true }).click();
+      await page.waitForURL(`**${first.href}`);
+      await expect(page.getByRole("heading", { level: 1, name: "Zapisy dnia" })).toBeVisible();
+      // Data dnia w nawigacji dniami, np. „wtorek, 3 listopada 2026”, to dzień z opisu pola „3 listopada: 4 jazdy”.
+      const dayMonth = first.label.split(":")[0];
+      await expect(page.getByText(new RegExp(`, ${dayMonth} \\d{4}$`))).toBeVisible();
+      const bookings = page
+        .getByRole("region", { name: "Aktywne", exact: true })
+        .getByRole("listitem")
+        .filter({ has: page.getByText(name, { exact: true }) });
+      await expect(bookings, "zapisy jeźdźca tego dnia = liczba w polu kalendarza").toHaveCount(first.rides);
+      await page.goto(listUrl);
     });
 
     await test.step("zaplanowana zmiana od następnego miesiąca nie zmienia kwot i daje się usunąć", async () => {
@@ -171,31 +217,51 @@ test.describe("Rozliczenia właściciela", () => {
     }
     await expect(settlementRiders(page).first(), DEMO_HINT).toBeVisible();
 
-    // Kolejność czytania (Tab, czytnik ekranu) to kolejność w dokumencie — ma być tą samą co na ekranie.
     // „Pozostali jeźdźcy ośrodka” są tylko, gdy jakiś jeździec ośrodka nie ma jazd w miesiącu (zależy od
     // kont założonych przez wcześniejsze scenariusze).
     const others = otherRidersToggle(page);
-    const blocks = [
+    await expectDocumentOrder(page, [
       monthNav,
       page.getByRole("heading", { level: 2, name: "Do zapłaty razem" }),
       settlementRiders(page).first(),
       ...((await others.count()) > 0 ? [others] : []),
       page.getByRole("region", { name: "Stawka ośrodka" }),
-    ];
-    const handles = await Promise.all(blocks.map((block) => block.elementHandle()));
-    const inOrder = await page.evaluate(
-      (elements) =>
-        elements
-          .slice(1)
-          .every(
-            (element, i) => (elements[i].compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0,
-          ),
-      handles,
-    );
-    expect(inOrder, "kolejność bloków w dokumencie").toBe(true);
+    ]);
+    await expectNoHorizontalScroll(page);
+  });
 
-    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-    expect(overflow, "strona jest szersza niż ekran 390 px").toBeLessThanOrEqual(0);
+  test("rozliczenie jeźdźca na telefonie: „Do zapłaty”, kalendarz, zestawienie, lista jazd, koszty, stawka — bez przewijania w bok", async ({
+    page,
+  }) => {
+    // „Do zapłaty” jest tylko przy stawce ośrodka — scenariusz ustawia ją sam i po sobie usuwa.
+    clearStableRatesAndCosts();
+    setStableRate(12345);
+    try {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.goto(SETTLEMENTS_ROUTE);
+      if (await emptySettlementsMonth(page).isVisible()) {
+        await page.getByRole("navigation", { name: "Wybór miesiąca" }).getByRole("link", { name: "Poprzedni" }).click();
+        await page.waitForURL(/miesiac=\d{4}-\d{2}$/);
+      }
+      // Bez kosztów na liście są tylko jeźdźcy z jazdami.
+      await expect(settlementRiders(page).first(), DEMO_HINT).toBeVisible();
+      await settlementRiders(page).first().getByRole("link").click();
+      await page.waitForURL(RIDER_SETTLEMENT_URL);
+
+      await expectDocumentOrder(page, [
+        page.getByRole("heading", { level: 1 }),
+        page.getByRole("navigation", { name: "Wybór miesiąca" }),
+        settlementCard(page).getByText("Do zapłaty", { exact: true }),
+        riderCalendar(page),
+        riderBreakdown(page),
+        page.getByText(/^Pokaż wszystkie jazdy \(\d+\)$/),
+        riderCostsRegion(page),
+        page.getByRole("region", { name: "Stawka jeźdźca" }),
+      ]);
+      await expectNoHorizontalScroll(page);
+    } finally {
+      clearStableRatesAndCosts();
+    }
   });
 });
 
