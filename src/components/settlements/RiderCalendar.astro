@@ -1,0 +1,122 @@
+---
+// Kalendarz miesiąca w rozliczeniu jeźdźca (#110, wariant C prototypu): siatka 7 kolumn od poniedziałku,
+// w każdym dniu numer i liczba jazd jeźdźca. Dzień z jazdami to link do zapisów dnia, wyróżniony jednym
+// z trzech poziomów koloru (liczba jest zawsze widoczna, więc kolor nie jest jedyną informacją); dni bez
+// jazd są wyszarzone i nie są linkami. Każdy dzień ma opis dla czytnika, np. „3 listopada: 4 jazdy”.
+// Renderuje `RiderCalendar` z `@/lib/settlements/rider` — pola, liczby, poziomy i opisy są już policzone.
+//
+// KONTRAKT e2e: `region` „Kalendarz”; w nim jeden `link` na dzień z jazdami, o nazwie „{dzień} {miesiąca}: N jazd…”,
+// prowadzący do zapisów tego dnia.
+import Card from "@/components/ui/Card.astro";
+import type { RiderCalendar } from "@/lib/settlements/rider";
+import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
+
+interface Props {
+  calendar: RiderCalendar;
+}
+
+const { calendar } = Astro.props;
+const headingId = "calendar-heading";
+---
+
+<section aria-labelledby={headingId}>
+  <Card padding={18}>
+    <h2 id={headingId} class="eyebrow">{SETTLEMENT_TEXTS.rider.calendar.heading}</h2>
+    <div class="weekdays grid" aria-hidden="true">
+      {calendar.weekdays.map((weekday) => <span>{weekday}</span>)}
+    </div>
+    <ol class="days grid">
+      {
+        calendar.cells.map((cell) =>
+          cell === null ? (
+            <li aria-hidden="true" />
+          ) : cell.href ? (
+            <li>
+              <a class:list={["day", `day--${String(cell.level)}`]} href={cell.href} aria-label={cell.label}>
+                <span class="day__number">{cell.day}</span>
+                <span class="day__rides">{cell.rides}</span>
+              </a>
+            </li>
+          ) : (
+            <li>
+              <span class="day day--0">
+                <span class="day__number" aria-hidden="true">
+                  {cell.day}
+                </span>
+                <span class="sr-only">{cell.label}</span>
+              </span>
+            </li>
+          ),
+        )
+      }
+    </ol>
+  </Card>
+</section>
+
+<style>
+  h2 {
+    margin: 0 0 12px;
+  }
+  /* 7 równych kolumn także na telefonie — pola zwężają się, strona nie przewija się w bok. */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 4px;
+  }
+  .weekdays {
+    margin-bottom: 4px;
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+  }
+  .days {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .day {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 1;
+    border-radius: var(--r-sm);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.15;
+  }
+  .day__number {
+    font-size: 11.5px;
+  }
+  .day__rides {
+    font-size: 16px;
+    font-weight: 700;
+  }
+  /* Dzień bez jazd: wyszarzony, bez linku. */
+  .day--0 {
+    background: var(--surface-2);
+    color: var(--muted);
+  }
+  /* Trzy poziomy wyróżnienia względem najintensywniejszego dnia — tokeny leśnej zieleni marki. */
+  .day--1 {
+    background: var(--primary-tint);
+    color: var(--primary-strong);
+  }
+  .day--2 {
+    background: var(--primary);
+    color: var(--surface);
+  }
+  .day--3 {
+    background: var(--primary-strong);
+    color: var(--surface);
+  }
+  a.day:hover {
+    box-shadow: 0 0 0 2px var(--primary-tint);
+  }
+  a.day:hover .day__rides {
+    text-decoration: underline;
+  }
+  a.day:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+</style>

@@ -308,6 +308,32 @@ export function riderCostsRegion(page: Page): Locator {
   return page.getByRole("region", { name: "Koszty dodatkowe" });
 }
 
+/** Kalendarz miesiąca w rozliczeniu jeźdźca (#110): region „Kalendarz”. */
+export function riderCalendar(page: Page): Locator {
+  return page.getByRole("region", { name: "Kalendarz", exact: true });
+}
+
+/** Zestawienie „Z kim i na czym” w rozliczeniu jeźdźca (#110). */
+export function riderBreakdown(page: Page): Locator {
+  return page.getByRole("region", { name: "Z kim i na czym", exact: true });
+}
+
+/**
+ * Dni kalendarza z jazdami (#110): linki o nazwie „3 listopada: 4 jazdy” — opis, liczba jazd (widoczna
+ * w polu) i adres zapisów dnia.
+ */
+export async function calendarRideDays(page: Page): Promise<{ label: string; rides: number; href: string }[]> {
+  const links = riderCalendar(page).getByRole("link");
+  const days = [];
+  for (const link of await links.all()) {
+    const label = (await link.getAttribute("aria-label")) ?? "";
+    const rides = Number(/: (\d+) jazd/.exec(label)?.[1] ?? Number.NaN);
+    await expect(link, `liczba jazd widoczna w polu „${label}”`).toContainText(String(rides));
+    days.push({ label, rides, href: (await link.getAttribute("href")) ?? "" });
+  }
+  return days;
+}
+
 /** Nagłówek zwiniętej sekcji „Pozostali jeźdźcy ośrodka” (#106) — kliknięcie ją rozwija. */
 export function otherRidersToggle(page: Page): Locator {
   return page.getByText("Pozostali jeźdźcy ośrodka", { exact: true });

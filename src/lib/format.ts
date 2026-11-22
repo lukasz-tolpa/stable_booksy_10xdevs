@@ -69,6 +69,16 @@ export function formatShortDate(iso: string): string {
   return SHORT_DAY_MONTH.format(new Date(`${iso}T00:00:00Z`));
 }
 
+const LONG_DAY_MONTH = new Intl.DateTimeFormat("pl-PL", { day: "numeric", month: "long", timeZone: "UTC" });
+
+/**
+ * Dzień i miesiąc w dopełniaczu dnia grafiku (`RRRR-MM-DD`), np. `3 listopada` — opis dnia w kalendarzu
+ * rozliczenia jeźdźca. Data kalendarzowa, więc w UTC.
+ */
+export function formatLongDayMonth(iso: string): string {
+  return LONG_DAY_MONTH.format(new Date(`${iso}T00:00:00Z`));
+}
+
 const SHORT_WEEKDAY_DATE = new Intl.DateTimeFormat("pl-PL", {
   weekday: "short",
   day: "numeric",

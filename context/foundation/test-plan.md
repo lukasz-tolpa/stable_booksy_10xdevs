@@ -349,9 +349,13 @@ się nie zapisał.`); the inactive-account screen (`/instruktor/konto-nieaktywne
   superuser before and after (`session_replication_role = replica`, since `SB027` binds `postgres` too) — the database is left
   without rates. The settlements specs share their steps from `e2e/helpers.ts` (`clearStableRates`, `clearStableRatesAndCosts`,
   `setStableRate`, `runSql`, `grosze`, `settlementRiders` / `settlementRows` / `pricedSettlementRows`, `settlementCard`,
-  `emptySettlementsMonth`, `RIDER_SETTLEMENT_URL`, `showAllRides`, `riderCostsRegion`). The rider settlement (#109) reads top-down in
+  `emptySettlementsMonth`, `RIDER_SETTLEMENT_URL`, `showAllRides`, `riderCostsRegion`, `riderCalendar`, `riderBreakdown`,
+  `calendarRideDays`). The rider settlement (#109, #110) reads top-down in
   document order: h1, month switcher, the region „Rozliczenie za {month}” („Do zapłaty” paragraph — its amount the only amount-only
   element of the card —, `Jazdy: N × …` line with the rate-source tag, `Koszty dodatkowe: …` only when there are costs, „Pobierz PDF”),
+  the region „Kalendarz” (#110: one `link` per day with rides, named „3 listopada: 4 jazdy”, to that day's Zapisy — `calendarRideDays`
+  returns label, count and href; the owner spec sums them to `Jazdy: N` and opens the earliest day, where the rider's active bookings
+  equal the day's count) and the region „Z kim i na czym” (`list` „Instruktorzy”, `list` „Konie”) — both absent in a month without rides —,
   the collapsed `<summary>` „Pokaż wszystkie jazdy (N)” (`showAllRides(page, rider)` checks it is collapsed, clicks it and returns
   the `list` „Jazdy — {rider}”; absent in a month without rides), the region „Koszty dodatkowe” (`riderCostsRegion`), the region
   „Stawka jeźdźca”; the owner spec checks that order and no horizontal scroll at 390 px in a step; crafted-form checks post with `page.request.post` and an `Origin` header

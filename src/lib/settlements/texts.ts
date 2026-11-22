@@ -46,6 +46,16 @@ export const SETTLEMENT_TEXTS = {
     ridesHeading: "Jazdy",
     /** Nagłówek zwiniętej listy jazd (#109): `Pokaż wszystkie jazdy (77)`. */
     showAllRides: (rides: number) => `Pokaż wszystkie jazdy (${String(rides)})`,
+    /** Kalendarz miesiąca w rozliczeniu jeźdźca (#110). */
+    calendar: {
+      heading: "Kalendarz",
+      /** Nagłówki kolumn od poniedziałku. */
+      weekdays: ["pon", "wt", "śr", "czw", "pt", "sob", "nd"],
+      /** Opis dnia dla czytnika: `3 listopada: 4 jazdy`. */
+      dayLabel: (date: string, ridesText: string) => `${date}: ${ridesText}`,
+    },
+    /** Zestawienie „Z kim i na czym” obok kalendarza (#110). */
+    breakdown: { heading: "Z kim i na czym", instructors: "Instruktorzy", horses: "Konie" },
     /** Dopisek o źródle stawki przy kwocie za jazdy. */
     source: { stable: "stawka ośrodka", individual: "stawka indywidualna" },
     due: "Do zapłaty",

@@ -5,6 +5,8 @@ import Layout from "@/layouts/Layout.astro";
 import Topbar from "@/components/Topbar.astro";
 import MonthNav from "@/components/month-summary/MonthNav.astro";
 import AllRides from "@/components/settlements/AllRides.astro";
+import RiderBreakdown from "@/components/settlements/RiderBreakdown.astro";
+import RiderCalendar from "@/components/settlements/RiderCalendar.astro";
 import RiderCosts from "@/components/settlements/RiderCosts.astro";
 import RiderRate from "@/components/settlements/RiderRate.astro";
 import RiderSettlement from "@/components/settlements/RiderSettlement.astro";
@@ -30,8 +32,9 @@ import { createClient } from "@/lib/supabase";
 // profil jeźdźca i stawki chroni RLS. Liczy `@/lib/settlements/rider`; tu tylko odczyt i render.
 // Jeździec spoza ośrodka, zanonimizowany albo nieznany — spokojny stan „Nie ma takiego jeźdźca.”.
 // Układ (#109, wariant C prototypu), dokument w kolejności ekranu: powrót i jeździec, banery, przełącznik
-// miesięcy, karta rozliczenia z „Do zapłaty” i „Pobierz PDF”, zwinięta lista jazd (w miesiącu bez jazd —
-// tekst pustego miesiąca), koszty dodatkowe, na dole stawka jeźdźca. Bez JavaScriptu.
+// miesięcy, karta rozliczenia z „Do zapłaty” i „Pobierz PDF”, kalendarz miesiąca i zestawienie „Z kim i na
+// czym” (#110; od ok. 760 px obok siebie), zwinięta lista jazd (w miesiącu bez jazd — tekst pustego
+// miesiąca zamiast kalendarza, zestawienia i listy), koszty dodatkowe, na dole stawka jeźdźca. Bez JavaScriptu.
 const { profile } = Astro.locals;
 const SCOPE = "page:osrodek/rozliczenia/[jezdziec]";
 const texts = SETTLEMENT_TEXTS;
@@ -117,6 +120,12 @@ const title = view ? `${texts.rider.title} — ${view.settlement.name}` : texts.
             {view ? (
               <>
                 <RiderSettlement view={view} rateHref={listHref} />
+                {view.calendar && view.breakdown && (
+                  <div class="overview">
+                    <RiderCalendar calendar={view.calendar} />
+                    <RiderBreakdown breakdown={view.breakdown} />
+                  </div>
+                )}
                 {view.ridesToggle ? (
                   <AllRides
                     toggle={view.ridesToggle}
@@ -183,5 +192,16 @@ const title = view ? `${texts.rider.title} — ${view.settlement.name}` : texts.
   }
   .stack > :global(*) {
     min-width: 0;
+  }
+  /* Kalendarz i zestawienie: na telefonie jedno pod drugim, od ok. 760 px obok siebie. */
+  .overview {
+    display: grid;
+    gap: 16px;
+    align-items: start;
+  }
+  @media (width >= 760px) {
+    .overview {
+      grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+    }
   }
 </style>
