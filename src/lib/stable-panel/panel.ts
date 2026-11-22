@@ -1,6 +1,7 @@
 import { OWNER_MONTH_SUMMARY_ROUTE, OWNER_SCHEDULE_ROUTE, OWNER_SETTLEMENTS_ROUTE } from "@/lib/auth/roles";
 import { STABLE_DAY_BOOKINGS_ROUTE } from "@/lib/bookings/stable-redirect";
 import { INSTRUCTORS_ROUTE } from "@/lib/instructors/redirect";
+import { OWNER_PLACE_OCCUPANCY_ROUTE } from "@/lib/place-occupancy/routes";
 import { PLACES_ROUTE } from "@/lib/places/redirect";
 import {
   BOOKING_FORMS,
@@ -301,6 +302,19 @@ export function composePlacesLink(input: Pick<SideColumnInput, "places">): SideL
 }
 
 /**
+ * Wejście na „Zajętość placów” (#116) — to, co o placach widzą pensjonariusze, dla dowolnego dnia. Jak Place:
+ * w bocznej kolumnie i poniżej 1000 px w kolumnie głównej.
+ */
+export function composePlaceOccupancyLink(): SideLink {
+  return {
+    name: PANEL_TEXTS.side.placeOccupancy,
+    href: OWNER_PLACE_OCCUPANCY_ROUTE,
+    fact: PANEL_TEXTS.side.anyDay,
+    warn: false,
+  };
+}
+
+/**
  * Boczna kolumna „Ośrodek”: sekcje ośrodka, każda z krótką informacją. Link zostaje także
  * wtedy, gdy jego informacji nie udało się wczytać — nawigacja nie znika z awarią odczytu.
  * `now` wstrzykiwane jak w statystykach — jazdy miesiąca liczą się do teraz.
@@ -326,6 +340,7 @@ export function composeSideColumn(input: SideColumnInput, now: Date = new Date()
     },
     composeBoardersLink(input),
     composePlacesLink(input),
+    composePlaceOccupancyLink(),
     { name: texts.instructors, href: INSTRUCTORS_ROUTE, fact: instructorsFact(input), warn: false },
     composeMonthSummaryLink(input, now),
     composeSettlementsLink(input),

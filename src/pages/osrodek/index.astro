@@ -16,6 +16,7 @@ import {
   composeLastMonth,
   composeBoardersLink,
   composeMonthSummaryLink,
+  composePlaceOccupancyLink,
   composePlacesLink,
   composeSettlementsLink,
   composeSideColumn,
@@ -118,11 +119,12 @@ const sideLinks = composeSideColumn(
   { today, week, horses, instructors, accounts, places, monthBookings, settlementsTotal },
   now,
 );
-// Poniżej 1000 px boczna kolumna znika, a dolny pasek nie ma Pensjonariuszy, Placów, Podsumowania miesiąca
+// Poniżej 1000 px boczna kolumna znika, a dolny pasek nie ma Pensjonariuszy, Placów, Zajętości placów, Podsumowania miesiąca
 // ani Rozliczeń — wejścia w kolumnie głównej.
 const phoneLinks = [
   composeBoardersLink({ horses }),
   composePlacesLink({ places }),
+  composePlaceOccupancyLink(),
   composeMonthSummaryLink({ today, monthBookings }, now),
   composeSettlementsLink({ today, settlementsTotal }),
 ];
