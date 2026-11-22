@@ -12,6 +12,7 @@
     "db:demo": "node scripts/db-demo.mjs",
     "shots:day": "node scripts/shots-day.mjs",
     "og-image": "node scripts/og-image.mjs",
+    "pdf:font": "node scripts/pdf-font.mjs",
     "test": "vitest run",
     "test:db": "node supabase/tests/run_all.mjs",
     "test:e2e": "playwright test",

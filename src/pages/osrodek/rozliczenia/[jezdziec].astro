@@ -1,5 +1,5 @@
 ---
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Download } from "lucide-react";
 import Banner from "@/components/Banner.astro";
 import Layout from "@/layouts/Layout.astro";
 import Topbar from "@/components/Topbar.astro";
@@ -10,13 +10,15 @@ import RiderSettlement from "@/components/settlements/RiderSettlement.astro";
 import Card from "@/components/ui/Card.astro";
 import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
+import GhostButton from "@/components/ui/GhostButton.astro";
 import { STABLE_DAY_BOOKINGS_ROUTE } from "@/lib/bookings/stable-redirect";
 import { logError } from "@/lib/log";
 import { MONTH_PARAM, resolveSummaryMonth } from "@/lib/month-summary/month";
 import { composeMonthNav } from "@/lib/month-summary/summary";
 import { todayIso } from "@/lib/schedule/dates";
+import { isSettlementPdfAvailable } from "@/lib/settlements/document";
 import { getSettlementRider, loadRiderSettlementInput } from "@/lib/settlements/queries";
-import { riderSettlementHref, settlementsHref } from "@/lib/settlements/redirect";
+import { riderSettlementHref, riderSettlementPdfHref, settlementsHref } from "@/lib/settlements/redirect";
 import { composeRiderSettlementPage, parseRiderKey, type RiderSettlementView } from "@/lib/settlements/rider";
 import { composeRiderRate, type RiderRateView } from "@/lib/settlements/rider-rate";
 import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
@@ -83,6 +85,11 @@ const listHref = settlementsHref(month.month);
 const nav =
   view?.nav ?? (riderKey === null ? null : composeMonthNav(month, (target) => riderSettlementHref(riderKey, target)));
 const title = view ? `${texts.rider.title} — ${view.settlement.name}` : texts.rider.title;
+// „Pobierz PDF” (spec #100) tylko wtedy, gdy PDF jest dostępny — ta sama decyzja co w punkcie końcowym.
+const pdfHref =
+  view && isSettlementPdfAvailable(view.settlement, now)
+    ? riderSettlementPdfHref(view.settlement.riderKey, view.settlement.month)
+    : null;
 ---
 
 <Layout title={title}>
@@ -136,6 +143,14 @@ const title = view ? `${texts.rider.title} — ${view.settlement.name}` : texts.
               rateHref={listHref}
             >
               <RiderCosts slot="costs" settlement={view.settlement} />
+              {pdfHref && (
+                <div slot="actions" class="actions">
+                  <GhostButton href={pdfHref}>
+                    <Download className="size-4" />
+                    {texts.pdf.download}
+                  </GhostButton>
+                </div>
+              )}
             </RiderSettlement>
           ) : (
             <FailureState>
@@ -186,5 +201,8 @@ const title = view ? `${texts.rider.title} — ${view.settlement.name}` : texts.
   .state,
   .notice {
     margin-top: 18px;
+  }
+  .actions {
+    margin-top: 14px;
   }
 </style>

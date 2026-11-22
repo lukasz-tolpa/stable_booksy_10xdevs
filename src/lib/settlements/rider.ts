@@ -47,6 +47,8 @@ export interface RiderSettlementInput extends SettlementIngredients {
 export interface RiderSettlement extends RiderAmounts {
   riderKey: string;
   name: string;
+  /** Profil bez imienia i nazwiska — `name` to „(bez nazwiska)”, a PDF ma w nazwie pliku `jezdziec`. */
+  unnamed: boolean;
   /** Miesiąc `RRRR-MM`. */
   month: string;
   /** Np. `listopad 2026`. */
@@ -84,6 +86,7 @@ export function composeRiderSettlement(input: RiderSettlementInput, now: Date = 
   return {
     riderKey: input.rider.key,
     name: input.rider.name ?? UNNAMED_RIDER,
+    unnamed: input.rider.name === null,
     month: input.month.month,
     monthLabel: formatMonthYear(input.month.month),
     rides: rides.length,

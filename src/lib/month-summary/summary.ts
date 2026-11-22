@@ -223,7 +223,7 @@ export function composeMonthNav(month: SummaryMonth, monthHref: (month: string) 
 }
 
 /** Tekst stanu pustego roli, np. `W październiku 2026 nie było jazd.`, `We wrześniu 2026 nie jeździłeś.` */
-export function emptyMonthText(month: SummaryMonth, viewer: SummaryViewer): string {
+export function emptyMonthText(month: Pick<SummaryMonth, "month">, viewer: SummaryViewer): string {
   return `${capitalize(formatInMonthYear(month.month))} ${MONTH_SUMMARY_TEXTS.empty[viewer]}`;
 }
 

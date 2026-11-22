@@ -349,7 +349,7 @@ się nie zapisał.`); the inactive-account screen (`/instruktor/konto-nieaktywne
   (Astro's origin check) and `maxRedirects: 0`, reading `error=` from the `Location`. `settlements-costs.spec.ts` (#96) adds, corrects and deletes extra costs on the rider settlement (`list`
   „Koszty dodatkowe — {rider}”, `form` „Dopisz koszt” / „Popraw koszt {name}”, „Popraw” is a `<summary>` — click it by text) and on
   the list page (region „Dopisz koszt”, select „Jeździec”); „Do zapłaty” is read from its `paragraph`, because cost amounts are
-  amount-only elements too; it deletes the stable's rates and extra costs as superuser before and after. The landing page (`landing.spec.ts`,
+  amount-only elements too; it deletes the stable's rates and extra costs as superuser before and after. `settlements-pdf.spec.ts` (spec #100) opens Anna's settlement for the month of the database's `current_date - 7` (demo rides there even early in a month), checks there is no link „Pobierz PDF” without a stable rate (nor on the list page), then clicks it with `page.waitForEvent("download")` and checks `suggestedFilename()` and the leading `%PDF-` bytes — the PDF text is not read (Vitest `document.test.ts` covers the content). The landing page (`landing.spec.ts`,
   guest, no storage state) repeats link names: "Załóż konto jeźdźca" and
   "Załóż konto ośrodka" (and "Mój panel" when signed in) stand twice, once in
   a half and once in the closing of the "Jeden dzień" section, and the top bar

@@ -1,4 +1,5 @@
 // @ts-check
+import { fileURLToPath } from "node:url";
 import { defineConfig, envField } from "astro/config";
 
 import react from "@astrojs/react";
@@ -15,6 +16,15 @@ export default defineConfig({
   integrations: [react(), sitemap({ filter: isInSitemap })],
   vite: {
     plugins: [tailwindcss()],
+    resolve: {
+      // Zależności przeglądarkowe jsPDF (PDF rozliczenia, spec #100) — poza paczką workera.
+      alias: Object.fromEntries(
+        ["html2canvas", "canvg", "dompurify"].map((name) => [
+          name,
+          fileURLToPath(new URL("./src/lib/settlements/pdf/browser-only.ts", import.meta.url)),
+        ]),
+      ),
+    },
   },
   adapter: cloudflare(),
   env: {

@@ -40,6 +40,24 @@ export const SETTLEMENT_TEXTS = {
     notFoundHint: "Rozliczenie ma tylko jeździec, który miał zapis w Twoim ośrodku.",
     failure: "Nie udało się wczytać rozliczenia jeźdźca.",
   },
+  /** PDF rozliczenia jeźdźca (spec #100): przycisk na stronie jeźdźca i teksty dokumentu. */
+  pdf: {
+    download: "Pobierz PDF",
+    /** Przed `formatDayMonthYear` w bieżącym miesiącu: `stan na 21 listopada 2026`. */
+    asOf: "stan na",
+    stable: "Ośrodek",
+    rider: "Jeździec",
+    columns: { date: "Data", hour: "Godzina", instructor: "Instruktor", horse: "Koń" },
+    /** Komórka konia, gdy jazda była bez konia. */
+    noHorse: "—",
+    costName: "Nazwa",
+    costAmount: "Kwota",
+    /** Przed `formatDateTime`: `Wygenerowano 21.11.2026, 14:05`. */
+    generated: "Wygenerowano",
+    /** Nazwa pliku: `rozliczenie-RRRR-MM-<jeździec>.pdf`; bez imienia i nazwiska — `jezdziec`. */
+    fileStem: "rozliczenie",
+    unnamedSlug: "jezdziec",
+  },
   /** Stawka jeźdźca w rozliczeniu jeźdźca (#97): stawka indywidualna i powrót do stawki ośrodka. */
   riderRate: {
     heading: "Stawka jeźdźca",

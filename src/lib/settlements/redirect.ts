@@ -18,6 +18,14 @@ export function riderSettlementHref(riderKey: string, month: string): string {
 }
 
 /**
+ * Adres PDF rozliczenia jeźdźca (spec #100) dla miesiąca `RRRR-MM`: `/osrodek/rozliczenia/<jeździec>/pdf`,
+ * obok strony jeźdźca, więc obejmuje go ta sama ochrona przestrzeni ośrodka.
+ */
+export function riderSettlementPdfHref(riderKey: string, month: string): string {
+  return `${OWNER_SETTLEMENTS_ROUTE}/${encodeURIComponent(riderKey)}/pdf${monthSearch(month)}`;
+}
+
+/**
  * Miesiąc strony, na którą wraca formularz (ukryte pole `miesiac`) — przez `resolveSummaryMonth`,
  * więc brak, błąd i przyszłość dają bieżący miesiąc, a do adresu nie trafi nic spoza `RRRR-MM`.
  */
