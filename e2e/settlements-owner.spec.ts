@@ -5,6 +5,7 @@ import {
   emptySettlementsMonth,
   grosze,
   INSTRUCTOR_EMAIL,
+  otherRidersToggle,
   RIDER_A_STATE,
   RIDER_SETTLEMENT_URL,
   settlementCard,
@@ -157,10 +158,42 @@ test.describe("Rozliczenia właściciela", () => {
     }
   });
 
-  test("Rozliczenia mieszczą się w telefonie bez poziomego przewijania", async ({ page }) => {
+  test("na telefonie jedna kolumna czytana po kolei: miesiąc i suma, karty, pozostali jeźdźcy, stawka — bez przewijania w bok", async ({
+    page,
+  }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(SETTLEMENTS_ROUTE);
     await expect(page.getByRole("heading", { level: 1, name: "Rozliczenia" })).toBeVisible();
+    const monthNav = page.getByRole("navigation", { name: "Wybór miesiąca" });
+    if (await emptySettlementsMonth(page).isVisible()) {
+      await monthNav.getByRole("link", { name: "Poprzedni" }).click();
+      await page.waitForURL(/miesiac=\d{4}-\d{2}$/);
+    }
+    await expect(settlementRiders(page).first(), DEMO_HINT).toBeVisible();
+
+    // Kolejność czytania (Tab, czytnik ekranu) to kolejność w dokumencie — ma być tą samą co na ekranie.
+    // „Pozostali jeźdźcy ośrodka” są tylko, gdy jakiś jeździec ośrodka nie ma jazd w miesiącu (zależy od
+    // kont założonych przez wcześniejsze scenariusze).
+    const others = otherRidersToggle(page);
+    const blocks = [
+      monthNav,
+      page.getByRole("heading", { level: 2, name: "Do zapłaty razem" }),
+      settlementRiders(page).first(),
+      ...((await others.count()) > 0 ? [others] : []),
+      page.getByRole("region", { name: "Stawka ośrodka" }),
+    ];
+    const handles = await Promise.all(blocks.map((block) => block.elementHandle()));
+    const inOrder = await page.evaluate(
+      (elements) =>
+        elements
+          .slice(1)
+          .every(
+            (element, i) => (elements[i].compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0,
+          ),
+      handles,
+    );
+    expect(inOrder, "kolejność bloków w dokumencie").toBe(true);
+
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow, "strona jest szersza niż ekran 390 px").toBeLessThanOrEqual(0);
   });

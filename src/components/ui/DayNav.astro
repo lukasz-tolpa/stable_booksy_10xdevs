@@ -4,16 +4,19 @@
 // Trzy sloty zamiast propsów, bo każda strona ma własne adresy i własne teksty linków,
 // a te teksty są kontraktem e2e - komponent daje geometrię i stany, nigdy treść.
 // Kierunek niedostępny strona podaje jako <span class="off">, nie jako wyłączony link.
+// `stacked` — wąska kolumna (boczna kolumna Rozliczeń, #105): data zawsze w osobnym wierszu nad
+// strzałkami, jak na telefonie, i bez zewnętrznych marginesów — odstępy ustawia rodzic.
 interface Props {
   class?: string;
   /** Etykieta landmarku - domyślnie jak w prototypie. */
   label?: string;
+  stacked?: boolean;
 }
 
-const { class: className, label = "Wybór dnia" } = Astro.props;
+const { class: className, label = "Wybór dnia", stacked = false } = Astro.props;
 ---
 
-<nav class:list={["daynav", className]} aria-label={label}>
+<nav class:list={["daynav", stacked && "daynav--stacked", className]} aria-label={label}>
   <slot name="prev" />
   <span class="daynav__date"><slot name="date" /></span>
   <slot name="next" />
@@ -54,6 +57,16 @@ const { class: className, label = "Wybór dnia" } = Astro.props;
       flex-basis: 100%;
       padding: 8px 0 2px;
     }
+  }
+  .daynav--stacked {
+    flex-wrap: wrap;
+    margin: 0;
+    padding-bottom: 2px;
+  }
+  .daynav--stacked .daynav__date {
+    order: -1;
+    flex-basis: 100%;
+    padding: 8px 0 2px;
   }
 
   /* Treść ze slotów nie dostaje zakresu tego komponentu - stąd :global(). */

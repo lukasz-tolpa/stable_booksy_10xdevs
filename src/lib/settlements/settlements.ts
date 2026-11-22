@@ -5,7 +5,8 @@
  *
  * Klocki:
  * - `composeSettlementList` — lista jeźdźców miesiąca z kwotami i sumą (strona, boczna kolumna panelu);
- * - `composeSettlementsPage` — cała strona „Rozliczenia” (lista, stawka ośrodka, przełącznik miesięcy);
+ * - `composeSettlementsPage` — cała strona „Rozliczenia” (karty jeźdźców, suma, stawka ośrodka, przełącznik miesięcy,
+ *   „Pozostali jeźdźcy ośrodka”);
  * - `riderAmounts` — stawka jeźdźca w miesiącu i jego kwoty (wiersz listy i rozliczenie jeźdźca, `rider.ts`);
  * - `ridesAmount` — kwota za jazdy: liczba jazd × stawka.
  */
@@ -20,6 +21,7 @@ import {
   formatMoney,
   formatMonthYear,
   RIDE_FORMS,
+  RIDER_FORMS,
 } from "@/lib/format";
 import type { SummaryMonth } from "@/lib/month-summary/month";
 import { composeMonthNav, monthRides, type MonthNav } from "@/lib/month-summary/summary";
@@ -36,6 +38,7 @@ import {
   type RateChange,
   type RateFrom,
 } from "@/lib/settlements/rates";
+import type { SettlementRider } from "@/lib/settlements/rider";
 import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
 import type { StatsRider } from "@/lib/stats/riders";
 import type { StatsBooking } from "@/lib/stats/stats";
@@ -239,23 +242,68 @@ export interface StableRateView {
 }
 
 export interface SettlementsPageInput extends SettlementsInput {
+  /**
+   * Jeźdźcy ośrodka (`listStableRiders` — konta z jakimkolwiek zapisem w ośrodku, także odwołanym);
+   * ci spoza listy miesiąca to „Pozostali jeźdźcy ośrodka”.
+   */
+  riders: readonly SettlementRider[];
   /** Adres strony dla miesiąca `RRRR-MM`. */
   monthHref: (month: string) => string;
   /** Adres rozliczenia jeźdźca w wybranym miesiącu. */
   riderHref: (riderKey: string) => string;
 }
 
-/** Wiersz listy na stronie „Rozliczenia” — prowadzi do rozliczenia jeźdźca tego samego miesiąca. */
+/**
+ * Karta jeźdźca na stronie „Rozliczenia” (#105): „N jazd × stawka [źródło] = kwota za jazdy + koszty”
+ * i „Do zapłaty”. Cała karta prowadzi do rozliczenia jeźdźca tego samego miesiąca.
+ */
 export interface SettlementLinkRow extends SettlementRow {
+  href: string;
+  /** Stawka jeźdźca w miesiącu, np. `120,00 zł`; `null` — bez stawki ośrodka. */
+  rateText: string | null;
+  /**
+   * Pigułka źródła stawki przy stawce: indywidualna wyróżniona (`primary`), ośrodka neutralna;
+   * `null` — bez stawki ośrodka.
+   */
+  rateTag: RateTag | null;
+  /** Np. `koszty 1 500,00 zł`, tylko gdy są i ośrodek ma stawkę; `null` — karta ich nie pokazuje. */
+  costsText: string | null;
+}
+
+/** Pigułka źródła stawki na karcie jeźdźca — wariant to wariant `Tag` (`@/components/ui/Tag.astro`). */
+export interface RateTag {
+  text: string;
+  variant: "neutral" | "primary";
+}
+
+/** „Do zapłaty razem” w bocznej kolumnie strony „Rozliczenia” (#105). */
+export interface SettlementsSummary {
+  /** Suma miesiąca (`SettlementList.total`), np. `12 340,00 zł`; `null` — bez stawki ośrodka. */
+  totalText: string | null;
+  /** Suma dla czytników ekranu, np. `Razem: 12 340,00 zł` (`SettlementList.totalText`); `null` — bez stawki. */
+  totalLabel: string | null;
+  /** Np. `2 jeźdźców · 120 jazd`. */
+  countsText: string;
+}
+
+/**
+ * Jeździec ośrodka bez jazd i kosztów w oglądanym miesiącu (#106) — link „Dopisz koszt →” do jego
+ * rozliczenia, gdzie dopisuje się koszt dodatkowy.
+ */
+export interface OtherRider {
+  riderKey: string;
+  name: string;
+  /** Rozliczenie jeźdźca w oglądanym miesiącu. */
   href: string;
 }
 
 export interface SettlementsView {
   nav: MonthNav;
+  summary: SettlementsSummary;
   rate: StableRateView;
-  /** Np. `Stawka ośrodka w październiku 2026: 120,00 zł`; `null` — bez stawki. */
-  monthRateText: string | null;
   list: Omit<SettlementList, "rows"> & { rows: SettlementLinkRow[] };
+  /** „Pozostali jeźdźcy ośrodka”: alfabetycznie; pusta — strona nie pokazuje sekcji. */
+  others: OtherRider[];
   /** Miesiąc bez nic do rozliczenia — strona pokazuje `EmptyState` z `emptyText`. */
   isEmpty: boolean;
   /** Np. `W październiku 2026 nie ma nic do rozliczenia.` */
@@ -297,18 +345,53 @@ function stableRateView(rates: RateChange[], currentMonth: string): StableRateVi
   };
 }
 
-/** Strona „Rozliczenia”: lista wybranego miesiąca, stawka ośrodka (dziś) i przełącznik miesięcy. */
+/**
+ * „Pozostali jeźdźcy ośrodka”: jeźdźcy ośrodka bez wiersza na liście miesiąca, alfabetycznie jak lista.
+ * Zanonimizowani nie mają konta, więc nie ma ich wśród jeźdźców ośrodka (ADR-0001).
+ */
+function otherRiders(
+  riders: readonly SettlementRider[],
+  rows: readonly SettlementRow[],
+  riderHref: (riderKey: string) => string,
+): OtherRider[] {
+  const listed = new Set(rows.map((row) => row.riderKey));
+  return riders
+    .filter((rider) => !listed.has(rider.key))
+    .map((rider) => ({ riderKey: rider.key, name: rider.name ?? UNNAMED_RIDER, href: riderHref(rider.key) }))
+    .sort((a, b) => a.name.localeCompare(b.name, "pl") || a.riderKey.localeCompare(b.riderKey));
+}
+
+/**
+ * Strona „Rozliczenia”: karty jeźdźców wybranego miesiąca, podsumowanie „Do zapłaty razem”, stawka
+ * ośrodka (dziś), przełącznik miesięcy i „Pozostali jeźdźcy ośrodka”.
+ */
 export function composeSettlementsPage(input: SettlementsPageInput, now: Date = new Date()): SettlementsView {
   const list = composeSettlementList(input, now);
-  const monthRate = stableRateFor(input.rates, input.month.month);
+  const rides = list.rows.reduce((sum, row) => sum + row.rides, 0);
   return {
     nav: composeMonthNav(input.month, input.monthHref),
+    summary: {
+      totalText: moneyText(list.total),
+      totalLabel: list.totalText,
+      countsText: `${formatCount(list.rows.length, RIDER_FORMS)} · ${formatCount(rides, RIDE_FORMS)}`,
+    },
     rate: stableRateView(input.rates, currentMonth(now)),
-    monthRateText:
-      monthRate === null
-        ? null
-        : `${SETTLEMENT_TEXTS.rate.inMonth} ${formatInMonthYear(input.month.month)}: ${formatMoney(monthRate.amount)}`,
-    list: { ...list, rows: list.rows.map((row) => ({ ...row, href: input.riderHref(row.riderKey) })) },
+    list: {
+      ...list,
+      rows: list.rows.map((row) => ({
+        ...row,
+        href: input.riderHref(row.riderKey),
+        rateText: moneyText(row.rate?.amount ?? null),
+        rateTag:
+          row.rate === null || row.rateSourceText === null
+            ? null
+            : { text: row.rateSourceText, variant: row.rate.source === "individual" ? "primary" : "neutral" },
+        // Bez stawki karta ma samą liczbę jazd — koszty widać w rozliczeniu jeźdźca.
+        costsText:
+          row.rate !== null && row.costsAmount > 0 ? `${SETTLEMENT_TEXTS.card.costs} ${row.costsAmountText}` : null,
+      })),
+    },
+    others: otherRiders(input.riders, list.rows, input.riderHref),
     isEmpty: list.rows.length === 0,
     emptyText: `${capitalize(formatInMonthYear(input.month.month))} ${SETTLEMENT_TEXTS.empty}`,
   };

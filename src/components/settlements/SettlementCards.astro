@@ -1,0 +1,138 @@
+---
+// Karty jeźdźców na stronie „Rozliczenia” (#105, wariant B prototypu): nazwa i „Do zapłaty”, pod nimi
+// wyliczenie „N jazd × stawka [źródło stawki] = kwota za jazdy + koszty”, na dole „Rozliczenie →”.
+// Cała karta to jeden link do rozliczenia jeźdźca oglądanego miesiąca. Bez stawki ośrodka karta ma samą
+// liczbę jazd, a nad kartami stoi zdanie, że kwoty czekają na stawkę. Stawka indywidualna ma dopisek
+// wyróżniony, stawka ośrodka — neutralny.
+// Renderuje karty z `SettlementsView` (`@/lib/settlements/settlements`) — kolejność, kwoty, adresy,
+// teksty i wariant dopisku są już policzone.
+//
+// KONTRAKT e2e: `list` „Rozliczenia jeźdźców”, jedna pozycja na jeźdźca: link, którego tekst zaczyna się
+// od nazwy; pierwsza kwota w pozycji to „Do zapłaty”, potem „N jazd…”.
+import Card from "@/components/ui/Card.astro";
+import Tag from "@/components/ui/Tag.astro";
+import type { SettlementsView } from "@/lib/settlements/settlements";
+import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
+
+interface Props {
+  list: SettlementsView["list"];
+}
+
+const { list } = Astro.props;
+const texts = SETTLEMENT_TEXTS;
+---
+
+{list.needsRate && <p class="note">{texts.amountsNeedRate}</p>}
+<ul class="cards" aria-label={texts.ridersList}>
+  {
+    list.rows.map((row) => (
+      <li>
+        <Card padding={0}>
+          <a class="rider" href={row.href}>
+            <span class="rider__top">
+              <span class="rider__name">{row.name}</span>
+              {row.dueText && (
+                <span class="rider__due">
+                  <span class="rider__due-label">{texts.card.due}</span>
+                  <span class="rider__amount">{row.dueText}</span>
+                </span>
+              )}
+            </span>
+            <span class="rider__calc">
+              <span>{row.ridesText}</span>
+              {row.rateText && (
+                <>
+                  <span>×</span>
+                  <span>{row.rateText}</span>
+                  {row.rateTag && <Tag variant={row.rateTag.variant}>{row.rateTag.text}</Tag>}
+                  <span>=</span>
+                  <span>{row.ridesAmountText}</span>
+                </>
+              )}
+              {row.costsText && (
+                <>
+                  <span>+</span>
+                  <span>{row.costsText}</span>
+                </>
+              )}
+            </span>
+            <span class="rider__more">{texts.card.open}</span>
+          </a>
+        </Card>
+      </li>
+    ))
+  }
+</ul>
+
+<style>
+  .note {
+    margin: 0 0 12px;
+    font-size: 14.5px;
+    color: var(--muted);
+  }
+  .cards {
+    display: grid;
+    gap: 12px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .rider {
+    display: grid;
+    gap: 8px;
+    padding: 16px 18px;
+    border-radius: var(--r-lg);
+    color: inherit;
+  }
+  .rider:hover .rider__name {
+    color: var(--primary);
+    text-decoration: underline;
+  }
+  .rider:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+  .rider__top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 4px 12px;
+  }
+  .rider__name {
+    min-width: 0;
+    font-size: 18px;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+  }
+  .rider__due {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-left: auto;
+  }
+  .rider__due-label {
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .rider__amount {
+    font-size: 20px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .rider__calc {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    font-size: 14.5px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .rider__more {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--primary);
+  }
+</style>

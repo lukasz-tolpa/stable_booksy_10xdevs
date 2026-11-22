@@ -4,20 +4,35 @@
  */
 export const SETTLEMENT_TEXTS = {
   heading: "Rozliczenia",
-  lead: "Kwoty jeźdźców ośrodka w wybranym miesiącu: liczba jazd razy stawka plus koszty dodatkowe.",
   failure: "Nie udało się wczytać rozliczeń.",
   retry: "Odśwież stronę za chwilę.",
   saved: "Zapisano.",
+  /** Formularz, którego punkt końcowy nie umie obsłużyć (spreparowany, np. koszt bez jeźdźca) — nic się nie zapisuje. */
+  formRefused: "Nie udało się przetworzyć formularza.",
   /** Dokończenie zdania stanu pustego po „W październiku 2026” (`formatInMonthYear`). */
   empty: "nie ma nic do rozliczenia.",
   emptyHint: "Wybierz inny miesiąc strzałkami.",
-  /** Sekcja listy jeźdźców i nazwa listy dla czytników ekranu. */
-  ridersHeading: "Jeźdźcy",
+  /** Nazwa listy kart jeźdźców dla czytników ekranu. */
   ridersList: "Rozliczenia jeźdźców",
-  /** Suma miesiąca, np. `Razem: 12 340,00 zł`. */
+  /** Suma miesiąca: etykieta przed kwotą dla czytników ekranu, np. `Razem: 12 340,00 zł`. */
   total: "Razem:",
-  /** Zamiast kwot na liście, gdy ośrodek nie ma stawki. */
+  /** Nagłówek sumy w bocznej kolumnie (#105). */
+  totalHeading: "Do zapłaty razem",
+  /** Suma bez stawki ośrodka. */
+  noTotal: "—",
+  /** Nad kartami, gdy ośrodek nie ma stawki. */
   amountsNeedRate: "Kwoty pojawią się po ustawieniu stawki ośrodka.",
+  /** Karta jeźdźca (#105): `Do zapłaty`, wyliczenie `… + koszty 50,00 zł`, `Rozliczenie →`. */
+  card: { due: "Do zapłaty", costs: "koszty", open: "Rozliczenie →" },
+  /**
+   * „Pozostali jeźdźcy ośrodka” pod kartami (#106): zwinięta sekcja z liczbą jeźdźców i dopiskiem, w każdym
+   * wierszu link do rozliczenia jeźdźca, gdzie dopisuje się koszt dodatkowy.
+   */
+  others: {
+    heading: "Pozostali jeźdźcy ośrodka",
+    note: "bez jazd i kosztów w tym miesiącu",
+    addCost: "Dopisz koszt →",
+  },
   /** Rozliczenie jeźdźca (#95): `/osrodek/rozliczenia/<jeździec>?miesiac=RRRR-MM`. */
   rider: {
     /** Tytuł karty przeglądarki przed nazwą jeźdźca: `Rozliczenie — Anna Kowalska`. */
@@ -80,8 +95,6 @@ export const SETTLEMENT_TEXTS = {
   },
   rate: {
     heading: "Stawka ośrodka",
-    /** Przed `formatInMonthYear`: `Stawka ośrodka w październiku 2026: 120,00 zł`. */
-    inMonth: "Stawka ośrodka",
     current: "Obowiązuje teraz:",
     planned: "Zaplanowana zmiana",
     deletePlanned: "Usuń zaplanowaną zmianę",
@@ -96,18 +109,13 @@ export const SETTLEMENT_TEXTS = {
     fromNext: "Od następnego miesiąca",
     submit: "Zapisz stawkę",
   },
-  /** Koszty dodatkowe (#96): rozliczenie jeźdźca i „Dopisz koszt” na stronie „Rozliczenia”. */
+  /** Koszty dodatkowe (#96) w rozliczeniu jeźdźca — jedyne miejsce, gdzie się je dopisuje (#106). */
   costs: {
     heading: "Koszty dodatkowe",
     /** Nazwa listy kosztów przed nazwą jeźdźca: `Koszty dodatkowe — Anna Kowalska`. */
     listLabel: "Koszty dodatkowe",
     none: "W tym miesiącu nie ma kosztów dodatkowych.",
     add: "Dopisz koszt",
-    /** Pod formularzem na stronie „Rozliczenia”, przed `formatInMonthYear`: `Koszt trafi do rozliczenia w listopadzie 2026.` */
-    addHint: "Koszt trafi do rozliczenia jeźdźca",
-    riderLabel: "Jeździec",
-    riderPlaceholder: "Wybierz jeźdźca",
-    noRiders: "Koszt dopiszesz jeźdźcowi, który miał zapis w Twoim ośrodku.",
     nameLabel: "Nazwa kosztu",
     namePlaceholder: "np. Pensjonat konia",
     amountLabel: "Kwota (zł)",

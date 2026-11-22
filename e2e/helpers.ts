@@ -267,7 +267,7 @@ export function settlementRiders(page: Page): Locator {
   return page.getByRole("list", { name: "Rozliczenia jeźdźców" }).getByRole("listitem");
 }
 
-/** Wiersze listy: tekst, liczba jazd i kwota (`null` — bez kwoty, ośrodek bez stawki). */
+/** Karty listy: tekst, liczba jazd i „Do zapłaty” — pierwsza kwota karty (`null` — bez kwoty, ośrodek bez stawki). */
 export async function settlementRows(page: Page): Promise<{ text: string; rides: number; amount: number | null }[]> {
   return (await settlementRiders(page).allInnerTexts()).map((text) => ({
     text,
@@ -289,4 +289,14 @@ export function emptySettlementsMonth(page: Page): Locator {
 /** Karta rozliczenia jeźdźca: region „Rozliczenie za {miesiąc}”. */
 export function settlementCard(page: Page): Locator {
   return page.getByRole("region", { name: /^Rozliczenie za / });
+}
+
+/** Nagłówek zwiniętej sekcji „Pozostali jeźdźcy ośrodka” (#106) — kliknięcie ją rozwija. */
+export function otherRidersToggle(page: Page): Locator {
+  return page.getByText("Pozostali jeźdźcy ośrodka", { exact: true });
+}
+
+/** Rozwinięta lista „Pozostali jeźdźcy ośrodka”: jedna pozycja na jeźdźca z linkiem „Dopisz koszt →”. */
+export function otherRiders(page: Page): Locator {
+  return page.getByRole("list", { name: "Pozostali jeźdźcy ośrodka" }).getByRole("listitem");
 }

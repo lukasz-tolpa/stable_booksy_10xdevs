@@ -9,13 +9,15 @@ import { MONTH_SUMMARY_TEXTS } from "@/lib/month-summary/texts";
 
 interface Props {
   nav: MonthNav;
+  /** Wąska kolumna: miesiąc nad strzałkami, bez zewnętrznych marginesów (`DayNav` `stacked`). */
+  stacked?: boolean;
 }
 
-const { nav } = Astro.props;
+const { nav, stacked = false } = Astro.props;
 const texts = MONTH_SUMMARY_TEXTS;
 ---
 
-<DayNav label={texts.navLabel}>
+<DayNav label={texts.navLabel} stacked={stacked}>
   <a slot="prev" href={nav.previousHref}>
     <ChevronLeft className="size-4" />
     {texts.previous}

@@ -198,9 +198,10 @@ export async function listMonthCosts(client: Client, stableId: number, month: st
 }
 
 /**
- * Jeźdźcy ośrodka do wyboru przy „Dopisz koszt”: profile kont `rider`, które właściciel widzi — RLS na
- * `profiles` (`is_rider_of_my_stable`) pokazuje konta z jakimkolwiek zapisem w jego ośrodku, także
- * odwołanym. Bez nowych uprawnień; kolejność ustala `costRiderOptions`. Rzuca przy błędzie zapytania.
+ * Jeźdźcy ośrodka do „Pozostałych jeźdźców ośrodka” (#106): profile kont `rider`, które właściciel widzi —
+ * RLS na `profiles` (`is_rider_of_my_stable`) pokazuje konta z jakimkolwiek zapisem w jego ośrodku, także
+ * odwołanym. Bez nowych uprawnień; wybór i kolejność ustala `composeSettlementsPage`. Rzuca przy błędzie
+ * zapytania.
  */
 export async function listStableRiders(client: Client): Promise<SettlementRider[]> {
   const { data, error } = await client.from("profiles").select("id, full_name").eq("role", "rider");

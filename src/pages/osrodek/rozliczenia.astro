@@ -1,10 +1,11 @@
 ---
 import Banner from "@/components/Banner.astro";
-import AddCost from "@/components/settlements/AddCost.astro";
 import Layout from "@/layouts/Layout.astro";
 import Topbar from "@/components/Topbar.astro";
 import MonthNav from "@/components/month-summary/MonthNav.astro";
-import SettlementRows from "@/components/settlements/SettlementRows.astro";
+import OtherRiders from "@/components/settlements/OtherRiders.astro";
+import SettlementCards from "@/components/settlements/SettlementCards.astro";
+import SettlementsTotal from "@/components/settlements/SettlementsTotal.astro";
 import StableRate from "@/components/settlements/StableRate.astro";
 import Card from "@/components/ui/Card.astro";
 import EmptyState from "@/components/ui/EmptyState.astro";
@@ -13,7 +14,6 @@ import { logError } from "@/lib/log";
 import { MONTH_PARAM, resolveSummaryMonth } from "@/lib/month-summary/month";
 import { composeMonthNav } from "@/lib/month-summary/summary";
 import { todayIso } from "@/lib/schedule/dates";
-import { composeAddCost, type AddCostView } from "@/lib/settlements/costs";
 import { listStableRiders, loadSettlementsInput } from "@/lib/settlements/queries";
 import { riderSettlementHref, settlementsHref } from "@/lib/settlements/redirect";
 import { composeSettlementsPage, type SettlementsView } from "@/lib/settlements/settlements";
@@ -24,7 +24,13 @@ import { createClient } from "@/lib/supabase";
 // Rozliczenia właściciela (#94, spec #93). Dostęp pilnuje middleware (mapa tras w @/lib/auth/roles):
 // przestrzeń ośrodka jest tylko dla właściciela; stawki chroni dodatkowo RLS. Liczy
 // `@/lib/settlements/settlements`; tu tylko odczyt i render. Miesiąc żyje w adresie (`?miesiac=RRRR-MM`),
-// formularze stawki i „Dopisz koszt” (#96) wracają na niego z `?sukces=1` albo `?error=`.
+// formularze stawki wracają na niego z `?sukces=1` albo `?error=`.
+// Układ (#105, wariant B): główna kolumna z kartami jeźdźców i „Pozostałymi jeźdźcami ośrodka”, boczna
+// — przełącznik miesięcy i suma (przyklejone od 1000 px), pod nimi stawka ośrodka (nieprzyklejona, więc
+// wysoka kolumna nie ucina formularza). Koszt dodatkowy dopisuje się tylko w rozliczeniu jeźdźca (#106),
+// do którego prowadzą linki pozostałych jeźdźców. Dokument idzie w kolejności czytania: miesiąc i suma,
+// główna kolumna, stawka — na telefonie to zarazem kolejność na ekranie (jedna kolumna), od 1000 px siatka
+// przenosi miesiąc z sumą i stawkę do bocznej kolumny. Bez JavaScriptu.
 const { profile } = Astro.locals;
 const SCOPE = "page:osrodek/rozliczenia";
 const texts = SETTLEMENT_TEXTS;
@@ -36,7 +42,6 @@ const saved = Astro.url.searchParams.get("sukces") === "1";
 const supabase = createClient(Astro.request.headers, Astro.cookies);
 
 let view: SettlementsView | null = null;
-let addCost: AddCostView | null = null;
 
 if (supabase && profile) {
   try {
@@ -46,15 +51,16 @@ if (supabase && profile) {
       logError(SCOPE, new Error("Brak stadniny dla konta właściciela"));
     } else {
       // Ten sam odczyt zapisów miesiąca co Podsumowanie miesiąca właściciela, bez filtra instruktora,
-      // plus stawki i koszty dodatkowe miesiąca (`loadSettlementsInput`, jak suma w panelu ośrodka).
+      // plus stawki i koszty dodatkowe miesiąca (`loadSettlementsInput`, jak suma w panelu ośrodka)
+      // i jeźdźcy ośrodka do „Pozostałych jeźdźców ośrodka”.
       const [input, riders] = await Promise.all([
         loadSettlementsInput(supabase, stableId, month),
         listStableRiders(supabase),
       ]);
-      addCost = composeAddCost(riders, month.month);
       view = composeSettlementsPage(
         {
           ...input,
+          riders,
           monthHref: settlementsHref,
           riderHref: (riderKey) => riderSettlementHref(riderKey, month.month),
         },
@@ -76,52 +82,67 @@ const nav = view?.nav ?? composeMonthNav(month, settlementsHref);
 <Layout title={texts.heading}>
   <Topbar />
   <main class="container-narrow page">
-    <h1>{texts.heading}</h1>
-    <p class="lead">{texts.lead}</p>
+    <div class="layout">
+      <h1 class="heading">
+        {texts.heading}
+        <span class="heading__month">· {nav.label}</span>
+      </h1>
 
-    {
-      saved && (
-        <div class="notice">
-          <Banner variant="success">{texts.saved}</Banner>
-        </div>
-      )
-    }
-    {
-      error && (
-        <div class="notice">
-          <Banner variant="error">{error}</Banner>
-        </div>
-      )
-    }
+      <div class="summary">
+        <MonthNav nav={nav} stacked />
+        {view && <SettlementsTotal summary={view.summary} />}
+      </div>
 
-    {view && <StableRate rate={view.rate} month={month.month} />}
+      <div class="main">
+        {
+          saved && (
+            <div class="notice">
+              <Banner variant="success">{texts.saved}</Banner>
+            </div>
+          )
+        }
+        {
+          error && (
+            <div class="notice">
+              <Banner variant="error">{error}</Banner>
+            </div>
+          )
+        }
+        {
+          !view ? (
+            <FailureState>
+              <p>{texts.failure}</p>
+              <p>{texts.retry}</p>
+            </FailureState>
+          ) : view.isEmpty ? (
+            <Card>
+              <EmptyState>
+                <p>{view.emptyText}</p>
+                <p>{texts.emptyHint}</p>
+              </EmptyState>
+            </Card>
+          ) : (
+            <SettlementCards list={view.list} />
+          )
+        }
 
-    <div class="month">
-      <MonthNav nav={nav} />
+        {
+          view && view.others.length > 0 && (
+            <div class="others">
+              <OtherRiders riders={view.others} />
+            </div>
+          )
+        }
+      </div>
+
+      {
+        view && (
+          <div class="rate">
+            <StableRate rate={view.rate} month={month.month} />
+          </div>
+        )
+      }
     </div>
-
-    {
-      !view ? (
-        <FailureState>
-          <p>{texts.failure}</p>
-          <p>{texts.retry}</p>
-        </FailureState>
-      ) : view.isEmpty ? (
-        <Card>
-          <EmptyState>
-            <p>{view.emptyText}</p>
-            <p>{texts.emptyHint}</p>
-          </EmptyState>
-        </Card>
-      ) : (
-        <section aria-labelledby="riders-heading">
-          <h2 id="riders-heading">{texts.ridersHeading}</h2>
-          <SettlementRows list={view.list} monthRateText={view.monthRateText} />
-        </section>
-      )
-    }
-
-    {addCost && <AddCost form={addCost} />}
   </main>
 </Layout>
 
@@ -129,23 +150,62 @@ const nav = view?.nav ?? composeMonthNav(month, settlementsHref);
   .page {
     padding-block: 24px 56px;
   }
+  /* Telefon: jedna kolumna w kolejności dokumentu — miesiąc i suma, główna kolumna, stawka. */
+  .layout {
+    display: grid;
+    gap: 16px;
+  }
+  .main,
+  .summary,
+  .rate {
+    min-width: 0;
+  }
+  .summary {
+    display: grid;
+    gap: 12px;
+  }
+  /*
+   * Od 1000 px boczna kolumna: miesiąc z sumą zajmuje wiersze nagłówka i główny (rozciągliwy), więc
+   * przykleja się przez całą długość kart; stawka stoi w ostatnim wierszu, pod nią, i przewija się normalnie.
+   */
+  @media (width >= 1000px) {
+    .layout {
+      grid-template-columns: minmax(0, 1fr) 300px;
+      grid-template-areas:
+        "heading summary"
+        "main summary"
+        "main rate";
+      grid-template-rows: auto 1fr auto;
+      align-items: start;
+      column-gap: 24px;
+    }
+    .heading {
+      grid-area: heading;
+    }
+    .main {
+      grid-area: main;
+    }
+    .summary {
+      grid-area: summary;
+      position: sticky;
+      top: 88px;
+    }
+    .rate {
+      grid-area: rate;
+    }
+  }
   h1 {
-    font-size: 32px;
-  }
-  h2 {
-    margin: 0 0 8px;
-    font-size: 20px;
-  }
-  .lead {
-    margin: 10px 0 0;
-    font-size: 15.5px;
-    color: var(--muted);
-    max-width: 62ch;
+    margin: 0;
+    font-size: 30px;
   }
   .notice {
-    margin-top: 18px;
+    margin-bottom: 14px;
   }
-  .month {
-    margin-top: 18px;
+  .others {
+    margin-top: 14px;
+  }
+  .heading__month {
+    font-weight: 500;
+    color: var(--muted);
   }
 </style>

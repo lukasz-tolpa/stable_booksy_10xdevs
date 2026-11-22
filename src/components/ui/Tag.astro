@@ -1,10 +1,13 @@
 ---
 // Pigułka stanu przy wierszu listy: „odwołany”, „bez konia”. Neutralna świadomie NIE kasztanowa,
 // żeby nie czytała się jak akcent (DESIGN.md §7); `warn` wyróżnia zapis, który czeka na ośrodek
-// (zapis bez konia, US 48).
+// (zapis bez konia, US 48); `primary` wyróżnia wyjątek w kolorze marki, np. „stawka indywidualna”
+// na karcie jeźdźca w Rozliczeniach (#105) — obrysem `--primary` na `--surface`, nie wypełnieniem
+// `--primary-soft`, żeby nie czytał się jak badge roli „Ośrodek” (DESIGN.md §2), i nie kasztanem, bo
+// kart z wyjątkiem bywa więcej niż limit akcentu na ekran (§7).
 //
 // KONTRAKT: cały tekst elementu to podana treść — e2e szuka tych słów dokładnym dopasowaniem.
-type Variant = "neutral" | "warn";
+type Variant = "neutral" | "warn" | "primary";
 
 interface Props {
   variant?: Variant;
@@ -13,7 +16,7 @@ interface Props {
 const { variant = "neutral" } = Astro.props;
 ---
 
-<span class:list={["tag", variant === "warn" && "tag--warn"]}><slot /></span>
+<span class:list={["tag", `tag--${variant}`]}><slot /></span>
 
 <style>
   .tag {
@@ -29,5 +32,11 @@ const { variant = "neutral" } = Astro.props;
   .tag--warn {
     background: var(--warn-soft);
     color: var(--warn-ink);
+  }
+  /* Obrys cieniem wewnętrznym — pigułka ma ten sam rozmiar co neutralna obok. */
+  .tag--primary {
+    background: var(--surface);
+    box-shadow: inset 0 0 0 1px var(--primary);
+    color: var(--primary-strong);
   }
 </style>
