@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { monthSearch, resolveSummaryMonth } from "@/lib/month-summary/month";
+import { monthSearch, requestedSummaryMonth, resolveSummaryMonth } from "@/lib/month-summary/month";
 
 // Piątek 20 listopada 2026 — „dziś” w strefie ośrodka.
 const TODAY = "2026-11-20";
@@ -57,6 +57,32 @@ describe("resolveSummaryMonth — miesiąc z adresu (`?miesiac=RRRR-MM`)", () =>
 
   it("wstecz bez limitu", () => {
     expect(resolveSummaryMonth("1999-03", TODAY)).toMatchObject({ month: "1999-03", next: "1999-04" });
+  });
+});
+
+// Oracle: #102 AC — adres PDF z miesiącem przyszłym wraca na stronę jeźdźca (decyzja dostępności widzi
+// prawdziwy miesiąc z adresu), a niepoprawny miesiąc traktuje tak jak strona (bieżący miesiąc).
+describe("requestedSummaryMonth — miesiąc z adresu, także przyszły", () => {
+  it("przyszły miesiąc zostaje przyszłym, z granicami i bez „bieżący”", () => {
+    expect(requestedSummaryMonth("2099-01", TODAY)).toEqual({
+      month: "2099-01",
+      from: "2099-01-01",
+      to: "2099-01-31",
+      previous: "2098-12",
+      next: "2099-02",
+      isCurrent: false,
+    });
+  });
+
+  it("brak i błędna wartość dają bieżący miesiąc, jak na stronie", () => {
+    for (const raw of [null, "", "2026-13", "listopad", "2026-11-05"]) {
+      expect(requestedSummaryMonth(raw, TODAY), String(raw)).toEqual(resolveSummaryMonth(null, TODAY));
+    }
+  });
+
+  it("bieżący i miniony miesiąc — jak `resolveSummaryMonth`", () => {
+    expect(requestedSummaryMonth("2026-11", TODAY)).toEqual(resolveSummaryMonth("2026-11", TODAY));
+    expect(requestedSummaryMonth("2026-10", TODAY)).toEqual(resolveSummaryMonth("2026-10", TODAY));
   });
 });
 

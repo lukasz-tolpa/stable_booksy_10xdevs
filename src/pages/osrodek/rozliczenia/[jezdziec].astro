@@ -1,5 +1,5 @@
 ---
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Download } from "lucide-react";
 import Banner from "@/components/Banner.astro";
 import Layout from "@/layouts/Layout.astro";
 import Topbar from "@/components/Topbar.astro";
@@ -10,12 +10,13 @@ import RiderSettlement from "@/components/settlements/RiderSettlement.astro";
 import Card from "@/components/ui/Card.astro";
 import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
+import GhostButton from "@/components/ui/GhostButton.astro";
 import { STABLE_DAY_BOOKINGS_ROUTE } from "@/lib/bookings/stable-redirect";
 import { logError } from "@/lib/log";
 import { MONTH_PARAM, resolveSummaryMonth } from "@/lib/month-summary/month";
 import { composeMonthNav } from "@/lib/month-summary/summary";
 import { todayIso } from "@/lib/schedule/dates";
-import { getSettlementRider, loadRiderSettlementInput } from "@/lib/settlements/queries";
+import { loadRiderSettlementInput } from "@/lib/settlements/queries";
 import { riderSettlementHref, settlementsHref } from "@/lib/settlements/redirect";
 import { composeRiderSettlementPage, parseRiderKey, type RiderSettlementView } from "@/lib/settlements/rider";
 import { composeRiderRate, type RiderRateView } from "@/lib/settlements/rider-rate";
@@ -52,21 +53,21 @@ if (riderKey !== null) {
         // Middleware nie wpuszcza tu właściciela bez stadniny; jej brak to awaria odczytu.
         logError(SCOPE, new Error("Brak stadniny dla konta właściciela"));
       } else {
-        const rider = await getSettlementRider(supabase, riderKey);
-        if (rider === null) {
+        // Ten sam odczyt co PDF rozliczenia (`loadRiderSettlementInput`), z nazwami instruktorów i koni.
+        const input = await loadRiderSettlementInput(supabase, stableId, riderKey, month);
+        if (input === null) {
           notFound = true;
         } else {
-          // Ten sam odczyt co lista „Rozliczenia” (`loadRiderSettlementInput`), z nazwami instruktorów i koni.
-          const input = await loadRiderSettlementInput(supabase, stableId, month, rider);
           view = composeRiderSettlementPage(
             {
               ...input,
               dayHref: (day) => dayHref(STABLE_DAY_BOOKINGS_ROUTE, day),
-              monthHref: (target) => riderSettlementHref(rider.key, target),
+              monthHref: (target) => riderSettlementHref(riderKey, target),
+              pdfHref: riderSettlementHref(riderKey, month.month, { pdf: true }),
             },
             now,
           );
-          riderRate = composeRiderRate(input.rates, rider.key, now);
+          riderRate = composeRiderRate(input.rates, riderKey, now);
         }
       }
     } catch (error) {
@@ -130,12 +131,16 @@ const title = view ? `${texts.rider.title} — ${view.settlement.name}` : texts.
             </div>
           )}
           {view ? (
-            <RiderSettlement
-              settlement={view.settlement}
-              emptyText={view.isEmpty ? view.emptyText : null}
-              rateHref={listHref}
-            >
+            <RiderSettlement settlement={view.settlement} rateHref={listHref}>
               <RiderCosts slot="costs" settlement={view.settlement} />
+              {view.pdfHref && (
+                <div slot="actions" class="actions">
+                  <GhostButton href={view.pdfHref}>
+                    <Download className="size-4" />
+                    {texts.pdf.download}
+                  </GhostButton>
+                </div>
+              )}
             </RiderSettlement>
           ) : (
             <FailureState>
@@ -186,5 +191,8 @@ const title = view ? `${texts.rider.title} — ${view.settlement.name}` : texts.
   .state,
   .notice {
     margin-top: 18px;
+  }
+  .actions {
+    margin-top: 14px;
   }
 </style>

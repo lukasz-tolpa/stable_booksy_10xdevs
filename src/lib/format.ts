@@ -175,6 +175,37 @@ export function formatDayMonth(at: Date): string {
   return DAY_MONTH.format(at);
 }
 
+const DAY_MONTH_YEAR = new Intl.DateTimeFormat("pl-PL", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  timeZone: SCHEDULE_TIME_ZONE,
+});
+
+/** Dzień, miesiąc i rok chwili w strefie ośrodka, np. `21 listopada 2026` — „stan na …” w PDF rozliczenia. */
+export function formatDayMonthYear(at: Date): string {
+  return DAY_MONTH_YEAR.format(at);
+}
+
+const DATE_TIME = new Intl.DateTimeFormat("en-CA", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+  timeZone: SCHEDULE_TIME_ZONE,
+});
+
+/**
+ * Data i godzina chwili w strefie ośrodka, np. `21.11.2026, 14:05` — stopka PDF rozliczenia. Składana
+ * z części, żeby układ nie zależał od wersji danych językowych środowiska.
+ */
+export function formatDateTime(at: Date): string {
+  const part = Object.fromEntries(DATE_TIME.formatToParts(at).map(({ type, value }) => [type, value]));
+  return `${part.day}.${part.month}.${part.year}, ${part.hour}:${part.minute}`;
+}
+
 /** Godziny jako jeden tekst, np. `3 h` — do etykiet wykresów i ich tabel z danymi. */
 export function formatHours(hours: number): string {
   return `${formatNumber(hours)} ${HOURS_UNIT}`;

@@ -98,3 +98,15 @@ export function costSaveErrorMessage(code: string | undefined): string {
 export function isExpectedCostRefusal(code: string | undefined): boolean {
   return code !== undefined && COST_SAVE_REFUSALS.has(code);
 }
+
+/** PDF rozliczenia jeźdźca (spec #100) nie powstał: awaria odczytu danych albo generowania pliku. */
+export const SETTLEMENT_PDF_FAILED = "Nie udało się przygotować PDF. Spróbuj ponownie.";
+
+/**
+ * Komunikat po nieudanym przygotowaniu PDF (#102). Odczyt rozliczenia nie ma odmów z reguł — RLS ukrywa
+ * cudze wiersze zamiast odmawiać, a brak PDF rozpoznaje `isSettlementPdfAvailable` przed generowaniem —
+ * więc każdy kod (także brak kodu przy błędzie generowania) to awaria. Endpoint zawsze ją loguje.
+ */
+export function settlementPdfErrorMessage(_code: string | undefined): string {
+  return SETTLEMENT_PDF_FAILED;
+}

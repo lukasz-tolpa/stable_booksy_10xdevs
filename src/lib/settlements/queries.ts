@@ -70,16 +70,22 @@ export async function loadSettlementsInput(
 }
 
 /**
- * Wszystko, czego rozliczenie jeźdźca potrzebuje (`composeRiderSettlement`) poza adresami strony: te same
+ * Jeździec z adresu i wszystko, czego jego rozliczenie potrzebuje (`composeRiderSettlement`) poza adresami
+ * strony — wspólny odczyt strony rozliczenia jeźdźca i PDF (spec #100), więc oba mówią to samo. Te same
  * dane co lista, a zapisy z nazwami instruktorów i koni — stado i instruktorzy obejmują zdezaktywowanych,
- * jedyne źródło nazw przy minionych jazdach. Rzuca przy błędzie zapytania.
+ * jedyne źródło nazw przy minionych jazdach. `null` — jeździec spoza ośrodka, zanonimizowany albo
+ * nieznany (`getSettlementRider`). Rzuca przy błędzie zapytania.
  */
 export async function loadRiderSettlementInput(
   client: Client,
   stableId: number,
+  riderKey: string,
   month: SummaryMonth,
-  rider: SettlementRider,
-): Promise<Omit<RiderSettlementInput, "dayHref">> {
+): Promise<Omit<RiderSettlementInput, "dayHref"> | null> {
+  const rider = await getSettlementRider(client, riderKey);
+  if (rider === null) {
+    return null;
+  }
   const [{ rows, ingredients }, horses, instructors] = await Promise.all([
     loadSettlementParts(client, stableId, month),
     listStableHorses(client, stableId),
@@ -141,7 +147,7 @@ export function deleteRiderRate(client: Client, stableId: number, riderId: strin
  * `profiles` (`is_rider_of_my_stable`) pokazuje tylko jeźdźców z zapisem w jego ośrodku. `null` —
  * jeździec spoza ośrodka, zanonimizowany (profil usunięty) albo nieznany. Rzuca przy błędzie zapytania.
  */
-export async function getSettlementRider(client: Client, riderKey: string): Promise<SettlementRider | null> {
+async function getSettlementRider(client: Client, riderKey: string): Promise<SettlementRider | null> {
   const { data, error } = await client
     .from("profiles")
     .select("id, full_name")

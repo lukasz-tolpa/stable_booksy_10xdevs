@@ -11,10 +11,12 @@ export function settlementsHref(month: string): string {
 
 /**
  * Adres rozliczenia jeźdźca (#95) dla miesiąca `RRRR-MM`: jeździec (konto) w ścieżce pod „Rozliczeniami”,
- * miesiąc w adresie jak na liście. Ochrona przestrzeni ośrodka obejmuje go razem z listą (`/osrodek`).
+ * miesiąc w adresie jak na liście. `pdf` — adres PDF tego rozliczenia (spec #100) obok strony:
+ * `/osrodek/rozliczenia/<jeździec>/pdf?miesiac=RRRR-MM`. Ochrona przestrzeni ośrodka obejmuje oba razem
+ * z listą (`/osrodek`).
  */
-export function riderSettlementHref(riderKey: string, month: string): string {
-  return `${OWNER_SETTLEMENTS_ROUTE}/${encodeURIComponent(riderKey)}${monthSearch(month)}`;
+export function riderSettlementHref(riderKey: string, month: string, { pdf = false } = {}): string {
+  return `${OWNER_SETTLEMENTS_ROUTE}/${encodeURIComponent(riderKey)}${pdf ? "/pdf" : ""}${monthSearch(month)}`;
 }
 
 /**
@@ -26,26 +28,36 @@ export function returnMonth(form: FormData, now: Date = new Date()): string {
   return resolveSummaryMonth(typeof raw === "string" ? raw : null, todayIso(now)).month;
 }
 
+/** Powrót bez banera — strona sama pokazuje, co widać (np. adres PDF, gdy PDF nie jest dostępny, #102). */
+export const NO_OUTCOME = Symbol("bez banera");
+
 /**
- * Powrót formularza na stronę `href` (już z `?miesiac=`): `&error=` z komunikatem albo `&sukces=1`.
- * Strony „Rozliczenia” i rozliczenia jeźdźca czytają oba parametry tak samo (`Banner`).
+ * Z czym strona wraca: komunikat błędu (`&error=`), brak — zapis się udał (`&sukces=1`), albo `NO_OUTCOME`.
  */
-function backTo(context: APIContext, href: string, error?: string) {
-  const outcome = error ? `error=${encodeURIComponent(error)}` : "sukces=1";
-  return context.redirect(`${href}&${outcome}`);
+export type BackOutcome = string | typeof NO_OUTCOME | undefined;
+
+/**
+ * Powrót na stronę `href` (już z `?miesiac=`) z wynikiem `outcome`. Strony „Rozliczenia” i rozliczenia
+ * jeźdźca czytają `error` i `sukces` tak samo (`Banner`).
+ */
+function backTo(context: APIContext, href: string, outcome: BackOutcome) {
+  if (outcome === NO_OUTCOME) {
+    return context.redirect(href);
+  }
+  return context.redirect(`${href}&${outcome ? `error=${encodeURIComponent(outcome)}` : "sukces=1"}`);
 }
 
 /** Powrót na „Rozliczenia” tego samego miesiąca. */
-export function backToSettlements(context: APIContext, month: string, error?: string) {
-  return backTo(context, settlementsHref(month), error);
+export function backToSettlements(context: APIContext, month: string, outcome?: BackOutcome) {
+  return backTo(context, settlementsHref(month), outcome);
 }
 
 /** Ukryte pole formularzy rozliczenia jeźdźca z jego kontem (#97) — jak parametr ścieżki strony. */
 export const RIDER_PARAM = "jezdziec";
 
 /** Powrót na rozliczenie jeźdźca tego samego miesiąca. */
-export function backToRiderSettlement(context: APIContext, riderKey: string, month: string, error?: string) {
-  return backTo(context, riderSettlementHref(riderKey, month), error);
+export function backToRiderSettlement(context: APIContext, riderKey: string, month: string, outcome?: BackOutcome) {
+  return backTo(context, riderSettlementHref(riderKey, month), outcome);
 }
 
 /** Ukryte pole formularza kosztu: jeździec, do którego rozliczenia wraca formularz (#96). */

@@ -4,7 +4,8 @@
  * „Do zapłaty” = kwota za jazdy + suma kosztów.
  *
  * `composeRiderSettlement` zwraca jeden obiekt bez adresów strony, żeby PDF rozliczenia (KAN-91)
- * wyrenderował go także poza stroną; `composeRiderSettlementPage` dokłada przełącznik miesięcy i powrót.
+ * wyrenderował go także poza stroną; `composeRiderSettlementPage` dokłada przełącznik miesięcy i adres
+ * „Pobierz PDF”.
  * Kwoty liczy `riderAmounts` — to samo, co wiersz listy „Rozliczenia”.
  */
 
@@ -20,6 +21,7 @@ import {
   type SummaryBooking,
   type SummaryRideRow,
 } from "@/lib/month-summary/summary";
+import { isSettlementPdfAvailable } from "@/lib/settlements/document";
 import { extraCostRows, riderCosts, type ExtraCostRow } from "@/lib/settlements/costs";
 import { riderAmounts, type RiderAmounts, type SettlementIngredients } from "@/lib/settlements/settlements";
 import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
@@ -46,7 +48,10 @@ export interface RiderSettlementInput extends SettlementIngredients {
 /** Rozliczenie jednego jeźdźca za jeden miesiąc — gotowe do wyrenderowania na stronie i w PDF. */
 export interface RiderSettlement extends RiderAmounts {
   riderKey: string;
+  /** Nazwa do pokazania: imię i nazwisko albo „(bez nazwiska)”. */
   name: string;
+  /** Imię i nazwisko z profilu; `null` — profil bez nich (nazwa pliku PDF ma wtedy `jezdziec`). */
+  fullName: string | null;
   /** Miesiąc `RRRR-MM`. */
   month: string;
   /** Np. `listopad 2026`. */
@@ -58,6 +63,8 @@ export interface RiderSettlement extends RiderAmounts {
   ridesLine: string;
   /** Jazdy chronologicznie: data, godzina, instruktor, koń albo „bez konia”. */
   rideRows: SummaryRideRow[];
+  /** Miesiąc bez jazd jeźdźca — tekst zamiast listy jazd, np. `W październiku 2026 nie było jazd.`; z jazdami `null`. */
+  emptyText: string | null;
   /** Koszty dodatkowe jeźdźca w miesiącu (#96), od najwcześniej dopisanego; suma w `costsAmount`. */
   costs: ExtraCostRow[];
   /** Ośrodek nie ma stawki — zamiast kwot prośba „Ustaw stawkę ośrodka”. */
@@ -84,6 +91,7 @@ export function composeRiderSettlement(input: RiderSettlementInput, now: Date = 
   return {
     riderKey: input.rider.key,
     name: input.rider.name ?? UNNAMED_RIDER,
+    fullName: input.rider.name,
     month: input.month.month,
     monthLabel: formatMonthYear(input.month.month),
     rides: rides.length,
@@ -94,6 +102,7 @@ export function composeRiderSettlement(input: RiderSettlementInput, now: Date = 
         ? `${texts.rides} ${ridesText}`
         : `${texts.rides} ${String(rides.length)} × ${formatMoney(amounts.rate.amount)} = ${amounts.ridesAmountText}`,
     rideRows: composeRideRows(rides, { viewer: "owner", dayHref: input.dayHref }),
+    emptyText: rides.length === 0 ? emptyMonthText(input.month, "owner") : null,
     costs: extraCostRows(riderCosts(input.costs, input.rider.key)),
     needsRate: amounts.rate === null,
   };
@@ -102,16 +111,19 @@ export function composeRiderSettlement(input: RiderSettlementInput, now: Date = 
 export interface RiderSettlementPageInput extends RiderSettlementInput {
   /** Adres rozliczenia tego jeźdźca dla miesiąca `RRRR-MM`. */
   monthHref: (month: string) => string;
+  /** Adres PDF tego rozliczenia — w widoku tylko, gdy PDF jest dostępny. */
+  pdfHref: string;
 }
 
-/** Strona rozliczenia jeźdźca: rozliczenie i przełącznik miesięcy tego samego jeźdźca. */
+/** Strona rozliczenia jeźdźca: rozliczenie, przełącznik miesięcy tego samego jeźdźca i „Pobierz PDF”. */
 export interface RiderSettlementView {
   nav: MonthNav;
   settlement: RiderSettlement;
-  /** Miesiąc bez jazd jeźdźca — zamiast listy jazd `EmptyState` z `emptyText`. */
-  isEmpty: boolean;
-  /** Np. `W październiku 2026 nie było jazd.` */
-  emptyText: string;
+  /**
+   * „Pobierz PDF” (spec #100): adres PDF, gdy PDF jest dostępny (`isSettlementPdfAvailable` — ta sama
+   * decyzja co w punkcie końcowym); inaczej `null` i przycisku nie ma.
+   */
+  pdfHref: string | null;
 }
 
 export function composeRiderSettlementPage(
@@ -122,8 +134,7 @@ export function composeRiderSettlementPage(
   return {
     nav: composeMonthNav(input.month, input.monthHref),
     settlement,
-    isEmpty: settlement.rides === 0,
-    emptyText: emptyMonthText(input.month, "owner"),
+    pdfHref: isSettlementPdfAvailable(settlement, now) ? input.pdfHref : null,
   };
 }
 

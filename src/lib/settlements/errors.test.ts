@@ -9,6 +9,7 @@ import {
   rateDeleteErrorMessage,
   rateSaveErrorMessage,
   riderRateSaveErrorMessage,
+  settlementPdfErrorMessage,
 } from "@/lib/settlements/errors";
 
 // Oracle: test-plan §6.4 — odmowy bazy jako zamknięty polski zestaw; tekst dostawcy nigdy nie przecieka.
@@ -88,6 +89,18 @@ describe("costSaveErrorMessage — dopisanie i poprawka kosztu", () => {
       expect(costSaveErrorMessage(code)).toBe(COST_SAVE_FAILED);
       expect(costSaveErrorMessage(code)).not.toMatch(PROVIDER_TEXT);
       expect(isExpectedCostRefusal(code)).toBe(false);
+    },
+  );
+});
+
+// Oracle: AC #102 — nieudane przygotowanie PDF (odczyt danych albo generowanie) to jeden polski komunikat
+// z zamkniętej tabeli rozliczeń; kod ani tekst dostawcy nie trafia do banera.
+describe("settlementPdfErrorMessage — nieudane przygotowanie PDF", () => {
+  it.each([undefined, "", "42501", "PGRST301", "08006", "57014", "fetch failed"])(
+    "kod %s to komunikat „Nie udało się przygotować PDF”",
+    (code) => {
+      expect(settlementPdfErrorMessage(code)).toBe("Nie udało się przygotować PDF. Spróbuj ponownie.");
+      expect(settlementPdfErrorMessage(code)).not.toMatch(PROVIDER_TEXT);
     },
   );
 });

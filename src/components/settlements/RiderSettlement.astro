@@ -19,13 +19,11 @@ import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
 
 interface Props {
   settlement: RiderSettlement;
-  /** Tekst stanu pustego zamiast listy jazd; `null` — jeździec miał jazdy. */
-  emptyText: string | null;
   /** Strona z formularzem stawki ośrodka (lista „Rozliczenia” tego miesiąca). */
   rateHref: string;
 }
 
-const { settlement, emptyText, rateHref } = Astro.props;
+const { settlement, rateHref } = Astro.props;
 const texts = SETTLEMENT_TEXTS.rider;
 const headingId = "settlement-heading";
 ---
@@ -50,9 +48,9 @@ const headingId = "settlement-heading";
 
     <div class="rides">
       {
-        emptyText ? (
+        settlement.emptyText ? (
           <EmptyState>
-            <p>{emptyText}</p>
+            <p>{settlement.emptyText}</p>
           </EmptyState>
         ) : (
           <RideList rides={settlement.rideRows} label={`${texts.ridesHeading} — ${settlement.name}`} />
