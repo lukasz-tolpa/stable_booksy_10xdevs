@@ -1,5 +1,9 @@
 import { INSTRUCTOR_LABEL, ROLE_LABELS, STABLE_LABEL, USER_ROLES } from "@/lib/auth/constants";
-import { PENDING_BOOKINGS_ROUTE, STABLE_DAY_BOOKINGS_ROUTE } from "@/lib/bookings/stable-redirect";
+import {
+  INSTRUCTOR_PENDING_BOOKINGS_ROUTE,
+  PENDING_BOOKINGS_ROUTE,
+  STABLE_DAY_BOOKINGS_ROUTE,
+} from "@/lib/bookings/stable-redirect";
 import { INSTRUCTORS_ROUTE } from "@/lib/instructors/redirect";
 import type { ScheduleCaller } from "@/lib/schedule/errors";
 import type { UserRole } from "@/types";
@@ -112,6 +116,8 @@ export interface InstructorTab {
 /** Zakładki przestrzeni instruktora wspólne dla stanów z uprawnieniem do grafiku i bez. */
 const MY_SLOTS_TAB: InstructorTab = { href: INSTRUCTOR_HOME_ROUTE, label: "Moje sloty" };
 const MONTH_SUMMARY_TAB: InstructorTab = { href: INSTRUCTOR_MONTH_SUMMARY_ROUTE, label: "Podsumowanie miesiąca" };
+/** Zapisy oczekujące na sloty instruktora (#126) — przyjmuje je i odrzuca jak właściciel, tylko na swoich slotach. */
+const PENDING_BOOKINGS_TAB: InstructorTab = { href: INSTRUCTOR_PENDING_BOOKINGS_ROUTE, label: "Zapisy do przyjęcia" };
 
 /**
  * Sekcje przestrzeni ośrodka właściciela — dolny pasek nawigacji na telefonie (spec #83), żeby
@@ -174,7 +180,7 @@ const STANDINGS: Record<
     badgeLabel: INSTRUCTOR_LABEL,
     schedule: null,
     scheduleCaller: "instructor",
-    tabs: [MY_SLOTS_TAB, MONTH_SUMMARY_TAB],
+    tabs: [MY_SLOTS_TAB, PENDING_BOOKINGS_TAB, MONTH_SUMMARY_TAB],
     sections: [],
   },
   "arranging-instructor": {
@@ -183,7 +189,7 @@ const STANDINGS: Record<
     badgeLabel: INSTRUCTOR_LABEL,
     schedule: INSTRUCTOR_SCHEDULE_ROUTE,
     scheduleCaller: "instructor",
-    tabs: [MY_SLOTS_TAB, { href: INSTRUCTOR_SCHEDULE_ROUTE, label: "Grafik" }, MONTH_SUMMARY_TAB],
+    tabs: [MY_SLOTS_TAB, PENDING_BOOKINGS_TAB, { href: INSTRUCTOR_SCHEDULE_ROUTE, label: "Grafik" }, MONTH_SUMMARY_TAB],
     sections: [],
   },
   inactive: {

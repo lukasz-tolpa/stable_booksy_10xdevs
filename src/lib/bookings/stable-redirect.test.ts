@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { pendingBookingsSuccessMessage, stableBookingSuccessMessage } from "@/lib/bookings/stable-redirect";
+import {
+  pendingBookingsRouteFor,
+  pendingBookingsSuccessMessage,
+  stableBookingSuccessMessage,
+} from "@/lib/bookings/stable-redirect";
 
 describe("stableBookingSuccessMessage", () => {
   it("przydział konia i odwołanie mają własne potwierdzenia", () => {
@@ -27,5 +31,19 @@ describe("pendingBookingsSuccessMessage", () => {
     for (const value of [null, "", "1", "odwolanie"]) {
       expect(pendingBookingsSuccessMessage(value)).toBeNull();
     }
+  });
+});
+
+describe("pendingBookingsRouteFor", () => {
+  it("instruktor z kontem wraca na swoje „Zapisy do przyjęcia” — z uprawnieniem do układania grafiku i bez", () => {
+    expect(pendingBookingsRouteFor("instructor")).toBe("/instruktor/zapisy-do-przyjecia");
+    expect(pendingBookingsRouteFor("arranging-instructor")).toBe("/instruktor/zapisy-do-przyjecia");
+  });
+
+  it("właściciel i pozostałe konta — „Zapisy do przyjęcia” ośrodka", () => {
+    expect(pendingBookingsRouteFor("owner")).toBe("/osrodek/zapisy-do-przyjecia");
+    expect(pendingBookingsRouteFor("inactive")).toBe("/osrodek/zapisy-do-przyjecia");
+    expect(pendingBookingsRouteFor("none")).toBe("/osrodek/zapisy-do-przyjecia");
+    expect(pendingBookingsRouteFor(null)).toBe("/osrodek/zapisy-do-przyjecia");
   });
 });

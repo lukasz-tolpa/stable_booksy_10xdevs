@@ -1,3 +1,5 @@
+import { NOT_AMONG_MY_PENDING_BOOKINGS } from "@/lib/bookings/acceptance";
+
 /**
  * Odrzucenie zapisu przez ośrodek (#125, GLOSSARY „Odrzucenie zapisu”): kody odmów funkcji
  * `public.reject_booking` (migracja `20261210090000_booking_rejection.sql`) na komunikaty dla ośrodka.
@@ -15,7 +17,7 @@ export const REJECT_REASON_TOO_LONG = "SB071";
 const SLOT_STARTED = "SB064";
 /** Zapis nie jest już oczekujący (kod z przyjęcia, #124). */
 const NOT_PENDING = "SB065";
-/** Wołający nie jest właścicielem ośrodka zapisu albo zapisu nie ma (kod z przyjęcia, #124). */
+/** Wołający nie decyduje o tym zapisie (właściciel ośrodka, instruktor slotu — #126) albo zapisu nie ma (kod z przyjęcia, #124). */
 const NOT_ALLOWED = "SB066";
 
 export const REJECTION_FAILED = "Nie udało się odrzucić zapisu. Spróbuj ponownie.";
@@ -28,7 +30,7 @@ const MESSAGES = new Map<string, string>([
     NOT_PENDING,
     "Ten zapis nie czeka już na przyjęcie — jeździec mógł go odwołać albo zapis został przyjęty lub odrzucony.",
   ],
-  [NOT_ALLOWED, "Nie znaleziono zapisu do odrzucenia w Twoim ośrodku."],
+  [NOT_ALLOWED, NOT_AMONG_MY_PENDING_BOOKINGS],
 ]);
 
 /** Komunikat odmowy odrzucenia; nieznany kod i awaria — wariant domyślny (zbiór zamknięty). */

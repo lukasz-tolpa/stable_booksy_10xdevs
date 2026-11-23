@@ -350,21 +350,7 @@ end $$;
 
 reset role;
 
--- Instruktorka z kontem (Joanna, nie wlascicielka) - przyjmowanie dostaje dopiero w #126.
-set local role authenticated;
-set local request.jwt.claims = '{"sub":"99999999-9999-9999-9999-999999999999","role":"authenticated"}';
-
-do $$
-begin
-  begin
-    perform public.accept_booking(current_setting('app.zofia_13')::bigint);
-    raise exception 'FAIL: instruktorka bez praw wlasciciela przyjela zapis';
-  exception when sqlstate 'SB066' then
-    raise notice 'PASS: instruktor bez praw wlasciciela nie przyjmie zapisu (SB066)';
-  end;
-end $$;
-
-reset role;
+-- Instruktor z kontem (swoj slot tak, cudzy nie): supabase/tests/instructor_booking_decisions.sql (#126).
 
 \echo '=== Przyjecie przez wlasciciela ==='
 
