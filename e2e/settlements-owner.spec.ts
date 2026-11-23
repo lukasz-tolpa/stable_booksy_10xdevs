@@ -18,6 +18,7 @@ import {
   settlementRiders,
   settlementRows,
   SETTLEMENTS_ROUTE,
+  priceBoarderAtZero,
   setStableRate,
   showAllRides,
   signIn,
@@ -43,8 +44,12 @@ import {
  */
 test.describe("Rozliczenia właściciela", () => {
   test.use({ storageState: STABLE_STATE });
-  // Bez stawek i kosztów dodatkowych: na liście są tylko jeźdźcy z jazdami (kroki rozliczenia jeźdźca ich potrzebują).
-  test.beforeAll(clearStableRatesAndCosts);
+  // Bez stawki ośrodka i kosztów dodatkowych: na liście są tylko jeźdźcy z jazdami (kroki rozliczenia jeźdźca ich
+  // potrzebują). Pensjonariuszka po 0,00 zł — sekcja „Pensjonariusze” ma sumę, więc „Razem” = suma kart rekreacji.
+  test.beforeAll(() => {
+    clearStableRatesAndCosts();
+    priceBoarderAtZero();
+  });
   test.afterAll(clearStableRatesAndCosts);
 
   test("właściciel ustawia stawkę ośrodka: kwota jeźdźca = liczba jazd × stawka, „Razem” = suma wierszy", async ({

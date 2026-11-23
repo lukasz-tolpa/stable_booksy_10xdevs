@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Rekreację od treningów pensjonariuszy rozdziela własność konia

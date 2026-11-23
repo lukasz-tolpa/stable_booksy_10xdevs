@@ -126,7 +126,7 @@ test("boczna kolumna „Ośrodek” prowadzi do sekcji ośrodka, każda z krótk
       [/^Instruktorzy \d+ z \d+ z kontem$/, "/osrodek/instruktorzy"],
       [/^Podsumowanie miesiąca \S+: \d+ jazd\S*$/, "/osrodek/podsumowanie"],
       // Bez stawki ośrodka prośba o nią, ze stawką — suma bieżącego miesiąca (#98).
-      [/^Rozliczenia (Ustaw stawkę|\S+: [\d\s]+,\d{2}\szł)$/, "/osrodek/rozliczenia"],
+      [/^Rozliczenia (Ustaw stawkę|Ustaw opłatę za pensjonat|\S+: [\d\s]+,\d{2}\szł)$/, "/osrodek/rozliczenia"],
       [/^Statystyki dowolny okres$/, "/osrodek/statystyki"],
     ];
     for (const [name, href] of expected) {
@@ -179,7 +179,9 @@ test("na telefonie panel i sekcje ośrodka są pod ręką w dolnym pasku, a pane
   });
 
   await test.step("Rozliczenia, których nie ma w dolnym pasku, otwierają się z kolumny głównej panelu", async () => {
-    const link = page.getByRole("link", { name: /^Rozliczenia · (Ustaw stawkę|\S+: [\d\s]+,\d{2}\szł)$/ });
+    const link = page.getByRole("link", {
+      name: /^Rozliczenia · (Ustaw stawkę|Ustaw opłatę za pensjonat|\S+: [\d\s]+,\d{2}\szł)$/,
+    });
     await expect(link).toBeVisible();
     await link.click();
     await page.waitForURL("**/osrodek/rozliczenia");

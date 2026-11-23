@@ -9,6 +9,7 @@ import {
   settlementCard,
   settlementRiders,
   SETTLEMENTS_ROUTE,
+  priceBoarderAtZero,
   setStableRate,
   STABLE_NAME,
   STABLE_STATE,
@@ -79,6 +80,7 @@ test.describe("Stawka indywidualna jeźdźca", () => {
   test.beforeAll(() => {
     clearStableRates();
     setStableRate(STABLE_RATE);
+    priceBoarderAtZero();
   });
   test.afterAll(clearStableRates);
 

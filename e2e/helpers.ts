@@ -218,8 +218,14 @@ export function runSql(sql: string, what: string, extraFlags: string[] = []): st
   return result.stdout;
 }
 
-/** Pensjonariuszka z seeda (#117) — jej jazdy na Hrabi liczą się po stawce treningowej z opłatą za pensjonat. */
-export const BOARDER = { key: "12121212-1212-1212-1212-121212121212", name: "Katarzyna Zając", horse: "Hrabia" };
+/** Pensjonariuszka z seeda (#114, #117) — jej jazdy na Hrabi liczą się po stawce treningowej z opłatą za pensjonat. */
+export const BOARDER = {
+  key: "12121212-1212-1212-1212-121212121212",
+  email: "katarzyna.zajac@example.com",
+  name: "Katarzyna Zając",
+  slug: "katarzyna-zajac",
+  horse: "Hrabia",
+};
 
 /**
  * Usuwa stawki ośrodka z seeda (obu rodzajów, także indywidualne) i opłaty za pensjonat jego koni (#117),
@@ -283,6 +289,16 @@ export function setBoarderFee(amount: number): void {
   `,
     "ustawić opłaty za pensjonat",
   );
+}
+
+/**
+ * Stawka treningowa i opłata za pensjonat Hrabi po 0,00 zł. Pobyt Hrabi trwa zawsze, więc pensjonariuszka ma
+ * kartę w sekcji „Pensjonariusze” każdego bieżącego miesiąca; bez jej „Do zapłaty” nie ma sumy sekcji ani
+ * „Razem” (spec #112). Z zerami „Razem” = suma kart rekreacji — dla scenariuszy o stawce ośrodka.
+ */
+export function priceBoarderAtZero(): void {
+  setTrainingRate(0);
+  setBoarderFee(0);
 }
 
 /** Kwota z tekstu, np. `1 234,50 zł` (twarde spacje), w groszach. */

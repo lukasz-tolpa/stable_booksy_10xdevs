@@ -34,7 +34,7 @@ _Avoid_: koń prywatny
 Okres od dnia przyjazdu do dnia wyjazdu, w którym koń pensjonatowy stoi w ośrodku. Pobyt kończy każda ze stron: ośrodek albo pensjonariusz, wpisując dzień wyjazdu — nie późniejszy niż dziś i nie wcześniejszy niż ostatnia jazda konia; ośrodek może ten dzień poprawić, a pensjonariusz widzi każdą zmianę. Usunięcie konta pensjonariusza kończy pobyty jego koni we wszystkich ośrodkach.
 
 **Opłata za pensjonat**:
-Miesięczna kwota za jednego konia pensjonatowego, wchodząca do rozliczenia jego właściciela za każdy miesiąc, w którym trwa pobyt konia — w całości, także w miesiącu przyjazdu i wyjazdu. Obowiązuje od wskazanego miesiąca, jak stawka.
+Miesięczna kwota za jednego konia pensjonatowego, wchodząca do rozliczenia jego właściciela za każdy miesiąc, w którym trwa pobyt konia — w całości, także w miesiącu przyjazdu i wyjazdu. Obowiązuje od wskazanego miesiąca, jak stawka: zmiana nie przelicza minionych miesięcy, a — jak pierwsza stawka ośrodka — pierwsza opłata konia obowiązuje też we wszystkich wcześniejszych miesiącach jego pobytu. Koń bez opłaty nie ma kwoty, więc rozliczenie jego właściciela nie ma „Do zapłaty”.
 _Avoid_: pensjonat (jako koszt dodatkowy), czynsz
 
 **Instruktor**:

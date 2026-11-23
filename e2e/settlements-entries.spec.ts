@@ -1,5 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
-import { clearStableRates, grosze, SETTLEMENTS_ROUTE, setStableRate, setTrainingRate, STABLE_STATE } from "./helpers";
+import {
+  clearStableRates,
+  grosze,
+  SETTLEMENTS_ROUTE,
+  setBoarderFee,
+  setStableRate,
+  setTrainingRate,
+  STABLE_STATE,
+} from "./helpers";
 
 /**
  * Wejścia do Rozliczeń (#98, spec #93): boczna kolumna panelu ośrodka z sumą bieżącego miesiąca albo
@@ -36,10 +44,18 @@ test.describe("Wejścia do Rozliczeń", () => {
       await expect(sideLink(page)).toHaveAccessibleName("Rozliczenia Ustaw stawkę");
     });
 
-    // Stawka treningowa bez opłaty za pensjonat: karta pensjonariuszki (pobyt Hrabi trwa zawsze) jest bez
-    // kwoty i wnosi 0, ale sekcja ma sumę — więc i pierwszego dnia miesiąca jest „Razem” (0,00 zł).
+    // Pobyt Hrabi trwa zawsze, więc pensjonariuszka ma kartę w bieżącym miesiącu. Ze stawkami, ale bez opłaty
+    // za pensjonat jej karta nie ma „Do zapłaty” — suma miesiąca nie jest częściowa (spec #112).
     setStableRate(12345);
-    setTrainingRate(15000);
+    setTrainingRate(0);
+    await test.step("stawki są, koń bez opłaty za pensjonat: przy linku prośba „Ustaw opłatę za pensjonat”", async () => {
+      await page.reload();
+      await expect(sideLink(page)).toHaveAccessibleName("Rozliczenia Ustaw opłatę za pensjonat");
+    });
+
+    // Stawka treningowa i opłata 0,00 zł: karta pensjonariuszki wnosi 0, więc suma to same jazdy rekreacyjne —
+    // i pierwszego dnia miesiąca jest „Razem” (0,00 zł).
+    setBoarderFee(0);
     let sideTotal = 0;
     let monthName = "";
 

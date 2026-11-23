@@ -13,6 +13,7 @@ import {
   settlementCard,
   settlementRiders,
   SETTLEMENTS_ROUTE,
+  priceBoarderAtZero,
   setStableRate,
   STABLE_STATE,
 } from "./helpers";
@@ -57,6 +58,7 @@ test.describe("Koszty dodatkowe", () => {
   test.beforeAll(() => {
     clearStableRatesAndCosts();
     setStableRate(RATE);
+    priceBoarderAtZero();
   });
   test.afterAll(clearStableRatesAndCosts);
 

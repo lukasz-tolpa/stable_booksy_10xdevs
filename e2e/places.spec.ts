@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { RIDER_A_STATE, openStable, seedDay, signUpOwnerWithStable, slotItem, waitForIslands } from "./helpers";
+import { RIDER_A_STATE, openStable, runSql, seedDay, signUpOwnerWithStable, slotItem, waitForIslands } from "./helpers";
 
 /**
  * Place ośrodka (#113, spec #112): właściciel zakłada plac, zmienia nazwę, dezaktywuje i aktywuje
@@ -13,6 +13,16 @@ import { RIDER_A_STATE, openStable, seedDay, signUpOwnerWithStable, slotItem, wa
  */
 
 const HOURS = [10, 11];
+
+/** Id placu ośrodka — wartość pozycji listy „Plac”. */
+function placeId(stable: string, name: string): string {
+  return runSql(
+    `select p.id from public.places p join public.stables s on s.id = p.stable_id
+     where s.name = '${stable}' and p.name = '${name}';`,
+    "odczytać placu",
+    ["-At"],
+  ).trim();
+}
 
 function activePlaces(page: Page) {
   return page.getByRole("list", { name: "Aktywne place" });
@@ -131,11 +141,9 @@ test("właściciel zakłada drugi plac, układa dzień z dwoma placami, a jeźdz
     // Trwałość: po przeładowaniu formularz pokazuje zapisany plac każdego slotu.
     await page.reload();
     await waitForIslands(page);
-    await expect(page.getByLabel(`Plac — ${owner}, 10:00`, { exact: true }).locator("option:checked")).toHaveText(
-      "Hala",
-    );
-    await expect(page.getByLabel(`Plac — ${owner}, 11:00`, { exact: true }).locator("option:checked")).toHaveText(
-      "Duży plac",
+    await expect(page.getByLabel(`Plac — ${owner}, 10:00`, { exact: true })).toHaveValue(placeId(stableName, "Hala"));
+    await expect(page.getByLabel(`Plac — ${owner}, 11:00`, { exact: true })).toHaveValue(
+      placeId(stableName, "Duży plac"),
     );
   });
 

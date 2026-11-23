@@ -6,6 +6,7 @@ import {
   STABLE_STATE,
   clearStableRatesAndCosts,
   grosze,
+  runSql,
   settlementCard,
   signIn,
 } from "./helpers";
@@ -22,16 +23,12 @@ import {
  */
 test.use({ storageState: STABLE_STATE });
 
-const BOARDER_EMAIL = "katarzyna.zajac@example.com";
-const BOARDER_SLUG = "katarzyna-zajac";
 const TRAINING_RATE = 15050;
 const FEE = 150000;
 
-/** Bieżący miesiąc `RRRR-MM` w strefie ośrodka — ten, od którego działa „Od tego miesiąca”. */
+/** Bieżący miesiąc bazy `RRRR-MM` (`private.warsaw_month_start()`) — ten, od którego działa „Od tego miesiąca”. */
 function currentMonth(): string {
-  return new Intl.DateTimeFormat("sv-SE", { year: "numeric", month: "2-digit", timeZone: "Europe/Warsaw" }).format(
-    new Date(),
-  );
+  return runSql("select to_char(private.warsaw_month_start(), 'YYYY-MM');", "odczytać miesiąca", ["-At"]).trim();
 }
 
 function boarderSettlementUrl(month: string): string {
@@ -115,7 +112,7 @@ test.describe("Rozliczenie pensjonariusza", () => {
         page.waitForEvent("download"),
         page.getByRole("link", { name: "Pobierz PDF" }).click(),
       ]);
-      expect(file.suggestedFilename()).toBe(`rozliczenie-${month}-${BOARDER_SLUG}.pdf`);
+      expect(file.suggestedFilename()).toBe(`rozliczenie-${month}-${BOARDER.slug}.pdf`);
       const bytes = await readFile(await file.path());
       expect(bytes.subarray(0, 5).toString("latin1")).toBe("%PDF-");
     });
@@ -124,7 +121,7 @@ test.describe("Rozliczenie pensjonariusza", () => {
     const boarder = await boarderContext.newPage();
     try {
       await test.step("pensjonariuszka widzi swoją opłatę w „Moich koniach”, bez formularza", async () => {
-        await signIn(boarder, BOARDER_EMAIL, "/jezdziec");
+        await signIn(boarder, BOARDER.email, "/jezdziec");
         await boarder.goto("/jezdziec/konie");
         const horse = boarder.getByRole("article", { name: BOARDER.horse });
         await expect(horse.getByText(/^1\s500,00\szł$/)).toBeVisible();

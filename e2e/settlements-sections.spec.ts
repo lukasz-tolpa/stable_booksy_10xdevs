@@ -130,6 +130,37 @@ test.describe("Rozliczenia w dwóch sekcjach", () => {
   });
 });
 
+// Oracle: spec #112 — „Do zapłaty” bez opłaty za pensjonat nie jest liczone, a suma miesiąca nie bywa częściowa.
+test.describe("Rozliczenia bez opłaty za pensjonat", () => {
+  test.beforeAll(() => {
+    clearStableRatesAndCosts();
+    setStableRate(RATE);
+    setTrainingRate(TRAINING_RATE);
+  });
+  test.afterAll(clearStableRatesAndCosts);
+
+  test("koń bez opłaty: sekcja „Pensjonariusze” i „Do zapłaty razem” bez sumy, rekreacja ma swoją", async ({
+    page,
+  }) => {
+    await page.goto(SETTLEMENTS_ROUTE);
+    await goToMonthWithRecreationRides(page);
+    await expect(settlementRiders(page).first(), DEMO_HINT).toBeVisible();
+
+    const boarders = settlementSection(page, "Pensjonariusze");
+    await expect(settlementRiders(page, "Pensjonariusze").first()).toContainText("opłata za pensjonat: brak kwoty");
+    await expect(
+      boarders.getByText(
+        "„Do zapłaty” pojawi się po ustawieniu opłaty za pensjonat przy koniu na stronie „Pensjonariusze”.",
+      ),
+    ).toBeVisible();
+    expect(await settlementSectionTotal(page, "Pensjonariusze")).toBeNull();
+    expect(await settlementSectionTotal(page, "Rekreacja")).toBe(await cardsSum(page, "Rekreacja"));
+    // „Do zapłaty razem” bez kwoty („—”) zamiast sumy częściowej: suma dla czytników ekranu znika.
+    await expect(page.getByRole("heading", { level: 2, name: "Do zapłaty razem" })).toBeVisible();
+    await expect(page.getByText(/^Razem: /)).toHaveCount(0);
+  });
+});
+
 test("Podsumowanie miesiąca właściciela ma obie sekcje: pensjonariuszka w „Pensjonariuszach”, reszta w „Rekreacji”", async ({
   page,
 }) => {
@@ -144,10 +175,12 @@ test("Podsumowanie miesiąca właściciela ma obie sekcje: pensjonariuszka w „
   const recreation = page.getByRole("list", { name: "Jeźdźcy — Rekreacja", exact: true });
   await expect(page.getByRole("region", { name: "Pensjonariusze", exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "Rekreacja", exact: true }), DEMO_HINT).toBeVisible();
-  // Wiersze jeźdźców to bezpośrednie pozycje listy sekcji (pod nimi zwinięte listy jazd).
-  await expect(boarders.locator(":scope > li").filter({ hasText: BOARDER.name })).toHaveCount(1);
-  await expect(recreation.locator(":scope > li").filter({ hasText: BOARDER.name })).toHaveCount(0);
-  await expect(recreation.locator(":scope > li").first()).toBeVisible();
+  // Wiersz jeźdźca to pozycja listy sekcji z jego imieniem i nazwiskiem (zwinięte pod nim jazdy go nie mają).
+  const riderRow = (list: typeof boarders) =>
+    list.getByRole("listitem").filter({ has: page.getByText(BOARDER.name, { exact: true }) });
+  await expect(riderRow(boarders)).toHaveCount(1);
+  await expect(riderRow(recreation)).toHaveCount(0);
+  await expect(recreation.getByRole("listitem").first()).toBeVisible();
 
   await test.step("pensjonariuszka jeździ na swoim koniu", async () => {
     await boarders.getByText(BOARDER.name, { exact: true }).click();

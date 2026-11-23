@@ -251,29 +251,3 @@ begin
   raise notice 'Sloty treningowe historii demo zaladowane.';
 end
 $$;
-
--- #117 Rozliczenie pensjonariusza (spec #112): stawka treningowa osrodka Pod Dębem 150,00 zl i oplata
--- za pensjonat Hrabi 1 500,00 zl miesiecznie, obie od biezacego miesiaca (pierwsza dziala wstecz), wiec
--- rozliczenie Katarzyny Zajac ma "Jazdy: N x stawka treningowa", oplate za pensjonat i "Do zapłaty".
--- Stawki rekreacyjnej demo nie ustawia (strona "Rozliczenia" prosi o nia). Specyfikacje e2e rozliczen
--- usuwaja stawki i oplaty osrodka przed soba i po sobie. Idempotentne.
-do $$
-declare
-  v_stable bigint;
-begin
-  select id into strict v_stable from public.stables where name = 'Stadnina Pod Dębem';
-
-  insert into public.rates (stable_id, rider_id, kind, from_month, amount)
-  values (v_stable, null, 'training', private.warsaw_month_start(), 15000)
-  on conflict (stable_id, rider_id, kind, from_month) do nothing;
-
-  insert into public.boarding_fees (horse_id, stable_id, from_month, amount)
-  select o.horse_id, o.stable_id, private.warsaw_month_start(), 150000
-  from public.horse_owners o
-  join public.horses h on h.id = o.horse_id
-  where o.stable_id = v_stable and h.name = 'Hrabia'
-  on conflict (horse_id, from_month) do nothing;
-
-  raise notice 'Stawka treningowa i oplata za pensjonat Hrabi w historii demo.';
-end
-$$;

@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import {
+  BOARDER,
   DEMO_HINT,
   RIDER_A_STATE,
   STABLE_NAME,
@@ -18,7 +19,6 @@ import {
  *
  * Wyrocznia: aktywne zapisy w slotach dnia na tym placu, policzone przez superusera. Scenariusz nic nie zapisuje.
  */
-const BOARDER_EMAIL = "katarzyna.zajac@example.com";
 const PLACE = "Duży plac";
 const HOUR = 10;
 const TITLE = "Zajętość placów";
@@ -93,7 +93,7 @@ test("pensjonariuszka widzi zajętość placów w dniu z jazdami demo, także na
   expect(taken.get(owner), "slot treningowy właściciela z jazdą pensjonariuszki").toBeGreaterThan(0);
 
   await test.step("nawigacja jeźdźca prowadzi pensjonariuszkę do zajętości placów", async () => {
-    await signIn(page, BOARDER_EMAIL, "/jezdziec");
+    await signIn(page, BOARDER.email, "/jezdziec");
     await page.getByRole("link", { name: TITLE, exact: true }).click();
     await expect(page.getByRole("heading", { level: 1, name: TITLE })).toBeVisible();
     await expect(page.getByText(STABLE_NAME, { exact: true })).toBeVisible();
