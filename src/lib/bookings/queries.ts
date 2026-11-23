@@ -71,6 +71,8 @@ export interface DayBooking {
   anonymised: boolean;
   status: BookingStatus;
   cancelledBy: CancelledBy | null;
+  /** Zapis był przyjęty (`accepted_at`) — odwołany bez tego znacznika to wycofany zapis oczekujący. */
+  wasAccepted: boolean;
 }
 
 /**
@@ -89,7 +91,9 @@ export interface DayBooking {
 export async function getDayBookings(client: Client, scheduleDayId: number): Promise<DayBooking[]> {
   const { data, error } = await client
     .from("bookings")
-    .select("id, hour, instructor_id, horse_id, rider_id, status, cancelled_by, instructors(name), profiles(full_name)")
+    .select(
+      "id, hour, instructor_id, horse_id, rider_id, status, cancelled_by, accepted_at, instructors(name), profiles(full_name)",
+    )
     .eq("schedule_day_id", scheduleDayId);
 
   if (error) {
@@ -111,6 +115,7 @@ export async function getDayBookings(client: Client, scheduleDayId: number): Pro
     // Nieznana wartość rzuca — strona loguje ją i pokazuje stan awarii.
     status: toBookingStatus(row.status),
     cancelledBy: toCancelledBy(row.cancelled_by),
+    wasAccepted: row.accepted_at !== null,
   }));
 }
 
