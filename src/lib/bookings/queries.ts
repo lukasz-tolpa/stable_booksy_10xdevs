@@ -12,7 +12,8 @@ type Client = SupabaseClient<Database>;
 /**
  * Zajętość slotów (instruktor × godzina) ośrodka na dany dzień — przez RPC
  * `get_slot_occupancy`, bo polityka SELECT na `bookings` pokazuje jeźdźcowi wyłącznie
- * jego własne zapisy. Funkcja zwraca same liczby aktywnych zapisów, bez tożsamości jeźdźców.
+ * jego własne zapisy. Funkcja zwraca same liczby — aktywnych zapisów i (komu wolno, #128) oczekujących — bez
+ * tożsamości jeźdźców.
  */
 export async function getSlotOccupancy(client: Client, stableId: number, day: string): Promise<SlotOccupancy[]> {
   const { data, error } = await client.rpc("get_slot_occupancy", { p_stable_id: stableId, p_day: day });
@@ -21,7 +22,14 @@ export async function getSlotOccupancy(client: Client, stableId: number, day: st
     throw error;
   }
 
-  return data.map((row) => ({ instructorId: row.instructor_id, hour: row.hour, taken: row.taken }));
+  return data.map((row) => ({
+    instructorId: row.instructor_id,
+    hour: row.hour,
+    taken: row.taken,
+    // Funkcja zwraca NULL, gdy wołający liczby czekających nie widzi — wygenerowane typy tego nie wiedzą.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    waiting: row.waiting ?? null,
+  }));
 }
 
 /**
@@ -437,4 +445,18 @@ export async function rejectBooking(client: Client, bookingId: number, reason: s
   if (error) {
     throw error;
   }
+}
+
+/**
+ * Licznik zapisów do przyjęcia (#128) — RPC `count_pending_bookings`: właściciel liczy cały ośrodek, instruktor
+ * z kontem swoje sloty, bez wygasłych. Zakres bierze baza z sesji.
+ */
+export async function countPendingBookings(client: Client): Promise<number> {
+  const { data, error } = await client.rpc("count_pending_bookings");
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
 }

@@ -3,23 +3,26 @@ import { firstErrorMessage } from "@/lib/auth/schemas";
 import { acceptanceErrorMessage } from "@/lib/bookings/acceptance";
 import { acceptBooking } from "@/lib/bookings/queries";
 import { acceptSchema } from "@/lib/bookings/schema";
-import { backToPendingBookings } from "@/lib/bookings/stable-redirect";
+import { backAfterPendingDecision } from "@/lib/bookings/stable-redirect";
 import { errorCode } from "@/lib/db-errors";
 import { formValue } from "@/lib/form-data";
 import { logError } from "@/lib/log";
+import { parseScheduleDate } from "@/lib/schedule/dates";
 import { ownerRequest } from "@/lib/stables/owner-request";
 
 const SCOPE = "api:bookings/accept";
 
 /**
  * Przyjęcie zapisu oczekującego przez właściciela (#124, GLOSSARY „Przyjęcie zapisu”) z „Zapisów do
- * przyjęcia”. Reguły (ośrodek z sesji, zapis oczekujący, slot się nie zaczął, limit miejsc — także przy dwóch
- * równoczesnych przyjęciach) pilnuje funkcja bazy `accept_booking`; endpoint waliduje formularz przed mutacją
+ * przyjęcia” albo (#128) z zapisów dnia przy slocie. Reguły (ośrodek z sesji, zapis oczekujący, slot się nie
+ * zaczął, limit miejsc — także przy dwóch równoczesnych przyjęciach) pilnuje funkcja bazy `accept_booking`; endpoint waliduje formularz przed mutacją
  * i tłumaczy jej kody na zamknięty zbiór polskich komunikatów.
  */
 export const POST: APIRoute = async (context) => {
   const form = await context.request.formData();
-  const back = (error: string) => backToPendingBookings(context, { error });
+  // Decyzja przy slocie na zapisach dnia (#128) wraca na ten dzień; bez dnia — na „Zapisy do przyjęcia”.
+  const day = parseScheduleDate(formValue(form, "day"));
+  const back = (error: string) => backAfterPendingDecision(context, day, { error });
 
   const parsed = acceptSchema.safeParse({ bookingId: formValue(form, "bookingId") });
   if (!parsed.success) {
@@ -42,5 +45,5 @@ export const POST: APIRoute = async (context) => {
     return back(message);
   }
 
-  return backToPendingBookings(context, { success: "przyjecie" });
+  return backAfterPendingDecision(context, day, { success: "przyjecie" });
 };

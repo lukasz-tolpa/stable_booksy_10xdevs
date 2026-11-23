@@ -12,6 +12,7 @@ import Tag from "@/components/ui/Tag.astro";
 import { composePendingBookings, type PendingBookingsDay } from "@/lib/bookings/pending";
 import { getPendingBookings } from "@/lib/bookings/queries";
 import { pendingBookingsSuccessMessage } from "@/lib/bookings/stable-redirect";
+import { formatOthersWaiting } from "@/lib/bookings/waiting";
 import { formatClockHour, formatFreeSeats, formatLongDateWithYear } from "@/lib/format";
 import { logError } from "@/lib/log";
 import { SLOT_KIND, TRAINING_SLOT_TAG } from "@/lib/schedule/kind";
@@ -106,6 +107,9 @@ if (supabase && profile) {
                         <Tag variant="warn">Brak miejsc</Tag>
                       ) : (
                         <span class="row__sub mono-nums">{formatFreeSeats(row.freeSeats, row.seats)}</span>
+                      )}
+                      {row.othersWaiting > 0 && (
+                        <span class="row__sub mono-nums">{formatOthersWaiting(row.othersWaiting)}</span>
                       )}
                     </span>
                     <div class="row__actions">

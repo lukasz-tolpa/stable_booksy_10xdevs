@@ -3,23 +3,26 @@ import { firstErrorMessage } from "@/lib/auth/schemas";
 import { rejectBooking } from "@/lib/bookings/queries";
 import { rejectionErrorMessage } from "@/lib/bookings/rejection";
 import { rejectSchema } from "@/lib/bookings/schema";
-import { backToPendingBookings } from "@/lib/bookings/stable-redirect";
+import { backAfterPendingDecision } from "@/lib/bookings/stable-redirect";
 import { errorCode } from "@/lib/db-errors";
 import { formValue } from "@/lib/form-data";
 import { logError } from "@/lib/log";
+import { parseScheduleDate } from "@/lib/schedule/dates";
 import { ownerRequest } from "@/lib/stables/owner-request";
 
 const SCOPE = "api:bookings/reject";
 
 /**
  * Odrzucenie zapisu oczekującego przez właściciela (#125, GLOSSARY „Odrzucenie zapisu”) z „Zapisów do
- * przyjęcia”, z powodem, który jeździec zobaczy. Reguły (ośrodek z sesji, powód 1–300 znaków, zapis oczekujący,
- * slot się nie zaczął) pilnuje funkcja bazy `reject_booking`; endpoint waliduje formularz tymi samymi regułami
- * przed mutacją i tłumaczy kody bazy na zamknięty zbiór polskich komunikatów.
+ * przyjęcia” albo (#128) z zapisów dnia przy slocie, z powodem, który jeździec zobaczy. Reguły (ośrodek z sesji,
+ * powód 1–300 znaków, zapis oczekujący, slot się nie zaczął) pilnuje funkcja bazy `reject_booking`; endpoint
+ * waliduje formularz tymi samymi regułami przed mutacją i tłumaczy kody bazy na zamknięty zbiór polskich komunikatów.
  */
 export const POST: APIRoute = async (context) => {
   const form = await context.request.formData();
-  const back = (error: string) => backToPendingBookings(context, { error });
+  // Decyzja przy slocie na zapisach dnia (#128) wraca na ten dzień; bez dnia — na „Zapisy do przyjęcia”.
+  const day = parseScheduleDate(formValue(form, "day"));
+  const back = (error: string) => backAfterPendingDecision(context, day, { error });
 
   const parsed = rejectSchema.safeParse({
     bookingId: formValue(form, "bookingId"),
@@ -45,5 +48,5 @@ export const POST: APIRoute = async (context) => {
     return back(message);
   }
 
-  return backToPendingBookings(context, { success: "odrzucenie" });
+  return backAfterPendingDecision(context, day, { success: "odrzucenie" });
 };

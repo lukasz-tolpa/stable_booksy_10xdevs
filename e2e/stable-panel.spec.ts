@@ -116,8 +116,8 @@ test("boczna kolumna „Ośrodek” prowadzi do sekcji ośrodka, każda z krótk
     const expected: [RegExp, string][] = [
       [/^Grafik jutro: ułożony$/, `/osrodek/grafik?dzien=${seedDay()}`],
       [/^Zapisy dziś: \d+$/, "/osrodek/zapisy?dzien="],
-      // Zapisy oczekujące (#124); liczba czekających dochodzi w #128.
-      [/^Zapisy do przyjęcia$/, "/osrodek/zapisy-do-przyjecia"],
+      // Zapisy oczekujące (#124) z liczbą czekających (#128) — historia demo ma własne zapisy oczekujące.
+      [/^Zapisy do przyjęcia (nikt nie czeka|\d+ czek\S+)$/, "/osrodek/zapisy-do-przyjecia"],
       [/^Konie \d+ aktywn\S+$/, "/osrodek/konie"],
       // Konie pensjonatowe ośrodka (#114) — seed ma jednego.
       [/^Pensjonariusze \d+ ko\S+ pensjonatow\S+$/, "/osrodek/pensjonariusze"],
@@ -161,14 +161,22 @@ test("na telefonie panel i sekcje ośrodka są pod ręką w dolnym pasku, a pane
       "Panel",
       "Grafik",
       "Zapisy",
-      // „Zapisy do przyjęcia” (#124) — w pasku krótko, pełna nazwa w etykiecie linku.
-      "Przyjęcia",
+      // „Zapisy do przyjęcia” (#124) — w pasku krótko, pełna nazwa w etykiecie linku; przed podpisem plakietka
+      // z liczbą czekających (#128), gdy ktoś czeka.
+      /^(\d+|99\+)?Przyjęcia$/,
       "Konie",
       "Instruktorzy",
       "Statystyki",
     ]);
     await expect(tabBar.getByRole("link", { name: "Panel", exact: true })).toHaveAttribute("aria-current", "page");
     await expect(tabBar).toBeInViewport();
+    // Siedem pozycji przy 390 px: żaden podpis (także „Instruktorzy”) nie jest ucięty (#128).
+    const cut = await tabBar.evaluate((bar) =>
+      [...bar.querySelectorAll("a > span:last-child")]
+        .filter((label) => label.scrollWidth > label.clientWidth)
+        .map((label) => label.textContent),
+    );
+    expect(cut, "ucięte podpisy w dolnym pasku").toEqual([]);
     await expect(page.getByRole("navigation", { name: "Ośrodek" })).toBeHidden();
   });
 

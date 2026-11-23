@@ -5,6 +5,7 @@ import PanelLastMonth from "@/components/stable-panel/PanelLastMonth.astro";
 import PanelPhoneLinks from "@/components/stable-panel/PanelPhoneLinks.astro";
 import PanelSide from "@/components/stable-panel/PanelSide.astro";
 import PanelWeek from "@/components/stable-panel/PanelWeek.astro";
+import { loadPendingCount } from "@/lib/bookings/pending-count";
 import { listInstructorAccounts, listStableInstructors } from "@/lib/instructors/queries";
 import { listStablePlaces } from "@/lib/places/queries";
 import { logError } from "@/lib/log";
@@ -16,6 +17,7 @@ import {
   composeLastMonth,
   composeBoardersLink,
   composeMonthSummaryLink,
+  composePendingBookingsLink,
   composePlaceOccupancyLink,
   composePlacesLink,
   composeSettlementsLink,
@@ -114,14 +116,19 @@ if (supabase && profile) {
   }
 }
 
+// Zapisy do przyjęcia (#128) — ten sam odczyt co licznik w dolnym pasku (jeden na żądanie).
+const pendingCount = stable ? await loadPendingCount(Astro) : null;
 const [horses, instructors, accounts, places] = sideData ?? [null, null, null, null];
 const sideLinks = composeSideColumn(
-  { today, week, horses, instructors, accounts, places, monthBookings, settlementsTotal },
+  { today, week, horses, instructors, accounts, places, monthBookings, settlementsTotal, pendingCount },
   now,
 );
 // Poniżej 1000 px boczna kolumna znika, a dolny pasek nie ma Pensjonariuszy, Placów, Zajętości placów, Podsumowania miesiąca
-// ani Rozliczeń — wejścia w kolumnie głównej.
+// ani Rozliczeń — wejścia w kolumnie głównej. Zapisy do przyjęcia są w dolnym pasku, ale gdy ktoś czeka, panel
+// pokazuje je też na górze kolumny głównej z liczbą czekających.
+const pendingLink = composePendingBookingsLink({ pendingCount });
 const phoneLinks = [
+  ...(pendingLink.warn ? [pendingLink] : []),
   composeBoardersLink({ horses }),
   composePlacesLink({ places }),
   composePlaceOccupancyLink(),

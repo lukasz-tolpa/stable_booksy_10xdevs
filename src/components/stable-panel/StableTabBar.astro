@@ -2,14 +2,20 @@
 import { BarChart3, CalendarDays, ClipboardList, Hourglass, LayoutDashboard, Users } from "lucide-react";
 import { HorseHead } from "@/components/ui/HorseHead";
 import { currentSection, stableTabBarSections } from "@/lib/auth/roles";
+import { loadPendingCount } from "@/lib/bookings/pending-count";
+import { navCounter } from "@/lib/bookings/waiting";
 
 // Dolny pasek sekcji ośrodka na telefonie (spec #83): panel, Grafik, Zapisy, Zapisy do przyjęcia
 // (spec 122), Konie, Instruktorzy i Statystyki pod ręką na każdej stronie ośrodka, bez przewijania do
 // bocznej kolumny panelu. Tylko
 // właściciel i tylko w przestrzeni ośrodka (na stronie głównej paska nie ma) — decyduje
 // @/lib/auth/roles, nie strona. Od 1000 px pasek znika: panel ma wtedy boczną kolumnę obok treści.
+// „Zapisy do przyjęcia” mają licznik czekających (#128) — plakietka na ikonie, pełna liczba w podpisie.
 const sections = stableTabBarSections(Astro.locals.instructorStanding, Astro.url.pathname);
 const current = currentSection(Astro.url.pathname, sections);
+const pendingCount = sections.some((section) => section.counter === "pendingBookings")
+  ? await loadPendingCount(Astro)
+  : null;
 // Ikony w kolejności `stableSections`; konie mają własną głowę konia (lucide nie ma nic końskiego).
 const ICONS = [LayoutDashboard, CalendarDays, ClipboardList, Hourglass, HorseHead, Users, BarChart3];
 ---
@@ -20,15 +26,21 @@ const ICONS = [LayoutDashboard, CalendarDays, ClipboardList, Hourglass, HorseHea
       <ul>
         {sections.map((section, index) => {
           const Icon = ICONS[index];
+          const counter = section.counter === "pendingBookings" ? navCounter(section.label, pendingCount) : null;
           return (
             <li>
               <a
                 href={section.href}
                 aria-current={section.href === current ? "page" : undefined}
-                aria-label={section.shortLabel ? section.label : undefined}
+                aria-label={counter?.label ?? (section.shortLabel ? section.label : undefined)}
               >
                 <span class="icon">
                   <Icon className="size-5" />
+                  {counter && (
+                    <span class="counter mono-nums" aria-hidden="true">
+                      {counter.text}
+                    </span>
+                  )}
                 </span>
                 <span class="label">{section.shortLabel ?? section.label}</span>
               </a>
@@ -57,8 +69,13 @@ const ICONS = [LayoutDashboard, CalendarDays, ClipboardList, Hourglass, HorseHea
     margin: 0 auto;
     padding: 0;
     max-width: 600px;
-    display: grid;
-    grid-template-columns: repeat(7, minmax(0, 1fr));
+    /* Siedem pozycji (#124) w równych kolumnach nie mieści „Instruktorzy” przy 390 px: kolumny dzielą
+       szerokość według długości podpisu (wolne miejsce po równo), więc całe podpisy mieszczą się od 320 px. */
+    display: flex;
+  }
+  li {
+    flex: 1 1 auto;
+    min-width: 0;
   }
   a {
     display: flex;
@@ -86,6 +103,7 @@ const ICONS = [LayoutDashboard, CalendarDays, ClipboardList, Hourglass, HorseHea
     color: var(--primary-strong);
   }
   .icon {
+    position: relative;
     display: inline-flex;
     padding: 2px 10px;
     border-radius: 999px;
@@ -93,6 +111,21 @@ const ICONS = [LayoutDashboard, CalendarDays, ClipboardList, Hourglass, HorseHea
   }
   a[aria-current="page"] .icon {
     background: var(--primary-soft);
+  }
+  .counter {
+    position: absolute;
+    top: -4px;
+    right: -2px;
+    min-width: 17px;
+    height: 17px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: var(--warn-ink);
+    color: var(--surface);
+    font-size: 10.5px;
+    font-weight: 700;
+    line-height: 17px;
+    text-align: center;
   }
   a:focus-visible {
     outline: 2px solid var(--primary);

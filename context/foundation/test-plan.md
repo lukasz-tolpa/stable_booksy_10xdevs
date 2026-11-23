@@ -275,7 +275,8 @@ local role authenticated; set local request.jwt.claims =
 - **Seed slots reserved**: Karol Jasny@13 (rider loop — Karol does not work in
   the seed; the scenario adds him with 1 seat at 13:00 and removes him after),
   Joanna Wrona@14 (refusal, 1 seat), Joanna Wrona@13 (`booking-rejection.spec.ts`, rider B; its rejected
-  booking stays — final, takes no seat), Joanna Wrona@12 (`test:db` concurrency
+  booking stays — final, takes no seat), Joanna Wrona@10 (`day-bookings-pending.spec.ts`, rider B — accepted
+  from the owner's day list, then cancelled), Joanna Wrona@12 (`test:db` concurrency
   script, which raises the limit temporarily) — all at Stadnina Pod Dębem,
   tomorrow. Anna holds Joanna@11 (`instructor-horse-assignment.spec.ts` gives it Kasztan through
   Joanna and takes it off again in a flag-guarded `finally`), Piotr holds Tomasz Lis@10 at Stajnia Nad Rzeką;

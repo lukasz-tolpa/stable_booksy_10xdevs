@@ -10,9 +10,11 @@ interface Props {
   bookingId: number;
   /** Jeździec w etykiecie pola — etykiety na liście wielu zapisów są rozróżnialne. */
   riderName: string;
+  /** Dzień zapisów dnia, na które wrócić po odrzuceniu (#128); bez niego — „Zapisy do przyjęcia”. */
+  day?: string;
 }
 
-const { bookingId, riderName } = Astro.props;
+const { bookingId, riderName, day } = Astro.props;
 const fieldId = `reject-reason-${String(bookingId)}`;
 ---
 
@@ -23,6 +25,7 @@ const fieldId = `reject-reason-${String(bookingId)}`;
   </summary>
   <form method="post" action="/api/bookings/reject" class="reject__form">
     <input type="hidden" name="bookingId" value={bookingId} />
+    {day && <input type="hidden" name="day" value={day} />}
     <label for={fieldId}>Powód odrzucenia — {riderName}</label>
     <textarea id={fieldId} name="reason" rows="3" maxlength={REJECTION_REASON_MAX} required></textarea>
     <p class="reject__hint">Jeździec zobaczy ten powód w swoich zapisach.</p>

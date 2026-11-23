@@ -55,6 +55,7 @@ describe("computeSlotHours", () => {
             status: "free",
             kind: "recreation",
             horses: [],
+            waiting: null,
           },
         ],
       },
@@ -315,6 +316,44 @@ describe("computeSlotHours — rodzaj slotu wobec jeźdźca", () => {
     );
 
     expect(hours[0].slots.map((slot) => slot.status)).toEqual(["unavailable", "mine"]);
+  });
+});
+
+// Oracle: ADR 0006, spec #122 (US 6, 7) — liczbę czekających na slot widzi pensjonariusz przy slotach treningowych;
+// jeździec rekreacyjny widzi tylko wolne miejsca i swój zapis.
+describe("computeSlotHours — liczba czekających na przyjęcie", () => {
+  const occupancy = [
+    { instructorId: JOANNA.id, hour: 10, taken: 0, waiting: 3 },
+    { instructorId: KAROL.id, hour: 10, taken: 1, waiting: 2 },
+  ];
+
+  it("pensjonariusz widzi przy slocie treningowym, ile zapisów czeka na przyjęcie, a przy rekreacyjnym — nie", () => {
+    const hours = computeSlotHours(input({ seats: MIXED_DAY, standing: boarder(), occupancy }));
+
+    expect(hours[0].slots.map((slot) => [slot.kind, slot.waiting])).toEqual([
+      ["recreation", null],
+      ["training", 2],
+    ]);
+  });
+
+  it("jeździec rekreacyjny nie widzi liczby czekających, nawet gdy odczyt ją podaje", () => {
+    const hours = computeSlotHours(input({ seats: MIXED_DAY, standing: RECREATION, occupancy }));
+
+    expect(hours[0].slots.map((slot) => [slot.kind, slot.waiting, slot.freeSeats])).toEqual([["recreation", null, 2]]);
+  });
+
+  it("slot treningowy bez żadnego zapisu — nikt nie czeka; liczba ukryta przez bazę zostaje ukryta", () => {
+    const empty = computeSlotHours(input({ seats: MIXED_DAY, standing: boarder() }));
+    const hidden = computeSlotHours(
+      input({
+        seats: MIXED_DAY,
+        standing: boarder(),
+        occupancy: [{ instructorId: KAROL.id, hour: 10, taken: 1, waiting: null }],
+      }),
+    );
+
+    expect(empty[0].slots[1].waiting).toBe(0);
+    expect(hidden[0].slots[1].waiting).toBeNull();
   });
 });
 

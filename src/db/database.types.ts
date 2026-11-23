@@ -713,6 +713,7 @@ export type Database = {
         Args: { p_booking_id: number; p_horse_id?: number };
         Returns: undefined;
       };
+      count_pending_bookings: { Args: never; Returns: number };
       create_stable: {
         Args: { p_city: string; p_instructor_name: string; p_name: string };
         Returns: number;
@@ -787,6 +788,7 @@ export type Database = {
           hour: number;
           instructor_id: number;
           taken: number;
+          waiting: number;
         }[];
       };
       get_stable_boarding_horses: {

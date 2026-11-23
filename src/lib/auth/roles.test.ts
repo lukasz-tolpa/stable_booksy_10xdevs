@@ -437,8 +437,13 @@ describe("stableSections", () => {
       { href: "/osrodek", label: "Panel" },
       { href: "/osrodek/grafik", label: "Grafik" },
       { href: "/osrodek/zapisy", label: "Zapisy" },
-      // #124: zapisy oczekujące czekają na decyzję ośrodka; w dolnym pasku krótko.
-      { href: "/osrodek/zapisy-do-przyjecia", label: "Zapisy do przyjęcia", shortLabel: "Przyjęcia" },
+      // #124: zapisy oczekujące czekają na decyzję ośrodka; w dolnym pasku krótko, z licznikiem czekających (#128).
+      {
+        href: "/osrodek/zapisy-do-przyjecia",
+        label: "Zapisy do przyjęcia",
+        shortLabel: "Przyjęcia",
+        counter: "pendingBookings",
+      },
       { href: "/osrodek/konie", label: "Konie" },
       { href: "/osrodek/instruktorzy", label: "Instruktorzy" },
       { href: "/osrodek/statystyki", label: "Statystyki" },

@@ -28,17 +28,25 @@ export function backToPendingBookings(
   return context.redirect(`${PENDING_BOOKINGS_ROUTE}?${params.toString()}`);
 }
 
-/** Wartości `sukces=` rozpoznawane przez stronę listy dnia. */
-export type StableBookingOutcome = "przydzial" | "odwolanie";
+/**
+ * Wartości `sukces=` rozpoznawane przez stronę listy dnia — także przyjęcie i odrzucenie zapisu oczekującego
+ * przy slocie (#128).
+ */
+export type StableBookingOutcome = "przydzial" | "odwolanie" | PendingBookingOutcome;
 
 const SUCCESS_MESSAGES: Record<StableBookingOutcome, string> = {
   przydzial: "Przydział konia zapisany.",
   odwolanie: "Zapis został odwołany. Miejsce w slocie wróciło do puli wolnych.",
+  ...PENDING_SUCCESS_MESSAGES,
 };
+
+function isStableBookingOutcome(value: string | null): value is StableBookingOutcome {
+  return value !== null && Object.hasOwn(SUCCESS_MESSAGES, value);
+}
 
 /** Potwierdzenie na liście dnia dla parametru `sukces=`; `null` — brak albo nieznana wartość. */
 export function stableBookingSuccessMessage(value: string | null): string | null {
-  return value === "przydzial" || value === "odwolanie" ? SUCCESS_MESSAGES[value] : null;
+  return isStableBookingOutcome(value) ? SUCCESS_MESSAGES[value] : null;
 }
 
 /**
@@ -62,4 +70,16 @@ export function backToDayBookings(
 
   const query = params.toString();
   return context.redirect(query ? `${STABLE_DAY_BOOKINGS_ROUTE}?${query}` : STABLE_DAY_BOOKINGS_ROUTE);
+}
+
+/**
+ * Powrót po przyjęciu albo odrzuceniu zapisu oczekującego: na zapisy dnia `day`, gdy decyzja zapadła przy
+ * slocie (#128), inaczej na „Zapisy do przyjęcia”.
+ */
+export function backAfterPendingDecision(
+  context: APIContext,
+  day: string | null,
+  outcome: { error: string } | { success: PendingBookingOutcome },
+) {
+  return day === null ? backToPendingBookings(context, outcome) : backToDayBookings(context, day, outcome);
 }

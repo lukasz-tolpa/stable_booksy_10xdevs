@@ -41,6 +41,8 @@ export interface PendingBookingRow {
   seats: number;
   /** „Wcześniej odrzucony na ten slot” — ośrodek odrzucił już temu jeźdźcowi zapis na ten slot. */
   rejectedBefore: boolean;
+  /** Pozostałe zapisy oczekujące tego samego slotu (#128, US 26). */
+  othersWaiting: number;
 }
 
 export interface PendingBookingsDay {
@@ -59,12 +61,37 @@ function byTerm(a: PendingBooking, b: PendingBooking): number {
   return a.id - b.id;
 }
 
+/** Klucz slotu zapisu: dzień × instruktor × godzina. */
+function slotKey(booking: PendingBooking): string {
+  return `${booking.day}:${String(booking.instructorId)}:${String(booking.hour)}`;
+}
+
+/** Zapisy, o których ośrodek jeszcze decyduje (bez wygasłych), w kolejności terminów. */
+function undecided(bookings: readonly PendingBooking[], now: Date): PendingBooking[] {
+  return [...bookings]
+    .filter((booking) => bookingStateAt({ status: "pending", day: booking.day, hour: booking.hour }, now) === "pending")
+    .sort(byTerm);
+}
+
+/** Liczba zapisów oczekujących każdego slotu. */
+function waitingBySlot(bookings: readonly PendingBooking[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const booking of bookings) {
+    counts.set(slotKey(booking), (counts.get(slotKey(booking)) ?? 0) + 1);
+  }
+  return counts;
+}
+
+function freeSeatsOf(booking: PendingBooking): number {
+  return Math.max(0, booking.seats - booking.taken);
+}
+
 export function composePendingBookings(bookings: PendingBooking[], now: Date = new Date()): PendingBookingsDay[] {
   const days: PendingBookingsDay[] = [];
+  const open = undecided(bookings, now);
+  const waiting = waitingBySlot(open);
 
-  for (const booking of [...bookings].sort(byTerm)) {
-    if (bookingStateAt({ status: "pending", day: booking.day, hour: booking.hour }, now) !== "pending") continue;
-
+  for (const booking of open) {
     let day = days.at(-1);
     if (day?.day !== booking.day) {
       day = { day: booking.day, rows: [] };
@@ -78,11 +105,77 @@ export function composePendingBookings(bookings: PendingBooking[], now: Date = n
       instructorName: booking.instructorName,
       placeName: booking.placeName ?? UNKNOWN_PLACE,
       kind: booking.kind,
-      freeSeats: Math.max(0, booking.seats - booking.taken),
+      freeSeats: freeSeatsOf(booking),
       seats: booking.seats,
       rejectedBefore: booking.rejectedBefore,
+      othersWaiting: (waiting.get(slotKey(booking)) ?? 1) - 1,
     });
   }
 
   return days;
+}
+
+/** Jeździec zapisu oczekującego przy slocie na liście dnia ośrodka. */
+export interface PendingSlotRider {
+  id: number;
+  riderName: string;
+  riderEmail: string | null;
+  rejectedBefore: boolean;
+}
+
+/** Slot dnia z zapisami oczekującymi (#128, US 32): wolne miejsca, liczba czekających i jeźdźcy. */
+export interface PendingSlot {
+  hour: number;
+  instructorName: string;
+  placeName: string;
+  kind: SlotKind;
+  freeSeats: number;
+  seats: number;
+  /** Zapisy oczekujące slotu — ośrodek widzi tę liczbę zawsze (ADR 0006). */
+  waiting: number;
+  /** Kto pierwszy się zapisał, ten wyżej. */
+  rows: PendingSlotRider[];
+}
+
+/**
+ * Zapisy oczekujące jednego dnia przy swoich slotach — „Zapisy dnia” ośrodka (#128): sloty po godzinie
+ * i instruktorze, w slocie jeźdźcy w kolejności zapisów. Wygasłe (slot się zaczął) znikają jak na „Zapisach
+ * do przyjęcia”.
+ */
+export function composeDayPendingSlots(
+  bookings: readonly PendingBooking[],
+  day: string,
+  now: Date = new Date(),
+): PendingSlot[] {
+  const slots = new Map<string, PendingSlot>();
+
+  for (const booking of undecided(
+    bookings.filter((booking) => booking.day === day),
+    now,
+  )) {
+    const key = slotKey(booking);
+    let slot = slots.get(key);
+    if (!slot) {
+      slot = {
+        hour: booking.hour,
+        instructorName: booking.instructorName,
+        placeName: booking.placeName ?? UNKNOWN_PLACE,
+        kind: booking.kind,
+        freeSeats: freeSeatsOf(booking),
+        seats: booking.seats,
+        waiting: 0,
+        rows: [],
+      };
+      slots.set(key, slot);
+    }
+    slot.waiting += 1;
+    slot.rows.push({
+      id: booking.id,
+      riderName: booking.riderName ?? UNKNOWN_RIDER,
+      riderEmail: booking.riderEmail,
+      rejectedBefore: booking.rejectedBefore,
+    });
+  }
+
+  return [...slots.values()].sort((a, b) => a.hour - b.hour || a.instructorName.localeCompare(b.instructorName, "pl"));
 }
