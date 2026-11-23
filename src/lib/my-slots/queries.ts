@@ -74,6 +74,11 @@ export interface InstructorSummaryRow {
   horseName: string | null;
   /** Jeździec zanonimizowany (ADR-0001) — jazda trafia do wiersza „Usunięci jeźdźcy”. */
   anonymised: boolean;
+  /**
+   * Jeździec jest pensjonariuszem ośrodka w miesiącu dnia jazdy (#118, reguła „pensjonariusz w miesiącu”
+   * z bazy, `private.is_boarder_in_month`) — sekcja „Pensjonariusze”.
+   */
+  boarder: boolean;
 }
 
 /**
@@ -100,6 +105,7 @@ export async function getMyMonthBookings(client: Client, days: DateRange): Promi
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     horseName: row.horse_name ?? null,
     anonymised: row.anonymised,
+    boarder: row.boarder,
   }));
 }
 

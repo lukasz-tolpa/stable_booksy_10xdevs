@@ -260,6 +260,31 @@ export function setStableRate(amount: number): void {
   );
 }
 
+/** Stawka treningowa ośrodka z seeda od bieżącego miesiąca bazy (#117) — jak `setStableRate`. */
+export function setTrainingRate(amount: number): void {
+  runSql(
+    `
+    insert into public.rates (stable_id, rider_id, kind, from_month, amount)
+    select s.id, null, 'training', private.warsaw_month_start(), ${String(amount)} from public.stables s where s.name = '${STABLE_NAME}';
+  `,
+    "ustawić stawki treningowej ośrodka",
+  );
+}
+
+/** Opłata za pensjonat konia pensjonariuszki `BOARDER` od bieżącego miesiąca bazy (#117; pierwsza działa wstecz). */
+export function setBoarderFee(amount: number): void {
+  runSql(
+    `
+    insert into public.boarding_fees (horse_id, stable_id, from_month, amount)
+    select o.horse_id, o.stable_id, private.warsaw_month_start(), ${String(amount)}
+    from public.horse_owners o join public.horses h on h.id = o.horse_id
+    join public.stables s on s.id = o.stable_id
+    where s.name = '${STABLE_NAME}' and h.name = '${BOARDER.horse}';
+  `,
+    "ustawić opłaty za pensjonat",
+  );
+}
+
 /** Kwota z tekstu, np. `1 234,50 zł` (twarde spacje), w groszach. */
 export function grosze(text: string): number {
   const match = /(\d[\d\s]*),(\d{2})\s*zł/.exec(text);
@@ -267,35 +292,54 @@ export function grosze(text: string): number {
   return Number(match[1].replace(/\s/g, "")) * 100 + Number(match[2]);
 }
 
-/** Wiersze listy „Rozliczenia jeźdźców” — jeden `listitem` na jeźdźca. */
-export function settlementRiders(page: Page): Locator {
-  return page.getByRole("list", { name: "Rozliczenia jeźdźców" }).getByRole("listitem");
+/** Sekcja listy rozliczeń (#118): `region` „Rekreacja” albo „Pensjonariusze” z kartami i sumą. */
+export function settlementSection(page: Page, section: SettlementSectionName): Locator {
+  return page.getByRole("region", { name: section, exact: true });
+}
+
+export type SettlementSectionName = "Rekreacja" | "Pensjonariusze";
+
+/** Karty sekcji (domyślnie „Rekreacja”): lista „Rozliczenia jeźdźców — {sekcja}”, jeden `listitem` na jeźdźca. */
+export function settlementRiders(page: Page, section: SettlementSectionName = "Rekreacja"): Locator {
+  return page.getByRole("list", { name: `Rozliczenia jeźdźców — ${section}`, exact: true }).getByRole("listitem");
 }
 
 /**
- * Karty listy jeźdźców rekreacyjnych: tekst, liczba jazd i „Do zapłaty” — pierwsza kwota karty (`null` — bez
- * kwoty, ośrodek bez stawki). Bez karty pensjonariuszki `BOARDER` — jej kwota to stawka treningowa i opłata
- * za pensjonat (#117, `settlements-boarder.spec.ts`); bez nich ma samą liczbę jazd, a do „Razem” wnosi 0.
+ * Karty sekcji (domyślnie jeźdźców rekreacyjnych — ich kwota to jazdy × stawka ośrodka): tekst, liczba jazd
+ * i „Do zapłaty” — pierwsza kwota karty (`null` — bez kwoty, sekcja bez stawki swojego rodzaju).
  */
-export async function settlementRows(page: Page): Promise<{ text: string; rides: number; amount: number | null }[]> {
-  const texts = await settlementRiders(page).allInnerTexts();
-  return texts
-    .filter((text) => !text.startsWith(BOARDER.name))
-    .map((text) => ({
-      text,
-      rides: Number(/(\d+) jazd/.exec(text)?.[1] ?? Number.NaN),
-      amount: text.includes("zł") ? grosze(text) : null,
-    }));
+export async function settlementRows(
+  page: Page,
+  section: SettlementSectionName = "Rekreacja",
+): Promise<{ text: string; rides: number; amount: number | null }[]> {
+  const texts = await settlementRiders(page, section).allInnerTexts();
+  return texts.map((text) => ({
+    text,
+    rides: Number(/(\d+) jazd/.exec(text)?.[1] ?? Number.NaN),
+    amount: text.includes("Do zapłaty") ? grosze(text) : null,
+  }));
+}
+
+/** Suma sekcji „{sekcja} razem: {kwota}” w groszach; `null` — sekcja bez sumy (bez stawki swojego rodzaju). */
+export async function settlementSectionTotal(page: Page, section: SettlementSectionName): Promise<number | null> {
+  const total = settlementSection(page, section).getByText(new RegExp(`^${section} razem: `));
+  return (await total.count()) === 0 ? null : grosze(await total.innerText());
+}
+
+/**
+ * Lista rozliczeń z jazdami jeźdźców rekreacyjnych: bieżący miesiąc, a gdy jeszcze ich nie ma (pierwszy dzień
+ * miesiąca; pensjonariuszka z pobytem konia ma kartę zawsze) — poprzedni.
+ */
+export async function goToMonthWithRecreationRides(page: Page): Promise<void> {
+  if ((await settlementRiders(page).count()) === 0) {
+    await page.getByRole("navigation", { name: "Wybór miesiąca" }).getByRole("link", { name: "Poprzedni" }).click();
+    await page.waitForURL(/miesiac=\d{4}-\d{2}$/);
+  }
 }
 
 /** Wiersze listy ośrodka ze stawką — każdy musi mieć kwotę. */
 export async function pricedSettlementRows(page: Page): Promise<{ text: string; rides: number; amount: number }[]> {
   return (await settlementRows(page)).map((row) => ({ ...row, amount: grosze(row.text) }));
-}
-
-/** Stan pusty listy: „W październiku 2026 nie ma nic do rozliczenia.” */
-export function emptySettlementsMonth(page: Page): Locator {
-  return page.getByText(/^We? .+ nie ma nic do rozliczenia\.$/);
 }
 
 /** Karta rozliczenia jeźdźca: region „Rozliczenie za {miesiąc}”. */

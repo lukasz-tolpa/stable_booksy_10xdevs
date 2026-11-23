@@ -76,9 +76,10 @@ async function loadSettlementParts(client: Client, stableId: number, month: Summ
 
 /**
  * Konie pensjonatowe ośrodka z właścicielami, pobytami i zmianami opłat za pensjonat (#117) — z nich
- * reguła „pensjonariusz w miesiącu” i pozycje opłat w rozliczeniu. Wszystkie pobyty i opłaty (pobyt
- * sprzed miesiąca też decyduje, a pierwsza opłata działa wstecz). Właściciel czyta je przez RLS
- * (`horse_owners`, `horse_stays`, `boarding_fees`); jawny filtr ośrodka obok. Rzuca przy błędzie zapytania.
+ * reguła „pensjonariusz w miesiącu”, pozycje opłat w rozliczeniu i karta pensjonariusza bez jazd (#118, nazwa
+ * z profilu). Wszystkie pobyty i opłaty (pobyt sprzed miesiąca też decyduje, a pierwsza opłata działa wstecz).
+ * Właściciel czyta je przez RLS (`horse_owners`, `horse_stays`, `boarding_fees`, `profiles`); jawny filtr
+ * ośrodka obok. Rzuca przy błędzie zapytania.
  */
 export async function listSettlementBoarding(
   client: Client,
@@ -87,7 +88,7 @@ export async function listSettlementBoarding(
   const { data, error } = await client
     .from("horse_owners")
     .select(
-      "horse_id, rider_id, horses(name), horse_stays(arrival_day, departure_day), boarding_fees(id, from_month, amount)",
+      "horse_id, rider_id, horses(name), profiles(full_name), horse_stays(arrival_day, departure_day), boarding_fees(id, from_month, amount)",
     )
     .eq("stable_id", stableId);
 
@@ -99,6 +100,8 @@ export async function listSettlementBoarding(
       horseId: row.horse_id,
       name: row.horses.name,
       riderKey: row.rider_id,
+      // Profil pensjonariusza właściciel czyta od dnia przyjazdu konia (`is_rider_of_my_stable`).
+      riderName: row.profiles?.full_name ?? null,
       stays: row.horse_stays.map((stay) => ({ arrivalDay: stay.arrival_day, departureDay: stay.departure_day })),
     })),
     fees: data.flatMap((row) =>

@@ -154,3 +154,21 @@ describe("composeRiderMonthSummary — podsumowanie miesiąca u jeźdźca", () =
     expect(past.nav.nextHref).toBe("/jezdziec/podsumowanie?miesiac=2026-10");
   });
 });
+
+// Oracle: AC #118 — pensjonariusz widzi w swoim podsumowaniu konia przy każdej jeździe (slot treningowy na
+// jego koniu pensjonatowym), tak jak jeździec rekreacyjny konia ośrodka.
+describe("composeRiderMonthSummary — pensjonariusz (#118)", () => {
+  it("każda jazda pensjonariusza ma jego konia", () => {
+    const view = composeRiderMonthSummary(
+      input([
+        booking("2026-11-04", 10, { instructorName: "Marek Dębowski", horseName: "Hrabia" }),
+        booking("2026-11-07", 10, { instructorName: "Marek Dębowski", horseName: "Sokół" }),
+      ]),
+      NOW,
+    );
+    expect(view.stables[0]?.list.map((ride) => [ride.date, ride.instructorName, ride.horseName])).toEqual([
+      ["śr., 4 lis", "Marek Dębowski", "Hrabia"],
+      ["sob., 7 lis", "Marek Dębowski", "Sokół"],
+    ]);
+  });
+});

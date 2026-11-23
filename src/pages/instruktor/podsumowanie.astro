@@ -56,7 +56,7 @@ const nav = view?.nav ?? composeMonthNav(month, instructorMonthHref);
   <Topbar />
   <main class="container-narrow page">
     <InstructorTabs />
-    <MonthSummaryBody lead={texts.instructor.lead} nav={nav} view={view} list={view?.list} />
+    <MonthSummaryBody lead={texts.instructor.lead} nav={nav} view={view} riders={view ?? undefined} />
   </main>
 </Layout>
 

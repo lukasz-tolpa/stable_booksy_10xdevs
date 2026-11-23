@@ -15,6 +15,7 @@ function row(day: string, hour: number, overrides: Partial<InstructorSummaryRow>
     riderName: "Anna Kowalska",
     horseName: "Bella",
     anonymised: false,
+    boarder: false,
     ...overrides,
   };
 }
@@ -120,5 +121,37 @@ describe("composeInstructorMonthSummary — podsumowanie miesiąca u instruktora
     });
     expect(view.isEmpty).toBe(true);
     expect(view.emptyText).toBe("W październiku 2026 nie było jazd na Twoich slotach.");
+  });
+});
+
+// Oracle: AC #118 — instruktor z kontem widzi ten sam podział co właściciel: reguła „pensjonariusz w miesiącu”
+// przychodzi z bazy przy każdym zapisie (`boarder`), zanonimizowani łącznie.
+describe("composeInstructorMonthSummary — sekcje „Rekreacja” i „Pensjonariusze” (#118)", () => {
+  it("jeźdźcy rekreacyjni i pensjonariusze w osobnych sekcjach, zanonimizowani w jednym wierszu", () => {
+    const kasia = { riderKey: "kasia", riderName: "Katarzyna Zając", horseName: "Hrabia", boarder: true };
+    const view = composeInstructorMonthSummary(
+      input({
+        bookings: [
+          row("2026-11-06", 10),
+          row("2026-11-04", 11, kasia),
+          row("2026-11-11", 11, kasia),
+          row("2026-11-05", 12, { riderKey: null, riderName: null, anonymised: true }),
+        ],
+      }),
+      NOW,
+    );
+
+    expect(
+      view.sections.map((section) => [section.heading, section.countsText, section.rows.map((r) => r.name)]),
+    ).toEqual([
+      ["Rekreacja", "1 jeździec · 1 jazda", ["Anna Kowalska"]],
+      ["Pensjonariusze", "1 jeździec · 2 jazdy", ["Katarzyna Zając"]],
+    ]);
+    expect(view.pooled?.ridesText).toBe("1 jazda");
+  });
+
+  it("bez pensjonariuszy jest tylko „Rekreacja”", () => {
+    const view = composeInstructorMonthSummary(input({ bookings: [row("2026-11-06", 10)] }), NOW);
+    expect(view.sections.map((section) => section.heading)).toEqual(["Rekreacja"]);
   });
 });

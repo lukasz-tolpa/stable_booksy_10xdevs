@@ -709,6 +709,7 @@ export type Database = {
         Args: { p_from: string; p_to: string };
         Returns: {
           anonymised: boolean;
+          boarder: boolean;
           day: string;
           horse_name: string;
           hour: number;

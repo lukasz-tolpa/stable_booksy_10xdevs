@@ -433,12 +433,10 @@ describe("composeSettlementsLink — Rozliczenia w bocznej kolumnie i w główne
   });
 
   it("suma pochodzi z listy rozliczeń, nie z własnego liczenia — także suma zero przy stawce bez jazd", () => {
-    expect(
-      composeSettlementsLink({ today: TODAY, settlementsTotal: { total: 1_234_000, needsRate: false } }).fact,
-    ).toBe("listopad: 12 340,00 zł");
-    expect(composeSettlementsLink({ today: TODAY, settlementsTotal: { total: 0, needsRate: false } }).fact).toBe(
-      "listopad: 0,00 zł",
+    expect(composeSettlementsLink({ today: TODAY, settlementsTotal: { total: 1_234_000 } }).fact).toBe(
+      "listopad: 12 340,00 zł",
     );
+    expect(composeSettlementsLink({ today: TODAY, settlementsTotal: { total: 0 } }).fact).toBe("listopad: 0,00 zł");
   });
 
   it("ośrodek bez stawki: zamiast sumy prośba „Ustaw stawkę”, wyróżniona jak jutro bez grafiku", () => {
@@ -451,6 +449,35 @@ describe("composeSettlementsLink — Rozliczenia w bocznej kolumnie i w główne
       href: "/osrodek/rozliczenia",
       fact: "Ustaw stawkę",
       warn: true,
+    });
+  });
+
+  // Oracle: AC #118 — suma przy linku to „Do zapłaty razem” strony (suma sekcji), także gdy sekcja
+  // pensjonariuszy czeka jeszcze na stawkę treningową.
+  it("pensjonariusz bez stawki treningowej: przy linku suma rekreacji — ta sama co „Do zapłaty razem”", () => {
+    const settlementsTotal = composeSettlementList(
+      {
+        month: NOVEMBER,
+        bookings: [...novemberRides, ride("2026-11-04", "kasia")],
+        rates: [RATE_120],
+        costs: [],
+        boardingHorses: [
+          {
+            horseId: 7,
+            name: "Hrabia",
+            riderKey: "kasia",
+            riderName: "Katarzyna Zając",
+            stays: [{ arrivalDay: "2026-08-10", departureDay: null }],
+          },
+        ],
+        boardingFees: [],
+      },
+      NOW,
+    );
+
+    expect(composeSettlementsLink({ today: TODAY, settlementsTotal })).toMatchObject({
+      fact: "listopad: 360,00 zł",
+      warn: false,
     });
   });
 

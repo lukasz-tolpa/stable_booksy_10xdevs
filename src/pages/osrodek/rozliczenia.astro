@@ -25,10 +25,11 @@ import { createClient } from "@/lib/supabase";
 // przestrzeń ośrodka jest tylko dla właściciela; stawki chroni dodatkowo RLS. Liczy
 // `@/lib/settlements/settlements`; tu tylko odczyt i render. Miesiąc żyje w adresie (`?miesiac=RRRR-MM`),
 // formularze stawki wracają na niego z `?sukces=1` albo `?error=`.
-// Układ (#105, wariant B): główna kolumna z kartami jeźdźców i „Pozostałymi jeźdźcami ośrodka”, boczna
-// — przełącznik miesięcy i suma (przyklejone od 1000 px), pod nimi stawka ośrodka (nieprzyklejona, więc
-// wysoka kolumna nie ucina formularza). Koszt dodatkowy dopisuje się tylko w rozliczeniu jeźdźca (#106),
-// do którego prowadzą linki pozostałych jeźdźców. Dokument idzie w kolejności czytania: miesiąc i suma,
+// Układ (#105, wariant B): główna kolumna z sekcjami kart jeźdźców (#118: „Rekreacja”, „Pensjonariusze”,
+// każda z sumą) i „Pozostałymi jeźdźcami ośrodka”, boczna — przełącznik miesięcy i suma miesiąca (przyklejone
+// od 1000 px), pod nimi stawki ośrodka (nieprzyklejone, więc wysoka kolumna nie ucina formularza).
+// Koszt dodatkowy dopisuje się tylko w rozliczeniu jeźdźca (#106), do którego prowadzą linki pozostałych
+// jeźdźców. Dokument idzie w kolejności czytania: miesiąc i suma,
 // główna kolumna, stawka — na telefonie to zarazem kolejność na ekranie (jedna kolumna), od 1000 px siatka
 // przenosi miesiąc z sumą i stawkę do bocznej kolumny. Bez JavaScriptu.
 const { profile } = Astro.locals;
@@ -122,7 +123,11 @@ const nav = view?.nav ?? composeMonthNav(month, settlementsHref);
               </EmptyState>
             </Card>
           ) : (
-            <SettlementCards list={view.list} />
+            <div class="sections">
+              {view.sections.map((section) => (
+                <SettlementCards section={section} />
+              ))}
+            </div>
           )
         }
 
@@ -207,6 +212,11 @@ const nav = view?.nav ?? composeMonthNav(month, settlementsHref);
   }
   .notice {
     margin-bottom: 14px;
+  }
+  /* Sekcje „Rekreacja” i „Pensjonariusze” (#118) jedna pod drugą. */
+  .sections {
+    display: grid;
+    gap: 28px;
   }
   .others {
     margin-top: 14px;

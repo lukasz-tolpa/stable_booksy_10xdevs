@@ -16,14 +16,29 @@ export const SETTLEMENT_TEXTS = {
   ridersList: "Rozliczenia jeźdźców",
   /** Suma miesiąca: etykieta przed kwotą dla czytników ekranu, np. `Razem: 12 340,00 zł`. */
   total: "Razem:",
+  /** Sekcje listy (#118), według reguły „pensjonariusz w miesiącu”. */
+  sections: { recreation: "Rekreacja", training: "Pensjonariusze" },
+  /** Suma sekcji po jej nazwie: `Rekreacja razem: 480,00 zł`. */
+  sectionTotal: "razem:",
   /** Nagłówek sumy w bocznej kolumnie (#105). */
   totalHeading: "Do zapłaty razem",
   /** Suma bez stawki ośrodka. */
   noTotal: "—",
   /** Nad kartami, gdy ośrodek nie ma stawki. */
   amountsNeedRate: "Kwoty pojawią się po ustawieniu stawki ośrodka.",
-  /** Karta jeźdźca (#105): `Do zapłaty`, wyliczenie `… + koszty 50,00 zł`, `Rozliczenie →`. */
-  card: { due: "Do zapłaty", costs: "koszty", open: "Rozliczenie →" },
+  /** Nad kartami sekcji „Pensjonariusze” (#118), gdy ośrodek nie ma stawki treningowej. */
+  amountsNeedTrainingRate: "Kwoty pojawią się po ustawieniu stawki treningowej.",
+  /**
+   * Karta jeźdźca (#105): `Do zapłaty`, wyliczenie `… + opłata za pensjonat 1 500,00 zł + koszty 50,00 zł`
+   * (#118: opłata, przy kilku koniach `opłaty za pensjonat`), `Rozliczenie →`.
+   */
+  card: {
+    due: "Do zapłaty",
+    fee: "opłata za pensjonat",
+    fees: "opłaty za pensjonat",
+    costs: "koszty",
+    open: "Rozliczenie →",
+  },
   /**
    * „Pozostali jeźdźcy ośrodka” pod kartami (#106): zwinięta sekcja z liczbą jeźdźców i dopiskiem, w każdym
    * wierszu link do rozliczenia jeźdźca, gdzie dopisuje się koszt dodatkowy.

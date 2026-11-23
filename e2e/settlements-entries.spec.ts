@@ -1,12 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import {
-  clearStableRates,
-  emptySettlementsMonth,
-  grosze,
-  SETTLEMENTS_ROUTE,
-  setStableRate,
-  STABLE_STATE,
-} from "./helpers";
+import { clearStableRates, grosze, SETTLEMENTS_ROUTE, setStableRate, setTrainingRate, STABLE_STATE } from "./helpers";
 
 /**
  * Wejścia do Rozliczeń (#98, spec #93): boczna kolumna panelu ośrodka z sumą bieżącego miesiąca albo
@@ -43,7 +36,10 @@ test.describe("Wejścia do Rozliczeń", () => {
       await expect(sideLink(page)).toHaveAccessibleName("Rozliczenia Ustaw stawkę");
     });
 
+    // Stawka treningowa bez opłaty za pensjonat: karta pensjonariuszki (pobyt Hrabi trwa zawsze) jest bez
+    // kwoty i wnosi 0, ale sekcja ma sumę — więc i pierwszego dnia miesiąca jest „Razem” (0,00 zł).
     setStableRate(12345);
+    setTrainingRate(15000);
     let sideTotal = 0;
     let monthName = "";
 
@@ -62,12 +58,7 @@ test.describe("Wejścia do Rozliczeń", () => {
       await page.waitForURL(`**${SETTLEMENTS_ROUTE}`);
       await expect(page.getByRole("heading", { level: 1, name: "Rozliczenia" })).toBeVisible();
       await expect(monthNav(page)).toContainText(monthName);
-      const empty = emptySettlementsMonth(page);
-      if (await empty.isVisible()) {
-        expect(sideTotal, "miesiąc bez jazd ma sumę zero").toBe(0);
-      } else {
-        expect(grosze(await page.getByText(/^Razem: /).innerText())).toBe(sideTotal);
-      }
+      expect(grosze(await page.getByText(/^Razem: /).innerText())).toBe(sideTotal);
     });
   });
 

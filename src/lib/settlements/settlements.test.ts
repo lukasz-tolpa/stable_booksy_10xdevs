@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { resolveSummaryMonth } from "@/lib/month-summary/month";
 import type { ExtraCost } from "@/lib/settlements/costs";
+import type { BoardingFeeChange } from "@/lib/boarding/fees";
 import type { RateChange } from "@/lib/settlements/rates";
 import {
   composeSettlementList,
   composeSettlementsPage,
   settlementBookings,
+  type SettlementBoardingHorse,
   type SettlementBooking,
   type SettlementsInput,
 } from "@/lib/settlements/settlements";
@@ -595,5 +597,233 @@ describe("composeSettlementsPage — „Pozostali jeźdźcy ośrodka”", () => 
       NOW,
     );
     expect(view.others).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Dwie sekcje: „Rekreacja” i „Pensjonariusze” (#118)
+// ---------------------------------------------------------------------------
+
+const TRAINING_150: RateChange = { id: 20, riderKey: null, kind: "training", fromMonth: "2026-10", amount: 15000 };
+
+function boardingHorse(
+  horseId: number,
+  name: string,
+  arrivalDay: string,
+  departureDay: string | null = null,
+  riderKey: string | null = "kasia",
+  riderName: string | null = "Katarzyna Zając",
+): SettlementBoardingHorse {
+  return { horseId, name, riderKey, riderName, stays: [{ arrivalDay, departureDay }] };
+}
+function boardingFee(id: number, horseId: number, amount: number): BoardingFeeChange {
+  return { id, horseId, fromMonth: "2026-10", amount };
+}
+
+/** Październik: Anna i Piotr jeżdżą rekreacyjnie, Kasia (Hrabia od sierpnia) — na slotach treningowych. */
+function sectionsInput(overrides: Partial<SettlementsInput> = {}): SettlementsInput {
+  return input({
+    rates: [STABLE_120, TRAINING_150],
+    boardingHorses: [boardingHorse(7, "Hrabia", "2026-08-10")],
+    boardingFees: [boardingFee(1, 7, 150000)],
+    bookings: [
+      ride("2026-10-02", "anna", "Anna Kowalska"),
+      ride("2026-10-09", "anna", "Anna Kowalska"),
+      ride("2026-10-03", "piotr", "Piotr Nowak"),
+      ride("2026-10-07", "kasia", "Katarzyna Zając"),
+      ride("2026-10-14", "kasia", "Katarzyna Zając"),
+    ],
+    ...overrides,
+  });
+}
+
+// Oracle: AC #118 — lista w dwóch sekcjach według reguły „pensjonariusz w miesiącu”, każda z kartami i sumą;
+// suma miesiąca zostaje (= suma sekcji). Kwoty z ręki: Anna 2 × 120 = 240, Piotr 120, Kasia 2 × 150 + 1 500 = 1 800.
+describe("composeSettlementList — sekcje „Rekreacja” i „Pensjonariusze”", () => {
+  it("jeźdźcy rekreacyjni i pensjonariusze w osobnych sekcjach, każda z sumą, a suma miesiąca to suma sekcji", () => {
+    const list = composeSettlementList(sectionsInput(), NOW);
+
+    expect(
+      list.sections.map((section) => ({
+        kind: section.kind,
+        heading: section.heading,
+        riders: section.rows.map((row) => [row.name, row.dueText]),
+        total: section.total,
+        totalText: section.totalText,
+      })),
+    ).toEqual([
+      {
+        kind: "recreation",
+        heading: "Rekreacja",
+        riders: [
+          ["Anna Kowalska", zl("240,00 zł")],
+          ["Piotr Nowak", zl("120,00 zł")],
+        ],
+        total: 36000,
+        totalText: `Rekreacja razem: ${zl("360,00 zł")}`,
+      },
+      {
+        kind: "training",
+        heading: "Pensjonariusze",
+        riders: [["Katarzyna Zając", zl("1 800,00 zł")]],
+        total: 180000,
+        totalText: `Pensjonariusze razem: ${zl("1 800,00 zł")}`,
+      },
+    ]);
+    expect(list.total).toBe(216000);
+    expect(list.totalText).toBe(`Razem: ${zl("2 160,00 zł")}`);
+  });
+
+  it("pensjonariusz bez jazd z pobytem konia w miesiącu ma kartę z opłatą za pensjonat", () => {
+    const list = composeSettlementList(
+      sectionsInput({
+        // Wrzesień: nikt nie jeździł, Hrabia stał cały miesiąc; Wicher przyjechał dopiero w listopadzie.
+        month: resolveSummaryMonth("2026-09", TODAY),
+        bookings: [],
+        boardingHorses: [
+          boardingHorse(7, "Hrabia", "2026-08-10"),
+          boardingHorse(8, "Wicher", "2026-11-02", null, "piotr", "Piotr Nowak"),
+          boardingHorse(9, "Siwy", "2026-08-01", null, null, null),
+        ],
+      }),
+      NOW,
+    );
+
+    expect(list.sections.map((section) => section.kind)).toEqual(["training"]);
+    expect(list.rows.map((row) => [row.name, row.ridesText, row.fees.map((fee) => fee.line), row.dueText])).toEqual([
+      ["Katarzyna Zając", "0 jazd", [`Opłata za pensjonat — Hrabia: ${zl("1 500,00 zł")}`], zl("1 500,00 zł")],
+    ]);
+    expect(list.total).toBe(150000);
+  });
+
+  it("sekcja bez stawki swojego rodzaju nie ma sumy, a suma miesiąca to suma pozostałych sekcji", () => {
+    const list = composeSettlementList(sectionsInput({ rates: [TRAINING_150] }), NOW);
+
+    expect(
+      list.sections.map((section) => [section.heading, section.needsRate, section.total, section.totalText]),
+    ).toEqual([
+      ["Rekreacja", true, null, null],
+      ["Pensjonariusze", false, 180000, `Pensjonariusze razem: ${zl("1 800,00 zł")}`],
+    ]);
+    expect(list.total).toBe(180000);
+    // Karty rekreacji czekają na stawkę ośrodka.
+    expect(list.needsRate).toBe(true);
+  });
+
+  it("bez stawki treningowej sekcja pensjonariuszy czeka na nią, rekreacja ma sumę", () => {
+    const list = composeSettlementList(sectionsInput({ rates: [STABLE_120] }), NOW);
+    expect(list.sections.map((section) => [section.needsRate, section.total])).toEqual([
+      [false, 36000],
+      [true, null],
+    ]);
+    expect(list.total).toBe(36000);
+    expect(list.needsRate).toBe(true);
+  });
+
+  it("sekcja bez nikogo jest pominięta — bez pustej sumy i bez prośby o jej stawkę", () => {
+    const onlyBoarders = composeSettlementList(
+      sectionsInput({ rates: [TRAINING_150], bookings: [ride("2026-10-07", "kasia", "Katarzyna Zając")] }),
+      NOW,
+    );
+    expect(onlyBoarders.sections.map((section) => section.heading)).toEqual(["Pensjonariusze"]);
+    expect(onlyBoarders.needsRate).toBe(false);
+    expect(onlyBoarders.total).toBe(165000);
+
+    const onlyRecreation = composeSettlementList(input({ bookings: [ride("2026-10-02", "anna", "Anna")] }), NOW);
+    expect(onlyRecreation.sections.map((section) => section.heading)).toEqual(["Rekreacja"]);
+  });
+});
+
+// Oracle: AC #118 — strona „Rozliczenia” pokazuje sekcje z kartami, sumą i „N jeźdźców · N jazd” każdej
+// sekcji; karta pensjonariusza ma w wyliczeniu opłatę za pensjonat; „Do zapłaty razem” to suma miesiąca.
+describe("composeSettlementsPage — sekcje (#118)", () => {
+  const monthHref = (month: string) => `/osrodek/rozliczenia?miesiac=${month}`;
+  const riderHref = (riderKey: string) => `/osrodek/rozliczenia/${riderKey}?miesiac=2026-10`;
+  const page = (overrides: Partial<SettlementsInput> = {}) =>
+    composeSettlementsPage({ ...sectionsInput(overrides), riders: [], monthHref, riderHref }, NOW);
+
+  it("każda sekcja ma nazwę listy kart, sumę i liczby, a „Do zapłaty razem” to suma miesiąca", () => {
+    const view = page();
+    expect(
+      view.sections.map((section) => ({
+        heading: section.heading,
+        listLabel: section.listLabel,
+        totalText: section.totalText,
+        totalLabel: section.totalLabel,
+        countsText: section.countsText,
+        note: section.note,
+        riders: section.rows.map((row) => row.href),
+      })),
+    ).toEqual([
+      {
+        heading: "Rekreacja",
+        listLabel: "Rozliczenia jeźdźców — Rekreacja",
+        totalText: zl("360,00 zł"),
+        totalLabel: `Rekreacja razem: ${zl("360,00 zł")}`,
+        countsText: "2 jeźdźców · 3 jazdy",
+        note: null,
+        riders: [riderHref("anna"), riderHref("piotr")],
+      },
+      {
+        heading: "Pensjonariusze",
+        listLabel: "Rozliczenia jeźdźców — Pensjonariusze",
+        totalText: zl("1 800,00 zł"),
+        totalLabel: `Pensjonariusze razem: ${zl("1 800,00 zł")}`,
+        countsText: "1 jeździec · 2 jazdy",
+        note: null,
+        riders: [riderHref("kasia")],
+      },
+    ]);
+    expect(view.summary).toEqual({
+      totalText: zl("2 160,00 zł"),
+      totalLabel: `Razem: ${zl("2 160,00 zł")}`,
+      countsText: "3 jeźdźców · 5 jazd",
+    });
+  });
+
+  it("karta pensjonariusza: jazdy × stawka treningowa ze źródłem, opłata za pensjonat i koszty", () => {
+    const view = page({
+      costs: [{ id: 1, riderKey: "kasia", riderName: "Katarzyna Zając", name: "Kowal", amount: 20000 }],
+    });
+    const [kasia] = view.sections[1]?.rows ?? [];
+    expect(kasia).toMatchObject({
+      ridesText: "2 jazdy",
+      rateText: zl("150,00 zł"),
+      rateTag: { text: "stawka treningowa ośrodka", variant: "neutral" },
+      ridesAmountText: zl("300,00 zł"),
+      feesText: `opłata za pensjonat ${zl("1 500,00 zł")}`,
+      costsText: `koszty ${zl("200,00 zł")}`,
+      dueText: zl("2 000,00 zł"),
+    });
+    // Karta jeźdźca rekreacyjnego nie ma opłaty.
+    expect(view.sections[0]?.rows[0]?.feesText).toBeNull();
+  });
+
+  it("kilka koni: suma opłat; koń bez opłaty — „brak kwoty” na karcie i prośba nad sekcją", () => {
+    const two = page({
+      boardingHorses: [boardingHorse(7, "Hrabia", "2026-08-10"), boardingHorse(8, "Wicher", "2026-10-20")],
+      boardingFees: [boardingFee(1, 7, 150000), boardingFee(2, 8, 100000)],
+    });
+    expect(two.sections[1]?.rows[0]?.feesText).toBe(`opłaty za pensjonat ${zl("2 500,00 zł")}`);
+
+    const missing = page({ boardingFees: [] });
+    const section = missing.sections[1];
+    expect(section.rows[0]).toMatchObject({ feesText: "opłata za pensjonat: brak kwoty", dueText: null });
+    expect(section.note).toBe(
+      "„Do zapłaty” pojawi się po ustawieniu opłaty za pensjonat przy koniu na stronie „Pensjonariusze”.",
+    );
+    // Karta bez kwoty wnosi 0 — suma sekcji zostaje.
+    expect(section.totalText).toBe(zl("0,00 zł"));
+  });
+
+  it("sekcja bez stawki swojego rodzaju prosi o nią zamiast sumy", () => {
+    const view = page({ rates: [TRAINING_150] });
+    expect(view.sections.map((section) => [section.note, section.totalText, section.totalLabel])).toEqual([
+      ["Kwoty pojawią się po ustawieniu stawki ośrodka.", null, null],
+      [null, zl("1 800,00 zł"), `Pensjonariusze razem: ${zl("1 800,00 zł")}`],
+    ]);
+    expect(page({ rates: [STABLE_120] }).sections[1]?.note).toBe("Kwoty pojawią się po ustawieniu stawki treningowej.");
+    // Bez stawki żadnej z sekcji „Do zapłaty razem” nie ma.
+    expect(page({ rates: [] }).summary.totalText).toBeNull();
   });
 });

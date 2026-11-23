@@ -626,7 +626,7 @@ function horse(
   stays: SettlementBoardingHorse["stays"],
   riderKey = "kasia",
 ): SettlementBoardingHorse {
-  return { horseId, name, riderKey, stays };
+  return { horseId, name, riderKey, riderName: null, stays };
 }
 function fee(id: number, horseId: number, amount: number, fromMonth = "2026-10"): BoardingFeeChange {
   return { id, horseId, fromMonth, amount };

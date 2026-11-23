@@ -2,7 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import {
   clearStableRatesAndCosts,
   DEMO_HINT,
-  emptySettlementsMonth,
+  goToMonthWithRecreationRides,
   grosze,
   openSettlementsWithOtherRiders,
   otherRiders,
@@ -36,15 +36,12 @@ test.use({ storageState: STABLE_STATE });
 const RATE = 12345;
 
 /**
- * Lista ze stawką: bieżący miesiąc, a gdy jeszcze pusty — poprzedni. Zwraca miesiąc z adresu (`null` —
+ * Lista ze stawką: bieżący miesiąc, a gdy jeszcze bez jazd jeźdźców rekreacyjnych — poprzedni. Zwraca miesiąc z adresu (`null` —
  * bieżący, bez parametru).
  */
 async function openSettlementsWithRides(page: Page): Promise<string | null> {
   await page.goto(SETTLEMENTS_ROUTE);
-  if (await emptySettlementsMonth(page).isVisible()) {
-    await page.getByRole("navigation", { name: "Wybór miesiąca" }).getByRole("link", { name: "Poprzedni" }).click();
-    await page.waitForURL(/miesiac=\d{4}-\d{2}$/);
-  }
+  await goToMonthWithRecreationRides(page);
   await expect(settlementRiders(page).first(), DEMO_HINT).toBeVisible();
   return new URL(page.url()).searchParams.get("miesiac");
 }
