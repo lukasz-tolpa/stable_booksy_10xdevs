@@ -6,8 +6,11 @@
 --     liczy; zapisy innego osrodka sie nie licza
 --   * liczba czekajacych na slot (public.get_slot_occupancy.waiting): osrodek widzi ja zawsze (takze 0 przy
 --     slocie z samymi aktywnymi), instruktor z kontem - na swoich slotach, pensjonariusz - przy slotach
---     treningowych; jezdziec rekreacyjny dostaje NULL i nie dostaje wiersza slotu z samymi zapisami
---     oczekujacymi (nie dowie sie, ze ktos czeka); taken nadal liczy tylko zapisy aktywne
+--     treningowych; kto liczbe widzi, dostaje wiersz kazdego slotu w swoim zakresie, takze bez zapisow (0/0) -
+--     aplikacja nie decyduje o widocznosci sama; jezdziec rekreacyjny dostaje NULL i nie dostaje wiersza slotu
+--     z samymi zapisami oczekujacymi ani slotu bez zapisow (nie dowie sie, ze ktos czeka); taken nadal liczy
+--     tylko zapisy aktywne
+--   * licznik zapisow do przyjecia liczy dokladnie wiersze listy zapisow do przyjecia (jeden filtr)
 --
 -- Seed (jutro, Pod Dębem 10-16): Joanna Wrona (konto 9999...) 1 miejsce w kazdej godzinie, Anna (aktywny)
 -- u Joanny o 11, Karol bez grafiku; Nad Rzeką: Tomasz Lis 1 miejsce 9-14, Piotr (aktywny) o 10;
@@ -51,12 +54,14 @@ begin
     raise exception 'Brak danych seeda albo seed nieaktualny - uruchom npx supabase db reset';
   end if;
 
-  -- Karol pracuje jutro: o 12 slot rekreacyjny (1 miejsce), o 14 treningowy (2 miejsca).
+  -- Karol pracuje jutro: o 12 slot rekreacyjny (1 miejsce), o 14 treningowy (2 miejsca), o 15 treningowy bez
+  -- zadnego zapisu (1 miejsce).
   insert into public.schedule_day_instructors (schedule_day_id, instructor_id, stable_id)
   values (v_day, v_karol, v_stable);
   insert into public.schedule_slots (schedule_day_id, instructor_id, hour, seats, place_id, kind)
   values (v_day, v_karol, 12, 1, private.default_place_id(v_stable), 'recreation'),
-         (v_day, v_karol, 14, 2, private.default_place_id(v_stable), 'training');
+         (v_day, v_karol, 14, 2, private.default_place_id(v_stable), 'training'),
+         (v_day, v_karol, 15, 1, private.default_place_id(v_stable), 'training');
 
   -- Wczoraj (czas polski): slot Joanny o 10 juz sie zaczal.
   insert into public.schedule_days (stable_id, day, open_hour, close_hour)
@@ -108,6 +113,11 @@ begin
     raise exception 'FAIL: wlasciciel liczy % zapisow do przyjecia (oczekiwane 4: bez wygaslego i bez innego osrodka)', v;
   end if;
   raise notice 'PASS: wlasciciel liczy zapisy do przyjecia calego osrodka, bez wygaslych';
+  if v <> (select count(*) from public.get_pending_bookings()) then
+    raise exception 'FAIL: licznik (%) liczy inne zapisy niz lista zapisow do przyjecia (%)',
+      v, (select count(*) from public.get_pending_bookings());
+  end if;
+  raise notice 'PASS: licznik liczy dokladnie wiersze listy zapisow do przyjecia (bez wygaslego)';
 end $$;
 reset role;
 
@@ -160,10 +170,12 @@ begin
   if pg_temp.slot(v_tomorrow, 'app.joanna', 13) <> '0/2'
      or pg_temp.slot(v_tomorrow, 'app.joanna', 11) <> '1/0'
      or pg_temp.slot(v_tomorrow, 'app.karol', 12) <> '0/1'
-     or pg_temp.slot(v_tomorrow, 'app.karol', 14) <> '0/1' then
-    raise exception 'FAIL: wlasciciel widzi J13 %, J11 %, K12 %, K14 % (oczekiwane 0/2, 1/0, 0/1, 0/1)',
+     or pg_temp.slot(v_tomorrow, 'app.karol', 14) <> '0/1'
+     or pg_temp.slot(v_tomorrow, 'app.karol', 15) <> '0/0' then
+    raise exception 'FAIL: wlasciciel widzi J13 %, J11 %, K12 %, K14 %, K15 % (oczekiwane 0/2, 1/0, 0/1, 0/1, 0/0)',
       pg_temp.slot(v_tomorrow, 'app.joanna', 13), pg_temp.slot(v_tomorrow, 'app.joanna', 11),
-      pg_temp.slot(v_tomorrow, 'app.karol', 12), pg_temp.slot(v_tomorrow, 'app.karol', 14);
+      pg_temp.slot(v_tomorrow, 'app.karol', 12), pg_temp.slot(v_tomorrow, 'app.karol', 14),
+      pg_temp.slot(v_tomorrow, 'app.karol', 15);
   end if;
   raise notice 'PASS: osrodek widzi liczbe czekajacych przy kazdym slocie; taken liczy tylko aktywne';
   if pg_temp.slot(v_yesterday, 'app.joanna', 10) <> '0/0' then
@@ -179,9 +191,11 @@ set local request.jwt.claims = '{"sub":"99999999-9999-9999-9999-999999999999","r
 do $$
 declare v_tomorrow date := current_date + 1;
 begin
-  if pg_temp.slot(v_tomorrow, 'app.joanna', 13) <> '0/2' or pg_temp.slot(v_tomorrow, 'app.karol', 14) <> '-' then
-    raise exception 'FAIL: instruktorka widzi J13 %, K14 % (oczekiwane 0/2, -)',
-      pg_temp.slot(v_tomorrow, 'app.joanna', 13), pg_temp.slot(v_tomorrow, 'app.karol', 14);
+  if pg_temp.slot(v_tomorrow, 'app.joanna', 13) <> '0/2' or pg_temp.slot(v_tomorrow, 'app.joanna', 10) <> '0/0'
+     or pg_temp.slot(v_tomorrow, 'app.karol', 14) <> '-' then
+    raise exception 'FAIL: instruktorka widzi J13 %, J10 %, K14 % (oczekiwane 0/2, 0/0, -)',
+      pg_temp.slot(v_tomorrow, 'app.joanna', 13), pg_temp.slot(v_tomorrow, 'app.joanna', 10),
+      pg_temp.slot(v_tomorrow, 'app.karol', 14);
   end if;
   raise notice 'PASS: instruktor z kontem widzi czekajacych na swoich slotach, cudzych slotow nie';
 end $$;
@@ -197,10 +211,13 @@ begin
   if pg_temp.slot(v_tomorrow, 'app.joanna', 11) <> '1/null'
      or pg_temp.slot(v_tomorrow, 'app.joanna', 13) <> '-'
      or pg_temp.slot(v_tomorrow, 'app.karol', 12) <> '-'
-     or pg_temp.slot(v_tomorrow, 'app.karol', 14) <> '-' then
-    raise exception 'FAIL: jezdziec rekreacyjny widzi J11 %, J13 %, K12 %, K14 % (oczekiwane 1/null, -, -, -)',
+     or pg_temp.slot(v_tomorrow, 'app.karol', 14) <> '-'
+     or pg_temp.slot(v_tomorrow, 'app.karol', 15) <> '-'
+     or pg_temp.slot(v_tomorrow, 'app.joanna', 10) <> '-' then
+    raise exception 'FAIL: jezdziec rekreacyjny widzi J11 %, J13 %, K12 %, K14 %, K15 %, J10 % (oczekiwane 1/null, -, -, -, -, -)',
       pg_temp.slot(v_tomorrow, 'app.joanna', 11), pg_temp.slot(v_tomorrow, 'app.joanna', 13),
-      pg_temp.slot(v_tomorrow, 'app.karol', 12), pg_temp.slot(v_tomorrow, 'app.karol', 14);
+      pg_temp.slot(v_tomorrow, 'app.karol', 12), pg_temp.slot(v_tomorrow, 'app.karol', 14),
+      pg_temp.slot(v_tomorrow, 'app.karol', 15), pg_temp.slot(v_tomorrow, 'app.joanna', 10);
   end if;
   raise notice 'PASS: jezdziec rekreacyjny widzi tylko zajete miejsca, nie liczbe czekajacych';
 end $$;
@@ -213,13 +230,16 @@ do $$
 declare v_tomorrow date := current_date + 1;
 begin
   if pg_temp.slot(v_tomorrow, 'app.karol', 14) <> '0/1'
+     or pg_temp.slot(v_tomorrow, 'app.karol', 15) <> '0/0'
      or pg_temp.slot(v_tomorrow, 'app.karol', 12) <> '-'
+     or pg_temp.slot(v_tomorrow, 'app.joanna', 10) <> '-'
      or pg_temp.slot(v_tomorrow, 'app.joanna', 11) <> '1/null' then
-    raise exception 'FAIL: pensjonariuszka widzi K14 %, K12 %, J11 % (oczekiwane 0/1, -, 1/null)',
-      pg_temp.slot(v_tomorrow, 'app.karol', 14), pg_temp.slot(v_tomorrow, 'app.karol', 12),
+    raise exception 'FAIL: pensjonariuszka widzi K14 %, K15 %, K12 %, J10 %, J11 % (oczekiwane 0/1, 0/0, -, -, 1/null)',
+      pg_temp.slot(v_tomorrow, 'app.karol', 14), pg_temp.slot(v_tomorrow, 'app.karol', 15),
+      pg_temp.slot(v_tomorrow, 'app.karol', 12), pg_temp.slot(v_tomorrow, 'app.joanna', 10),
       pg_temp.slot(v_tomorrow, 'app.joanna', 11);
   end if;
-  raise notice 'PASS: pensjonariusz widzi liczbe czekajacych tylko przy slotach treningowych';
+  raise notice 'PASS: pensjonariusz widzi liczbe czekajacych tylko przy slotach treningowych, takze 0 przy slocie bez zapisow';
 end $$;
 reset role;
 

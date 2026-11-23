@@ -25,7 +25,7 @@ export interface SlotOccupancy {
   taken: number;
   /**
    * Zapisy oczekujące slotu (#128, ADR 0006); `null` (albo brak) — baza tej liczby wołającemu nie pokazuje
-   * (jeździec rekreacyjny, slot rekreacyjny u jeźdźca).
+   * (jeździec rekreacyjny, slot rekreacyjny u jeźdźca). Kto ją widzi, dostaje wiersz każdego slotu dnia, także 0.
    */
   waiting?: number | null;
 }
@@ -113,8 +113,8 @@ export interface RiderSlot {
   /** Konie pensjonariusza do zapisu na slot treningowy (jeden — przydzielony od razu, kilka — wybór); inaczej pusto. */
   horses: RiderHorse[];
   /**
-   * Ile zapisów czeka na przyjęcie na ten slot (#128, ADR 0006) — tylko pensjonariusz przy slocie treningowym;
-   * inaczej `null` (jeździec rekreacyjny widzi tylko wolne miejsca i swój zapis).
+   * Ile zapisów czeka na przyjęcie na ten slot (#128, ADR 0006) — tak, jak podała baza (pensjonariusz przy slocie
+   * treningowym); `null` — baza tej liczby nie pokazuje (jeździec rekreacyjny widzi tylko wolne miejsca i swój zapis).
    */
   waiting: number | null;
 }
@@ -187,7 +187,6 @@ export function computeSlotHours(input: SlotHoursInput): SlotHour[] {
 
     const entry = occupancy.get(slotKey(slot.instructorId, slot.hour));
     const freeSeats = Math.max(0, slot.seats - (entry?.taken ?? 0));
-    const trainingForBoarder = standing.boarder && slot.kind === SLOT_KIND.training;
     const slots = byHour.get(slot.hour) ?? [];
     slots.push({
       instructorId: slot.instructorId,
@@ -197,9 +196,10 @@ export function computeSlotHours(input: SlotHoursInput): SlotHour[] {
       freeSeats,
       status: statusOf(slot, freeSeats, mine, myHours, standing),
       kind: slot.kind,
-      horses: trainingForBoarder ? standing.horses : [],
-      // Brak wiersza zajętości — slot bez żadnego zapisu, nikt nie czeka.
-      waiting: trainingForBoarder ? (entry === undefined ? 0 : (entry.waiting ?? null)) : null,
+      horses: standing.boarder && slot.kind === SLOT_KIND.training ? standing.horses : [],
+      // Kto widzi liczbę czekających, rozstrzyga baza: wołający, który ją widzi, dostaje wiersz każdego slotu
+      // (także 0); brak wiersza albo NULL — liczba niewidoczna.
+      waiting: entry?.waiting ?? null,
     });
     byHour.set(slot.hour, slots);
   }

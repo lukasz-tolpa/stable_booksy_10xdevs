@@ -167,7 +167,9 @@ begin
   end if;
   raise notice 'PASS: z grafiku czyta tylko dni ze swoimi slotami';
 
-  select count(*), count(*) filter (where instructor_id <> v_joanna)
+  -- Instruktorka widzi liczbe czekajacych na swoich slotach, wiec dostaje wiersz kazdego z nich (#128); zajety
+  -- zapisem aktywnym - jeden (Anna o 11).
+  select count(*) filter (where taken > 0), count(*) filter (where instructor_id <> v_joanna)
     into v, v_foreign
   from public.get_slot_occupancy(v_stable_a, current_date + 1);
   if v <> 1 or v_foreign <> 0 then

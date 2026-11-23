@@ -319,31 +319,30 @@ describe("computeSlotHours — rodzaj slotu wobec jeźdźca", () => {
   });
 });
 
-// Oracle: ADR 0006, spec #122 (US 6, 7) — liczbę czekających na slot widzi pensjonariusz przy slotach treningowych;
-// jeździec rekreacyjny widzi tylko wolne miejsca i swój zapis.
+// Oracle: ADR 0006, spec #122 (US 6, 7) — kto widzi liczbę czekających na slot, rozstrzyga baza
+// (`get_slot_occupancy`, dowód: supabase/tests/waiting_counts.sql): pensjonariusz przy slotach treningowych, także 0
+// przy slocie bez zapisów; jeździec rekreacyjny nie. Dzień pokazuje liczbę dokładnie tak, jak ją dostał.
 describe("computeSlotHours — liczba czekających na przyjęcie", () => {
-  const occupancy = [
-    { instructorId: JOANNA.id, hour: 10, taken: 0, waiting: 3 },
-    { instructorId: KAROL.id, hour: 10, taken: 1, waiting: 2 },
-  ];
+  it("liczba czekających z odczytu zajętości — także 0 — trafia do slotu bez zmian", () => {
+    const hours = computeSlotHours(
+      input({
+        seats: MIXED_DAY,
+        standing: boarder(),
+        occupancy: [
+          { instructorId: JOANNA.id, hour: 10, taken: 1, waiting: null },
+          { instructorId: KAROL.id, hour: 10, taken: 0, waiting: 0 },
+        ],
+      }),
+    );
 
-  it("pensjonariusz widzi przy slocie treningowym, ile zapisów czeka na przyjęcie, a przy rekreacyjnym — nie", () => {
-    const hours = computeSlotHours(input({ seats: MIXED_DAY, standing: boarder(), occupancy }));
-
-    expect(hours[0].slots.map((slot) => [slot.kind, slot.waiting])).toEqual([
-      ["recreation", null],
-      ["training", 2],
+    expect(hours[0].slots.map((slot) => [slot.kind, slot.waiting, slot.freeSeats])).toEqual([
+      ["recreation", null, 1],
+      ["training", 0, 3],
     ]);
   });
 
-  it("jeździec rekreacyjny nie widzi liczby czekających, nawet gdy odczyt ją podaje", () => {
-    const hours = computeSlotHours(input({ seats: MIXED_DAY, standing: RECREATION, occupancy }));
-
-    expect(hours[0].slots.map((slot) => [slot.kind, slot.waiting, slot.freeSeats])).toEqual([["recreation", null, 2]]);
-  });
-
-  it("slot treningowy bez żadnego zapisu — nikt nie czeka; liczba ukryta przez bazę zostaje ukryta", () => {
-    const empty = computeSlotHours(input({ seats: MIXED_DAY, standing: boarder() }));
+  it("slot bez wiersza zajętości albo z liczbą ukrytą przez bazę nie pokazuje liczby czekających", () => {
+    const missing = computeSlotHours(input({ seats: MIXED_DAY, standing: boarder() }));
     const hidden = computeSlotHours(
       input({
         seats: MIXED_DAY,
@@ -352,7 +351,7 @@ describe("computeSlotHours — liczba czekających na przyjęcie", () => {
       }),
     );
 
-    expect(empty[0].slots[1].waiting).toBe(0);
+    expect(missing[0].slots.map((slot) => slot.waiting)).toEqual([null, null]);
     expect(hidden[0].slots[1].waiting).toBeNull();
   });
 });
