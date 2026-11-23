@@ -110,7 +110,7 @@ export interface BoardingFeeLine {
 export interface SettlementBoardingHorse {
   horseId: number;
   name: string;
-  /** Pensjonariusz — właściciel konia; `null` — konto usunięte, koń bez właściciela (nikt nie płaci). */
+  /** Pensjonariusz, którego koń stoi w ośrodku; `null` — konto usunięte, koń bez właściciela (nikt nie płaci). */
   riderKey: string | null;
   /** Nazwa pensjonariusza z profilu (#118, karta bez jazd); `null` — „(bez nazwiska)”. */
   riderName: string | null;

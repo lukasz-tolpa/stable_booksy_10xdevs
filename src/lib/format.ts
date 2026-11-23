@@ -79,21 +79,6 @@ export function formatLongDayMonth(iso: string): string {
   return LONG_DAY_MONTH.format(new Date(`${iso}T00:00:00Z`));
 }
 
-const LONG_DAY_MONTH_YEAR = new Intl.DateTimeFormat("pl-PL", {
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-  timeZone: "UTC",
-});
-
-/**
- * Dzień, miesiąc w dopełniaczu i rok dnia kalendarzowego (`RRRR-MM-DD`), np. `3 listopada 2026` — dni
- * przyjazdu i wyjazdu pobytu konia. Data kalendarzowa, więc w UTC.
- */
-export function formatLongDayMonthYear(iso: string): string {
-  return LONG_DAY_MONTH_YEAR.format(new Date(`${iso}T00:00:00Z`));
-}
-
 const SHORT_WEEKDAY_DATE = new Intl.DateTimeFormat("pl-PL", {
   weekday: "short",
   day: "numeric",
@@ -207,9 +192,13 @@ const DAY_MONTH_YEAR = new Intl.DateTimeFormat("pl-PL", {
   timeZone: SCHEDULE_TIME_ZONE,
 });
 
-/** Dzień, miesiąc i rok chwili w strefie ośrodka, np. `21 listopada 2026` — „stan na …” w PDF rozliczenia. */
-export function formatDayMonthYear(at: Date): string {
-  return DAY_MONTH_YEAR.format(at);
+/**
+ * Dzień, miesiąc w dopełniaczu i rok, np. `21 listopada 2026` — chwili w strefie ośrodka („stan na …” w PDF
+ * rozliczenia) albo dnia kalendarzowego `RRRR-MM-DD` (dni pobytu konia). Dzień kalendarzowy bierzemy w południe
+ * UTC: w strefie ośrodka to zawsze ten sam dzień.
+ */
+export function formatDayMonthYear(at: Date | string): string {
+  return DAY_MONTH_YEAR.format(typeof at === "string" ? new Date(`${at}T12:00:00Z`) : at);
 }
 
 const DATE_TIME = new Intl.DateTimeFormat("en-CA", {

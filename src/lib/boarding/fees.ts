@@ -3,7 +3,7 @@
  * z tabeli `public.boarding_fees`: kwota dla jednego konia pensjonatowego od wskazanego miesiąca, wzorem
  * stawki — zmiana nie przelicza minionych miesięcy, a pierwsza opłata konia obowiązuje też wstecz (jak
  * pierwsza stawka ośrodka), więc od razu rozlicza miesiące pobytu przed jej ustawieniem.
- * Do rozliczenia właściciela konia opłata wchodzi w całości za każdy miesiąc, na który zachodzi pobyt
+ * Do rozliczenia pensjonariusza opłata wchodzi w całości za każdy miesiąc, na który zachodzi pobyt
  * (`stayOverlapsMonth`) — to składa `riderAmounts` (`@/lib/settlements/settlements`).
  */
 

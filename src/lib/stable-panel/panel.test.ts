@@ -11,6 +11,7 @@ import {
 } from "@/lib/stable-panel/panel";
 import { resolveSummaryMonth } from "@/lib/month-summary/month";
 import type { RateChange } from "@/lib/settlements/rates";
+import { HORSE_KIND } from "@/lib/stables/kind";
 import { composeSettlementList, type SettlementBooking } from "@/lib/settlements/settlements";
 import type { StatsBooking, StatsScheduleDay } from "@/lib/stats/stats";
 
@@ -198,10 +199,10 @@ describe("composeSideColumn", () => {
   });
   // Konie ośrodka: dwa aktywne, jeden wycofany; koń pensjonatowy nie liczy się do „Konie” (#114).
   const horses = [
-    { active: true, kind: "stable" },
-    { active: true, kind: "stable" },
-    { active: false, kind: "stable" },
-    { active: true, kind: "boarding" },
+    { active: true, kind: HORSE_KIND.stable },
+    { active: true, kind: HORSE_KIND.stable },
+    { active: false, kind: HORSE_KIND.stable },
+    { active: true, kind: HORSE_KIND.boarding },
   ];
   const instructors = [
     { id: 1, active: true },
@@ -303,7 +304,7 @@ describe("composeSideColumn", () => {
       composeSideColumn({
         today: TODAY,
         week,
-        horses: Array.from({ length: count }, () => ({ active: true, kind: "stable" })),
+        horses: Array.from({ length: count }, () => ({ active: true, kind: HORSE_KIND.stable })),
         instructors,
         accounts,
         places,
@@ -634,12 +635,12 @@ describe("composeBoardersLink — Pensjonariusze w bocznej kolumnie i w główne
   // Oracle: AC #114 — nawigacja „Pensjonariusze” u właściciela; liczba to konie pensjonatowe ośrodka.
   it.each([
     [[], "0 koni pensjonatowych"],
-    [[{ active: true, kind: "boarding" }], "1 koń pensjonatowy"],
+    [[{ active: true, kind: HORSE_KIND.boarding }], "1 koń pensjonatowy"],
     [
       [
-        { active: true, kind: "boarding" },
-        { active: false, kind: "boarding" },
-        { active: true, kind: "stable" },
+        { active: true, kind: HORSE_KIND.boarding },
+        { active: false, kind: HORSE_KIND.boarding },
+        { active: true, kind: HORSE_KIND.stable },
       ],
       "2 konie pensjonatowe",
     ],

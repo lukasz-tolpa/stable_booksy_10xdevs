@@ -9,7 +9,8 @@ import {
   STABLE_BOARDERS_ROUTE,
   backTo,
 } from "@/lib/boarding/redirect";
-import { boardingOwner, boardingRider } from "@/lib/boarding/requests";
+import { boardingRider } from "@/lib/boarding/requests";
+import { ownerRequest } from "@/lib/stables/owner-request";
 import { departureSchema } from "@/lib/boarding/schemas";
 import { errorCode, errorDetails } from "@/lib/db-errors";
 import { formValue } from "@/lib/form-data";
@@ -45,10 +46,13 @@ export const POST: APIRoute = async (context: APIContext) => {
     return back(firstErrorMessage(parsed.error));
   }
 
-  const supabase = await (side === "stable" ? boardingOwner : boardingRider)(context, SCOPE, back);
-  if (supabase instanceof Response) {
-    return supabase;
+  // Ośrodek — wspólna bramka właściciela; pensjonariusz — dowolne zalogowane konto (czyj pobyt, sprawdza baza).
+  const caller =
+    side === "stable" ? await ownerRequest(context, SCOPE, back) : await boardingRider(context, SCOPE, back);
+  if (caller instanceof Response) {
+    return caller;
   }
+  const supabase = "stableId" in caller ? caller.supabase : caller;
 
   const { stayId, error } = await setStayDeparture(supabase, parsed.data.stayId, parsed.data.departure);
   if (error) {

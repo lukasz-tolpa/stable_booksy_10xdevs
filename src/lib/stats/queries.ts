@@ -2,14 +2,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/db/database.types";
 import { toBookingStatus, toCancelledBy } from "@/lib/bookings/status";
 import { SLOT_KIND, toSlotKind, type SlotKind } from "@/lib/schedule/kind";
-import { HORSE_KIND } from "@/lib/stables/kind";
+import { toHorseKind, type HorseKind } from "@/lib/stables/kind";
 import type { StatsRider } from "@/lib/stats/riders";
 import type { StatsBooking, StatsPeriod, StatsScheduleDay, StatsSlot } from "@/lib/stats/stats";
 
 type Client = SupabaseClient<Database>;
-
-/** Rodzaj konia (`horses.kind`, #114): koń ośrodka albo koń pensjonatowy. */
-export type HorseKind = (typeof HORSE_KIND)[keyof typeof HORSE_KIND];
 
 /** Slot dnia z instruktorem, rodzajem i placem (#115) — dla podziału na rekreację i pensjonariuszy. */
 export interface StatsRowsSlot extends StatsSlot {
@@ -39,13 +36,6 @@ export interface StatsRows {
   bookings: StatsRide[];
   /** Jeźdźcy z zapisów okresu, każde konto raz. */
   riders: StatsRider[];
-}
-
-function toHorseKind(value: string): HorseKind {
-  if (value !== HORSE_KIND.stable && value !== HORSE_KIND.boarding) {
-    throw new Error(`Nieznany rodzaj konia: ${value}`);
-  }
-  return value;
 }
 
 /** Zapis w kształcie PostgREST: przydzielony koń, konto jeźdźca i jego profil (nazwa) przez FK `rider_id`. */

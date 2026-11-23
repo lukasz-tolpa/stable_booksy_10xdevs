@@ -3,7 +3,7 @@ import { firstErrorMessage } from "@/lib/auth/schemas";
 import { BOARDING_HORSE_FAILED, boardingHorseErrorMessage, isExpectedBoardingRefusal } from "@/lib/boarding/errors";
 import { addBoardingHorse } from "@/lib/boarding/queries";
 import { BOARDING_OUTCOME, STABLE_BOARDERS_ROUTE, backTo } from "@/lib/boarding/redirect";
-import { boardingOwner } from "@/lib/boarding/requests";
+import { ownerRequest } from "@/lib/stables/owner-request";
 import { boardingHorseSchema } from "@/lib/boarding/schemas";
 import { errorCode } from "@/lib/db-errors";
 import { formValue } from "@/lib/form-data";
@@ -31,10 +31,11 @@ export const POST: APIRoute = async (context) => {
     return back(firstErrorMessage(parsed.error));
   }
 
-  const supabase = await boardingOwner(context, SCOPE, back);
-  if (supabase instanceof Response) {
-    return supabase;
+  const owner = await ownerRequest(context, SCOPE, back);
+  if (owner instanceof Response) {
+    return owner;
   }
+  const { supabase } = owner;
 
   const { horseId, error } = await addBoardingHorse(supabase, parsed.data);
   if (error) {

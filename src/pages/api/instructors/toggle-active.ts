@@ -7,7 +7,7 @@ import {
   INSTRUCTOR_OWNER_STAYS_ACTIVE,
   instructorToggleErrorMessage,
 } from "@/lib/instructors/errors";
-import { ownerRequest } from "@/lib/instructors/owner-request";
+import { ownerRequest } from "@/lib/stables/owner-request";
 import { backToInstructors } from "@/lib/instructors/redirect";
 import { toggleInstructorSchema } from "@/lib/instructors/schemas";
 import { logError } from "@/lib/log";
@@ -31,7 +31,9 @@ export const POST: APIRoute = async (context) => {
     return backToInstructors(context, INSTRUCTOR_FORM_INVALID);
   }
 
-  const owner = await ownerRequest(context, "api:instructors/toggle-active");
+  const owner = await ownerRequest(context, "api:instructors/toggle-active", (error) =>
+    backToInstructors(context, error),
+  );
   if (owner instanceof Response) {
     return owner;
   }

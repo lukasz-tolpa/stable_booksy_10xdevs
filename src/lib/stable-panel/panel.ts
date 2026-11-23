@@ -21,7 +21,7 @@ import { monthRides } from "@/lib/month-summary/summary";
 import { STABLE_BOARDERS_ROUTE } from "@/lib/boarding/redirect";
 import { addDays } from "@/lib/schedule/dates";
 import type { SettlementList } from "@/lib/settlements/settlements";
-import { isStableHorse } from "@/lib/stables/kind";
+import { isStableHorse, type HorseKind } from "@/lib/stables/kind";
 import { ACTIVE_FORMS, BOARDING_HORSE_FORMS, DAY_FORMS, PANEL_TEXTS, SEAT_FORMS } from "@/lib/stable-panel/texts";
 import { rideHoursBars, type BarChartItem } from "@/lib/stats/chart-items";
 import { statsPeriodSearch } from "@/lib/stats/period";
@@ -185,7 +185,7 @@ export interface SideColumnInput {
   /** Model tygodnia; `null`, gdy tygodnia nie udało się wczytać. */
   week: WeekView | null;
   /** Wszystkie konie ośrodka, także pensjonatowe (`listStableHorses`); `null` — nie wczytano. */
-  horses: { active: boolean; kind: string }[] | null;
+  horses: { active: boolean; kind: HorseKind }[] | null;
   /** Place ośrodka (`listStablePlaces`, #113); `null` — nie wczytano. */
   places: { active: boolean }[] | null;
   /** Instruktorzy ośrodka (`listStableInstructors`); `null` — nie wczytano. */

@@ -25,7 +25,7 @@ import { createClient } from "@/lib/supabase";
 // przestrzeń ośrodka jest tylko dla właściciela; stawki chroni dodatkowo RLS. Liczy
 // `@/lib/settlements/settlements`; tu tylko odczyt i render. Miesiąc żyje w adresie (`?miesiac=RRRR-MM`),
 // formularze stawki wracają na niego z `?sukces=1` albo `?error=`.
-// Układ (#105, wariant B): główna kolumna z sekcjami kart jeźdźców (#118: „Rekreacja”, „Pensjonariusze”,
+// Układ (#105, wariant B) — główna kolumna z sekcjami kart jeźdźców (#118 — „Rekreacja”, „Pensjonariusze”,
 // każda z sumą) i „Pozostałymi jeźdźcami ośrodka”, boczna — przełącznik miesięcy i suma miesiąca (przyklejone
 // od 1000 px), pod nimi stawki ośrodka (nieprzyklejone, więc wysoka kolumna nie ucina formularza).
 // Koszt dodatkowy dopisuje się tylko w rozliczeniu jeźdźca (#106), do którego prowadzą linki pozostałych

@@ -1,5 +1,5 @@
 import { isValidIsoDate } from "@/lib/schedule/dates";
-import { formatLongDayMonthYear, formatMoney } from "@/lib/format";
+import { formatDayMonthYear, formatMoney } from "@/lib/format";
 import { BOARDING_FEE_AMOUNT } from "@/lib/settlements/amounts";
 
 /**
@@ -14,8 +14,6 @@ export const NO_RIDER_ACCOUNT = "SB040";
 
 /** Formularz z ukrytymi polami (pobyt, koń) z nieczytelnym polem — spreparowany albo uszkodzony. */
 export const BOARDING_FORM_INVALID = "Nieprawidłowe dane formularza";
-/** Konto ośrodka bez stadniny. */
-export const BOARDING_NO_STABLE = "Twoje konto nie ma jeszcze stadniny";
 
 export const BOARDING_HORSE_FAILED = "Nie udało się dodać konia pensjonatowego. Spróbuj ponownie.";
 export const STAY_FAILED = "Nie udało się dodać pobytu. Spróbuj ponownie.";
@@ -95,7 +93,7 @@ function lastRideDay(detail: string | undefined): string | null {
 export function departureErrorMessage(code: string | undefined, detail: string | undefined): string {
   if (code === "SB045") {
     const day = lastRideDay(detail);
-    return day ? `${LAST_RIDE} (${formatLongDayMonthYear(day)}).` : `${LAST_RIDE}.`;
+    return day ? `${LAST_RIDE} (${formatDayMonthYear(day)}).` : `${LAST_RIDE}.`;
   }
   return refusal(DEPARTURE_REFUSALS, code, DEPARTURE_FAILED);
 }

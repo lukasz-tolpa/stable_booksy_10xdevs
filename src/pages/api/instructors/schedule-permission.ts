@@ -6,7 +6,7 @@ import {
   isExpectedSchedulePermissionRefusal,
   schedulePermissionErrorMessage,
 } from "@/lib/instructors/errors";
-import { ownerRequest } from "@/lib/instructors/owner-request";
+import { ownerRequest } from "@/lib/stables/owner-request";
 import { setSchedulePermission } from "@/lib/instructors/queries";
 import { backToInstructors } from "@/lib/instructors/redirect";
 import { schedulePermissionSchema } from "@/lib/instructors/schemas";
@@ -31,7 +31,9 @@ export const POST: APIRoute = async (context) => {
     return backToInstructors(context, INSTRUCTOR_FORM_INVALID);
   }
 
-  const owner = await ownerRequest(context, "api:instructors/schedule-permission");
+  const owner = await ownerRequest(context, "api:instructors/schedule-permission", (error) =>
+    backToInstructors(context, error),
+  );
   if (owner instanceof Response) {
     return owner;
   }

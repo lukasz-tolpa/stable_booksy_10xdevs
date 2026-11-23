@@ -5,7 +5,7 @@ import { formValue } from "@/lib/form-data";
 import { logError } from "@/lib/log";
 import { currentMonth } from "@/lib/schedule/dates";
 import { isExpectedRateRefusal, RATE_SAVE_FAILED, rateSaveErrorMessage } from "@/lib/settlements/errors";
-import { settlementOwner } from "@/lib/settlements/owner-request";
+import { ownerRequest } from "@/lib/stables/owner-request";
 import { saveRate } from "@/lib/settlements/queries";
 import { rateFromMonth } from "@/lib/settlements/rates";
 import { backToSettlements, returnMonth } from "@/lib/settlements/redirect";
@@ -35,7 +35,7 @@ export const POST: APIRoute = async (context) => {
     return back(firstErrorMessage(parsed.error));
   }
 
-  const owner = await settlementOwner(context, SCOPE, back);
+  const owner = await ownerRequest(context, SCOPE, back);
   if (owner instanceof Response) {
     return owner;
   }

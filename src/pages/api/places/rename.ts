@@ -2,7 +2,7 @@ import type { APIRoute } from "astro";
 import { firstErrorMessage } from "@/lib/auth/schemas";
 import { errorCode } from "@/lib/db-errors";
 import { formValue } from "@/lib/form-data";
-import { ownerRequest } from "@/lib/instructors/owner-request";
+import { ownerRequest } from "@/lib/stables/owner-request";
 import { logError } from "@/lib/log";
 import { PLACE_NOT_FOUND, isExpectedPlaceRefusal, placeErrorMessage } from "@/lib/places/errors";
 import { backToPlaces } from "@/lib/places/redirect";
@@ -19,7 +19,7 @@ export const POST: APIRoute = async (context) => {
     return backToPlaces(context, firstErrorMessage(parsed.error));
   }
 
-  const owner = await ownerRequest(context, "api:places/rename", backToPlaces);
+  const owner = await ownerRequest(context, "api:places/rename", (error) => backToPlaces(context, error));
   if (owner instanceof Response) {
     return owner;
   }

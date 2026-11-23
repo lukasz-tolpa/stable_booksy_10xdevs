@@ -1,7 +1,7 @@
 import { boardingFeeSchedule, type BoardingFeeChange } from "@/lib/boarding/fees";
 import { BOARDING_PAGE_TEXTS } from "@/lib/boarding/texts";
 import { BOARDING_OUTCOME, type BoardingOutcome } from "@/lib/boarding/redirect";
-import { formatFromMonth, formatLongDayMonthYear, formatMoney } from "@/lib/format";
+import { formatFromMonth, formatDayMonthYear, formatMoney } from "@/lib/format";
 import { addDays } from "@/lib/schedule/dates";
 import { rateChoices, type RateChoice } from "@/lib/settlements/settlements";
 
@@ -111,10 +111,10 @@ interface Stay {
 const texts = BOARDING_PAGE_TEXTS;
 
 function periodText(stay: Stay): string {
-  const arrival = formatLongDayMonthYear(stay.arrivalDay);
+  const arrival = formatDayMonthYear(stay.arrivalDay);
   return stay.departureDay === null
     ? `${texts.since} ${arrival} — ${texts.ongoing}`
-    : `${arrival} – ${formatLongDayMonthYear(stay.departureDay)}`;
+    : `${arrival} – ${formatDayMonthYear(stay.departureDay)}`;
 }
 
 function setByText(stay: Stay, viewer: "stable" | "rider"): string | null {

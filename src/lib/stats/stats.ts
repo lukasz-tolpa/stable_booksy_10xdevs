@@ -5,7 +5,7 @@
 
 import { isRide, SLOT_DURATION_HOURS, slotEndedAt, type SlotEnded } from "@/lib/bookings/rides";
 import { unknownHorseName } from "@/lib/bookings/rows";
-import { HORSE_KIND } from "@/lib/stables/kind";
+import { HORSE_KIND, type HorseKind } from "@/lib/stables/kind";
 import type { DateRange } from "@/lib/schedule/dates";
 import { SLOT_KIND, type SlotKind } from "@/lib/schedule/kind";
 import { buildTopRidersSeries, type TopRiderPoint } from "@/lib/stats/rankings";
@@ -58,7 +58,7 @@ export interface StatsHorse {
   id: number;
   name: string;
   /** Rodzaj konia (`horses.kind`, #114); brak — koń ośrodka, jak domyślnie w bazie. */
-  kind?: string;
+  kind?: HorseKind;
 }
 
 export interface StatsInput {

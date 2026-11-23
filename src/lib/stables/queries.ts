@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/db/database.types";
-import { HORSE_KIND } from "@/lib/stables/kind";
+import { HORSE_KIND, toHorseKind, type HorseKind } from "@/lib/stables/kind";
 import type { Horse, Stable } from "@/types";
 
 type Client = SupabaseClient<Database>;
@@ -12,7 +12,7 @@ export type StableListItem = Pick<Stable, "id" | "name" | "city" | "description"
 export type HorseListItem = Pick<Horse, "id" | "name" | "notes" | "active">;
 
 /** Koń z rodzajem — koń ośrodka albo pensjonatowy (`@/lib/stables/kind`, #114). */
-export type StableHorseItem = HorseListItem & Pick<Horse, "kind">;
+export type StableHorseItem = HorseListItem & { kind: HorseKind };
 
 const LIST_COLUMNS = "id, name, city, description";
 const HORSE_COLUMNS = "id, name, notes, active";
@@ -105,7 +105,7 @@ export async function listStableHorses(client: Client, stableId: number): Promis
     throw error;
   }
 
-  return data;
+  return data.map((horse) => ({ ...horse, kind: toHorseKind(horse.kind) }));
 }
 
 /**

@@ -8,7 +8,7 @@ import {
   INVITATION_FLASH_COOKIE,
   INVITATION_FLASH_MAX_AGE,
 } from "@/lib/instructors/invitations";
-import { ownerRequest } from "@/lib/instructors/owner-request";
+import { ownerRequest } from "@/lib/stables/owner-request";
 import { issueInvitation } from "@/lib/instructors/queries";
 import { backToInstructors, INSTRUCTORS_ROUTE } from "@/lib/instructors/redirect";
 import { inviteInstructorSchema } from "@/lib/instructors/schemas";
@@ -35,7 +35,7 @@ export const POST: APIRoute = async (context) => {
   }
 
   // Jawne sprawdzenie właściciela obok bazy, która i tak bierze ośrodek z sesji (42501, SB013).
-  const owner = await ownerRequest(context, "api:instructors/invite");
+  const owner = await ownerRequest(context, "api:instructors/invite", (error) => backToInstructors(context, error));
   if (owner instanceof Response) {
     return owner;
   }

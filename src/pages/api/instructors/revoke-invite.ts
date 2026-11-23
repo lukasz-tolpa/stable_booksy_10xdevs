@@ -7,7 +7,7 @@ import {
   INVITATION_NOTHING_TO_REVOKE,
   revokeInvitationErrorMessage,
 } from "@/lib/instructors/errors";
-import { ownerRequest } from "@/lib/instructors/owner-request";
+import { ownerRequest } from "@/lib/stables/owner-request";
 import { revokeInvitation } from "@/lib/instructors/queries";
 import { backToInstructors } from "@/lib/instructors/redirect";
 import { instructorIdSchema } from "@/lib/instructors/schemas";
@@ -25,7 +25,9 @@ export const POST: APIRoute = async (context) => {
     return backToInstructors(context, INSTRUCTOR_FORM_INVALID);
   }
 
-  const owner = await ownerRequest(context, "api:instructors/revoke-invite");
+  const owner = await ownerRequest(context, "api:instructors/revoke-invite", (error) =>
+    backToInstructors(context, error),
+  );
   if (owner instanceof Response) {
     return owner;
   }

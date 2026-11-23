@@ -10,8 +10,6 @@ export const INSTRUCTOR_NAME_TAKEN = "23505";
 
 const FALLBACK = "Nie udało się dodać instruktora. Spróbuj ponownie.";
 
-/** Konto ośrodka bez stadniny (każdy endpoint strony Instruktorzy). */
-export const INSTRUCTOR_NO_STABLE = "Twoje konto nie ma jeszcze stadniny";
 /** Formularz z ukrytymi polami (przełączenie stanu, wycofanie zaproszenia) z nieczytelnym polem. */
 export const INSTRUCTOR_FORM_INVALID = "Nieprawidłowe dane formularza";
 /**

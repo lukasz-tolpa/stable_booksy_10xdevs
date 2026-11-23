@@ -3,7 +3,7 @@ import { firstErrorMessage } from "@/lib/auth/schemas";
 import { STAY_FAILED, isExpectedBoardingRefusal, stayErrorMessage } from "@/lib/boarding/errors";
 import { addHorseStay } from "@/lib/boarding/queries";
 import { BOARDING_OUTCOME, STABLE_BOARDERS_ROUTE, backTo } from "@/lib/boarding/redirect";
-import { boardingOwner } from "@/lib/boarding/requests";
+import { ownerRequest } from "@/lib/stables/owner-request";
 import { newStaySchema } from "@/lib/boarding/schemas";
 import { errorCode } from "@/lib/db-errors";
 import { formValue } from "@/lib/form-data";
@@ -23,10 +23,11 @@ export const POST: APIRoute = async (context) => {
     return back(firstErrorMessage(parsed.error));
   }
 
-  const supabase = await boardingOwner(context, SCOPE, back);
-  if (supabase instanceof Response) {
-    return supabase;
+  const owner = await ownerRequest(context, SCOPE, back);
+  if (owner instanceof Response) {
+    return owner;
   }
+  const { supabase } = owner;
 
   const { stayId, error } = await addHorseStay(supabase, parsed.data.horseId, parsed.data.arrival);
   if (error) {

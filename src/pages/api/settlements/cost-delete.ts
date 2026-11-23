@@ -2,7 +2,7 @@ import { firstErrorMessage } from "@/lib/auth/schemas";
 import { formValue } from "@/lib/form-data";
 import { logError } from "@/lib/log";
 import { COST_DELETE_FAILED, COST_NOT_FOUND } from "@/lib/settlements/errors";
-import { settlementOwner } from "@/lib/settlements/owner-request";
+import { ownerRequest } from "@/lib/stables/owner-request";
 import { deleteCost } from "@/lib/settlements/queries";
 import { costFormEndpoint } from "@/lib/settlements/redirect";
 import { costIdSchema } from "@/lib/settlements/schemas";
@@ -22,7 +22,7 @@ export const POST = costFormEndpoint(async (context, { form, back }) => {
     return back(firstErrorMessage(parsed.error));
   }
 
-  const owner = await settlementOwner(context, SCOPE, back);
+  const owner = await ownerRequest(context, SCOPE, back);
   if (owner instanceof Response) {
     return owner;
   }

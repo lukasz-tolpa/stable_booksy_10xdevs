@@ -11,7 +11,7 @@ import { boardingFeeIdSchema } from "@/lib/boarding/schemas";
 import { errorCode } from "@/lib/db-errors";
 import { formValue } from "@/lib/form-data";
 import { logError } from "@/lib/log";
-import { settlementOwner } from "@/lib/settlements/owner-request";
+import { ownerRequest } from "@/lib/stables/owner-request";
 
 export const prerender = false;
 
@@ -30,7 +30,7 @@ export const POST: APIRoute = async (context: APIContext) => {
     return back(firstErrorMessage(parsed.error));
   }
 
-  const owner = await settlementOwner(context, SCOPE, back);
+  const owner = await ownerRequest(context, SCOPE, back);
   if (owner instanceof Response) {
     return owner;
   }

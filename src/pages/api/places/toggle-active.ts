@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro";
 import { errorCode } from "@/lib/db-errors";
 import { formValue } from "@/lib/form-data";
-import { ownerRequest } from "@/lib/instructors/owner-request";
+import { ownerRequest } from "@/lib/stables/owner-request";
 import { logError } from "@/lib/log";
 import { PLACE_FORM_INVALID, PLACE_NOT_FOUND, isExpectedPlaceRefusal, placeErrorMessage } from "@/lib/places/errors";
 import { backToPlaces } from "@/lib/places/redirect";
@@ -25,7 +25,7 @@ export const POST: APIRoute = async (context) => {
     return backToPlaces(context, PLACE_FORM_INVALID);
   }
 
-  const owner = await ownerRequest(context, "api:places/toggle-active", backToPlaces);
+  const owner = await ownerRequest(context, "api:places/toggle-active", (error) => backToPlaces(context, error));
   if (owner instanceof Response) {
     return owner;
   }
