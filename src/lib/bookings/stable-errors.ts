@@ -24,6 +24,8 @@ export const BOOKING_NOT_ACTIVE = "23514";
  * wyzwalacz `bookings_slot_rules` (#115).
  */
 export const NOT_RIDERS_BOARDING_HORSE = "SB051";
+/** Cofnięcie konia („bez konia”) przy zapisie na slot treningowy — wyzwalacz `bookings_slot_rules` (#112). */
+export const TRAINING_BOOKING_NEEDS_HORSE = "SB063";
 
 const FALLBACK = "Nie udało się przydzielić konia. Spróbuj ponownie.";
 
@@ -51,6 +53,10 @@ const OWNER_MESSAGES = new Map<string, string>([
   [
     NOT_RIDERS_BOARDING_HORSE,
     "Przy slocie treningowym jeździec jedzie na swoim koniu pensjonatowym, który stoi w ośrodku w dniu jazdy. Wybierz jednego z jego koni.",
+  ],
+  [
+    TRAINING_BOOKING_NEEDS_HORSE,
+    "Przy slocie treningowym jeździec zawsze jedzie na swoim koniu pensjonatowym — nie da się zostawić zapisu bez konia. Wybierz jednego z jego koni.",
   ],
 ]);
 

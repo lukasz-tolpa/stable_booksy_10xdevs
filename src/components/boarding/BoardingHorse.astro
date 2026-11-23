@@ -5,7 +5,8 @@
 // („Zakończ pobyt” albo „Popraw dzień wyjazdu”), a u właściciela przy koniu, który wyjechał — „Nowy pobyt”
 // (natywne <details>, bez JavaScriptu).
 //
-// KONTRAKT e2e: `article` z nagłówkiem — imię konia; pigułka `w ośrodku` / `wyjechał`; `list` „Pobyty — {koń}”,
+// KONTRAKT e2e: `article` z nagłówkiem — imię konia; pigułka `w ośrodku` / `wyjechał` / `bez pobytu`; `list` „Pobyty — {koń}”
+// (koń bez pobytu — bez listy),
 // jedna pozycja na pobyt (okres, kto wpisał dzień wyjazdu); `form` „{Zakończ pobyt|Popraw dzień wyjazdu} — {koń}”
 // z polem „Dzień wyjazdu” i przyciskiem o nazwie czynności; `form` „Nowy pobyt — {koń}” z polem
 // „Dzień przyjazdu” i przyciskiem „Dodaj pobyt”. Opłata za pensjonat (#117): blok „Opłata za pensjonat”
@@ -42,20 +43,22 @@ const fee = texts.fee;
       <HorseHead className="size-4" />
       {horse.name}
     </h3>
-    <Tag variant={horse.current ? "primary" : "neutral"}>{horse.current ? texts.current : texts.ended}</Tag>
+    <Tag variant={horse.current ? "primary" : "neutral"}>{horse.statusText}</Tag>
   </div>
   {stableName && <p class="horse__stable">{stableName}</p>}
 
-  <ul class="stays" aria-label={`${texts.stays} — ${horse.name}`}>
-    {
-      horse.stays.map((stay) => (
-        <li class="stay">
-          <span class="stay__period">{stay.periodText}</span>
-          {stay.setByText && <span class="stay__by">{stay.setByText}</span>}
-        </li>
-      ))
-    }
-  </ul>
+  {
+    horse.stays.length > 0 && (
+      <ul class="stays" aria-label={`${texts.stays} — ${horse.name}`}>
+        {horse.stays.map((stay) => (
+          <li class="stay">
+            <span class="stay__period">{stay.periodText}</span>
+            {stay.setByText && <span class="stay__by">{stay.setByText}</span>}
+          </li>
+        ))}
+      </ul>
+    )
+  }
 
   <div class="fee">
     <h4 class="fee__heading">{fee.heading}</h4>

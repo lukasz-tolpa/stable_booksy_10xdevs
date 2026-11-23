@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import {
+  BOARDER,
   RIDER_A_STATE,
   STABLE_NAME,
   STABLE_STATE,
@@ -24,7 +25,6 @@ import {
 test.use({ storageState: STABLE_STATE });
 
 const OWNER = "Marek Dębowski";
-const BOARDER_EMAIL = "katarzyna.zajac@example.com";
 const OTHER_INSTRUCTORS = ["Joanna Wrona", "Karol Jasny"];
 const DAY = seedDay(new Date(Date.now() + 21 * 24 * 60 * 60 * 1000));
 
@@ -47,6 +47,16 @@ async function openScenarioDay(page: Page): Promise<void> {
   await expect(page.getByRole("heading", { level: 1, name: STABLE_NAME })).toBeVisible();
   await page.goto(`${new URL(page.url()).pathname}?dzien=${DAY}`);
   await expect(page.getByLabel("Wybierz dzień")).toHaveValue(DAY);
+}
+
+/** Id konia ośrodka z seeda — wartość pozycji listy „Koń”. */
+function horseId(name: string): string {
+  return runSql(
+    `select h.id from public.horses h join public.stables s on s.id = h.stable_id
+     where s.name = '${STABLE_NAME}' and h.name = '${name}';`,
+    "odczytać konia",
+    ["-At"],
+  ).trim();
 }
 
 test.beforeAll(removeScenarioDay);
@@ -82,16 +92,14 @@ test("właściciel układa slot treningowy, pensjonariuszka zapisuje się na swo
     // Trwałość: po przeładowaniu komórka pokazuje zapisany rodzaj slotu.
     await page.reload();
     await waitForIslands(page);
-    await expect(page.getByLabel(`Rodzaj — ${OWNER}, 10:00`, { exact: true }).locator("option:checked")).toHaveText(
-      "treningowy",
-    );
+    await expect(page.getByLabel(`Rodzaj — ${OWNER}, 10:00`, { exact: true })).toHaveValue("training");
   });
 
   await test.step("pensjonariuszka widzi slot treningowy i zapisuje się na Hrabi", async () => {
     const boarderContext = await browser.newContext({ storageState: { cookies: [], origins: [] } });
     try {
       const boarder = await boarderContext.newPage();
-      await signIn(boarder, BOARDER_EMAIL, "/jezdziec");
+      await signIn(boarder, BOARDER.email, "/jezdziec");
       await openScenarioDay(boarder);
 
       const slot = slotItem(boarder, 10, OWNER);
@@ -124,10 +132,11 @@ test("właściciel układa slot treningowy, pensjonariuszka zapisuje się na swo
     await page.goto(`/osrodek/zapisy?dzien=${DAY}`);
     const row = dayBookingRow(page, "Aktywne", 10, OWNER);
     await expect(row.getByText("slot treningowy", { exact: true })).toBeVisible();
-    await expect(row.getByText("Katarzyna Zając", { exact: true })).toBeVisible();
-    // Koń przydzielony przy zapisie; do wyboru przy slocie treningowym są tylko konie pensjonariuszki.
+    await expect(row.getByText(BOARDER.name, { exact: true })).toBeVisible();
+    // Koń przydzielony przy zapisie; do wyboru przy slocie treningowym są tylko konie pensjonariuszki, bez „bez konia”
+    // (#112: zapis na slot treningowy zawsze ma konia).
     const horse = row.getByLabel("Koń", { exact: true });
-    await expect(horse.locator("option:checked")).toHaveText("Hrabia");
-    await expect(horse.getByRole("option")).toHaveText(["bez konia", "Hrabia"]);
+    await expect(horse).toHaveValue(horseId(BOARDER.horse));
+    await expect(horse.getByRole("option")).toHaveText([BOARDER.horse]);
   });
 });

@@ -51,6 +51,31 @@ describe("composeMySlots", () => {
     ]);
   });
 
+  // Oracle: spec #112 — zapis na slot treningowy zawsze ma konia pensjonariusza: instruktor nie cofa przydziału.
+  it("„bez konia” do wyboru tylko przy zapisie na slot rekreacyjny", () => {
+    const booking = (bookingId: number, hour: number) => ({
+      bookingId,
+      day: "2026-11-18",
+      hour,
+      riderName: "Katarzyna Zając",
+      horseId: 31,
+      horseName: "Hrabia",
+      anonymised: false,
+    });
+    const days = composeMySlots({
+      slots: [
+        { day: "2026-11-18", hour: 10, seats: 1, placeName: "Hala", kind: "training" },
+        { day: "2026-11-18", hour: 11, seats: 1, placeName: "Hala", kind: "recreation" },
+      ],
+      bookings: [booking(1, 10), booking(2, 11)],
+    });
+
+    expect(days[0]?.slots.map((slot) => [slot.hour, slot.riders.map((rider) => rider.noHorseChoice)])).toEqual([
+      [10, [false]],
+      [11, [true]],
+    ]);
+  });
+
   it("pomija dzień, w którym wszystkie godziny mają limit zero", () => {
     const days = composeMySlots({
       slots: [
@@ -96,8 +121,22 @@ describe("composeMySlots", () => {
         seats: 3,
         taken: 2,
         riders: [
-          { bookingId: 102, name: "Anna Kowalska", horse: "Bella", hasHorse: true, horseChoices: [] },
-          { bookingId: 101, name: "Piotr Nowak", horse: "bez konia", hasHorse: false, horseChoices: [] },
+          {
+            bookingId: 102,
+            name: "Anna Kowalska",
+            horse: "Bella",
+            hasHorse: true,
+            horseChoices: [],
+            noHorseChoice: true,
+          },
+          {
+            bookingId: 101,
+            name: "Piotr Nowak",
+            horse: "bez konia",
+            hasHorse: false,
+            horseChoices: [],
+            noHorseChoice: true,
+          },
         ],
       },
     ]);

@@ -21,7 +21,8 @@ import { logError } from "@/lib/log";
 // dodanie konia po adresie e-mail pensjonariusza, zakończenie i poprawka pobytu, nowy pobyt.
 // Dostęp pilnuje middleware (przestrzeń ośrodka tylko dla właściciela); lista przychodzi z
 // `public.get_stable_boarding_horses()`, która sama bierze ośrodek z sesji. Przy koniu opłata za pensjonat
-// z formularzem (#117) — zmiany opłat ośrodka z `public.boarding_fees`.
+// z formularzem (#117) — zmiany opłat ośrodka z `public.boarding_fees`. Pod listą osobna sekcja „Konie bez
+// właściciela” (#112): konie, których właściciel usunął konto, z pobytami — także bez żadnego.
 const { profile } = Astro.locals;
 const error = Astro.url.searchParams.get("error");
 const notice = error ? null : boardingNotice(Astro.url.searchParams.get(SUCCESS_PARAM));
@@ -30,7 +31,7 @@ const today = todayIso();
 
 const supabase = createClient(Astro.request.headers, Astro.cookies);
 
-let view: StableBoardersView = { boarders: [] };
+let view: StableBoardersView = { boarders: [], ownerless: { heading: texts.ownerless, horses: [] } };
 let loadFailed = false;
 
 if (supabase && profile) {
@@ -77,28 +78,49 @@ if (supabase && profile) {
               <p>{texts.failure}</p>
               <p>{BOARDING_PAGE_TEXTS.retry}</p>
             </FailureState>
-          ) : view.boarders.length === 0 ? (
+          ) : view.boarders.length === 0 && view.ownerless.horses.length === 0 ? (
             <Card>
               <EmptyState>
                 <p>{texts.empty}</p>
               </EmptyState>
             </Card>
           ) : (
-            <ul class="boarders" aria-label={texts.listLabel}>
-              {view.boarders.map((boarder) => (
-                <li>
+            <>
+              {view.boarders.length > 0 && (
+                <ul class="boarders" aria-label={texts.listLabel}>
+                  {view.boarders.map((boarder) => (
+                    <li>
+                      <Card padding={18}>
+                        <h2 class="boarder__name">{boarder.name}</h2>
+                        {boarder.email && boarder.email !== boarder.name && (
+                          <p class="boarder__email">{boarder.email}</p>
+                        )}
+                        <div class="boarder__horses">
+                          {boarder.horses.map((horse) => (
+                            <BoardingHorse horse={horse} side="stable" />
+                          ))}
+                        </div>
+                      </Card>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {view.ownerless.horses.length > 0 && (
+                <section class="ownerless" aria-labelledby="ownerless-heading">
                   <Card padding={18}>
-                    <h2 class="boarder__name">{boarder.name}</h2>
-                    {boarder.email && boarder.email !== boarder.name && <p class="boarder__email">{boarder.email}</p>}
+                    <h2 id="ownerless-heading" class="boarder__name">
+                      {view.ownerless.heading}
+                    </h2>
+                    <p class="boarder__email">{texts.ownerlessHint}</p>
                     <div class="boarder__horses">
-                      {boarder.horses.map((horse) => (
+                      {view.ownerless.horses.map((horse) => (
                         <BoardingHorse horse={horse} side="stable" />
                       ))}
                     </div>
                   </Card>
-                </li>
-              ))}
-            </ul>
+                </section>
+              )}
+            </>
           )
         }
       </div>
@@ -152,6 +174,12 @@ if (supabase && profile) {
     padding: 0;
     display: grid;
     gap: 12px;
+  }
+  .ownerless {
+    margin-top: 12px;
+  }
+  .ownerless:first-child {
+    margin-top: 0;
   }
   .boarder__name {
     margin: 0;

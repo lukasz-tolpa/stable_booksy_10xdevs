@@ -15,15 +15,18 @@ import { rateChoices, type RateChoice } from "@/lib/settlements/settlements";
 /** Kto ostatnio ustawił dzień wyjazdu — `horse_stays.departure_set_by` (`account_deleted` — usunięcie konta, #120). */
 export type DepartureSetBy = "stable" | "rider" | "account_deleted";
 
-/** Wiersz `public.get_stable_boarding_horses()` — jeden na pobyt; `rider_*` NULL — konto usunięte. */
+/**
+ * Wiersz `public.get_stable_boarding_horses()` — jeden na pobyt; `rider_*` NULL — konto usunięte; `stay_*`
+ * NULL — koń bez żadnego pobytu (#112: konto usunięte, zanim koń przyjechał).
+ */
 export interface StableBoardingRow {
   horse_id: number;
   horse_name: string;
   rider_id: string | null;
   rider_name: string | null;
   rider_email: string | null;
-  stay_id: number;
-  arrival_day: string;
+  stay_id: number | null;
+  arrival_day: string | null;
   departure_day: string | null;
   departure_set_by: string | null;
 }
@@ -71,23 +74,31 @@ export interface BoardingHorseView {
   fee: BoardingFeeView;
   /** Najnowszy pobyt trwa (bez dnia wyjazdu). */
   current: boolean;
+  /** Pigułka przy imieniu: `w ośrodku`, `wyjechał`, a koń bez żadnego pobytu — `bez pobytu`. */
+  statusText: string;
   stays: StayView[];
-  /** `null` — koń jeszcze nie przyjechał (dzień wyjazdu nie może być przed przyjazdem). */
+  /** `null` — koń jeszcze nie przyjechał (dzień wyjazdu nie może być przed przyjazdem) albo nie ma pobytu. */
   departureForm: DepartureForm | null;
   /** Tylko u właściciela, gdy ostatni pobyt się zakończył, a koń ma właściciela. */
   newStay: NewStayForm | null;
 }
 
 export interface BoarderView {
-  /** Konto pensjonariusza; `null` — konie bez właściciela (konta usunięte). */
-  riderId: string | null;
+  /** Konto pensjonariusza. */
+  riderId: string;
   name: string;
   email: string | null;
   horses: BoardingHorseView[];
 }
 
 export interface StableBoardersView {
+  /** Pensjonariusze z końmi — po nazwisku. */
   boarders: BoarderView[];
+  /**
+   * Sekcja „Konie bez właściciela” (#112): konie pensjonatowe, których właściciel usunął konto — z pobytami,
+   * także bez żadnego (pobyt, który się nie zaczął, znika z kontem). Pusta lista — strona sekcji nie pokazuje.
+   */
+  ownerless: { heading: string; horses: BoardingHorseView[] };
 }
 
 interface Stay {
@@ -170,70 +181,74 @@ function composeHorse(
   fees: readonly BoardingFeeChange[],
 ): BoardingHorseView {
   const sorted = [...stays].sort((a, b) => b.arrivalDay.localeCompare(a.arrivalDay));
-  const latest = sorted[0];
+  const latest = sorted.at(0);
+  const current = latest?.departureDay === null;
   return {
     id,
     name,
     fee: composeFee(fees, id, today, viewer),
-    current: latest.departureDay === null,
+    current,
+    statusText: latest === undefined ? texts.noStay : current ? texts.current : texts.ended,
     stays: sorted.map((stay) => ({ id: stay.id, periodText: periodText(stay), setByText: setByText(stay, viewer) })),
-    departureForm: departureForm(latest, today),
-    newStay: canAddStay ? newStayForm(id, latest, today) : null,
+    // Koń bez pobytu (tylko bez właściciela, #112) nie ma formularzy.
+    departureForm: latest === undefined ? null : departureForm(latest, today),
+    newStay: canAddStay && latest !== undefined ? newStayForm(id, latest, today) : null,
   };
 }
 
 const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, "pl");
 
 /**
- * Strona „Pensjonariusze”: pensjonariusze po nazwisku (konie bez właściciela na końcu), konie po imieniu,
- * przy koniu opłata za pensjonat ze zmian `fees` (#117).
+ * Strona „Pensjonariusze”: pensjonariusze po nazwisku, konie po imieniu, przy koniu opłata za pensjonat ze zmian
+ * `fees` (#117); konie bez właściciela osobno (#112), także bez pobytu.
  */
 export function composeStableBoarders(
   rows: readonly StableBoardingRow[],
   today: string,
   fees: readonly BoardingFeeChange[] = [],
 ): StableBoardersView {
-  const boarders = new Map<string, { boarder: BoarderView; horses: Map<number, { name: string; stays: Stay[] }> }>();
+  type HorseStays = Map<number, { name: string; stays: Stay[] }>;
+  const boarders = new Map<string, { boarder: Omit<BoarderView, "horses">; horses: HorseStays }>();
+  const ownerless: HorseStays = new Map();
 
   for (const row of rows) {
-    const key = row.rider_id ?? "";
-    let entry = boarders.get(key);
-    if (!entry) {
-      entry = {
-        boarder: {
-          riderId: row.rider_id,
-          name: row.rider_id === null ? texts.stable.ownerless : (row.rider_name ?? row.rider_email ?? ""),
-          email: row.rider_id === null ? null : row.rider_email,
-          horses: [],
-        },
-        horses: new Map(),
-      };
-      boarders.set(key, entry);
+    let horses = ownerless;
+    if (row.rider_id !== null) {
+      let entry = boarders.get(row.rider_id);
+      if (!entry) {
+        entry = {
+          boarder: { riderId: row.rider_id, name: row.rider_name ?? row.rider_email ?? "", email: row.rider_email },
+          horses: new Map(),
+        };
+        boarders.set(row.rider_id, entry);
+      }
+      horses = entry.horses;
     }
-    let horse = entry.horses.get(row.horse_id);
+    let horse = horses.get(row.horse_id);
     if (!horse) {
       horse = { name: row.horse_name, stays: [] };
-      entry.horses.set(row.horse_id, horse);
+      horses.set(row.horse_id, horse);
     }
-    horse.stays.push({
-      id: row.stay_id,
-      arrivalDay: row.arrival_day,
-      departureDay: row.departure_day,
-      departureSetBy: row.departure_set_by,
-    });
+    if (row.stay_id !== null && row.arrival_day !== null) {
+      horse.stays.push({
+        id: row.stay_id,
+        arrivalDay: row.arrival_day,
+        departureDay: row.departure_day,
+        departureSetBy: row.departure_set_by,
+      });
+    }
   }
 
-  const list = [...boarders.values()].map(({ boarder, horses }) => ({
-    ...boarder,
-    horses: [...horses.entries()]
-      .map(([id, horse]) => composeHorse(id, horse.name, horse.stays, today, "stable", boarder.riderId !== null, fees))
-      .sort(byName),
-  }));
+  const horseViews = (horses: HorseStays, canAddStay: boolean) =>
+    [...horses.entries()]
+      .map(([id, horse]) => composeHorse(id, horse.name, horse.stays, today, "stable", canAddStay, fees))
+      .sort(byName);
 
   return {
-    boarders: list.sort((a, b) =>
-      a.riderId === null ? 1 : b.riderId === null ? -1 : byName(a, b) || (a.email ?? "").localeCompare(b.email ?? ""),
-    ),
+    boarders: [...boarders.values()]
+      .map(({ boarder, horses }) => ({ ...boarder, horses: horseViews(horses, true) }))
+      .sort((a, b) => byName(a, b) || (a.email ?? "").localeCompare(b.email ?? "")),
+    ownerless: { heading: texts.stable.ownerless, horses: horseViews(ownerless, false) },
   };
 }
 

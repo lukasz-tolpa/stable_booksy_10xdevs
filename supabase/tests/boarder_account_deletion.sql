@@ -9,9 +9,11 @@
 --     'account_deleted'); pobyt, ktory jeszcze sie nie zaczal (przyjazd po dzis), znika,
 --   * zakonczone wczesniej pobyty zostaja bez zmian,
 --   * konie zostaja w osrodkach bez wlasciciela (horse_owners.rider_id NULL); osrodek widzi je
---     z zakonczonym pobytem w public.get_stable_boarding_horses(),
---   * zapisy jak w ADR 0001: przeszla jazda zostaje bez jezdzca („Usunięci jeźdźcy” w statystykach),
---     przyszly zapis znika,
+--     z zakonczonym pobytem w public.get_stable_boarding_horses(), a konia, ktorego pobyt sie nie
+--     zaczal - bez pobytu (#112, kolumny pobytu NULL),
+--   * zapisy jak w ADR 0001: przeszla jazda na slocie treningowym na Hrabim zostaje bez jezdzca
+--     („Usunięci jeźdźcy” w statystykach) i z koniem (w statystykach kon zostaje), przyszly zapis
+--     na slot treningowy znika,
 --   * konie i pobyty innego pensjonariusza sa nietkniete.
 --
 -- Jako kto: konto kasuje postgres przez auth.users (tak robi to administracyjne API Auth; kaskada
@@ -20,10 +22,9 @@
 -- Persony z seeda: Katarzyna Zając (1212..., pensjonariuszka, kon Hrabia Pod Dębem od 90 dni,
 -- pobyt trwa), Piotr (4444..., jezdziec), Joanna Wrona (instruktorka Pod Dębem).
 --
--- Zapisy Katarzyny wstawia setup z wylaczonymi wyzwalaczami uzytkownika na bookings: przedmiotem
--- dowodu jest usuniecie konta, nie reguly zapisu (rodzaj slotu, kon pensjonariusza - #115), ktore
--- moglyby odrzucic sam setup. Przed usunieciem konta wyzwalacze wracaja - usuniecie idzie po
--- prawdziwych regulach.
+-- Zapisy Katarzyny to prawdziwe zapisy na sloty treningowe Joanny (wczoraj i za 3 dni), wstawione
+-- z wlaczonymi wyzwalaczami: kon pensjonariuszki (Hrabia) przypisuje regula slotu treningowego
+-- (bookings_slot_rules, #115), a usuniecie konta idzie po wszystkich regulach zapisu (#112).
 --
 -- Wymaga swiezego seeda (`npx supabase db reset` tego samego dnia).
 -- Uzycie:  npm run test:db
@@ -114,26 +115,29 @@ begin
   insert into public.schedule_day_instructors (schedule_day_id, instructor_id, stable_id)
   values (v_past_day, v_joanna, v_debem), (v_future_day, v_joanna, v_debem)
   on conflict do nothing;
-  insert into public.schedule_slots (schedule_day_id, instructor_id, hour, seats)
-  select d, v_joanna, h, 2 from unnest(array[v_past_day, v_future_day]) d, generate_series(10, 15) h
-  on conflict (schedule_day_id, instructor_id, hour) do update set seats = 2;
+  -- Slot treningowy Joanny o 12:00 obu dni (pozostale godziny rekreacyjne).
+  insert into public.schedule_slots (schedule_day_id, instructor_id, hour, seats, kind)
+  select d, v_joanna, h, 2, case when h = 12 then 'training' else 'recreation' end
+  from unnest(array[v_past_day, v_future_day]) d, generate_series(10, 15) h
+  on conflict (schedule_day_id, instructor_id, hour) do update set seats = 2, kind = excluded.kind;
 
-  alter table public.bookings disable trigger user;
-
-  -- Przeszla jazda i przyszly zapis Katarzyny bez konia: kon zapisu to dzis kon pracujacy dnia
-  -- (bookings_assigned_horse_fkey), a koniem pensjonatowym nie bywa; kon pensjonariusza przy zapisie
-  -- na slot treningowy przychodzi z #115.
+  -- Przeszla jazda i przyszly zapis Katarzyny na slot treningowy, wyzwalacze wlaczone: jedynego konia
+  -- pensjonariuszki z pobytem w dniu jazdy (Hrabia) przypisuje regula slotu treningowego.
   insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id)
   values (v_past_day, v_joanna, 12, c_katarzyna)
-  returning id into v_id;
+  returning id, horse_id into v_id, v_horse;
+  if v_horse is distinct from v_hrabia then
+    raise exception 'setup: przeszla jazda na slocie treningowym bez Hrabiego (kon %)', v_horse;
+  end if;
   perform set_config('app.past_ride', v_id::text, true);
 
   insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id)
   values (v_future_day, v_joanna, 12, c_katarzyna)
-  returning id into v_id;
+  returning id, horse_id into v_id, v_horse;
+  if v_horse is distinct from v_hrabia then
+    raise exception 'setup: przyszly zapis na slot treningowy bez Hrabiego (kon %)', v_horse;
+  end if;
   perform set_config('app.future_booking', v_id::text, true);
-
-  alter table public.bookings enable trigger user;
 
   raise notice 'setup: dzis=%', v_today;
 end $$;
@@ -216,13 +220,14 @@ begin
     end if;
   end loop;
 
-  -- 7. Zapisy jak w ADR 0001: przeszla jazda bez jezdzca; przyszly zapis znika.
+  -- 7. Zapisy jak w ADR 0001: przeszla jazda bez jezdzca, z koniem (statystyki); przyszly zapis znika.
   select count(*) into v from public.bookings
-  where id = current_setting('app.past_ride')::bigint and rider_id is null and status = 'active';
+  where id = current_setting('app.past_ride')::bigint and rider_id is null and status = 'active'
+    and horse_id = current_setting('app.hrabia')::bigint;
   if v = 1 then
-    raise notice 'PASS 7a: przeszla jazda zostala bez jezdzca';
+    raise notice 'PASS 7a: przeszla jazda na slocie treningowym zostala bez jezdzca, z Hrabim';
   else
-    raise notice 'FAIL 7a: przeszla jazda skasowana, zmieniona albo z jezdzcem';
+    raise notice 'FAIL 7a: przeszla jazda skasowana, zmieniona, z jezdzcem albo bez konia';
     v_failures := v_failures + 1;
   end if;
 
@@ -284,6 +289,20 @@ begin
     raise exception 'FAIL 10: Nad Rzeką widzi Sokola: jezdziec=% wyjazd=% przez=%', r.rider_id, r.departure_day, r.departure_set_by;
   end if;
   raise notice 'PASS 10: Nad Rzeką widzi Sokola bez wlasciciela z pobytem zakonczonym dzis';
+
+  -- 11 (#112). Wicher, ktory nie zdazyl przyjechac, zostaje na liscie osrodka - bez wlasciciela i bez pobytu.
+  if (
+    select count(*) from public.get_stable_boarding_horses() b
+    where b.horse_id = current_setting('app.wicher')::bigint
+      and b.rider_id is null and b.stay_id is null and b.arrival_day is null
+  ) <> 1
+  or exists (
+    select 1 from public.get_stable_boarding_horses() b
+    where b.horse_id = current_setting('app.wicher')::bigint and b.stay_id is not null
+  ) then
+    raise exception 'FAIL 11: Nad Rzeką nie widzi Wichra bez pobytu';
+  end if;
+  raise notice 'PASS 11: Nad Rzeką widzi Wichra bez wlasciciela i bez pobytu';
 end $$;
 
 rollback;

@@ -29,6 +29,16 @@ describe("horseAssignmentErrorMessage", () => {
     expect(isInstructorHorseAssignmentRefusal("SB051")).toBe(true);
   });
 
+  // Oracle: spec #112 — zapis na slot treningowy zawsze ma konia pensjonariusza; cofnięcia przydziału baza odmawia.
+  it("cofnięcie konia przy slocie treningowym (SB063) — wybierz jednego z jego koni", () => {
+    expect(horseAssignmentErrorMessage("SB063")).toBe(
+      "Przy slocie treningowym jeździec zawsze jedzie na swoim koniu pensjonatowym — nie da się zostawić zapisu bez konia. Wybierz jednego z jego koni.",
+    );
+    expect(instructorHorseAssignmentErrorMessage("SB063")).toBe(horseAssignmentErrorMessage("SB063"));
+    expect(isHorseAssignmentRefusal("SB063")).toBe(true);
+    expect(isInstructorHorseAssignmentRefusal("SB063")).toBe(true);
+  });
+
   it("zapis odwołany w międzyczasie (23514, konia ma tylko aktywny zapis)", () => {
     expect(horseAssignmentErrorMessage("23514")).toBe(
       "Zapis został odwołany — konia przydziela się tylko do aktywnych zapisów.",

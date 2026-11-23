@@ -143,6 +143,20 @@ describe("composeDayBookingSections — zapisy aktywne", () => {
     expect(rows.find((r) => r.id === 2)).toMatchObject({ kind: "recreation" });
   });
 
+  // Oracle: spec #112 — zapis na slot treningowy zawsze ma konia pensjonariusza: ośrodek wybiera jednego z jego
+  // koni, „bez konia” jest tylko przy slocie rekreacyjnym.
+  it("„bez konia” do wyboru tylko przy slocie rekreacyjnym", () => {
+    const rows = sections([
+      booking({ id: 1, instructorId: 2, instructorName: "Karol Jasny", riderId: KASIA, horseId: 31 }),
+      booking({ id: 2 }),
+    ]).active;
+
+    expect(rows.map((r) => [r.id, r.noHorseChoice])).toEqual([
+      [2, true],
+      [1, false],
+    ]);
+  });
+
   it("zapis na slot treningowy bez jeźdźca (konto usunięte) nie ma koni do wyboru", () => {
     const [row] = sections([
       booking({ instructorId: 2, instructorName: "Karol Jasny", riderId: null, anonymised: true, horseId: 31 }),

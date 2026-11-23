@@ -1,5 +1,5 @@
 import { ANONYMISED_RIDER, NO_HORSE, UNNAMED_RIDER } from "@/lib/bookings/rows";
-import type { SlotKind } from "@/lib/schedule/kind";
+import { SLOT_KIND, type SlotKind } from "@/lib/schedule/kind";
 
 /**
  * „Moje sloty” instruktora (#72): dni od dziś, w każdym jego godziny z limitem > 0, zajęte
@@ -65,6 +65,11 @@ export interface MySlotRider {
   hasHorse: boolean;
   /** Konie do przydziału (z `get_my_slot_horse_options`), alfabetycznie; „bez konia” dokłada formularz. */
   horseChoices: MySlotHorseChoice[];
+  /**
+   * Formularz dokłada „bez konia” (cofnięcie przydziału) — tylko przy slocie rekreacyjnym; zapis na slot
+   * treningowy zawsze ma konia pensjonariusza (#112, odmowa bazy SB063).
+   */
+  noHorseChoice: boolean;
 }
 
 export interface MySlotView {
@@ -112,7 +117,7 @@ export function composeMySlots(input: MySlotsInput): MySlotsDay[] {
     optionsByBooking.set(option.bookingId, options);
   }
 
-  const ridersBySlot = new Map<string, MySlotRider[]>();
+  const ridersBySlot = new Map<string, Omit<MySlotRider, "noHorseChoice">[]>();
   for (const booking of input.bookings) {
     const key = slotKey(booking.day, booking.hour);
     const riders = ridersBySlot.get(key) ?? [];
@@ -132,9 +137,9 @@ export function composeMySlots(input: MySlotsInput): MySlotsDay[] {
     .sort((a, b) => a.day.localeCompare(b.day) || a.hour - b.hour);
 
   for (const slot of taught) {
-    const riders = (ridersBySlot.get(slotKey(slot.day, slot.hour)) ?? []).sort((a, b) =>
-      a.name.localeCompare(b.name, "pl"),
-    );
+    const riders = (ridersBySlot.get(slotKey(slot.day, slot.hour)) ?? [])
+      .map((rider) => ({ ...rider, noHorseChoice: slot.kind !== SLOT_KIND.training }))
+      .sort((a, b) => a.name.localeCompare(b.name, "pl"));
     const daySlots = days.get(slot.day) ?? [];
     daySlots.push({
       hour: slot.hour,

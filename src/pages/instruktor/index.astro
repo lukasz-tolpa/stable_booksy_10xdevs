@@ -134,9 +134,11 @@ if (supabase && profile) {
                                 Koń<span class="sr-only"> — {rider.name}</span>
                               </label>
                               <select id={`horse-${String(rider.bookingId)}`} name="horseId">
-                                <option value="" selected={!rider.hasHorse}>
-                                  {NO_HORSE}
-                                </option>
+                                {rider.noHorseChoice && (
+                                  <option value="" selected={!rider.hasHorse}>
+                                    {NO_HORSE}
+                                  </option>
+                                )}
                                 {rider.horseChoices.map((horse) => (
                                   <option value={horse.id} selected={horse.selected} disabled={horse.taken}>
                                     {horse.label}

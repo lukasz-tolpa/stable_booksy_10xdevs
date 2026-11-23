@@ -108,7 +108,9 @@ describe("composeStableBoarders — strona „Pensjonariusze” właściciela", 
     expect(boarder.horses[0].departureForm).toBeNull();
   });
 
-  it("koń bez właściciela (konto usunięte) jest na końcu, bez nowego pobytu", () => {
+  // Oracle: spec #112 — „Ośrodek widzi konia bez właściciela z zakończonym pobytem”; po usunięciu konta koń,
+  // który jeszcze nie przyjechał, nie ma pobytu (pobyt usunięty), a ośrodek dalej go widzi.
+  it("konie bez właściciela (konto usunięte) są w osobnej sekcji, bez nowego pobytu", () => {
     const view = composeStableBoarders(
       [
         row({
@@ -124,15 +126,48 @@ describe("composeStableBoarders — strona „Pensjonariusze” właściciela", 
     );
     expect(view.boarders.map((boarder) => [boarder.name, boarder.email])).toEqual([
       ["Zofia Adamska", "katarzyna.zajac@example.com"],
-      ["Konie bez właściciela", null],
     ]);
-    expect(view.boarders[1].horses[0].newStay).toBeNull();
+    expect(view.ownerless.heading).toBe("Konie bez właściciela");
+    expect(view.ownerless.horses.map((horse) => [horse.name, horse.statusText, horse.newStay])).toEqual([
+      ["Hrabia", "wyjechał", null],
+    ]);
+  });
+
+  it("koń bez właściciela bez żadnego pobytu też jest w sekcji — bez pobytów i bez formularzy", () => {
+    const view = composeStableBoarders(
+      [
+        row({
+          horse_id: 3,
+          horse_name: "Wicher",
+          rider_id: null,
+          rider_name: null,
+          rider_email: null,
+          stay_id: null,
+          arrival_day: null,
+        }),
+      ],
+      TODAY,
+    );
+    expect(view.boarders).toEqual([]);
+    const [wicher] = view.ownerless.horses;
+    expect(wicher).toMatchObject({
+      name: "Wicher",
+      current: false,
+      statusText: "bez pobytu",
+      stays: [],
+      departureForm: null,
+      newStay: null,
+    });
+  });
+
+  it("bez koni bez właściciela sekcja jest pusta", () => {
+    expect(composeStableBoarders([row({})], TODAY).ownerless.horses).toEqual([]);
   });
 
   // Oracle: AC #120 — usunięcie konta pensjonariusza kończy pobyt w dniu usunięcia; ośrodek widzi konia
   // bez właściciela z zakończonym pobytem i wie, skąd wziął się dzień wyjazdu.
   it("pobyt zakończony usunięciem konta: ośrodek widzi, kto wpisał dzień wyjazdu", () => {
-    const [boarder] = composeStableBoarders(
+    const [horse] = composeStableBoarders(
       [
         row({
           rider_id: null,
@@ -143,10 +178,9 @@ describe("composeStableBoarders — strona „Pensjonariusze” właściciela", 
         }),
       ],
       TODAY,
-    ).boarders;
-    expect(boarder.name).toBe("Konie bez właściciela");
-    expect(boarder.horses[0].current).toBe(false);
-    expect(boarder.horses[0].stays[0].setByText).toBe("dzień wyjazdu wpisany przy usunięciu konta pensjonariusza");
+    ).ownerless.horses;
+    expect(horse.current).toBe(false);
+    expect(horse.stays[0].setByText).toBe("dzień wyjazdu wpisany przy usunięciu konta pensjonariusza");
   });
 
   it("pensjonariusz bez imienia w profilu występuje pod adresem e-mail", () => {

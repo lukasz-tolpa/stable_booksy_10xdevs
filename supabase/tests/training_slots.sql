@@ -13,6 +13,8 @@
 --   * przydzial (wlasciciel, instruktor slotu): przy treningowym tylko konie tego samego pensjonariusza
 --     z pobytem (SB051), przy rekreacyjnym tylko konie pracujace dnia (23503 bookings_assigned_horse_fkey);
 --     konie do wyboru instruktora przy treningowym - konie pensjonariusza.
+--   * zapis na slot treningowy zawsze ma konia: zdjecie konia przez wlasciciela albo instruktora - SB063
+--     (#112, migracja 20261207090000); funkcje wyzwalaczy koni pensjonatowych bez prawa wykonania.
 --
 -- Dzien scenariusza: 15. dzien miesiaca po nastepnym - pobyty „przyjazd dzien po jezdzie” zostaja
 -- w tym samym miesiacu. Persony z seeda: wlasciciel Pod Dębem (1111...), Joanna Wrona (9999...,
@@ -313,14 +315,20 @@ begin
     end;
   end loop;
 
-  update public.bookings set horse_id = null where id = v_kasia;
   update public.bookings set horse_id = current_setting('app.hrabina')::bigint where id = v_kasia;
   select horse_id into v_horse from public.bookings where id = v_kasia;
   if v_horse is distinct from current_setting('app.hrabina')::bigint then
     raise exception 'FAIL 12b: kon po przydziale %', v_horse;
   end if;
-  update public.bookings set horse_id = null where id = v_kasia;
-  raise notice 'PASS 12b: wlasciciel zdejmuje i przydziela kon tej samej pensjonariuszki';
+  raise notice 'PASS 12b: wlasciciel zmienia kon na innego konia tej samej pensjonariuszki';
+
+  -- 12c (#112). Zapis na slot treningowy zawsze ma konia pensjonariusza - "bez konia" odmawiane.
+  begin
+    update public.bookings set horse_id = null where id = v_kasia;
+    raise exception 'FAIL 12c: wlasciciel zdjal konia z zapisu na slot treningowy';
+  exception when sqlstate 'SB063' then
+    raise notice 'PASS 12c: wlasciciel nie zostawia zapisu na slot treningowy bez konia (SB063)';
+  end;
 
   -- 13. Slot rekreacyjny: tylko konie pracujace dnia.
   begin
@@ -367,6 +375,14 @@ begin
     raise exception 'FAIL 15: kon po przydziale instruktorki %', v_horse;
   end if;
   raise notice 'PASS 15: instruktorka przydziela tylko konia tej samej pensjonariuszki (SB051)';
+
+  -- 15b (#112). Instruktorka tez nie zostawia zapisu na slot treningowy bez konia.
+  begin
+    perform public.assign_my_slot_horse(v_kasia, null);
+    raise exception 'FAIL 15b: instruktorka zdjela konia z zapisu na slot treningowy';
+  exception when sqlstate 'SB063' then
+    raise notice 'PASS 15b: instruktorka nie zostawia zapisu na slot treningowy bez konia (SB063)';
+  end;
 end $$;
 
 \echo '=== Zmiana rodzaju slotu z zapisami ==='
@@ -417,6 +433,46 @@ begin
   exception when sqlstate 'SB048' then
     raise notice 'PASS 18: slot rekreacyjny z zapisami nie zmienia sie w treningowy (SB048)';
   end;
+end $$;
+
+\echo '=== Funkcje wyzwalaczy bez prawa wykonania (#112) ==='
+
+reset role;
+
+do $$
+declare
+  r record;
+begin
+  -- 19. Kazda public.enforce_* koni pensjonatowych i slotow jest tylko dla wyzwalacza.
+  for r in
+    select * from (values
+      ('public.enforce_working_horse_is_stable_horse()'),
+      ('public.enforce_horse_kind_immutable()'),
+      ('public.enforce_booking_slot_rules()')
+    ) as t(fn)
+  loop
+    if has_function_privilege('authenticated', r.fn, 'execute') or has_function_privilege('anon', r.fn, 'execute') then
+      raise exception 'FAIL 19: % wykonywalna dla anon/authenticated', r.fn;
+    end if;
+  end loop;
+  raise notice 'PASS 19: funkcje wyzwalaczy bez prawa wykonania dla anon i authenticated';
+end $$;
+
+\echo '=== private.stay_covers_day jak stayCoversDay (src/lib/boarding/month.test.ts) ==='
+
+do $$
+begin
+  -- 20 (#112). Te same przypadki co w month.test.ts („stayCoversDay — pobyt obejmuje dzień jazdy”).
+  if not (
+        not private.stay_covers_day('2026-11-10', '2026-11-12', '2026-11-09')
+    and private.stay_covers_day('2026-11-10', '2026-11-12', '2026-11-10')
+    and private.stay_covers_day('2026-11-10', '2026-11-12', '2026-11-12')
+    and not private.stay_covers_day('2026-11-10', '2026-11-12', '2026-11-13')
+    and private.stay_covers_day('2026-11-10', null, '2027-05-01')
+  ) then
+    raise exception 'FAIL 20: private.stay_covers_day rozjezdza sie z month.test.ts';
+  end if;
+  raise notice 'PASS 20: private.stay_covers_day jak stayCoversDay';
 end $$;
 
 rollback;

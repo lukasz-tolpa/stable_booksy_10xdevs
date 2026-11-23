@@ -58,12 +58,18 @@ if (supabase && profile) {
           slots: scheduleDay.seats,
           places,
           // Konie pensjonariuszy z pobytami — do wyboru przy slotach treningowych (#115).
-          boardingStays: boarding.map((row) => ({
-            horseId: row.horse_id,
-            riderId: row.rider_id,
-            arrivalDay: row.arrival_day,
-            departureDay: row.departure_day,
-          })),
+          boardingStays: boarding.flatMap((row) =>
+            row.arrival_day === null
+              ? []
+              : [
+                  {
+                    horseId: row.horse_id,
+                    riderId: row.rider_id,
+                    arrivalDay: row.arrival_day,
+                    departureDay: row.departure_day,
+                  },
+                ],
+          ),
           day,
         });
       }
@@ -164,9 +170,11 @@ const successMessage = stableBookingSuccessMessage(success);
                           <input type="hidden" name="day" value={day} />
                           <label for={`horse-${String(row.id)}`}>Koń</label>
                           <select id={`horse-${String(row.id)}`} name="horseId">
-                            <option value="" selected={row.horseId === null}>
-                              {NO_HORSE}
-                            </option>
+                            {row.noHorseChoice && (
+                              <option value="" selected={row.horseId === null}>
+                                {NO_HORSE}
+                              </option>
+                            )}
                             {row.horseOptions.map((horse) => (
                               <option value={horse.id} selected={horse.id === row.horseId}>
                                 {horse.name}

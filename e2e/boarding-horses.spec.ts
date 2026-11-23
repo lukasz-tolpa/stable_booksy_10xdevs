@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { RIDER_A_STATE, STABLE_NAME, STABLE_STATE, runSql, signIn } from "./helpers";
+import { BOARDER, RIDER_A_STATE, STABLE_NAME, STABLE_STATE, runSql, signIn } from "./helpers";
 
 /**
  * Konie pensjonatowe i pobyt (#114, spec #112): właściciel dodaje konia pensjonatowego, wskazując
@@ -12,8 +12,6 @@ import { RIDER_A_STATE, STABLE_NAME, STABLE_STATE, runSql, signIn } from "./help
  */
 test.use({ storageState: STABLE_STATE });
 
-const BOARDER_EMAIL = "katarzyna.zajac@example.com";
-const BOARDER_NAME = "Katarzyna Zając";
 const BOARDERS_ROUTE = "/osrodek/pensjonariusze";
 const HORSE_PREFIX = "E2E Pensjonat";
 
@@ -59,8 +57,8 @@ test("właściciel dodaje konia pensjonatowego po e-mailu, pensjonariuszka końc
     const boarder = page
       .getByRole("list", { name: "Pensjonariusze" })
       .getByRole("listitem")
-      .filter({ has: page.getByRole("heading", { level: 2, name: BOARDER_NAME }) });
-    await expect(boarder.getByText(BOARDER_EMAIL, { exact: true })).toBeVisible();
+      .filter({ has: page.getByRole("heading", { level: 2, name: BOARDER.name }) });
+    await expect(boarder.getByText(BOARDER.email, { exact: true })).toBeVisible();
     await expect(horseCard(page, "Hrabia").getByText("w ośrodku", { exact: true })).toBeVisible();
     await expect(staysOf(page, "Hrabia").first()).toContainText("— trwa");
   });
@@ -78,7 +76,7 @@ test("właściciel dodaje konia pensjonatowego po e-mailu, pensjonariuszka końc
 
   await test.step("właściciel dodaje konia pensjonatowego z dniem przyjazdu dziś", async () => {
     await page.getByLabel("Imię konia").fill(horse);
-    await page.getByLabel("Adres e-mail pensjonariusza").fill(BOARDER_EMAIL);
+    await page.getByLabel("Adres e-mail pensjonariusza").fill(BOARDER.email);
     await page.getByRole("button", { name: "Dodaj konia pensjonatowego" }).click();
     await page.waitForURL(/sukces=kon/);
     await expect(horseCard(page, horse).getByText("w ośrodku", { exact: true })).toBeVisible();
@@ -89,7 +87,7 @@ test("właściciel dodaje konia pensjonatowego po e-mailu, pensjonariuszka końc
   const boarder = await boarderContext.newPage();
   try {
     await test.step("pensjonariuszka widzi konia w „Moich koniach” i kończy pobyt dziś", async () => {
-      await signIn(boarder, BOARDER_EMAIL, "/jezdziec");
+      await signIn(boarder, BOARDER.email, "/jezdziec");
       await boarder.getByRole("link", { name: "Moje konie", exact: true }).click();
       await boarder.waitForURL("**/jezdziec/konie");
       const card = horseCard(boarder, horse);
@@ -123,6 +121,32 @@ test("właściciel dodaje konia pensjonatowego po e-mailu, pensjonariuszka końc
     await expect(newStay.getByLabel("Dzień przyjazdu")).toHaveValue(/^\d{4}-\d{2}-\d{2}$/);
     await expect(newStay.getByRole("button", { name: "Dodaj pobyt" })).toBeVisible();
   });
+});
+
+// Oracle: spec #112 — „Ośrodek widzi konia bez właściciela z zakończonym pobytem”; koń, którego pobyt się nie
+// zaczął, gdy pensjonariusz usunął konto, zostaje bez pobytu — i też jest na liście ośrodka.
+test("konie bez właściciela są w osobnej sekcji „Konie bez właściciela”, także bez żadnego pobytu", async ({
+  page,
+}) => {
+  const horse = `${HORSE_PREFIX} bez właściciela ${String(Date.now()).slice(-6)}`;
+  // Stan po usunięciu konta (#120) bez usuwania konta z seeda: koń pensjonatowy bez właściciela i bez pobytu.
+  runSql(
+    `with h as (
+       insert into public.horses (stable_id, name, kind)
+       select s.id, '${horse}', 'boarding' from public.stables s where s.name = '${STABLE_NAME}'
+       returning id, stable_id
+     )
+     insert into public.horse_owners (horse_id, stable_id, rider_id) select id, stable_id, null from h;`,
+    "dodać konia bez właściciela",
+  );
+
+  await page.goto(BOARDERS_ROUTE);
+  const ownerless = page.getByRole("region", { name: "Konie bez właściciela", exact: true });
+  await expect(horseCard(page, horse)).toHaveCount(1);
+  await expect(ownerless.getByRole("article", { name: horse }).getByText("bez pobytu", { exact: true })).toBeVisible();
+  await expect(page.getByRole("form", { name: `Nowy pobyt — ${horse}` })).toHaveCount(0);
+  // Koń bez właściciela nie stoi na liście pensjonariuszy.
+  await expect(page.getByRole("list", { name: "Pensjonariusze" }).getByRole("article", { name: horse })).toHaveCount(0);
 });
 
 test("jeździec bez konia pensjonatowego nie ma „Moich koni” w nawigacji", async ({ browser }) => {

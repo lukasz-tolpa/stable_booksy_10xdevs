@@ -66,6 +66,11 @@ export interface ActiveBookingRow {
    * (baza i tak odmówi — indeks `bookings_horse_hour_key`).
    */
   horseOptions: HorseOption[];
+  /**
+   * Wybór „bez konia” (cofnięcie przydziału) — tylko przy slocie rekreacyjnym; zapis na slot treningowy zawsze
+   * ma konia pensjonariusza (#112, odmowa bazy SB063).
+   */
+  noHorseChoice: boolean;
   /** Godzina się nie zaczęła (Europe/Warsaw) — ten sam próg co przy odwołaniu przez jeźdźca. */
   cancellable: boolean;
 }
@@ -174,6 +179,7 @@ export function composeDayBookingSections(input: DayBookingSectionsInput): DayBo
         horseName:
           booking.horseId === null ? NO_HORSE : (horseNames.get(booking.horseId) ?? unknownHorseName(booking.horseId)),
         horseOptions: candidates.filter((horse) => !takenByOthers.has(horse.id)),
+        noHorseChoice: kind !== SLOT_KIND.training,
         cancellable: !hasSlotStarted(day, booking.hour, now),
       };
     })

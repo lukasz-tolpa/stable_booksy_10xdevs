@@ -23,6 +23,8 @@ export const BOARDING_PAGE_TEXTS = {
     addStay: "Dodaj pobyt",
     stayAdded: "Dodano nowy pobyt.",
     ownerless: "Konie bez właściciela",
+    /** Pod nagłówkiem sekcji koni bez właściciela (#112). */
+    ownerlessHint: "Pensjonariusz usunął konto — koń nie ma właściciela i nie dostanie nowego pobytu.",
   },
   rider: {
     title: "Moje konie",
@@ -34,6 +36,8 @@ export const BOARDING_PAGE_TEXTS = {
   stays: "Pobyty",
   current: "w ośrodku",
   ended: "wyjechał",
+  /** Koń bez żadnego pobytu (#112: konto pensjonariusza usunięte, zanim koń przyjechał). */
+  noStay: "bez pobytu",
   /** `od 1 października 2026 — trwa` — pobyt bez dnia wyjazdu. */
   since: "od",
   ongoing: "trwa",

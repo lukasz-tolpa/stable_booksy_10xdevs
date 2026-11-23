@@ -57,7 +57,8 @@ describe("isBoarderInMonth — pensjonariusz w miesiącu", () => {
   });
 });
 
-// Bliźniak private.stay_covers_day (migracja 20261202090000, #115) — koń przy slocie treningowym.
+// Bliźniak private.stay_covers_day (migracja 20261202090000, #115) — koń przy slocie treningowym. Te same
+// przypadki sprawdza w bazie supabase/tests/training_slots.sql (krok 20).
 describe("stayCoversDay — pobyt obejmuje dzień jazdy", () => {
   it("dzień przyjazdu i dzień wyjazdu należą do pobytu, dzień przed i po — nie", () => {
     const ended = stay("2026-11-10", "2026-11-12");
