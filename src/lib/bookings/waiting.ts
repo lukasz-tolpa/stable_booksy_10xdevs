@@ -1,4 +1,4 @@
-import { formatCount, formatNumber, type PluralForms } from "@/lib/format";
+import { formatBadgeCount, formatCount, formatNumber, type PluralForms } from "@/lib/format";
 
 /**
  * Liczby zapisów oczekujących (#128, GLOSSARY „Zapis oczekujący”, ADR 0006): licznik zapisów do przyjęcia
@@ -21,15 +21,13 @@ export interface NavCounter {
   label: string;
 }
 
-const NAV_COUNTER_MAX = 99;
-
 /** Licznik zapisów do przyjęcia przy pozycji nawigacji; `null` — nikt nie czeka albo liczby nie wczytano. */
 export function navCounter(itemLabel: string, count: number | null): NavCounter | null {
   if (count === null || count <= 0) {
     return null;
   }
   return {
-    text: count > NAV_COUNTER_MAX ? `${String(NAV_COUNTER_MAX)}+` : String(count),
+    text: formatBadgeCount(count),
     label: `${itemLabel}, ${formatWaitingCount(count)}`,
   };
 }

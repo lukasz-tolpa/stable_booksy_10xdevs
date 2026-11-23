@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  formatBadgeCount,
   capitalize,
   RIDE_FORMS,
   RIDER_FORMS,
@@ -35,6 +36,15 @@ describe("formatFreeSeats", () => {
   it("zapisuje wolne miejsca slotu wobec limitu", () => {
     expect(formatFreeSeats(2, 4)).toBe("2 z 4 wolne");
     expect(formatFreeSeats(0, 1)).toBe("0 z 1 wolne");
+  });
+});
+
+describe("formatBadgeCount", () => {
+  it("liczba na plakietce do 99, ponad 99 — „99+”", () => {
+    expect(formatBadgeCount(1)).toBe("1");
+    expect(formatBadgeCount(99)).toBe("99");
+    expect(formatBadgeCount(100)).toBe("99+");
+    expect(formatBadgeCount(1250)).toBe("99+");
   });
 });
 

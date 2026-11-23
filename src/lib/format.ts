@@ -24,6 +24,16 @@ export function formatFreeSeats(freeSeats: number, seats: number): string {
   return `${formatNumber(freeSeats)} z ${formatNumber(seats)} wolne`;
 }
 
+const BADGE_MAX = 99;
+
+/**
+ * Liczba na plakietce (licznik w nawigacji, dzwonek powiadomień), np. `7`; ponad 99 — `99+`, żeby plakietka
+ * nie rozpychała paska. Pełną liczbę podaje podpis dla czytnika ekranu.
+ */
+export function formatBadgeCount(count: number): string {
+  return count > BADGE_MAX ? `${formatNumber(BADGE_MAX)}+` : formatNumber(count);
+}
+
 /** Zajęte miejsca slotu wobec limitu, np. `zajęte 1 z 2` — widok instruktora „Moje sloty”. */
 export function formatTakenSeats(taken: number, seats: number): string {
   return `zajęte ${formatNumber(taken)} z ${formatNumber(seats)}`;

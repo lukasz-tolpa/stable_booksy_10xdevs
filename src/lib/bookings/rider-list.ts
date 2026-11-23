@@ -1,7 +1,13 @@
 import type { RiderBooking } from "@/lib/bookings/queries";
 import { slotEndedAt } from "@/lib/bookings/rides";
 import { hasSlotStarted, unknownInstructorName } from "@/lib/bookings/slots";
-import { bookingStateAt, cancelledByLabel, isActiveBooking, type BookingState } from "@/lib/bookings/status";
+import {
+  bookingStateAt,
+  cancelledByLabel,
+  isActiveBooking,
+  isPendingOrActive,
+  type BookingState,
+} from "@/lib/bookings/status";
 import type { BookingStatus } from "@/types";
 
 /**
@@ -93,7 +99,7 @@ export function splitRiderBookings(bookings: RiderBooking[], now: Date = new Dat
 
   for (const booking of bookings) {
     const state = bookingStateAt(booking, now);
-    const cancellable = (state === "active" || state === "pending") && !hasSlotStarted(booking.day, booking.hour, now);
+    const cancellable = isPendingOrActive({ status: state }) && !hasSlotStarted(booking.day, booking.hour, now);
     // Wygasły i odrzucony zostają widoczne do końca swojego slotu, potem są historią.
     const decided = state === "expired" || state === "rejected";
     const isUpcoming = cancellable || (decided && !ended(booking.day, booking.hour));

@@ -155,7 +155,7 @@ export async function collectStatsRows(loadPage: StatsPageLoader, pageSize: numb
 }
 
 /**
- * Dni grafiku stadniny z okresu wraz z przydziałami koni i WSZYSTKIMI zapisami (każdy stan) —
+ * Dni grafiku ośrodka z okresu wraz z przydziałami koni i WSZYSTKIMI zapisami (każdy stan) —
  * także odwołanymi (liczby czytają tylko aktywne; statystyki liczą odwołania przyjętych). Każdy zapis niesie
  * rodzaj slotu, plac i rodzaj konia (#115) — wspólny odczyt statystyk, rozliczeń, podsumowań i PDF.
  *

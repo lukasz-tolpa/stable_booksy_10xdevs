@@ -4,6 +4,7 @@ import {
   cancelledByLabel,
   isActiveBooking,
   isCancellationOfAccepted,
+  isPendingOrActive,
   toBookingStatus,
   toCancelledBy,
 } from "@/lib/bookings/status";
@@ -43,6 +44,16 @@ describe("isActiveBooking", () => {
     expect(isActiveBooking({ status: "active" })).toBe(true);
     for (const status of ["pending", "rejected", "cancelled"] as const) {
       expect(isActiveBooking({ status })).toBe(false);
+    }
+  });
+});
+
+describe("isPendingOrActive", () => {
+  it("godzinę trzyma i odwołać można zapis oczekujący albo aktywny — odrzucony, odwołany i wygasły nie", () => {
+    expect(isPendingOrActive({ status: "pending" })).toBe(true);
+    expect(isPendingOrActive({ status: "active" })).toBe(true);
+    for (const status of ["rejected", "cancelled", "expired"]) {
+      expect(isPendingOrActive({ status })).toBe(false);
     }
   });
 });

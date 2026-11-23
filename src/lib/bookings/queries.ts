@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/db/database.types";
 import type { PendingBooking } from "@/lib/bookings/pending";
 import type { MySlot, SlotOccupancy } from "@/lib/bookings/slots";
-import { toBookingStatus, toCancelledBy } from "@/lib/bookings/status";
+import { PENDING_OR_ACTIVE, toBookingStatus, toCancelledBy } from "@/lib/bookings/status";
 import type { DateRange } from "@/lib/schedule/dates";
 import { toSlotKind } from "@/lib/schedule/kind";
 import type { BookingStatus, CancelledBy } from "@/types";
@@ -46,7 +46,7 @@ export async function getMyBookings(client: Client, scheduleDayId: number, rider
     .select("instructor_id, hour, status")
     .eq("schedule_day_id", scheduleDayId)
     .eq("rider_id", riderId)
-    .in("status", ["pending", "active"]);
+    .in("status", PENDING_OR_ACTIVE);
 
   if (error) {
     throw error;
@@ -184,9 +184,6 @@ export async function getRiderBookings(client: Client, riderId: string, days?: D
   }));
 }
 
-/** Stany zapisu, które jeździec odwołuje (wycofanie oczekującego też jest odwołaniem). */
-export const RIDER_CANCELLABLE: readonly BookingStatus[] = ["pending", "active"];
-
 /** Dane potrzebne do decyzji o odwołaniu — celowany odczyt jednego zapisu. */
 export interface CancellableBooking {
   day: string;
@@ -243,7 +240,7 @@ export async function cancelBooking(client: Client, bookingId: number, riderId: 
     .update({ status: "cancelled", cancelled_at: new Date().toISOString(), cancelled_by: "rider" })
     .eq("id", bookingId)
     .eq("rider_id", riderId)
-    .in("status", RIDER_CANCELLABLE)
+    .in("status", PENDING_OR_ACTIVE)
     .select("id")
     .maybeSingle();
 

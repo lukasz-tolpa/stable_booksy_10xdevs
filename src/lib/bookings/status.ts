@@ -50,6 +50,18 @@ export function isActiveBooking(booking: { status: BookingStatus }): boolean {
 }
 
 /**
+ * Zapis oczekujący albo aktywny (ADR 0006): oba trzymają jeźdźcowi godzinę (`bookings_rider_hour_key`) i oba
+ * jeździec odwołuje (wycofanie oczekującego też jest odwołaniem); odrzucony i odwołany są końcowe, wygasły — już
+ * po starcie slotu. Jedna definicja dla „moich zapisów dnia”, odwołania przez jeźdźca i „Moich zapisów”. W SQL —
+ * `status in ('pending', 'active')`.
+ */
+export const PENDING_OR_ACTIVE: readonly BookingStatus[] = ["pending", "active"];
+
+export function isPendingOrActive(booking: { status: string }): boolean {
+  return PENDING_OR_ACTIVE.some((status) => status === booking.status);
+}
+
+/**
  * Odwołanie, które liczą statystyki odwołań: odwołany zapis, który był przyjęty (aktywny) —
  * znacznik `wasAccepted` z kolumny `bookings.accepted_at`. Wycofanie zapisu oczekującego nie
  * jest odwołaniem jazdy.

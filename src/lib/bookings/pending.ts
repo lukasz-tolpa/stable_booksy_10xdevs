@@ -50,7 +50,11 @@ export interface PendingBookingsDay {
   rows: PendingBookingRow[];
 }
 
-const UNKNOWN_RIDER = "(jeździec)";
+/**
+ * Jeździec zapisu, którego imienia odczyt nie oddał (profil bez imienia, jeździec anonimizowany). Jedyna definicja:
+ * „Zapisy do przyjęcia”, zapisy oczekujące dnia i powiadomienia ośrodka.
+ */
+export const UNKNOWN_RIDER = "(jeździec)";
 const UNKNOWN_PLACE = "(plac)";
 
 function byTerm(a: PendingBooking, b: PendingBooking): number {

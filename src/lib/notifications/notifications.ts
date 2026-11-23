@@ -1,4 +1,5 @@
 import { INSTRUCTOR_HOME_ROUTE, RIDER_BOOKINGS_ROUTE, type InstructorStanding } from "@/lib/auth/roles";
+import { UNKNOWN_RIDER } from "@/lib/bookings/pending";
 import { slotStartsAt } from "@/lib/bookings/slots";
 import {
   INSTRUCTOR_PENDING_BOOKINGS_ROUTE,
@@ -6,7 +7,7 @@ import {
   STABLE_DAY_BOOKINGS_ROUTE,
 } from "@/lib/bookings/stable-redirect";
 import { bookingStateAt } from "@/lib/bookings/status";
-import { formatCount, type PluralForms } from "@/lib/format";
+import { formatBadgeCount, formatCount, type PluralForms } from "@/lib/format";
 import type { UserRole } from "@/types";
 
 /**
@@ -119,8 +120,6 @@ const TITLES: Record<NotificationKind, string> = {
 /** Powiadomienia ośrodka o zapisie; pozostałe są jeźdźca. */
 const STABLE_KINDS: readonly NotificationKind[] = ["booking_pending", "booking_cancelled_by_rider"];
 
-const UNKNOWN_RIDER = "(jeździec)";
-
 /**
  * Dokąd prowadzi powiadomienie: jeździec — „Moje zapisy”; właściciel — „Zapisy do przyjęcia” (nowy zapis
  * oczekujący) albo zapisy dnia slotu (odwołanie); instruktor z kontem — swoje „Zapisy do przyjęcia” (#126) albo
@@ -196,10 +195,7 @@ export function bellLabel(unread: number): string {
   return unread === 0 ? "Powiadomienia" : `Powiadomienia (${formatCount(unread, UNREAD_FORMS)})`;
 }
 
-const BADGE_MAX = 99;
-
 /** Liczba na dzwonku; `null` — nic nieprzeczytanego (bez znaczka). */
 export function bellBadge(unread: number): string | null {
-  if (unread === 0) return null;
-  return unread > BADGE_MAX ? `${String(BADGE_MAX)}+` : String(unread);
+  return unread === 0 ? null : formatBadgeCount(unread);
 }
