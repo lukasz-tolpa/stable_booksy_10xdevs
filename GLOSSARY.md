@@ -85,8 +85,27 @@ Niezapisany grafik dnia, który formularz podpowiedział z ostatnio ułożonego 
 _Avoid_: wersja robocza, projekt grafiku
 
 **Zapis**:
-Jedno miejsce w slocie zajęte przez jednego jeźdźca; jest aktywny albo odwołany. Jeździec ma w ośrodku najwyżej jeden aktywny zapis na daną godzinę.
-_Avoid_: rezerwacja, booking
+Chęć jazdy jednego jeźdźca w jednym slocie. Zapis jest oczekujący, aktywny, odrzucony, odwołany albo wygasły; miejsce w slocie zajmuje tylko zapis aktywny. Jeździec ma w ośrodku najwyżej jeden oczekujący albo aktywny zapis na daną godzinę.
+_Avoid_: rezerwacja, booking, prośba
+
+**Zapis oczekujący**:
+Zapis, o którym ośrodek jeszcze nie zdecydował. Nie zajmuje miejsca w slocie, więc na to samo wolne miejsce może czekać kilku jeźdźców. Kończy się przyjęciem, odrzuceniem, odwołaniem przez jeźdźca albo wygaśnięciem. Liczbę zapisów oczekujących na slot widzi ośrodek, a przy slotach treningowych także pensjonariusze; jeździec rekreacyjny widzi tylko wolne miejsca i swój własny zapis.
+_Avoid_: zapis niepotwierdzony, prośba o zapis
+
+**Przyjęcie zapisu**:
+Decyzja ośrodka, która zmienia zapis oczekujący w aktywny i zajmuje miejsce w slocie. Przyjmuje właściciel albo instruktor z kontem, gdy zapis jest na jego slot. Przyjęcie ponad limit miejsc jest odmawiane.
+_Avoid_: akceptacja, potwierdzenie
+
+**Odrzucenie zapisu**:
+Decyzja ośrodka, że zapisu oczekującego nie przyjmie, zawsze z powodem, który jeździec widzi. Gdy slot się zapełni, pozostałe zapisy oczekujące na ten slot są odrzucane same z powodem „Brak miejsc”, a gdy slot zniknie z grafiku albo dostanie limit zero — z powodem „Ośrodek zmienił grafik”. Jeździec może zapisać się na ten sam slot ponownie.
+_Avoid_: odmowa, zapis nieprzyjęty
+
+**Wygaśnięcie zapisu**:
+Koniec zapisu oczekującego, o którym ośrodek nie zdecydował do terminu slotu. Wygasły zapis nie jest jazdą ani odwołaniem.
+
+**Powiadomienie**:
+Wiadomość w getona.horse o zdarzeniu przy zapisie, widoczna po zalogowaniu, przeczytana albo nieprzeczytana. Ośrodek dostaje powiadomienie o nowym zapisie oczekującym i o odwołaniu zapisu aktywnego przez jeźdźca, jeździec — o przyjęciu, odrzuceniu z powodem, wygaśnięciu i odwołaniu przez ośrodek swojego zapisu. Właściciel dostaje powiadomienia ośrodka o wszystkich slotach, instruktor z kontem — o swoich.
+_Avoid_: alert, notyfikacja
 
 **Przydział konia**:
 Wskazanie konia do zapisu przez ośrodek albo przez instruktora z kontem, gdy zapis jest na jego slot — w dowolnym momencie, także po terminie. Koń pochodzi z koni pracujących tego dnia. Przy zapisie na slot treningowy koniem jest koń pensjonatowy zapisanego pensjonariusza: jedyny — przydzielony od razu, jeden z kilku — wybrany przez pensjonariusza przy zapisie. Koń ma najwyżej jednego jeźdźca w danej godzinie; zapis może pozostać bez konia. Jeździec widzi przydzielonego konia przy swoim zapisie.
@@ -131,7 +150,7 @@ Udział miejsc wystawionych przez ośrodek w okresie statystyk (suma limitów mi
 _Avoid_: frekwencja, wykorzystanie
 
 **Odwołanie**:
-Zapis odwołany przed terminem przez jeźdźca albo przez ośrodek; zwalnia miejsce w slocie i przydzielonego konia i nie jest jazdą. Odwołanie zostaje w statystykach także wtedy, gdy ośrodek później zmieni grafik i slot zniknie. Jeździec widzi, kto odwołał; w statystykach jeźdźca liczą się tylko odwołania jego własne.
+Zapis odwołany przed terminem przez jeźdźca albo przez ośrodek; zwalnia miejsce w slocie i przydzielonego konia i nie jest jazdą. Jeździec może też odwołać swój zapis oczekujący, ale w statystykach liczą się tylko odwołania zapisów aktywnych. Odwołanie zostaje w statystykach także wtedy, gdy ośrodek później zmieni grafik i slot zniknie. Jeździec widzi, kto odwołał; w statystykach jeźdźca liczą się tylko odwołania jego własne.
 _Avoid_: anulowanie, rezygnacja, wypisanie
 
 **Jeździec zanonimizowany**:
