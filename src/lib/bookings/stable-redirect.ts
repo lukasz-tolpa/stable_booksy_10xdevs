@@ -3,6 +3,18 @@ import type { APIContext } from "astro";
 /** Lista zapisów dnia ośrodka — cel powrotu z przydziału konia i odwołania zapisu. */
 export const STABLE_DAY_BOOKINGS_ROUTE = "/osrodek/zapisy";
 
+/** „Zapisy do przyjęcia” ośrodka (#124) — zapisy oczekujące; cel powrotu z przyjęcia zapisu. */
+export const PENDING_BOOKINGS_ROUTE = "/osrodek/zapisy-do-przyjecia";
+
+/** Potwierdzenie przyjęcia na „Zapisach do przyjęcia” (`sukces=przyjecie`). */
+export const ACCEPTED_MESSAGE = "Zapis przyjęty. Jeździec ma miejsce w slocie.";
+
+/** Powrót na „Zapisy do przyjęcia” z wynikiem przyjęcia. */
+export function backToPendingBookings(context: APIContext, outcome: { error: string } | { success: "przyjecie" }) {
+  const params = new URLSearchParams("error" in outcome ? { error: outcome.error } : { sukces: outcome.success });
+  return context.redirect(`${PENDING_BOOKINGS_ROUTE}?${params.toString()}`);
+}
+
 /** Wartości `sukces=` rozpoznawane przez stronę listy dnia. */
 export type StableBookingOutcome = "przydzial" | "odwolanie";
 

@@ -230,7 +230,7 @@ describe("composeSideColumn", () => {
   const accounts = [{ instructor_id: 1 }, { instructor_id: 3 }, { instructor_id: 4 }];
   const places = [{ active: true }, { active: false }];
 
-  it("prowadzi do sekcji ośrodka: Grafik na jutro, Zapisy na dziś, Konie, Pensjonariusze, Place, Zajętość placów, Instruktorzy, Podsumowanie miesiąca, Rozliczenia, Statystyki", () => {
+  it("prowadzi do sekcji ośrodka: Grafik na jutro, Zapisy na dziś, Zapisy do przyjęcia, Konie, Pensjonariusze, Place, Zajętość placów, Instruktorzy, Podsumowanie miesiąca, Rozliczenia, Statystyki", () => {
     const links = composeSideColumn(
       { today: TODAY, week, horses, instructors, accounts, places, monthBookings: [], settlementsTotal: null },
       NOW,
@@ -239,6 +239,7 @@ describe("composeSideColumn", () => {
     expect(links.map((link) => [link.name, link.href])).toEqual([
       ["Grafik", "/osrodek/grafik?dzien=2026-11-21"],
       ["Zapisy", "/osrodek/zapisy?dzien=2026-11-20"],
+      ["Zapisy do przyjęcia", "/osrodek/zapisy-do-przyjecia"],
       ["Konie", "/osrodek/konie"],
       ["Pensjonariusze", "/osrodek/pensjonariusze"],
       ["Place", "/osrodek/place"],
@@ -259,6 +260,8 @@ describe("composeSideColumn", () => {
     expect(links.map((link) => [link.fact, link.warn])).toEqual([
       ["jutro: brak grafiku", true],
       ["dziś: 2", false],
+      // Liczba czekających to #128.
+      [null, false],
       ["2 aktywne", false],
       ["1 koń pensjonatowy", false],
       ["1 aktywny", false],
@@ -326,7 +329,7 @@ describe("composeSideColumn", () => {
         places,
         monthBookings: [],
         settlementsTotal: null,
-      })[2]?.fact;
+      }).find((link) => link.name === "Konie")?.fact;
 
     expect([factFor(1), factFor(4), factFor(5), factFor(12), factFor(22)]).toEqual([
       "1 aktywny",
@@ -358,6 +361,7 @@ describe("composeSideColumn", () => {
       null,
       null,
       null,
+      null,
       "dowolny dzień",
       null,
       null,
@@ -367,6 +371,7 @@ describe("composeSideColumn", () => {
     expect(links.map((link) => link.href)).toEqual([
       "/osrodek/grafik?dzien=2026-11-21",
       "/osrodek/zapisy?dzien=2026-11-20",
+      "/osrodek/zapisy-do-przyjecia",
       "/osrodek/konie",
       "/osrodek/pensjonariusze",
       "/osrodek/place",
@@ -533,8 +538,8 @@ describe("composeSettlementsLink — Rozliczenia w bocznej kolumnie i w główne
       NOW,
     );
 
-    expect(links[8]).toEqual(composeSettlementsLink({ today: TODAY, settlementsTotal }));
-    expect(links[8]?.fact).toBe("listopad: 480,00 zł");
+    expect(links[9]).toEqual(composeSettlementsLink({ today: TODAY, settlementsTotal }));
+    expect(links[9]?.fact).toBe("listopad: 480,00 zł");
   });
 });
 

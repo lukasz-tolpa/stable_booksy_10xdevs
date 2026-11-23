@@ -1,7 +1,7 @@
 import type { APIContext, APIRoute } from "astro";
 import { SIGN_IN_ROUTE } from "@/lib/auth/roles";
 import { firstErrorMessage } from "@/lib/auth/schemas";
-import { cancelBooking, getRiderBookingForCancel } from "@/lib/bookings/queries";
+import { RIDER_CANCELLABLE, cancelBooking, getRiderBookingForCancel } from "@/lib/bookings/queries";
 import { cancelSchema } from "@/lib/bookings/schema";
 import { hasSlotStarted } from "@/lib/bookings/slots";
 import { formValue } from "@/lib/form-data";
@@ -49,7 +49,8 @@ export const POST: APIRoute = async (context) => {
     // (cudzy/nieistniejący zapis) od "jazda już się zaczęła".
     const booking = await getRiderBookingForCancel(supabase, parsed.data.bookingId, user.id);
 
-    if (booking?.status !== "active") {
+    // Jeździec odwołuje zapis aktywny i oczekujący (#124); odrzucony i odwołany są końcowe.
+    if (!booking || !RIDER_CANCELLABLE.some((status) => status === booking.status)) {
       return backToMyBookings(context, { error: NOT_FOUND_MESSAGE });
     }
 

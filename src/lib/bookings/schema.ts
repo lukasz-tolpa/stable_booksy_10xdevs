@@ -32,6 +32,9 @@ export const cancelSchema = z.object({
 
 export type CancelInput = z.infer<typeof cancelSchema>;
 
+/** Formularz przyjęcia zapisu przez ośrodek (#124) — sam identyfikator zapisu, jak przy odwołaniu. */
+export const acceptSchema = cancelSchema;
+
 /**
  * Formularz przydziału konia przez ośrodek (#42). Pusty wybór („bez konia") cofa przydział.
  * Czy koń pracuje tego dnia i czy jest wolny w tej godzinie, rozstrzyga baza (23503/23505).

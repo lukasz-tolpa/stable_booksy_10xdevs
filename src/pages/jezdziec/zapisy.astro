@@ -101,14 +101,20 @@ function formatDay(day: string): string {
                     <span class="row__sub">{row.stableName}</span>
                     <span class="row__horse">{row.instructorName}</span>
                     {row.horseLabel && <span class="row__sub">{row.horseLabel}</span>}
+                    {/* Zapis oczekujący (#124) i wygasły w trakcie slotu — cały tekst elementu to sam stan. */}
+                    {row.stateLabel && (
+                      <Tag variant={row.state === "pending" ? "warn" : undefined}>{row.stateLabel}</Tag>
+                    )}
                   </span>
-                  <form method="post" action="/api/bookings/cancel" class="row__action">
-                    <input type="hidden" name="bookingId" value={row.id} />
-                    <button type="submit">
-                      <CalendarX2 className="size-4" />
-                      Odwołaj
-                    </button>
-                  </form>
+                  {row.cancellable && (
+                    <form method="post" action="/api/bookings/cancel" class="row__action">
+                      <input type="hidden" name="bookingId" value={row.id} />
+                      <button type="submit">
+                        <CalendarX2 className="size-4" />
+                        Odwołaj
+                      </button>
+                    </form>
+                  )}
                 </li>
               ))}
             </ul>
@@ -135,6 +141,7 @@ function formatDay(day: string): string {
                     {/* Cały tekst tego elementu to samo słowo - scenariusz odwołania
                         szuka wiersza po dokładnym dopasowaniu. */}
                     {row.status === "cancelled" && <Tag>odwołany</Tag>}
+                    {row.stateLabel && <Tag>{row.stateLabel}</Tag>}
                     {row.cancelledByLabel && <span class="row__sub">{row.cancelledByLabel}</span>}
                   </span>
                 </li>

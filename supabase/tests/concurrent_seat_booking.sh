@@ -1,22 +1,26 @@
 #!/usr/bin/env bash
 #
-# Dowod limitu miejsc przy rownoleglych zapisach (#41, ADR-0002; PRD: "przy jednoczesnych
-# zapisach wielu osob na ostatnie miejsce udaje sie tylko jeden").
+# Dowod limitu miejsc przy rownoleglych przyjeciach (#41, #124, ADR-0002, ADR 0006; PRD: "przy
+# jednoczesnych zapisach wielu osob na ostatnie miejsce udaje sie tylko jeden").
 #
-# Przy N jednoczesnych probach zapisu na jeden slot (dzien, instruktor, godzina) z limitem
-# SEATS < N, z osobnych polaczen i od N roznych jezdzcow, udaje sie DOKLADNIE SEATS prob,
-# a pozostale dostaja SB009 (brak miejsc) z wyzwalacza bookings_seat_limit. Wyzwalacz blokuje
-# wiersz slotu (FOR UPDATE), wiec liczenie aktywnych zapisow nie widzi stanu sprzed cudzego
-# zapisu. Weryfikacja w jednej sesji dowodzi tylko, ze wyzwalacz istnieje; ten skrypt dowodzi
-# odpornosci na rownolegle zadania.
+# Zapis jezdzca czeka na przyjecie i nie zajmuje miejsca (ADR 0006), wiec N jednoczesnych zapisow
+# N roznych jezdzcow na jeden slot (dzien, instruktor, godzina) z limitem SEATS < N przechodzi
+# w calosci - jako N zapisow oczekujacych. Miejsce zajmuje przyjecie (public.accept_booking): przy
+# N jednoczesnych przyjeciach tych zapisow przez wlasciciela, z osobnych polaczen, udaje sie
+# DOKLADNIE SEATS, a pozostale dostaja SB009 (brak miejsc) z wyzwalacza bookings_seat_limit.
+# Wyzwalacz blokuje wiersz slotu (FOR UPDATE), wiec liczenie aktywnych zapisow nie widzi stanu
+# sprzed cudzego przyjecia. Weryfikacja w jednej sesji dowodzi tylko, ze wyzwalacz istnieje; ten
+# skrypt dowodzi odpornosci na rownolegle zadania.
 #
-# Jako kto: proby ida przez RLS jako N tymczasowych jezdzcow (konta zakladane w auth.users -
+# Jako kto: zapisy ida przez RLS jako N tymczasowych jezdzcow (konta zakladane w auth.users -
 # profil zaklada handle_new_user; kazdy jezdziec inny, bo jeden jezdziec ma najwyzej jeden zapis
-# na godzine). Przygotowanie danych i odczyt kontrolny jako postgres. Odmowa z innym kodem niz
-# SB009 (np. 42501 z RLS, 23505 z indeksu jezdzca) to blad konfiguracji testu - FAIL.
+# na godzine), przyjecia - jako wlasciciel Stadniny Pod Dębem. Przygotowanie danych i odczyt
+# kontrolny jako postgres. Odmowa przyjecia z innym kodem niz SB009 (np. SB065, SB066) to blad
+# konfiguracji testu - FAIL.
 #
-# Druga polowa dowodu: odwolanie jednego zwyciezcy zwalnia miejsce - przegrany zapisuje sie
-# ponownie, a get_slot_occupancy widziane przez jezdzca pokazuje dokladnie SEATS zajetych miejsc.
+# Druga polowa dowodu: odwolanie jednego przyjetego zwalnia miejsce - zapis oczekujacy przegranego
+# daje sie wtedy przyjac, a get_slot_occupancy widziane przez jezdzca pokazuje dokladnie SEATS
+# zajetych miejsc.
 #
 # Sprzatanie (takze po bledzie): usuniecie tymczasowych kont kasuje ich przyszle zapisy
 # (wyzwalacz anonimizacji z ADR-0001), a limit slotu wraca do wartosci z seeda.
@@ -31,13 +35,13 @@ set -uo pipefail
 
 ATTEMPTS="${ATTEMPTS:-5}"
 SEATS="${SEATS:-2}"
-# Bariera (sekundy) - ile kazde polaczenie czeka przed INSERT, zeby wszystkie N procesow
-# psql zdazylo sie zestawic i proby naprawde sie nakladaly. Na zimnym runnerze CI spawn
-# bywa wolniejszy, stad tam 1 s (ci.yml).
+# Bariera (sekundy) - ile kazde polaczenie czeka przed zapisem albo przyjeciem, zeby wszystkie
+# N procesow psql zdazylo sie zestawic i proby naprawde sie nakladaly. Na zimnym runnerze CI
+# spawn bywa wolniejszy, stad tam 1 s (ci.yml).
 BARRIER_SECONDS="${BARRIER_SECONDS:-0.5}"
-# Przytrzymanie (sekundy) - ile kazda transakcja czeka PO zapisie, a przed zatwierdzeniem.
-# Bez niego INSERT i COMMIT trwaja ulamek milisekundy i proby rozjezdzaja sie w czasie nawet
-# bez blokady slotu; z nim kazda proba liczy zajetosc, gdy cudze zapisy nie sa jeszcze
+# Przytrzymanie (sekundy) - ile kazda transakcja czeka PO przyjeciu, a przed zatwierdzeniem.
+# Bez niego UPDATE i COMMIT trwaja ulamek milisekundy i proby rozjezdzaja sie w czasie nawet
+# bez blokady slotu; z nim kazda proba liczy zajetosc, gdy cudze przyjecia nie sa jeszcze
 # zatwierdzone - wtedy dokladnie SEATS sukcesow daje wylacznie blokada wiersza slotu.
 HOLD_SECONDS="${HOLD_SECONDS:-0.3}"
 for value in "$BARRIER_SECONDS" "$HOLD_SECONDS"; do
@@ -77,6 +81,14 @@ as_rider_sql() {
   printf "set role authenticated; set request.jwt.claims = '{\"sub\":\"%s\",\"role\":\"authenticated\"}'; %s" "$rider" "$sql"
 }
 
+# Przyjecie jako wlasciciel Stadniny Pod Dębem - ten sam ksztalt polecenia co zapis jezdzca.
+as_owner_sql() { as_rider_sql "11111111-1111-1111-1111-111111111111" "$1"; }
+
+# Zapis oczekujacy jezdzca na slot testowy.
+booking_of() {
+  q "select id from public.bookings where schedule_day_id = $DAY_ID and instructor_id = $INSTRUCTOR_ID and hour = $HOUR and rider_id = '$1' and status = 'pending'"
+}
+
 insert_sql() {
   printf "insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id) values (%s, %s, %s, '%s');" \
     "$DAY_ID" "$INSTRUCTOR_ID" "$HOUR" "$1"
@@ -107,11 +119,39 @@ psql_run -v ON_ERROR_STOP=1 -q -c "update public.schedule_slots set seats = $SEA
 
 echo "Slot testowy: dzien=$DAY_ID ($DAY_DATE) instruktor=$INSTRUCTOR_ID (Joanna Wrona) godzina=$HOUR, limit=$SEATS, prob=$ATTEMPTS (kazda od innego jezdzca)"
 
+# --- Zapisy: N jednoczesnych zapisow oczekujacych przechodzi w calosci (miejsca nie zajmuja). ---
 pids=()
 for i in $(seq 1 "$ATTEMPTS"); do
   rider="$(rider_id "$i")"
   psql_run -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -q -c \
-    "$(as_rider_sql "$rider" "select pg_sleep($BARRIER_SECONDS); $(insert_sql "$rider") select pg_sleep($HOLD_SECONDS);")" \
+    "$(as_rider_sql "$rider" "select pg_sleep($BARRIER_SECONDS); $(insert_sql "$rider")")" \
+    >"$TMP/book_out_$i" 2>"$TMP/book_err_$i" &
+  pids+=("$!")
+done
+
+booked=0
+for pid in "${pids[@]}"; do
+  wait "$pid" && booked=$((booked + 1))
+done
+
+status=0
+if [ "$booked" -ne "$ATTEMPTS" ]; then
+  echo "FAIL: zapisy oczekujace nie zajmuja miejsca - oczekiwano $ATTEMPTS zapisow, przeszlo $booked:" >&2
+  cat "$TMP"/book_err_* >&2
+  exit 1
+fi
+if [ "$(active_count)" -ne 0 ]; then
+  echo "FAIL: po zapisach oczekujacych slot ma $(active_count) aktywnych zapisow zamiast 0" >&2
+  exit 1
+fi
+echo "Zapisy: $booked z $ATTEMPTS jednoczesnych zapisow czeka na przyjecie, aktywnych 0"
+
+# --- Przyjecia: N jednoczesnych przyjec przez wlasciciela - dokladnie SEATS sukcesow. ---
+pids=()
+for i in $(seq 1 "$ATTEMPTS"); do
+  booking="$(booking_of "$(rider_id "$i")")"
+  psql_run -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -q -c \
+    "$(as_owner_sql "select pg_sleep($BARRIER_SECONDS); select public.accept_booking($booking); select pg_sleep($HOLD_SECONDS);")" \
     >"$TMP/out_$i" 2>"$TMP/err_$i" &
   pids+=("$!")
 done
@@ -139,11 +179,10 @@ for f in "$TMP"/err_*; do
   fi
 done
 
-echo "Sukcesy: $successes | Odmowy: $failures | Aktywne zapisy na slocie: $active"
+echo "Przyjecia - sukcesy: $successes | odmowy: $failures | aktywne zapisy na slocie: $active"
 
-status=0
 if [ "$successes" -ne "$SEATS" ]; then
-  echo "FAIL: oczekiwano dokladnie $SEATS sukcesow, bylo $successes" >&2
+  echo "FAIL: oczekiwano dokladnie $SEATS przyjec, bylo $successes" >&2
   status=1
 fi
 if [ "$active" -ne "$SEATS" ]; then
@@ -156,22 +195,22 @@ if [ "$wrong_error" -gt 0 ]; then
   status=1
 fi
 
-# --- Zwolnienie miejsca: odwolanie jednego zwyciezcy wpuszcza przegranego. ---
+# --- Zwolnienie miejsca: odwolanie jednego przyjetego pozwala przyjac przegranego. ---
 if [ "$status" -eq 0 ]; then
   winner="$(q "select rider_id from public.bookings where schedule_day_id = $DAY_ID and instructor_id = $INSTRUCTOR_ID and hour = $HOUR and status = 'active' order by id limit 1")"
   psql_run -v ON_ERROR_STOP=1 -q -c "$(as_rider_sql "$winner" "update public.bookings set status = 'cancelled', cancelled_at = now(), cancelled_by = 'rider' where rider_id = '$winner' and schedule_day_id = $DAY_ID and status = 'active';")" >/dev/null
 
-  if psql_run -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -q -c "$(as_rider_sql "$(rider_id "$loser")" "$(insert_sql "$(rider_id "$loser")")")" >/dev/null 2>"$TMP/err_release"; then
-    echo "Zwolnienie miejsca: po odwolaniu zwyciezcy zapis przegranego przeszedl"
+  if psql_run -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -q -c "$(as_owner_sql "select public.accept_booking($(booking_of "$(rider_id "$loser")"));")" >/dev/null 2>"$TMP/err_release"; then
+    echo "Zwolnienie miejsca: po odwolaniu przyjetego zapis przegranego przyjety"
   else
-    echo "FAIL: po odwolaniu zwyciezcy zapis przegranego odrzucony:" >&2
+    echo "FAIL: po odwolaniu przyjetego przyjecie zapisu przegranego odrzucone:" >&2
     cat "$TMP/err_release" >&2
     status=1
   fi
 
   active_after="$(active_count)"
   if [ "$active_after" -ne "$SEATS" ]; then
-    echo "FAIL: po zwolnieniu i ponownym zapisie oczekiwano $SEATS aktywnych, jest $active_after" >&2
+    echo "FAIL: po zwolnieniu i ponownym przyjeciu oczekiwano $SEATS aktywnych, jest $active_after" >&2
     status=1
   fi
 
@@ -186,6 +225,6 @@ if [ "$status" -eq 0 ]; then
 fi
 
 if [ "$status" -eq 0 ]; then
-  echo "PASS: dokladnie $SEATS z $ATTEMPTS rownoleglych zapisow przeszlo, pozostale odrzucone przez SB009; odwolanie zwolnilo miejsce"
+  echo "PASS: $ATTEMPTS rownoleglych zapisow czeka na przyjecie; dokladnie $SEATS z $ATTEMPTS rownoleglych przyjec przeszlo, pozostale odrzucone przez SB009; odwolanie zwolnilo miejsce"
 fi
 exit "$status"

@@ -691,6 +691,7 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      accept_booking: { Args: { p_booking_id: number }; Returns: undefined };
       add_boarding_horse: {
         Args: { p_arrival: string; p_name: string; p_rider_email: string };
         Returns: number;
@@ -739,6 +740,24 @@ export type Database = {
           horse_id: number;
           horse_name: string;
           taken: boolean;
+        }[];
+      };
+      get_pending_bookings: {
+        Args: never;
+        Returns: {
+          booking_id: number;
+          created_at: string;
+          day: string;
+          hour: number;
+          instructor_id: number;
+          instructor_name: string;
+          kind: string;
+          place_name: string;
+          rider_email: string;
+          rider_id: string;
+          rider_name: string;
+          seats: number;
+          taken: number;
         }[];
       };
       get_place_occupancy: {

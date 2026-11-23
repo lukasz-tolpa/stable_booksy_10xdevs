@@ -1,8 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/db/database.types";
+import type { PendingBooking } from "@/lib/bookings/pending";
 import type { MySlot, SlotOccupancy } from "@/lib/bookings/slots";
 import { toBookingStatus, toCancelledBy } from "@/lib/bookings/status";
 import type { DateRange } from "@/lib/schedule/dates";
+import { toSlotKind } from "@/lib/schedule/kind";
 import type { BookingStatus, CancelledBy } from "@/types";
 
 type Client = SupabaseClient<Database>;
@@ -23,7 +25,8 @@ export async function getSlotOccupancy(client: Client, stableId: number, day: st
 }
 
 /**
- * Własne aktywne zapisy jeźdźca w danym dniu grafiku.
+ * Własne zapisy jeźdźca w danym dniu grafiku: aktywne i oczekujące (#124) — oba zajmują jeźdźcowi
+ * godzinę (`bookings_rider_hour_key`), oczekujący dostaje „Czekasz na przyjęcie”.
  *
  * Filtr po `rider_id` jest jawny, a nie zostawiony RLS: polityka SELECT na
  * `bookings` to own-OR-my-stable, więc sesja OŚRODKA widziałaby tu zapisy
@@ -32,16 +35,16 @@ export async function getSlotOccupancy(client: Client, stableId: number, day: st
 export async function getMyBookings(client: Client, scheduleDayId: number, riderId: string): Promise<MySlot[]> {
   const { data, error } = await client
     .from("bookings")
-    .select("instructor_id, hour")
+    .select("instructor_id, hour, status")
     .eq("schedule_day_id", scheduleDayId)
     .eq("rider_id", riderId)
-    .eq("status", "active");
+    .in("status", ["pending", "active"]);
 
   if (error) {
     throw error;
   }
 
-  return data.map((row) => ({ instructorId: row.instructor_id, hour: row.hour }));
+  return data.map((row) => ({ instructorId: row.instructor_id, hour: row.hour, pending: row.status === "pending" }));
 }
 
 /** Zapis dnia z perspektywy ośrodka: slot, jeździec, przydzielony koń i stan (FR-005). */
@@ -165,6 +168,9 @@ export async function getRiderBookings(client: Client, riderId: string, days?: D
   }));
 }
 
+/** Stany zapisu, które jeździec odwołuje (wycofanie oczekującego też jest odwołaniem). */
+export const RIDER_CANCELLABLE: readonly BookingStatus[] = ["pending", "active"];
+
 /** Dane potrzebne do decyzji o odwołaniu — celowany odczyt jednego zapisu. */
 export interface CancellableBooking {
   day: string;
@@ -205,11 +211,11 @@ export async function getRiderBookingForCancel(
 }
 
 /**
- * Odwołanie własnego zapisu przez jeźdźca: jeden UPDATE statusu, czasu i „kto odwołał" —
- * CHECK-i spójności wymuszają wszystkie trzy naraz, a wyzwalacz `bookings_cancellation`
- * pozwala jeźdźcowi wpisać wyłącznie siebie i czyści przydział konia. Filtr
- * `status = 'active'` rozstrzyga wyścig dwóch odwołań: drugi UPDATE trafia w 0 wierszy
- * i zwraca `false` zamiast błędu.
+ * Odwołanie własnego zapisu (aktywnego albo oczekującego, #124) przez jeźdźca: jeden UPDATE statusu,
+ * czasu i „kto odwołał" — CHECK-i spójności wymuszają wszystkie trzy naraz, a wyzwalacz
+ * `bookings_cancellation` pozwala jeźdźcowi wpisać wyłącznie siebie i czyści przydział konia. Filtr
+ * stanu rozstrzyga wyścig dwóch odwołań (i odwołania z przyjęciem — oba stany wolno odwołać): drugi
+ * UPDATE trafia w 0 wierszy i zwraca `false` zamiast błędu.
  *
  * Wołać wyłącznie z sesji jeźdźca z jego własnym `riderId` — polityka UPDATE
  * jest own-OR-my-stable, więc sesja ośrodka z cudzym `riderId` też by przeszła
@@ -221,7 +227,7 @@ export async function cancelBooking(client: Client, bookingId: number, riderId: 
     .update({ status: "cancelled", cancelled_at: new Date().toISOString(), cancelled_by: "rider" })
     .eq("id", bookingId)
     .eq("rider_id", riderId)
-    .eq("status", "active")
+    .in("status", RIDER_CANCELLABLE)
     .select("id")
     .maybeSingle();
 
@@ -367,4 +373,50 @@ export async function createBooking(client: Client, input: CreateBookingInput): 
   }
 
   return { id: data.id };
+}
+
+/**
+ * „Zapisy do przyjęcia” właściciela (#124): zapisy oczekujące jego ośrodka od dziś — przez RPC
+ * `get_pending_bookings`, bo jeździec z samym zapisem oczekującym nie jest „jeźdźcem ośrodka” i RLS profili
+ * nie odda jego imienia ani adresu. Ośrodek bierze funkcja z sesji. Wygasłe odfiltrowuje `composePendingBookings`.
+ */
+export async function getPendingBookings(client: Client): Promise<PendingBooking[]> {
+  const { data, error } = await client.rpc("get_pending_bookings");
+
+  if (error) {
+    throw error;
+  }
+
+  return data.map((row) => ({
+    id: row.booking_id,
+    day: row.day,
+    hour: row.hour,
+    instructorId: row.instructor_id,
+    instructorName: row.instructor_name,
+    // Funkcja łączy plac i profil złączeniem zewnętrznym — wygenerowane typy tego nie wiedzą.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    placeName: row.place_name ?? null,
+    kind: toSlotKind(row.kind),
+    seats: row.seats,
+    taken: row.taken,
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    riderName: row.rider_name ?? null,
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    riderEmail: row.rider_email ?? null,
+    createdAt: row.created_at,
+  }));
+}
+
+/**
+ * Przyjęcie zapisu oczekującego przez właściciela — RPC `accept_booking` (zapis staje się aktywny i zajmuje
+ * miejsce). Odmowy podnosi baza: SB009 brak miejsc (także równoczesne przyjęcia), SB064 slot się zaczął,
+ * SB065 zapis nie jest oczekujący, SB066 cudzy albo nieistniejący zapis, 23503 slotu nie ma w grafiku —
+ * wołający tłumaczy je przez `acceptanceErrorMessage`.
+ */
+export async function acceptBooking(client: Client, bookingId: number): Promise<void> {
+  const { error } = await client.rpc("accept_booking", { p_booking_id: bookingId });
+
+  if (error) {
+    throw error;
+  }
 }

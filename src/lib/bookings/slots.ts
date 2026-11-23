@@ -25,22 +25,25 @@ export interface SlotOccupancy {
   taken: number;
 }
 
-/** Własny aktywny zapis jeźdźca w oglądanym dniu. */
+/** Własny zapis jeźdźca w oglądanym dniu: aktywny albo oczekujący (`pending`). */
 export interface MySlot {
   instructorId: number;
   hour: number;
+  /** Zapis czeka na przyjęcie przez ośrodek (GLOSSARY „Zapis oczekujący”). */
+  pending?: boolean;
 }
 
 /**
- * `free` — są wolne miejsca; `mine` — własny aktywny zapis; `full` — brak wolnych miejsc;
- * `unavailable` — jeździec ma już aktywny zapis o tej godzinie u innego instruktora (baza
- * odmówiłaby drugiego zapisu na tę godzinę); `not_for_me` — slot rekreacyjny u pensjonariusza (SB049);
+ * `free` — są wolne miejsca; `mine` — własny aktywny zapis; `pending` — własny zapis czeka na przyjęcie;
+ * `full` — brak wolnych miejsc; `unavailable` — jeździec ma już zapis (aktywny albo oczekujący) o tej
+ * godzinie u innego instruktora (baza odmówiłaby drugiego zapisu na tę godzinę); `not_for_me` — slot rekreacyjny u pensjonariusza (SB049);
  * `no_horse` — slot treningowy, a żaden koń pensjonariusza nie stoi tego dnia w ośrodku (SB053).
  */
-export type SlotStatus = "free" | "mine" | "full" | "unavailable" | "not_for_me" | "no_horse";
+export type SlotStatus = "free" | "mine" | "pending" | "full" | "unavailable" | "not_for_me" | "no_horse";
 
 const SLOT_STATUS_LABELS: Record<Exclude<SlotStatus, "free">, string> = {
   mine: "Twój zapis",
+  pending: "Czekasz na przyjęcie",
   full: "Brak miejsc",
   unavailable: "Masz już zapis o tej godzinie",
   not_for_me: "Slot rekreacyjny — nie dla pensjonariuszy",
@@ -144,11 +147,12 @@ function slotKey(instructorId: number, hour: number): string {
 function statusOf(
   slot: SlotSeats,
   freeSeats: number,
-  mine: Set<string>,
+  mine: Map<string, MySlot>,
   myHours: Set<number>,
   standing: RiderStanding,
 ): SlotStatus {
-  if (mine.has(slotKey(slot.instructorId, slot.hour))) return "mine";
+  const own = mine.get(slotKey(slot.instructorId, slot.hour));
+  if (own) return own.pending ? "pending" : "mine";
   if (myHours.has(slot.hour)) return "unavailable";
   if (standing.boarder && slot.kind === SLOT_KIND.recreation) return "not_for_me";
   if (standing.boarder && standing.horses.length === 0) return "no_horse";
@@ -159,7 +163,7 @@ export function computeSlotHours(input: SlotHoursInput): SlotHour[] {
   const names = new Map(input.instructors.map((instructor) => [instructor.id, instructor.name]));
   const placeName = placeNamer(input.places);
   const taken = new Map(input.occupancy.map((entry) => [slotKey(entry.instructorId, entry.hour), entry.taken]));
-  const mine = new Set(input.myBookings.map((booking) => slotKey(booking.instructorId, booking.hour)));
+  const mine = new Map(input.myBookings.map((booking) => [slotKey(booking.instructorId, booking.hour), booking]));
   const myHours = new Set(input.myBookings.map((booking) => booking.hour));
   const byHour = new Map<number, RiderSlot[]>();
 

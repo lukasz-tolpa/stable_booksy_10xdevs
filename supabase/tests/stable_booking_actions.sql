@@ -72,8 +72,8 @@ begin
   values (v_day, v_karol, v_stable);
   insert into public.schedule_slots (schedule_day_id, instructor_id, hour, seats)
   select v_day, v_karol, h, case when h = 11 then 1 else 0 end from generate_series(10, 15) h;
-  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id)
-  values (v_day, v_karol, 11, '44444444-4444-4444-4444-444444444444')
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status)
+  values (v_day, v_karol, 11, '44444444-4444-4444-4444-444444444444', 'active')
   returning id into v_karol_booking;
 
   -- Dzien miniony z jazda bez konia (grafiku na dzien miniony nie zapisze funkcja - postgres).
@@ -86,8 +86,8 @@ begin
   values (v_past_day, v_joanna, v_stable);
   insert into public.schedule_slots (schedule_day_id, instructor_id, hour, seats)
   values (v_past_day, v_joanna, 10, 1), (v_past_day, v_joanna, 11, 0);
-  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id)
-  values (v_past_day, v_joanna, 10, '33333333-3333-3333-3333-333333333333')
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status)
+  values (v_past_day, v_joanna, 10, '33333333-3333-3333-3333-333333333333', 'active')
   returning id into v_past_booking;
 
   perform set_config('app.day', v_day::text, true);

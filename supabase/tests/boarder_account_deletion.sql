@@ -123,16 +123,16 @@ begin
 
   -- Przeszla jazda i przyszly zapis Katarzyny na slot treningowy, wyzwalacze wlaczone: jedynego konia
   -- pensjonariuszki z pobytem w dniu jazdy (Hrabia) przypisuje regula slotu treningowego.
-  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id)
-  values (v_past_day, v_joanna, 12, c_katarzyna)
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status)
+  values (v_past_day, v_joanna, 12, c_katarzyna, 'active')
   returning id, horse_id into v_id, v_horse;
   if v_horse is distinct from v_hrabia then
     raise exception 'setup: przeszla jazda na slocie treningowym bez Hrabiego (kon %)', v_horse;
   end if;
   perform set_config('app.past_ride', v_id::text, true);
 
-  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id)
-  values (v_future_day, v_joanna, 12, c_katarzyna)
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status)
+  values (v_future_day, v_joanna, 12, c_katarzyna, 'active')
   returning id, horse_id into v_id, v_horse;
   if v_horse is distinct from v_hrabia then
     raise exception 'setup: przyszly zapis na slot treningowy bez Hrabiego (kon %)', v_horse;

@@ -432,11 +432,13 @@ describe("scheduleCallerFor", () => {
 });
 
 describe("stableSections", () => {
-  it("właściciel ma panel i pięć sekcji ośrodka w kolejności nawigacji", () => {
+  it("właściciel ma panel i sześć sekcji ośrodka w kolejności nawigacji", () => {
     expect(stableSections("owner")).toEqual([
       { href: "/osrodek", label: "Panel" },
       { href: "/osrodek/grafik", label: "Grafik" },
       { href: "/osrodek/zapisy", label: "Zapisy" },
+      // #124: zapisy oczekujące czekają na decyzję ośrodka; w dolnym pasku krótko.
+      { href: "/osrodek/zapisy-do-przyjecia", label: "Zapisy do przyjęcia", shortLabel: "Przyjęcia" },
       { href: "/osrodek/konie", label: "Konie" },
       { href: "/osrodek/instruktorzy", label: "Instruktorzy" },
       { href: "/osrodek/statystyki", label: "Statystyki" },
@@ -476,8 +478,13 @@ describe("currentSection", () => {
 
 describe("stableTabBarSections", () => {
   it("właściciel ma dolny pasek na panelu i stronach sekcji ośrodka", () => {
-    expect(stableTabBarSections("owner", "/osrodek")).toHaveLength(6);
-    expect(stableTabBarSections("owner", "/osrodek/konie")).toHaveLength(6);
+    expect(stableTabBarSections("owner", "/osrodek")).toHaveLength(7);
+    expect(stableTabBarSections("owner", "/osrodek/konie")).toHaveLength(7);
+  });
+
+  it("na stronie „Zapisy do przyjęcia” pasek zaznacza tę sekcję, a nie „Zapisy”", () => {
+    const sections = stableTabBarSections("owner", "/osrodek/zapisy-do-przyjecia");
+    expect(currentSection("/osrodek/zapisy-do-przyjecia", sections)).toBe("/osrodek/zapisy-do-przyjecia");
   });
 
   it("na stronie głównej i innych stronach spoza ośrodka pasek się nie pokazuje", () => {

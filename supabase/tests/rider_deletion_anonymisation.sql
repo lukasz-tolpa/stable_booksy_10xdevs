@@ -113,8 +113,8 @@ begin
   insert into public.schedule_slots (schedule_day_id, instructor_id, hour, seats)
   select v_yesterday, v_joanna, h, 2 from generate_series(0, 23) h;
 
-  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id)
-  values (v_yesterday, v_joanna, 10, c_anna)
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status)
+  values (v_yesterday, v_joanna, 10, c_anna, 'active')
   returning id into v_id;
   perform set_config('app.past_ride', v_id::text, true);
 
@@ -124,8 +124,8 @@ begin
   perform set_config('app.past_cancelled', v_id::text, true);
 
   -- Kontrola: przeszla jazda innego jezdzca nie moze zostac tknieta.
-  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id)
-  values (v_yesterday, v_joanna, 12, c_piotr)
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status)
+  values (v_yesterday, v_joanna, 12, c_piotr, 'active')
   returning id into v_id;
   perform set_config('app.piotr_ride', v_id::text, true);
 
@@ -147,8 +147,8 @@ begin
   select id into v_id from public.bookings
   where schedule_day_id = v_today_day and hour = v_hour and rider_id = c_anna and status = 'active';
   if v_id is null then
-    insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id)
-    values (v_today_day, v_joanna, v_hour, c_anna)
+    insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status)
+    values (v_today_day, v_joanna, v_hour, c_anna, 'active')
     returning id into v_id;
   end if;
   perform set_config('app.ongoing', v_id::text, true);
@@ -159,8 +159,8 @@ begin
     select id into v_id from public.bookings
     where schedule_day_id = v_today_day and hour = v_hour - 1 and rider_id = c_anna and status = 'active';
     if v_id is null then
-      insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id)
-      values (v_today_day, v_joanna, v_hour - 1, c_anna)
+      insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status)
+      values (v_today_day, v_joanna, v_hour - 1, c_anna, 'active')
       returning id into v_id;
     end if;
     perform set_config('app.ended_today', v_id::text, true);

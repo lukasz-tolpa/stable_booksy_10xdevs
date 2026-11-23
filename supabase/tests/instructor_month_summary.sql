@@ -72,21 +72,21 @@ begin
   where schedule_day_id = v_day and instructor_id = v_joanna and hour = 15;
 
   -- Joanna: Anna o 10 na Belli, Piotr o 11 bez konia, odwolany Piotr o 12, zanonimizowany o 13.
-  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, horse_id)
-  values (v_day, v_joanna, 10, '33333333-3333-3333-3333-333333333333', v_bella),
-         (v_day, v_joanna, 11, '44444444-4444-4444-4444-444444444444', null),
-         (v_day, v_joanna, 13, '33333333-3333-3333-3333-333333333333', null);
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, horse_id, status)
+  values (v_day, v_joanna, 10, '33333333-3333-3333-3333-333333333333', v_bella, 'active'),
+         (v_day, v_joanna, 11, '44444444-4444-4444-4444-444444444444', null, 'active'),
+         (v_day, v_joanna, 13, '33333333-3333-3333-3333-333333333333', null, 'active');
   insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status, cancelled_at, cancelled_by)
   values (v_day, v_joanna, 12, '44444444-4444-4444-4444-444444444444', 'cancelled', now(), 'rider');
   -- Jak po usunieciu profilu (ADR-0001): zapis zostaje, jezdzca juz nie ma.
   update public.bookings set rider_id = null
   where schedule_day_id = v_day and instructor_id = v_joanna and hour = 13;
   -- Joanna o 15 (slot treningowy): Katarzyna - kon pensjonatowy przydziela wyzwalacz (jedyny z pobytem).
-  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id)
-  values (v_day, v_joanna, 15, '12121212-1212-1212-1212-121212121212');
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status)
+  values (v_day, v_joanna, 15, '12121212-1212-1212-1212-121212121212', 'active');
   -- Karol: Piotr o 14 na Kasztanie - slot innego instruktora tego samego osrodka.
-  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, horse_id)
-  values (v_day, v_karol, 14, '44444444-4444-4444-4444-444444444444', v_kasztan);
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, horse_id, status)
+  values (v_day, v_karol, 14, '44444444-4444-4444-4444-444444444444', v_kasztan, 'active');
 
   -- Konto instruktora bez osrodka i konto Tomasza Lisa (instruktor innego osrodka).
   insert into auth.users (instance_id, id, aud, role, email, raw_user_meta_data, created_at, updated_at)

@@ -1,8 +1,11 @@
 import { expect, test } from "@playwright/test";
 import {
   RIDER_A_STATE,
+  RIDER_B_NAME,
   RIDER_B_STATE,
   STABLE_NAME,
+  STABLE_STATE,
+  acceptPendingBooking,
   asError,
   bookButton,
   openStable,
@@ -14,7 +17,8 @@ import {
  * Ryzyko #3 (odmowa) i klauzula „nie jest już zajęta" z ryzyka #5, w modelu limitu
  * miejsc (#41): próba zapisu na slot, w którym zabrakło miejsc, jest odrzucana —
  * dokładnie tak, jak spotyka to jeździec: miejsce było wolne, gdy strona się
- * załadowała, a zajął je ktoś inny, zanim kliknął. Wyrocznia: jeździec A widzi
+ * załadowała, a zajął je ktoś inny (zapis B przyjęty przez ośrodek — oczekujący miejsca nie zajmuje,
+ * ADR 0006), zanim kliknął. Wyrocznia: jeździec A widzi
  * konkretny polski komunikat (SB009 z wyzwalacza `bookings_seat_limit`
  * przetłumaczone), a w „Moich zapisach" nie ma wiersza — żadna ścieżka nie daje
  * sukcesu bez utrwalonego wiersza.
@@ -37,6 +41,8 @@ test("jeździec klikający nieświeży slot bez wolnych miejsc dostaje polską o
 }) => {
   const contextB = await browser.newContext({ storageState: RIDER_B_STATE });
   const pageB = await contextB.newPage();
+  const stableContext = await browser.newContext({ storageState: STABLE_STATE });
+  const stablePage = await stableContext.newPage();
   // Obiekt, nie `let`: przypisanie wewnątrz callbacka `test.step` jest niewidoczne
   // dla analizy przepływu TS, która zwęziłaby zmienną do `false`.
   const state = { bookedByB: false };
@@ -49,12 +55,15 @@ test("jeździec klikający nieświeży slot bez wolnych miejsc dostaje polską o
       await expect(bookButton(page, HOUR, INSTRUCTOR)).toBeVisible();
     });
 
-    await test.step("B zajmuje jedyne miejsce w drugim kontekście", async () => {
+    await test.step("B zajmuje jedyne miejsce w drugim kontekście, a ośrodek przyjmuje jego zapis", async () => {
       await openStable(pageB, STABLE_NAME);
       await bookButton(pageB, HOUR, INSTRUCTOR).click();
       await pageB.waitForURL(/sukces=1/);
-      await expect(slotItem(pageB, HOUR, INSTRUCTOR)).toContainText("Twój zapis");
+      await expect(slotItem(pageB, HOUR, INSTRUCTOR)).toContainText("Czekasz na przyjęcie");
       state.bookedByB = true;
+      await acceptPendingBooking(stablePage, { hour: HOUR, instructor: INSTRUCTOR, rider: RIDER_B_NAME });
+      await pageB.reload();
+      await expect(slotItem(pageB, HOUR, INSTRUCTOR)).toContainText("Twój zapis");
     });
 
     await test.step("A klika nieświeży przycisk i dostaje konkretną odmowę", async () => {
@@ -93,6 +102,7 @@ test("jeździec klikający nieświeży slot bez wolnych miejsc dostaje polską o
   }
 
   await contextB.close();
+  await stableContext.close();
 
   if (failure !== undefined) {
     throw failure;

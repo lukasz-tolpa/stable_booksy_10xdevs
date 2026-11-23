@@ -8,6 +8,7 @@ import {
   NOT_A_BOARDER_ON_TRAINING_SLOT,
   NOT_MY_BOARDING_HORSE,
   SCHEDULE_CHANGED,
+  SLOT_STARTED,
   TRAINING_HORSE_NOT_CHOSEN,
   bookingErrorMessage,
 } from "@/lib/bookings/errors";
@@ -98,10 +99,11 @@ describe("bookingErrorMessage", () => {
       [NOT_MY_BOARDING_HORSE, undefined],
       [TRAINING_HORSE_NOT_CHOSEN, undefined],
       [NO_HORSE_ON_RIDE_DAY, undefined],
+      [SLOT_STARTED, undefined],
       [undefined, undefined],
     ];
     const closedSet = new Set(refusals.map(([code, constraint]) => bookingErrorMessage(code, constraint)));
-    expect(closedSet.size).toBe(11);
+    expect(closedSet.size).toBe(12);
 
     const probes: [string | undefined, string | undefined][] = [
       ...refusals,
@@ -143,6 +145,12 @@ describe("bookingErrorMessage", () => {
     expect(bookingErrorMessage(NO_HORSE_ON_RIDE_DAY)).toBe(
       "Żaden z Twoich koni nie stoi w ośrodku w dniu jazdy, więc nie zapiszesz się na slot treningowy.",
     );
+  });
+
+  // Oracle: AC #124 — próg „slot się zaczął” przy zapisie pilnuje też baza (SB064); komunikat jak w endpoincie.
+  it("zapis na slot, który się zaczął (SB064), podpowiada późniejszy slot", () => {
+    expect(SLOT_STARTED).toBe("SB064");
+    expect(bookingErrorMessage(SLOT_STARTED)).toBe("Ta godzina już minęła. Wybierz późniejszy slot.");
   });
 
   // Słownik (GLOSSARY „Slot”): termin to nie slot.

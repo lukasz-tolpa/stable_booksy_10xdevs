@@ -108,14 +108,16 @@ test("panel ośrodka pokazuje liczby z ostatnich 30 dni zgodne ze Statystykami t
 });
 
 test("boczna kolumna „Ośrodek” prowadzi do sekcji ośrodka, każda z krótką informacją", async ({ page }) => {
-  await test.step("dziesięć linków z informacją i adresem sekcji", async () => {
+  await test.step("jedenaście linków z informacją i adresem sekcji", async () => {
     const side = page.getByRole("navigation", { name: "Ośrodek" });
     const links = side.getByRole("link");
-    await expect(links).toHaveCount(10);
+    await expect(links).toHaveCount(11);
 
     const expected: [RegExp, string][] = [
       [/^Grafik jutro: ułożony$/, `/osrodek/grafik?dzien=${seedDay()}`],
       [/^Zapisy dziś: \d+$/, "/osrodek/zapisy?dzien="],
+      // Zapisy oczekujące (#124); liczba czekających dochodzi w #128.
+      [/^Zapisy do przyjęcia$/, "/osrodek/zapisy-do-przyjecia"],
       [/^Konie \d+ aktywn\S+$/, "/osrodek/konie"],
       // Konie pensjonatowe ośrodka (#114) — seed ma jednego.
       [/^Pensjonariusze \d+ ko\S+ pensjonatow\S+$/, "/osrodek/pensjonariusze"],
@@ -154,11 +156,13 @@ test("na telefonie panel i sekcje ośrodka są pod ręką w dolnym pasku, a pane
   expect(overflow, "strona jest szersza niż ekran 390 px").toBeLessThanOrEqual(0);
 
   const tabBar = page.getByRole("navigation", { name: "Sekcje ośrodka" });
-  await test.step("dolny pasek ma panel i pięć sekcji, jest widoczny bez przewijania i zaznacza panel", async () => {
+  await test.step("dolny pasek ma panel i sześć sekcji, jest widoczny bez przewijania i zaznacza panel", async () => {
     await expect(tabBar.getByRole("link")).toHaveText([
       "Panel",
       "Grafik",
       "Zapisy",
+      // „Zapisy do przyjęcia” (#124) — w pasku krótko, pełna nazwa w etykiecie linku.
+      "Przyjęcia",
       "Konie",
       "Instruktorzy",
       "Statystyki",

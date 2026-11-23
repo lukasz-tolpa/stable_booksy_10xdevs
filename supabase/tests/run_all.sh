@@ -95,6 +95,7 @@ run_one "boarder_account_deletion.sql" run_sql boarder_account_deletion.sql
 run_one "boarding_fees.sql" run_sql boarding_fees.sql
 run_one "place_occupancy.sql" run_sql place_occupancy.sql
 run_one "booking_states.sql" run_sql booking_states.sql
+run_one "booking_acceptance.sql" run_sql booking_acceptance.sql
 run_one "concurrent_seat_booking.sh" bash "$SCRIPT_DIR/concurrent_seat_booking.sh"
 
 echo

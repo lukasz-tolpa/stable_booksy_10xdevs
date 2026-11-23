@@ -1,5 +1,5 @@
 import { OWNER_MONTH_SUMMARY_ROUTE, OWNER_SCHEDULE_ROUTE, OWNER_SETTLEMENTS_ROUTE } from "@/lib/auth/roles";
-import { STABLE_DAY_BOOKINGS_ROUTE } from "@/lib/bookings/stable-redirect";
+import { PENDING_BOOKINGS_ROUTE, STABLE_DAY_BOOKINGS_ROUTE } from "@/lib/bookings/stable-redirect";
 import { isActiveBooking } from "@/lib/bookings/status";
 import { INSTRUCTORS_ROUTE } from "@/lib/instructors/redirect";
 import { OWNER_PLACE_OCCUPANCY_ROUTE } from "@/lib/place-occupancy/routes";
@@ -335,6 +335,8 @@ export function composeSideColumn(input: SideColumnInput, now: Date = new Date()
       fact: today ? `${texts.todayPrefix} ${formatNumber(today.booked)}` : null,
       warn: false,
     },
+    // Liczba zapisów czekających na przyjęcie dochodzi w #128.
+    { name: texts.pendingBookings, href: PENDING_BOOKINGS_ROUTE, fact: null, warn: false },
     {
       name: texts.horses,
       href: HORSES_ROUTE,

@@ -50,8 +50,8 @@ begin
   values (v_day, v_karol, v_stable);
   insert into public.schedule_slots (schedule_day_id, instructor_id, hour, seats)
   select v_day, v_karol, h, case when h = 15 then 1 else 0 end from generate_series(10, 15) h;
-  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id)
-  values (v_day, v_karol, 15, '44444444-4444-4444-4444-444444444444');
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status)
+  values (v_day, v_karol, 15, '44444444-4444-4444-4444-444444444444', 'active');
 
   if p_grant then
     update public.instructors set arranges_schedule = true where id = v_joanna;

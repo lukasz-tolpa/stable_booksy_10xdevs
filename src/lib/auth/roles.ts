@@ -1,5 +1,5 @@
 import { INSTRUCTOR_LABEL, ROLE_LABELS, STABLE_LABEL, USER_ROLES } from "@/lib/auth/constants";
-import { STABLE_DAY_BOOKINGS_ROUTE } from "@/lib/bookings/stable-redirect";
+import { PENDING_BOOKINGS_ROUTE, STABLE_DAY_BOOKINGS_ROUTE } from "@/lib/bookings/stable-redirect";
 import { INSTRUCTORS_ROUTE } from "@/lib/instructors/redirect";
 import type { ScheduleCaller } from "@/lib/schedule/errors";
 import type { UserRole } from "@/types";
@@ -105,6 +105,8 @@ export interface InstructorLink {
 export interface InstructorTab {
   href: string;
   label: string;
+  /** Krótszy podpis w dolnym pasku sekcji na telefonie, gdy pełny się nie mieści. */
+  shortLabel?: string;
 }
 
 /** Zakładki przestrzeni instruktora wspólne dla stanów z uprawnieniem do grafiku i bez. */
@@ -119,6 +121,7 @@ const STABLE_SECTIONS: readonly InstructorTab[] = [
   { href: ROLE_HOME.instructor, label: "Panel" },
   { href: OWNER_SCHEDULE_ROUTE, label: "Grafik" },
   { href: STABLE_DAY_BOOKINGS_ROUTE, label: "Zapisy" },
+  { href: PENDING_BOOKINGS_ROUTE, label: "Zapisy do przyjęcia", shortLabel: "Przyjęcia" },
   { href: `${ROLE_HOME.instructor}/konie`, label: "Konie" },
   { href: INSTRUCTORS_ROUTE, label: "Instruktorzy" },
   { href: `${ROLE_HOME.instructor}/statystyki`, label: "Statystyki" },

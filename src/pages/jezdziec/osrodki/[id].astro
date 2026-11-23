@@ -1,5 +1,5 @@
 ---
-import { ArrowLeft, Check, ChevronLeft, ChevronRight, MapPin } from "lucide-react";
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, Hourglass, MapPin } from "lucide-react";
 import Banner from "@/components/Banner.astro";
 import Topbar from "@/components/Topbar.astro";
 import Card from "@/components/ui/Card.astro";
@@ -131,7 +131,9 @@ const dayLabel = formatLongDateWithYear(day);
 
           {success && (
             <div class="notice">
-              <Banner variant="success">Zapisano na jazdę. Twój slot jest oznaczony poniżej.</Banner>
+              <Banner variant="success">
+                Zapisano na jazdę. Zapis czeka na przyjęcie przez ośrodek — Twój slot jest oznaczony poniżej.
+              </Banner>
             </div>
           )}
           {error && (
@@ -224,8 +226,15 @@ const dayLabel = formatLongDateWithYear(day);
                                 </button>
                               </form>
                             ) : (
-                              <span class:list={["slot__tag", slot.status === "mine" && "slot__tag--mine"]}>
+                              <span
+                                class:list={[
+                                  "slot__tag",
+                                  slot.status === "mine" && "slot__tag--mine",
+                                  slot.status === "pending" && "slot__tag--pending",
+                                ]}
+                              >
                                 {slot.status === "mine" && <Check className="size-[15px]" aria-hidden="true" />}
+                                {slot.status === "pending" && <Hourglass className="size-[15px]" aria-hidden="true" />}
                                 {label}
                               </span>
                             )}
@@ -501,5 +510,10 @@ const dayLabel = formatLongDateWithYear(day);
   .slot__tag--mine {
     background: var(--accent-soft);
     color: var(--accent-ink);
+  }
+  /* Zapis oczekujący (#124): jeszcze nie „Twój zapis” — miodowy stan „czeka”, nie kasztan. */
+  .slot__tag--pending {
+    background: var(--warn-soft);
+    color: var(--warn-ink);
   }
 </style>

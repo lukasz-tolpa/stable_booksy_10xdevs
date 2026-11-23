@@ -1,16 +1,17 @@
 ---
-import { BarChart3, CalendarDays, ClipboardList, LayoutDashboard, Users } from "lucide-react";
+import { BarChart3, CalendarDays, ClipboardList, Hourglass, LayoutDashboard, Users } from "lucide-react";
 import { HorseHead } from "@/components/ui/HorseHead";
 import { currentSection, stableTabBarSections } from "@/lib/auth/roles";
 
-// Dolny pasek sekcji ośrodka na telefonie (spec #83): panel, Grafik, Zapisy, Konie, Instruktorzy
-// i Statystyki pod ręką na każdej stronie ośrodka, bez przewijania do bocznej kolumny panelu. Tylko
+// Dolny pasek sekcji ośrodka na telefonie (spec #83): panel, Grafik, Zapisy, Zapisy do przyjęcia
+// (spec 122), Konie, Instruktorzy i Statystyki pod ręką na każdej stronie ośrodka, bez przewijania do
+// bocznej kolumny panelu. Tylko
 // właściciel i tylko w przestrzeni ośrodka (na stronie głównej paska nie ma) — decyduje
 // @/lib/auth/roles, nie strona. Od 1000 px pasek znika: panel ma wtedy boczną kolumnę obok treści.
 const sections = stableTabBarSections(Astro.locals.instructorStanding, Astro.url.pathname);
 const current = currentSection(Astro.url.pathname, sections);
 // Ikony w kolejności `stableSections`; konie mają własną głowę konia (lucide nie ma nic końskiego).
-const ICONS = [LayoutDashboard, CalendarDays, ClipboardList, HorseHead, Users, BarChart3];
+const ICONS = [LayoutDashboard, CalendarDays, ClipboardList, Hourglass, HorseHead, Users, BarChart3];
 ---
 
 {
@@ -21,11 +22,15 @@ const ICONS = [LayoutDashboard, CalendarDays, ClipboardList, HorseHead, Users, B
           const Icon = ICONS[index];
           return (
             <li>
-              <a href={section.href} aria-current={section.href === current ? "page" : undefined}>
+              <a
+                href={section.href}
+                aria-current={section.href === current ? "page" : undefined}
+                aria-label={section.shortLabel ? section.label : undefined}
+              >
                 <span class="icon">
                   <Icon className="size-5" />
                 </span>
-                <span class="label">{section.label}</span>
+                <span class="label">{section.shortLabel ?? section.label}</span>
               </a>
             </li>
           );
@@ -50,10 +55,10 @@ const ICONS = [LayoutDashboard, CalendarDays, ClipboardList, HorseHead, Users, B
   ul {
     list-style: none;
     margin: 0 auto;
-    padding: 0 2px;
+    padding: 0;
     max-width: 600px;
     display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(7, minmax(0, 1fr));
   }
   a {
     display: flex;
@@ -64,7 +69,8 @@ const ICONS = [LayoutDashboard, CalendarDays, ClipboardList, HorseHead, Users, B
     min-height: 56px;
     padding: 6px 0;
     border-radius: 12px;
-    font-size: 10.5px;
+    font-size: 10px;
+    letter-spacing: -0.01em;
     font-weight: 600;
     color: var(--muted);
     transition: color 0.15s;
@@ -81,7 +87,7 @@ const ICONS = [LayoutDashboard, CalendarDays, ClipboardList, HorseHead, Users, B
   }
   .icon {
     display: inline-flex;
-    padding: 2px 12px;
+    padding: 2px 10px;
     border-radius: 999px;
     transition: background 0.15s;
   }
