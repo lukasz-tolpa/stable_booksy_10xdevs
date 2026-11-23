@@ -428,7 +428,7 @@ export async function getPendingBookings(client: Client): Promise<PendingBooking
  * Przyjęcie zapisu oczekującego przez właściciela — RPC `accept_booking` (zapis staje się aktywny i zajmuje
  * miejsce). Odmowy podnosi baza: SB009 brak miejsc (także równoczesne przyjęcia), SB064 slot się zaczął,
  * SB065 zapis nie jest oczekujący, SB066 cudzy albo nieistniejący zapis, 23503 slotu nie ma w grafiku —
- * wołający tłumaczy je przez `acceptanceErrorMessage`. Zwraca stan zapisu po zmianie (odczyt zwrotny funkcji) —
+ * wołający tłumaczy je przez `decisionRefusal`. Zwraca stan zapisu po zmianie (odczyt zwrotny funkcji) —
  * endpoint ogłasza sukces dopiero, gdy to zapis aktywny.
  */
 export async function acceptBooking(client: Client, bookingId: number): Promise<BookingStatus> {
@@ -445,7 +445,7 @@ export async function acceptBooking(client: Client, bookingId: number): Promise<
  * Odrzucenie zapisu oczekującego przez właściciela z powodem, który jeździec zobaczy — RPC `reject_booking`
  * (zapis staje się odrzucony, źródło „ośrodek ręcznie”). Odmowy podnosi baza: SB070 brak powodu, SB071 za długi
  * powód, SB064 slot się zaczął, SB065 zapis nie jest oczekujący, SB066 cudzy albo nieistniejący zapis —
- * wołający tłumaczy je przez `rejectionErrorMessage`. Zwraca stan zapisu po zmianie (odczyt zwrotny funkcji) —
+ * wołający tłumaczy je przez `decisionRefusal`. Zwraca stan zapisu po zmianie (odczyt zwrotny funkcji) —
  * endpoint ogłasza sukces dopiero, gdy to zapis odrzucony.
  */
 export async function rejectBooking(client: Client, bookingId: number, reason: string): Promise<BookingStatus> {
