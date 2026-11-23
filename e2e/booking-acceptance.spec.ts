@@ -47,7 +47,12 @@ test("zapis jeźdźca czeka na przyjęcie, a po przyjęciu przez ośrodek jest a
       await bookButton(page, HOUR, INSTRUCTOR).click();
       await page.waitForURL(/sukces=1/);
       state.booked = true;
-      await expect(page.getByText("Zapis czeka na przyjęcie przez ośrodek", { exact: false })).toBeVisible();
+      await expect(
+        page.getByText(
+          "Zapisano na jazdę. Zapis czeka na przyjęcie przez ośrodek — Twój slot jest oznaczony poniżej.",
+          { exact: true },
+        ),
+      ).toBeVisible();
 
       await page.reload();
       const slot = slotItem(page, HOUR, INSTRUCTOR);

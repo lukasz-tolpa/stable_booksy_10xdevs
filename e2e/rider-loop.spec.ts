@@ -112,7 +112,12 @@ test("jeździec przechodzi pełną pętlę: grafik ośrodka → slot instruktora
     await test.step("zapis u Karola o 13:00 czeka na przyjęcie, bez wyboru konia", async () => {
       await bookButton(page, HOUR, INSTRUCTOR).click();
       await page.waitForURL(/sukces=1/);
-      await expect(page.getByText("Zapisano na jazdę.", { exact: false })).toBeVisible();
+      await expect(
+        page.getByText(
+          "Zapisano na jazdę. Zapis czeka na przyjęcie przez ośrodek — Twój slot jest oznaczony poniżej.",
+          { exact: true },
+        ),
+      ).toBeVisible();
       await expect(slotItem(page, HOUR, INSTRUCTOR)).toContainText("Czekasz na przyjęcie");
       state.booked = true;
       await expect(bookButton(page, HOUR, INSTRUCTOR)).toHaveCount(0);

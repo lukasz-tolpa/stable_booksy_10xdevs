@@ -56,7 +56,9 @@ test("ośrodek odrzuca zapis z powodem, jeździec go widzi i może zapisać się
       await row.getByLabel(`Powód odrzucenia — ${RIDER_B_NAME}`).fill(REASON);
       await row.getByRole("button", { name: "Potwierdź odrzucenie", exact: true }).click();
       await stablePage.waitForURL(/sukces=odrzucenie/);
-      await expect(stablePage.getByText("Zapis odrzucony.", { exact: false })).toBeVisible();
+      await expect(
+        stablePage.getByText("Zapis odrzucony. Jeździec zobaczy powód w swoich zapisach.", { exact: true }),
+      ).toBeVisible();
       await expect(pendingBookingRow(stablePage, HOUR, INSTRUCTOR, RIDER_B_NAME)).toHaveCount(0);
     });
 

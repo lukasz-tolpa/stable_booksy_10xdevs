@@ -131,7 +131,9 @@ export async function acceptPendingBooking(
   const row = pendingBookingRow(stablePage, booking.hour, booking.instructor, booking.rider);
   await row.getByRole("button", { name: "Przyjmij", exact: true }).click();
   await stablePage.waitForURL(/sukces=przyjecie/);
-  await expect(stablePage.getByText("Zapis przyjęty.", { exact: false })).toBeVisible();
+  await expect(
+    stablePage.getByRole("status").getByText("Zapis przyjęty. Jeździec ma miejsce w slocie.", { exact: true }),
+  ).toBeVisible();
   await expect(pendingBookingRow(stablePage, booking.hour, booking.instructor, booking.rider)).toHaveCount(0);
 }
 
