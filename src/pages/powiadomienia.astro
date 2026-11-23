@@ -11,6 +11,7 @@ import { formatClockHour, formatDateTime, formatLongDate } from "@/lib/format";
 import { logError } from "@/lib/log";
 import {
   composeNotifications,
+  emptyNotificationsHint,
   notificationViewerOf,
   type NotificationItem,
   type NotificationViewer,
@@ -49,12 +50,6 @@ if (supabase && profile && viewer) {
 } else {
   loadFailed = true;
 }
-
-const EMPTY_HINT: Record<NotificationViewer, string> = {
-  rider: "Gdy ośrodek przyjmie, odrzuci albo odwoła Twój zapis, zobaczysz to tutaj.",
-  owner: "Gdy jeździec zapisze się na jazdę albo odwoła przyjęty zapis, zobaczysz to tutaj.",
-  instructor: "Gdy jeździec zapisze się na Twój slot albo odwoła przyjęty zapis, zobaczysz to tutaj.",
-};
 ---
 
 <Layout title="Powiadomienia">
@@ -74,16 +69,16 @@ const EMPTY_HINT: Record<NotificationViewer, string> = {
           <Card>
             <EmptyState>
               <p>Nie masz jeszcze powiadomień.</p>
-              {viewer && <p>{EMPTY_HINT[viewer]}</p>}
+              {viewer && <p>{emptyNotificationsHint(viewer)}</p>}
             </EmptyState>
           </Card>
         </div>
       ) : (
         <div class="section">
           <Card padding={8}>
-            <ul class="items">
+            <ul class="items" aria-label="Powiadomienia">
               {items.map((item) => (
-                <li data-notification={item.kind} class:list={{ unread: item.unread }}>
+                <li class:list={{ unread: item.unread }}>
                   <a href={item.href}>
                     <span class="item__body">
                       <span class="item__head">

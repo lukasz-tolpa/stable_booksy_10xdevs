@@ -1,11 +1,14 @@
-import { INSTRUCTOR_HOME_ROUTE, RIDER_BOOKINGS_ROUTE, type InstructorStanding } from "@/lib/auth/roles";
+import {
+  INSTRUCTOR_HOME_ROUTE,
+  RIDER_BOOKINGS_ROUTE,
+  STABLE_DAY_BOOKINGS_ROUTE,
+  pendingBookingsRouteOf,
+  stableViewerOf,
+  type InstructorStanding,
+  type StableViewer,
+} from "@/lib/auth/roles";
 import { UNKNOWN_RIDER } from "@/lib/bookings/pending";
 import { slotStartsAt } from "@/lib/bookings/slots";
-import {
-  INSTRUCTOR_PENDING_BOOKINGS_ROUTE,
-  PENDING_BOOKINGS_ROUTE,
-  STABLE_DAY_BOOKINGS_ROUTE,
-} from "@/lib/bookings/stable-redirect";
 import { bookingStateAt } from "@/lib/bookings/status";
 import { formatBadgeCount, formatCount, type PluralForms } from "@/lib/format";
 import type { UserRole } from "@/types";
@@ -65,18 +68,27 @@ export interface PendingRiderBooking {
   stableName: string;
 }
 
-/** Kto ogląda listę: jeździec, właściciel ośrodka albo instruktor z kontem. */
-export type NotificationViewer = "rider" | "owner" | "instructor";
+/** Kto ogląda listę: jeździec albo strona ośrodka (właściciel, instruktor z kontem — `StableViewer`). */
+export type NotificationViewer = "rider" | StableViewer;
 
 /**
  * Odbiorca powiadomień według konta, albo `null` — konto bez powiadomień (konto instruktora bez ośrodka,
- * zdezaktywowany instruktor, nieustalone powiązanie): bez dzwonka i bez strony.
+ * zdezaktywowany instruktor, nieustalone powiązanie): bez dzwonka i bez strony. Stronę ośrodka rozstrzyga mapa
+ * stanów konta (`stableViewerOf`).
  */
 export function notificationViewerOf(role: UserRole, standing: InstructorStanding | null): NotificationViewer | null {
-  if (role === "rider") return "rider";
-  if (standing === "owner") return "owner";
-  if (standing === "instructor" || standing === "arranging-instructor") return "instructor";
-  return null;
+  return role === "rider" ? "rider" : stableViewerOf(standing);
+}
+
+const EMPTY_HINTS: Record<NotificationViewer, string> = {
+  rider: "Gdy ośrodek przyjmie, odrzuci albo odwoła Twój zapis, zobaczysz to tutaj.",
+  owner: "Gdy jeździec zapisze się na jazdę albo odwoła przyjęty zapis, zobaczysz to tutaj.",
+  instructor: "Gdy jeździec zapisze się na Twój slot albo odwoła przyjęty zapis, zobaczysz to tutaj.",
+};
+
+/** Podpowiedź pustej listy „Powiadomień”: o czym oglądający dostaje powiadomienia. */
+export function emptyNotificationsHint(viewer: NotificationViewer): string {
+  return EMPTY_HINTS[viewer];
 }
 
 export interface NotificationsInput {
@@ -126,10 +138,8 @@ const STABLE_KINDS: readonly NotificationKind[] = ["booking_pending", "booking_c
  * „Moje sloty” (odwołanie).
  */
 function hrefOf(kind: NotificationKind, day: string, viewer: NotificationViewer): string {
-  if (!STABLE_KINDS.includes(kind)) return RIDER_BOOKINGS_ROUTE;
-  if (kind === "booking_pending") {
-    return viewer === "instructor" ? INSTRUCTOR_PENDING_BOOKINGS_ROUTE : PENDING_BOOKINGS_ROUTE;
-  }
+  if (viewer === "rider" || !STABLE_KINDS.includes(kind)) return RIDER_BOOKINGS_ROUTE;
+  if (kind === "booking_pending") return pendingBookingsRouteOf(viewer);
   if (viewer === "instructor") return INSTRUCTOR_HOME_ROUTE;
   return `${STABLE_DAY_BOOKINGS_ROUTE}?${new URLSearchParams({ dzien: day }).toString()}`;
 }

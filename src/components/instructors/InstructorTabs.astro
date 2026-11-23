@@ -7,17 +7,18 @@ import { navCounter } from "@/lib/bookings/waiting";
 // u każdego instruktora z kontem, przed podsumowaniem „Grafik” u instruktora z uprawnieniem do układania grafiku
 // (#79). Pusta lista (właściciel, zdezaktywowany) — pasek się nie pokazuje; mapa stanów konta w @/lib/auth/roles
 // decyduje, nie strona.
-const tabs = instructorTabs(Astro.locals.instructorStanding);
+const standing = Astro.locals.instructorStanding;
 const current = Astro.url.pathname.replace(/\/$/, "");
-// Zakładka z licznikiem (#128: zapisy do przyjęcia swoich slotów) — jeden odczyt na żądanie.
-const pendingCount = tabs.some((tab) => tab.counter === "pendingBookings") ? await loadPendingCount(Astro) : null;
+// Plakietka „Zapisów do przyjęcia” (#128: zapisy na swoje sloty) — jeden odczyt na żądanie, tylko gdy pasek jest.
+const pendingCount = instructorTabs(standing).length > 0 ? await loadPendingCount(Astro) : null;
+const tabs = instructorTabs(standing, pendingCount);
 ---
 
 {
   tabs.length > 0 && (
     <nav class="tabs" aria-label="Przestrzeń instruktora">
       {tabs.map((tab) => {
-        const counter = tab.counter === "pendingBookings" ? navCounter(tab.label, pendingCount) : null;
+        const counter = navCounter(tab.label, tab.badge ?? null);
         return (
           <a href={tab.href} aria-current={tab.href === current ? "page" : undefined} aria-label={counter?.label}>
             {tab.label}

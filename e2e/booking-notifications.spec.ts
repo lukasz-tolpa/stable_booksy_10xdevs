@@ -44,7 +44,7 @@ async function openNotifications(page: Page) {
 }
 
 function newestNotification(page: Page) {
-  return page.locator("li[data-notification]").first();
+  return page.getByRole("list", { name: "Powiadomienia", exact: true }).getByRole("listitem").first();
 }
 
 test("zapis i przyjęcie zapisu powiadamiają ośrodek i jeźdźca", async ({ page, browser }) => {

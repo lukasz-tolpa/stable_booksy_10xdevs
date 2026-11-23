@@ -1,5 +1,10 @@
-import { SIGN_IN_ROUTE, homeRouteForRole, isUserRole, signupRouteForRole } from "@/lib/auth/roles";
-import { STABLE_DAY_BOOKINGS_ROUTE } from "@/lib/bookings/stable-redirect";
+import {
+  SIGN_IN_ROUTE,
+  STABLE_DAY_BOOKINGS_ROUTE,
+  homeRouteForRole,
+  isUserRole,
+  signupRouteForRole,
+} from "@/lib/auth/roles";
 import type { UserRole } from "@/types";
 
 /** Przycisk połowy strony głównej: napis i adres. */

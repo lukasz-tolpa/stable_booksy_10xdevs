@@ -1,7 +1,7 @@
 ---
 import { BarChart3, CalendarDays, ClipboardList, Hourglass, LayoutDashboard, Users } from "lucide-react";
 import { HorseHead } from "@/components/ui/HorseHead";
-import { currentSection, stableTabBarSections } from "@/lib/auth/roles";
+import { currentSection, stableTabBarSections, type SectionIcon } from "@/lib/auth/roles";
 import { loadPendingCount } from "@/lib/bookings/pending-count";
 import { navCounter } from "@/lib/bookings/waiting";
 
@@ -11,22 +11,32 @@ import { navCounter } from "@/lib/bookings/waiting";
 // właściciel i tylko w przestrzeni ośrodka (na stronie głównej paska nie ma) — decyduje
 // @/lib/auth/roles, nie strona. Od 1000 px pasek znika: panel ma wtedy boczną kolumnę obok treści.
 // „Zapisy do przyjęcia” mają licznik czekających (#128) — plakietka na ikonie, pełna liczba w podpisie.
-const sections = stableTabBarSections(Astro.locals.instructorStanding, Astro.url.pathname);
-const current = currentSection(Astro.url.pathname, sections);
-const pendingCount = sections.some((section) => section.counter === "pendingBookings")
-  ? await loadPendingCount(Astro)
-  : null;
-// Ikony w kolejności `stableSections`; konie mają własną głowę konia (lucide nie ma nic końskiego).
-const ICONS = [LayoutDashboard, CalendarDays, ClipboardList, Hourglass, HorseHead, Users, BarChart3];
+const { instructorStanding } = Astro.locals;
+const { pathname } = Astro.url;
+// Plakietka „Zapisów do przyjęcia” — jeden odczyt na żądanie, tylko gdy pasek jest na tej stronie.
+const pendingCount =
+  stableTabBarSections(instructorStanding, pathname).length > 0 ? await loadPendingCount(Astro) : null;
+const sections = stableTabBarSections(instructorStanding, pathname, pendingCount);
+const current = currentSection(pathname, sections);
+// Ikona każdej sekcji po jej kluczu (`InstructorTab.icon`); konie mają własną głowę konia (lucide nie ma nic końskiego).
+const ICONS: Record<SectionIcon, typeof LayoutDashboard | typeof HorseHead> = {
+  panel: LayoutDashboard,
+  schedule: CalendarDays,
+  bookings: ClipboardList,
+  "pending-bookings": Hourglass,
+  horses: HorseHead,
+  instructors: Users,
+  stats: BarChart3,
+};
 ---
 
 {
   sections.length > 0 && (
     <nav class="tab-bar" aria-label="Sekcje ośrodka">
       <ul>
-        {sections.map((section, index) => {
-          const Icon = ICONS[index];
-          const counter = section.counter === "pendingBookings" ? navCounter(section.label, pendingCount) : null;
+        {sections.map((section) => {
+          const Icon = ICONS[section.icon ?? "panel"];
+          const counter = navCounter(section.label, section.badge ?? null);
           return (
             <li>
               <a

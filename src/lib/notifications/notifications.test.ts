@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   bellBadge,
+  emptyNotificationsHint,
   bellLabel,
   composeNotifications,
   countUnread,
@@ -223,6 +224,20 @@ describe("notificationViewerOf", () => {
     ["instructor", null, null],
   ] as const)("konto %s (%s) — %s", (role, standing, viewer) => {
     expect(notificationViewerOf(role, standing)).toBe(viewer);
+  });
+});
+
+describe("emptyNotificationsHint", () => {
+  it("pusta lista mówi każdemu, o czym dostaje powiadomienia", () => {
+    expect(emptyNotificationsHint("rider")).toBe(
+      "Gdy ośrodek przyjmie, odrzuci albo odwoła Twój zapis, zobaczysz to tutaj.",
+    );
+    expect(emptyNotificationsHint("owner")).toBe(
+      "Gdy jeździec zapisze się na jazdę albo odwoła przyjęty zapis, zobaczysz to tutaj.",
+    );
+    expect(emptyNotificationsHint("instructor")).toBe(
+      "Gdy jeździec zapisze się na Twój slot albo odwoła przyjęty zapis, zobaczysz to tutaj.",
+    );
   });
 });
 

@@ -6,6 +6,8 @@ import {
   instructorStandingOf,
   instructorTabs,
   currentSection,
+  pendingBookingsRouteFor,
+  stableViewerOf,
   isLegacyHomeRoute,
   isStableSetupPath,
   isUserRole,
@@ -372,7 +374,7 @@ describe("instructorTabs", () => {
   it("instruktor z uprawnieniem ma zakładki „Moje sloty”, „Zapisy do przyjęcia”, „Grafik” i „Podsumowanie miesiąca”", () => {
     expect(instructorTabs("arranging-instructor")).toEqual([
       { href: "/instruktor", label: "Moje sloty" },
-      { href: "/instruktor/zapisy-do-przyjecia", label: "Zapisy do przyjęcia", counter: "pendingBookings" },
+      { href: "/instruktor/zapisy-do-przyjecia", label: "Zapisy do przyjęcia" },
       { href: "/instruktor/grafik", label: "Grafik" },
       { href: "/instruktor/podsumowanie", label: "Podsumowanie miesiąca" },
     ]);
@@ -381,9 +383,20 @@ describe("instructorTabs", () => {
   it("instruktor bez uprawnienia ma zakładki „Moje sloty”, „Zapisy do przyjęcia” i „Podsumowanie miesiąca”, bez „Grafik”", () => {
     expect(instructorTabs("instructor")).toEqual([
       { href: "/instruktor", label: "Moje sloty" },
-      { href: "/instruktor/zapisy-do-przyjecia", label: "Zapisy do przyjęcia", counter: "pendingBookings" },
+      { href: "/instruktor/zapisy-do-przyjecia", label: "Zapisy do przyjęcia" },
       { href: "/instruktor/podsumowanie", label: "Podsumowanie miesiąca" },
     ]);
+  });
+
+  // #128: liczba zapisów, które czekają na decyzję instruktora, siedzi na jego „Zapisach do przyjęcia”.
+  it("liczba zapisów do przyjęcia trafia na plakietkę „Zapisów do przyjęcia”, inne zakładki jej nie mają", () => {
+    const tabs = instructorTabs("instructor", 3);
+    expect(tabs.map((tab) => [tab.label, tab.badge])).toEqual([
+      ["Moje sloty", undefined],
+      ["Zapisy do przyjęcia", 3],
+      ["Podsumowanie miesiąca", undefined],
+    ]);
+    expect(instructorTabs("arranging-instructor", 0).find((tab) => tab.badge !== undefined)?.badge).toBe(0);
   });
 
   it("pozostałe stany nie mają zakładek instruktora", () => {
@@ -472,19 +485,19 @@ describe("scheduleCallerFor", () => {
 describe("stableSections", () => {
   it("właściciel ma panel i sześć sekcji ośrodka w kolejności nawigacji", () => {
     expect(stableSections("owner")).toEqual([
-      { href: "/osrodek", label: "Panel" },
-      { href: "/osrodek/grafik", label: "Grafik" },
-      { href: "/osrodek/zapisy", label: "Zapisy" },
-      // #124: zapisy oczekujące czekają na decyzję ośrodka; w dolnym pasku krótko, z licznikiem czekających (#128).
+      { href: "/osrodek", label: "Panel", icon: "panel" },
+      { href: "/osrodek/grafik", label: "Grafik", icon: "schedule" },
+      { href: "/osrodek/zapisy", label: "Zapisy", icon: "bookings" },
+      // #124: zapisy oczekujące czekają na decyzję ośrodka; w dolnym pasku krótko.
       {
         href: "/osrodek/zapisy-do-przyjecia",
         label: "Zapisy do przyjęcia",
         shortLabel: "Przyjęcia",
-        counter: "pendingBookings",
+        icon: "pending-bookings",
       },
-      { href: "/osrodek/konie", label: "Konie" },
-      { href: "/osrodek/instruktorzy", label: "Instruktorzy" },
-      { href: "/osrodek/statystyki", label: "Statystyki" },
+      { href: "/osrodek/konie", label: "Konie", icon: "horses" },
+      { href: "/osrodek/instruktorzy", label: "Instruktorzy", icon: "instructors" },
+      { href: "/osrodek/statystyki", label: "Statystyki", icon: "stats" },
     ]);
   });
 
@@ -525,6 +538,14 @@ describe("stableTabBarSections", () => {
     expect(stableTabBarSections("owner", "/osrodek/konie")).toHaveLength(7);
   });
 
+  it("liczba zapisów do przyjęcia trafia na plakietkę „Zapisów do przyjęcia” w pasku", () => {
+    const sections = stableTabBarSections("owner", "/osrodek/konie", 12);
+    expect(
+      sections.filter((section) => section.badge !== undefined).map((section) => [section.href, section.badge]),
+    ).toEqual([["/osrodek/zapisy-do-przyjecia", 12]]);
+    expect(stableTabBarSections("owner", "/osrodek").every((section) => section.badge === undefined)).toBe(true);
+  });
+
   it("na stronie „Zapisy do przyjęcia” pasek zaznacza tę sekcję, a nie „Zapisy”", () => {
     const sections = stableTabBarSections("owner", "/osrodek/zapisy-do-przyjecia");
     expect(currentSection("/osrodek/zapisy-do-przyjecia", sections)).toBe("/osrodek/zapisy-do-przyjecia");
@@ -538,5 +559,30 @@ describe("stableTabBarSections", () => {
   it("inne konta nie mają dolnego paska także w przestrzeni ośrodka", () => {
     expect(stableTabBarSections("instructor", "/osrodek")).toEqual([]);
     expect(stableTabBarSections(null, "/osrodek")).toEqual([]);
+  });
+});
+
+describe("pendingBookingsRouteFor", () => {
+  it("instruktor z kontem wraca na swoje „Zapisy do przyjęcia” — z uprawnieniem do układania grafiku i bez", () => {
+    expect(pendingBookingsRouteFor("instructor")).toBe("/instruktor/zapisy-do-przyjecia");
+    expect(pendingBookingsRouteFor("arranging-instructor")).toBe("/instruktor/zapisy-do-przyjecia");
+  });
+
+  it("właściciel i pozostałe konta — „Zapisy do przyjęcia” ośrodka", () => {
+    expect(pendingBookingsRouteFor("owner")).toBe("/osrodek/zapisy-do-przyjecia");
+    expect(pendingBookingsRouteFor("inactive")).toBe("/osrodek/zapisy-do-przyjecia");
+    expect(pendingBookingsRouteFor("none")).toBe("/osrodek/zapisy-do-przyjecia");
+    expect(pendingBookingsRouteFor(null)).toBe("/osrodek/zapisy-do-przyjecia");
+  });
+});
+
+describe("stableViewerOf", () => {
+  it("właściciel ogląda zapisy jako ośrodek, instruktor z kontem — jako instruktor; pozostałe konta — wcale", () => {
+    expect(stableViewerOf("owner")).toBe("owner");
+    expect(stableViewerOf("instructor")).toBe("instructor");
+    expect(stableViewerOf("arranging-instructor")).toBe("instructor");
+    expect(stableViewerOf("inactive")).toBeNull();
+    expect(stableViewerOf("none")).toBeNull();
+    expect(stableViewerOf(null)).toBeNull();
   });
 });
