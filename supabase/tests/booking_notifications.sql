@@ -2,7 +2,8 @@
 --
 -- Gwarancje:
 --   * powiadomienie powstaje w bazie w tej samej transakcji co zmiana stanu zapisu, niezaleznie od sciezki
---     (zapis z aplikacji, funkcje przyjecia i odrzucenia, automatyczne odrzucenia private.reject_bookings)
+--     (zapis z aplikacji, funkcje przyjecia i odrzucenia, „Brak miejsc” przy przyjeciu, zmiana grafiku przez
+--     public.save_schedule_day - #127)
 --   * osrodek: nowy zapis oczekujacy i odwolanie zapisu aktywnego przez jezdzca - odbiorcy: wlasciciel osrodka
 --     oraz instruktor z kontem, gdy slot jest jego (wlasciciel prowadzacy slot - jedno powiadomienie)
 --   * jezdziec: przyjecie, odrzucenie z powodem (reczne, „Brak miejsc”, „Ośrodek zmienił grafik”), odwolanie
@@ -71,6 +72,8 @@ begin
   perform set_config('app.joanna', v_joanna::text, true);
   perform set_config('app.karol', v_karol::text, true);
   perform set_config('app.marek', v_marek::text, true);
+  perform set_config('app.horses', (select array_agg(h.id order by h.name)::text from public.horses h
+                                    where h.stable_id = v_stable and h.name in ('Bella', 'Kasztan')), true);
   perform set_config('app.anna_11', (select b.id::text from public.bookings b
                                      where b.schedule_day_id = v_day and b.instructor_id = v_joanna
                                        and b.hour = 11), true);
@@ -210,7 +213,8 @@ set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","r
 select public.reject_booking(current_setting('app.zofia_14')::bigint, '  Karol tego dnia choruje  ');
 reset role;
 
--- Celina czeka u Joanny o 15; slot znika z grafiku (#127 woła private.reject_bookings ze zrodlem schedule_change).
+-- Celina czeka u Joanny o 15; wlasciciel zapisuje grafik dnia z limitem zero o 15 u Joanny (#127: zmiana grafiku
+-- odrzuca zapisy oczekujace na slot, ktory znika).
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"cdcdcdcd-cdcd-cdcd-cdcd-cdcdcdcdcdcd","role":"authenticated"}';
 with b as (
@@ -222,7 +226,22 @@ with b as (
 select set_config('app.celina_15', b.id::text, true) as ignored from b \gset
 reset role;
 
-select private.reject_bookings(array[current_setting('app.celina_15')::bigint], 'schedule_change');
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
+select public.save_schedule_day(
+  current_date + 1, 10, 16,
+  current_setting('app.horses')::bigint[],
+  array[current_setting('app.joanna')::bigint, current_setting('app.karol')::bigint,
+        current_setting('app.marek')::bigint],
+  (select jsonb_agg(jsonb_build_object('instructor_id', current_setting('app.joanna')::bigint, 'hour', h,
+                                       'seats', case when h = 15 then 0 else 1 end))
+   from generate_series(10, 15) h)
+  || jsonb_build_array(
+    jsonb_build_object('instructor_id', current_setting('app.karol')::bigint, 'hour', 14, 'seats', 1),
+    jsonb_build_object('instructor_id', current_setting('app.marek')::bigint, 'hour', 12, 'seats', 1)
+  )
+);
+reset role;
 
 do $$
 declare
@@ -242,7 +261,10 @@ begin
   if v_reason is distinct from 'Ośrodek zmienił grafik' then
     raise exception 'FAIL 10: odrzucenie przy zmianie grafiku bez powiadomienia z powodem (%)', v_reason;
   end if;
-  raise notice 'PASS: odrzucenie „Ośrodek zmienił grafik” - powiadomienie jezdzca z powodem';
+  if (select status from public.bookings where id = current_setting('app.zofia_12')::bigint) <> 'pending' then
+    raise exception 'FAIL 10a: zapis grafiku odrzucil zapis oczekujacy na slot, ktory zostal';
+  end if;
+  raise notice 'PASS: zmiana grafiku (save_schedule_day) odrzuca zapis „Ośrodek zmienił grafik” - powiadomienie jezdzca z powodem';
 end $$;
 
 \echo '=== Wycofanie zapisu oczekujacego nie powiadamia nikogo ==='
