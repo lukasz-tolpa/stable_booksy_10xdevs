@@ -9,7 +9,10 @@
 export const ACCEPT_SLOT_STARTED = "SB064";
 /** Zapis nie jest już oczekujący (przyjęty, odwołany przez jeźdźca albo odrzucony — także „Brak miejsc”, #125). */
 export const ACCEPT_NOT_PENDING = "SB065";
-/** Wołający nie jest właścicielem ośrodka zapisu albo zapisu nie ma — bez wyroczni istnienia. */
+/**
+ * Wołający nie decyduje o tym zapisie (nie jest właścicielem ośrodka zapisu ani instruktorem jego slotu, #126)
+ * albo zapisu nie ma — bez wyroczni istnienia.
+ */
 export const ACCEPT_NOT_ALLOWED = "SB066";
 /** Brak wolnych miejsc w slocie — wyzwalacz `bookings_seat_limit`. */
 const NO_SEATS_LEFT = "SB009";
@@ -18,6 +21,12 @@ const SLOT_GONE = "23503";
 
 export const ACCEPTANCE_FAILED = "Nie udało się przyjąć zapisu. Spróbuj ponownie.";
 
+/**
+ * SB066 przy przyjęciu i odrzuceniu: to samo zdanie dla właściciela (cały ośrodek) i instruktora z kontem
+ * (jego sloty, #126) — każdy z nich ma swoje „Zapisy do przyjęcia”.
+ */
+export const NOT_AMONG_MY_PENDING_BOOKINGS = "Nie znaleziono tego zapisu wśród Twoich zapisów do przyjęcia.";
+
 const MESSAGES = new Map<string, string>([
   [NO_SEATS_LEFT, "W tym slocie nie ma już wolnych miejsc — przyjęcie ponad limit miejsc nie jest możliwe."],
   [ACCEPT_SLOT_STARTED, "Ten slot już się zaczął — zapisu nie można już przyjąć."],
@@ -25,7 +34,7 @@ const MESSAGES = new Map<string, string>([
     ACCEPT_NOT_PENDING,
     "Ten zapis nie czeka już na przyjęcie — jeździec mógł go odwołać albo zapis został przyjęty lub odrzucony.",
   ],
-  [ACCEPT_NOT_ALLOWED, "Nie znaleziono zapisu do przyjęcia w Twoim ośrodku."],
+  [ACCEPT_NOT_ALLOWED, NOT_AMONG_MY_PENDING_BOOKINGS],
   [SLOT_GONE, "Tego slotu nie ma już w grafiku — zapisu nie można przyjąć."],
 ]);
 

@@ -1,28 +1,16 @@
 ---
-import { Check } from "lucide-react";
 import Layout from "@/layouts/Layout.astro";
-import Banner from "@/components/Banner.astro";
-import RejectBookingForm from "@/components/bookings/RejectBookingForm.astro";
+import PendingBookingsBody from "@/components/bookings/PendingBookingsBody.astro";
 import Topbar from "@/components/Topbar.astro";
-import Card from "@/components/ui/Card.astro";
-import EmptyState from "@/components/ui/EmptyState.astro";
-import GhostButton from "@/components/ui/GhostButton.astro";
-import FailureState from "@/components/ui/FailureState.astro";
-import Tag from "@/components/ui/Tag.astro";
 import { composePendingBookings, type PendingBookingsDay } from "@/lib/bookings/pending";
 import { getPendingBookings } from "@/lib/bookings/queries";
 import { pendingBookingsSuccessMessage } from "@/lib/bookings/stable-redirect";
-import { formatClockHour, formatFreeSeats, formatLongDateWithYear } from "@/lib/format";
 import { logError } from "@/lib/log";
-import { SLOT_KIND, TRAINING_SLOT_TAG } from "@/lib/schedule/kind";
 import { createClient } from "@/lib/supabase";
 
-// „Zapisy do przyjęcia” (#124, GLOSSARY „Zapis oczekujący”, „Przyjęcie zapisu”): zapisy jeźdźców, które
-// czekają na decyzję ośrodka, najbliższe terminy na górze. Dostęp pilnuje middleware (mapa tras
-// w @/lib/auth/roles); ośrodek bierze funkcja bazy z sesji. Przyjęcie ponad limit miejsc, po starcie slotu
-// i zapisu, który przestał czekać, odrzuca baza — strona tylko pokazuje wolne miejsca. Odrzucenie (#125)
-// wymaga powodu, który jeździec zobaczy; zapis jeźdźca, któremu ośrodek odrzucił już zapis na ten slot, jest
-// oznaczony.
+// „Zapisy do przyjęcia” właściciela (#124, #125): zapisy oczekujące całego ośrodka, najbliższe terminy na górze.
+// Dostęp pilnuje middleware (mapa tras w @/lib/auth/roles); ośrodek bierze funkcja bazy z sesji. Treść i akcje —
+// `PendingBookingsBody`, wspólna z „Zapisami do przyjęcia” instruktora (#126).
 const { profile } = Astro.locals;
 const error = Astro.url.searchParams.get("error");
 const success = pendingBookingsSuccessMessage(Astro.url.searchParams.get("sukces"));
@@ -48,165 +36,18 @@ if (supabase && profile) {
 <Layout title="Zapisy do przyjęcia">
   <Topbar />
   <main class="container-narrow page">
-    <h1>Zapisy do przyjęcia</h1>
-    <p class="page-lead">
-      Jeźdźcy, którzy zapisali się na jazdę i czekają na przyjęcie. Przyjęty zapis zajmuje miejsce w slocie, a gdy slot
-      się zapełni, pozostałe zapisy na niego odrzucają się same z powodem „Brak miejsc”.
-    </p>
-
-    {
-      success && (
-        <div class="notice">
-          <Banner variant="success">{success}</Banner>
-        </div>
-      )
-    }
-    {
-      error && (
-        <div class="notice">
-          <Banner variant="error">{error}</Banner>
-        </div>
-      )
-    }
-
-    {
-      loadFailed ? (
-        <FailureState>
-          <p>Nie udało się wczytać zapisów do przyjęcia.</p>
-          <p>Odśwież stronę za chwilę.</p>
-        </FailureState>
-      ) : days.length === 0 ? (
-        <div class="section">
-          <Card>
-            <EmptyState>
-              <p>Nikt nie czeka na przyjęcie.</p>
-              <p>Gdy jeździec zapisze się na jazdę, jego zapis pojawi się tutaj.</p>
-            </EmptyState>
-          </Card>
-        </div>
-      ) : (
-        days.map((day) => (
-          <section class="section" aria-label={formatLongDateWithYear(day.day)}>
-            <Card>
-              <h2>{formatLongDateWithYear(day.day)}</h2>
-              <ul class="rows">
-                {day.rows.map((row) => (
-                  <li data-pending-booking={row.id}>
-                    <span class="row__when">{formatClockHour(row.hour)}</span>
-                    <span class="row__meta">
-                      <span class="row__strong">{row.riderName}</span>
-                      {row.riderEmail && <span class="row__sub">{row.riderEmail}</span>}
-                      {row.rejectedBefore && <Tag>wcześniej odrzucony na ten slot</Tag>}
-                    </span>
-                    <span class="row__meta row__slot">
-                      <span>{row.instructorName}</span>
-                      <span class="row__sub">{row.placeName}</span>
-                      {row.kind === SLOT_KIND.training && <Tag variant="primary">{TRAINING_SLOT_TAG}</Tag>}
-                      {row.freeSeats === 0 ? (
-                        <Tag variant="warn">Brak miejsc</Tag>
-                      ) : (
-                        <span class="row__sub mono-nums">{formatFreeSeats(row.freeSeats, row.seats)}</span>
-                      )}
-                    </span>
-                    <div class="row__actions">
-                      <form method="post" action="/api/bookings/accept">
-                        <input type="hidden" name="bookingId" value={row.id} />
-                        <GhostButton>
-                          <Check className="size-4" aria-hidden="true" />
-                          Przyjmij
-                        </GhostButton>
-                      </form>
-                      <RejectBookingForm bookingId={row.id} riderName={row.riderName} />
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          </section>
-        ))
-      )
-    }
+    <PendingBookingsBody
+      lead="Jeźdźcy, którzy zapisali się na jazdę i czekają na przyjęcie. Przyjęty zapis zajmuje miejsce w slocie, a gdy slot się zapełni, pozostałe zapisy na niego odrzucają się same z powodem „Brak miejsc”."
+      days={days}
+      loadFailed={loadFailed}
+      success={success}
+      error={error}
+    />
   </main>
 </Layout>
 
 <style>
   .page {
     padding-block: 24px 56px;
-  }
-  h1 {
-    font-size: 32px;
-  }
-  .page-lead {
-    margin: 10px 0 0;
-    font-size: 15.5px;
-    color: var(--muted);
-    max-width: 62ch;
-  }
-  .notice {
-    margin-top: 16px;
-  }
-  .section {
-    display: block;
-    margin-top: 18px;
-  }
-  h2 {
-    font-size: 20px;
-    margin: 0 0 14px;
-  }
-
-  /* Ten sam wzorzec wiersza co „Zapisy dnia”. */
-  .rows {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-  .rows > li {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px 14px;
-    padding: 14px 0;
-    border-top: 1px solid var(--border);
-  }
-  .rows > li:first-child {
-    border-top: 0;
-    padding-top: 0;
-  }
-  .rows > li:last-child {
-    padding-bottom: 0;
-  }
-  .row__when {
-    font-family: var(--font-mono);
-    font-variant-numeric: tabular-nums;
-    font-size: 14px;
-    font-weight: 600;
-    white-space: nowrap;
-  }
-  .row__meta {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 2px 12px;
-    min-width: 0;
-  }
-  .row__slot {
-    flex-basis: 100%;
-    align-items: center;
-  }
-  .row__strong {
-    font-weight: 600;
-  }
-  /* Adres e-mail jeźdźca musi się łamać, a nie rozpychać wiersza w bok. */
-  .row__sub {
-    color: var(--muted);
-    font-size: 14.5px;
-    overflow-wrap: anywhere;
-  }
-  .row__actions {
-    flex-basis: 100%;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-start;
-    gap: 8px 10px;
   }
 </style>

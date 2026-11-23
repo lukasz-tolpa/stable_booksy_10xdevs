@@ -98,6 +98,7 @@ run_one "booking_states.sql" run_sql booking_states.sql
 run_one "booking_acceptance.sql" run_sql booking_acceptance.sql
 run_one "booking_rejection.sql" run_sql booking_rejection.sql
 run_one "booking_notifications.sql" run_sql booking_notifications.sql
+run_one "instructor_booking_decisions.sql" run_sql instructor_booking_decisions.sql
 run_one "concurrent_seat_booking.sh" bash "$SCRIPT_DIR/concurrent_seat_booking.sh"
 
 echo

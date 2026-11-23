@@ -205,21 +205,7 @@ end $$;
 
 \echo '=== Odmowy odrzucenia ==='
 
--- Instruktorka z kontem (Joanna, nie wlascicielka) - odrzucanie dostaje dopiero w #126.
-set local role authenticated;
-set local request.jwt.claims = '{"sub":"99999999-9999-9999-9999-999999999999","role":"authenticated"}';
-
-do $$
-begin
-  begin
-    perform public.reject_booking(current_setting('app.zofia_13')::bigint, 'Brak koni');
-    raise exception 'FAIL: instruktorka bez praw wlasciciela odrzucila zapis';
-  exception when sqlstate 'SB066' then
-    raise notice 'PASS: instruktor bez praw wlasciciela nie odrzuci zapisu (SB066)';
-  end;
-end $$;
-
-reset role;
+-- Instruktor z kontem (swoj slot tak, cudzy nie): supabase/tests/instructor_booking_decisions.sql (#126).
 
 -- Wlasciciel innego osrodka (Stajnia Nad Rzeką).
 set local role authenticated;
