@@ -95,7 +95,7 @@ test.describe("Rozliczenie pensjonariusza", () => {
       await form.getByRole("button", { name: "Zapisz opłatę", exact: true }).click();
       await page.waitForURL(/sukces=oplata#horse-\d+$/);
       await expect(page.getByText("Zapisano opłatę za pensjonat.")).toBeVisible();
-      await expect(horse.getByText(/^1 500,00\szł$/)).toBeVisible();
+      await expect(horse.getByText(/^1\s500,00\szł$/)).toBeVisible();
     });
 
     let rides = 0;
@@ -127,7 +127,7 @@ test.describe("Rozliczenie pensjonariusza", () => {
         await signIn(boarder, BOARDER_EMAIL, "/jezdziec");
         await boarder.goto("/jezdziec/konie");
         const horse = boarder.getByRole("article", { name: BOARDER.horse });
-        await expect(horse.getByText(/^1 500,00\szł$/)).toBeVisible();
+        await expect(horse.getByText(/^1\s500,00\szł$/)).toBeVisible();
         await expect(horse.getByRole("button", { name: "Zapisz opłatę" })).toHaveCount(0);
       });
     } finally {
