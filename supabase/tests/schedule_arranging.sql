@@ -169,10 +169,11 @@ begin
   raise notice 'PASS: konie pracujace jutro (2), bez koni dnia innego osrodka';
 
   select count(*), count(*) filter (where stable_id <> v_stable_a) into v, v_foreign from public.horses;
-  if v <> 3 or v_foreign <> 0 then
-    raise exception 'FAIL: konie osrodka - % (z innego osrodka %) zamiast 3', v, v_foreign;
+  -- Bella, Kasztan, Iskra i kon pensjonatowy Hrabia (#114).
+  if v <> 4 or v_foreign <> 0 then
+    raise exception 'FAIL: konie osrodka - % (z innego osrodka %) zamiast 4', v, v_foreign;
   end if;
-  raise notice 'PASS: wszystkie konie swojego osrodka (3), bez koni innego osrodka';
+  raise notice 'PASS: wszystkie konie swojego osrodka (4), bez koni innego osrodka';
 
   select count(*), count(*) filter (where stable_id <> v_stable_a) into v, v_foreign from public.instructors;
   if v <> 3 or v_foreign <> 0 then
@@ -180,15 +181,16 @@ begin
   end if;
   raise notice 'PASS: wszyscy instruktorzy swojego osrodka (3), bez instruktorow innego osrodka';
 
+  -- Jutro Joanna i Karol, pojutrze wlasciciel Marek ze slotem treningowym (seed #115, 2 sloty).
   select count(*), count(*) filter (where stable_id <> v_stable_a) into v, v_foreign from public.schedule_day_instructors;
-  if v <> 2 or v_foreign <> 0 then
-    raise exception 'FAIL: instruktorzy dnia - % (z innego osrodka %) zamiast Joanny i Karola', v, v_foreign;
+  if v <> 3 or v_foreign <> 0 then
+    raise exception 'FAIL: instruktorzy dnia - % (z innego osrodka %) zamiast Joanny, Karola i Marka', v, v_foreign;
   end if;
   select count(*), count(*) filter (where instructor_id = v_karol) into v, v_foreign from public.schedule_slots;
-  if v <> 12 or v_foreign <> 6 then
-    raise exception 'FAIL: sloty - % (Karola %) zamiast 12 (6)', v, v_foreign;
+  if v <> 14 or v_foreign <> 6 then
+    raise exception 'FAIL: sloty - % (Karola %) zamiast 14 (6)', v, v_foreign;
   end if;
-  raise notice 'PASS: instruktorzy dnia i sloty wszystkich instruktorow (12), bez slotow innego osrodka';
+  raise notice 'PASS: instruktorzy dnia i sloty wszystkich instruktorow (14), bez slotow innego osrodka';
 
   select taken into v from public.get_slot_occupancy(v_stable_a, current_date + 1)
    where instructor_id = v_karol and hour = 15;

@@ -1,30 +1,30 @@
 ---
-// Lista jeźdźców Podsumowania miesiąca: suma „N jazd · M jeźdźców”, potem jeździec z liczbą jazd
-// i rozwijaną (natywne <details>, bez JavaScriptu) listą jazd (`RideList`). Wiersz „Usunięci jeźdźcy”
-// ma samą liczbę (ADR-0001). Renderuje `SummaryList` z `@/lib/month-summary/summary` — kolejność
-// i liczby są już policzone. Wspólna dla właściciela i instruktora (jeździec ma `StableRides`).
+// Lista jeźdźców Podsumowania miesiąca (jednej sekcji, #118): jeździec z liczbą jazd i rozwijaną (natywne
+// <details>, bez JavaScriptu) listą jazd (`RideList`). Wiersz „Usunięci jeźdźcy” ma samą liczbę (ADR-0001).
+// Renderuje wiersze `SummaryRiderRow` z `@/lib/month-summary/summary` — kolejność i liczby są już policzone.
+// Wspólna dla właściciela i instruktora (jeździec ma `StableRides`).
 //
-// KONTRAKT e2e: lista jazd jeźdźca to `list` o nazwie „Jazdy — {jeździec}”, jedna pozycja na jazdę.
+// KONTRAKT e2e: `list` o nazwie `label` (np. „Jeźdźcy — Rekreacja”), lista jazd jeźdźca to `list` o nazwie
+// „Jazdy — {jeździec}”, jedna pozycja na jazdę.
 import RideList from "@/components/month-summary/RideList.astro";
 import Card from "@/components/ui/Card.astro";
-import type { SummaryList } from "@/lib/month-summary/summary";
+import type { SummaryRiderRow } from "@/lib/month-summary/summary";
 import { MONTH_SUMMARY_TEXTS } from "@/lib/month-summary/texts";
 
 interface Props {
-  list: SummaryList;
-  /** `id` nagłówka sekcji, który nazywa listę jeźdźców dla czytników ekranu. */
-  labelledby: string;
+  rows: SummaryRiderRow[];
+  /** Nazwa listy jeźdźców dla czytników ekranu. */
+  label: string;
 }
 
-const { list, labelledby } = Astro.props;
+const { rows, label } = Astro.props;
 const texts = MONTH_SUMMARY_TEXTS;
 ---
 
-<p class="total mono-nums">{list.totalText}</p>
 <Card padding={0}>
-  <ul class="riders" aria-labelledby={labelledby}>
+  <ul class="riders" aria-label={label}>
     {
-      list.rows.map((row) =>
+      rows.map((row) =>
         row.riderKey === null ? (
           <li class="rider rider--pooled">
             <span class="rider__name">{row.name}</span>
@@ -49,11 +49,6 @@ const texts = MONTH_SUMMARY_TEXTS;
 </Card>
 
 <style>
-  .total {
-    margin: 0 0 10px;
-    font-size: 15px;
-    font-weight: 600;
-  }
   .riders {
     list-style: none;
     margin: 0;

@@ -9,6 +9,7 @@
  * Kwoty liczy `riderAmounts` — to samo, co wiersz listy „Rozliczenia”.
  */
 
+import { RIDER_KIND } from "@/lib/boarding/month";
 import { formatCount, formatLongDayMonth, formatMoney, formatMonthYear, RIDE_FORMS } from "@/lib/format";
 import { NO_HORSE, UNNAMED_RIDER } from "@/lib/bookings/rows";
 import { addDays } from "@/lib/schedule/dates";
@@ -68,8 +69,11 @@ export interface RiderSettlement extends RiderAmounts {
   emptyText: string | null;
   /** Koszty dodatkowe jeźdźca w miesiącu (#96), od najwcześniej dopisanego; suma w `costsAmount`. */
   costs: ExtraCostRow[];
-  /** Ośrodek nie ma stawki — zamiast kwot prośba „Ustaw stawkę ośrodka”. */
+  /** Ośrodek nie ma stawki rodzaju jeźdźca — zamiast kwot prośba o nią (`needsRateText`). */
   needsRate: boolean;
+  /** `Ustaw stawkę ośrodka` albo, u pensjonariusza, `Ustaw stawkę treningową` (#117). */
+  needsRateText: string;
+  needsRateHint: string;
 }
 
 /** Jazdy rozliczenia: jazdy tego jeźdźca w miesiącu (`monthRides`), chronologicznie. */
@@ -94,8 +98,11 @@ function settlementOf(input: RiderSettlementInput, rides: SummaryBooking[]): Rid
     rides: rides.length,
     rates: input.rates,
     costs: input.costs,
+    boardingHorses: input.boardingHorses,
+    boardingFees: input.boardingFees,
   });
   const texts = SETTLEMENT_TEXTS.rider;
+  const training = amounts.kind === RIDER_KIND.boarder;
   const ridesText = formatCount(rides.length, RIDE_FORMS);
 
   return {
@@ -115,6 +122,8 @@ function settlementOf(input: RiderSettlementInput, rides: SummaryBooking[]): Rid
     emptyText: rides.length === 0 ? emptyMonthText(input.month, "owner") : null,
     costs: extraCostRows(riderCosts(input.costs, input.rider.key)),
     needsRate: amounts.rate === null,
+    needsRateText: training ? texts.needsTrainingRate : texts.needsRate,
+    needsRateHint: training ? texts.needsTrainingRateHint : texts.needsRateHint,
   };
 }
 

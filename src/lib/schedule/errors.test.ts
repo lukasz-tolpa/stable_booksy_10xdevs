@@ -6,6 +6,10 @@ import {
   INSTRUCTOR_HAS_BOOKINGS,
   INSTRUCTOR_INACTIVE,
   INSTRUCTOR_NOT_IN_STABLE,
+  KIND_CHANGE_HAS_BOOKINGS,
+  PLACE_CHANGE_HAS_BOOKINGS,
+  PLACE_INACTIVE,
+  PLACE_NOT_IN_STABLE,
   SCHEDULE_DATE_CONFLICT,
   SCHEDULE_DAY_PAST,
   SCHEDULE_HOURS_CONFLICT,
@@ -31,6 +35,10 @@ describe("isScheduleRefusal", () => {
     SCHEDULE_DAY_PAST,
     SEATS_BELOW_BOOKINGS,
     INSTRUCTOR_HAS_BOOKINGS,
+    PLACE_NOT_IN_STABLE,
+    PLACE_INACTIVE,
+    PLACE_CHANGE_HAS_BOOKINGS,
+    KIND_CHANGE_HAS_BOOKINGS,
   ])("kod %s to odmowa reguły grafiku", (code) => {
     expect(isScheduleRefusal(code)).toBe(true);
   });
@@ -175,6 +183,38 @@ describe("scheduleErrorMessage", () => {
     expect(scheduleErrorMessage(SCHEDULE_DAY_PAST)).toBe("Nie można układać grafiku na przeszłe dni");
   });
 
+  it("plac spoza ośrodka i nieaktywny plac mają własne komunikaty", () => {
+    expect(scheduleErrorMessage(PLACE_NOT_IN_STABLE)).toBe("Wybrany plac nie należy do Twojego ośrodka.");
+    expect(scheduleErrorMessage(PLACE_INACTIVE)).toBe(
+      "Nieaktywnego placu nie można dodać do dnia, w którym wcześniej go nie było. Najpierw go aktywuj albo wybierz inny plac.",
+    );
+  });
+
+  it("zmiana placu slotu z zapisami wskazuje godzinę i liczbę zapisów we właściwej odmianie", () => {
+    expect(scheduleErrorMessage(PLACE_CHANGE_HAS_BOOKINGS, '{"hour": 11, "bookings": 1}')).toBe(
+      "Nie można przenieść slotu o 11:00 na inny plac — ma 1 aktywny zapis. Zostaw slot na jego placu albo najpierw doprowadź do jego odwołania.",
+    );
+    expect(scheduleErrorMessage(PLACE_CHANGE_HAS_BOOKINGS, '{"hour": 9, "bookings": 3}')).toBe(
+      "Nie można przenieść slotu o 9:00 na inny plac — ma 3 aktywne zapisy. Zostaw slot na jego placu albo najpierw doprowadź do ich odwołania.",
+    );
+    expect(scheduleErrorMessage(PLACE_CHANGE_HAS_BOOKINGS)).toBe(
+      "Nie można przenieść na inny plac slotu, który ma aktywne zapisy. Zostaw slot na jego placu albo najpierw doprowadź do ich odwołania.",
+    );
+  });
+
+  it("zmiana rodzaju slotu z zapisami (SB048) wskazuje godzinę i liczbę zapisów we właściwej odmianie", () => {
+    expect(KIND_CHANGE_HAS_BOOKINGS).toBe("SB048");
+    expect(scheduleErrorMessage(KIND_CHANGE_HAS_BOOKINGS, '{"hour": 11, "bookings": 1}')).toBe(
+      "Nie można zmienić rodzaju slotu o 11:00 — ma 1 aktywny zapis. Zostaw slotowi jego rodzaj albo najpierw doprowadź do jego odwołania.",
+    );
+    expect(scheduleErrorMessage(KIND_CHANGE_HAS_BOOKINGS, '{"hour": 9, "bookings": 2}')).toBe(
+      "Nie można zmienić rodzaju slotu o 9:00 — ma 2 aktywne zapisy. Zostaw slotowi jego rodzaj albo najpierw doprowadź do ich odwołania.",
+    );
+    expect(scheduleErrorMessage(KIND_CHANGE_HAS_BOOKINGS)).toBe(
+      "Nie można zmienić rodzaju slotu, który ma aktywne zapisy. Zostaw slotowi jego rodzaj albo najpierw doprowadź do ich odwołania.",
+    );
+  });
+
   it("kody grafiku są rozróżnialne", () => {
     const codes = [
       SCHEDULE_DATE_CONFLICT,
@@ -187,6 +227,10 @@ describe("scheduleErrorMessage", () => {
       SCHEDULE_DAY_PAST,
       SEATS_BELOW_BOOKINGS,
       INSTRUCTOR_HAS_BOOKINGS,
+      PLACE_NOT_IN_STABLE,
+      PLACE_INACTIVE,
+      PLACE_CHANGE_HAS_BOOKINGS,
+      KIND_CHANGE_HAS_BOOKINGS,
     ];
 
     expect(new Set(codes).size).toBe(codes.length);
@@ -242,6 +286,8 @@ describe("dopisek o właścicielu przy odmowach, których instruktor nie rozwią
       [FOREIGN_KEY_VIOLATION, undefined],
       [SEATS_BELOW_BOOKINGS, undefined],
       [INSTRUCTOR_HAS_BOOKINGS, '{"bookings": 3}'],
+      [PLACE_CHANGE_HAS_BOOKINGS, '{"hour": 11, "bookings": 1}'],
+      [KIND_CHANGE_HAS_BOOKINGS, '{"hour": 11, "bookings": 1}'],
     ];
     for (const [code, detail] of cases) {
       const owner = scheduleErrorMessage(code, detail, "owner");
@@ -251,7 +297,14 @@ describe("dopisek o właścicielu przy odmowach, których instruktor nie rozwią
   });
 
   it("odmowy, które instruktor rozwiąże sam, nie mają dopisku", () => {
-    for (const code of [SEATS_EXCEED_HORSES, HORSE_NOT_IN_STABLE, INSTRUCTOR_INACTIVE, SCHEDULE_DAY_PAST]) {
+    for (const code of [
+      SEATS_EXCEED_HORSES,
+      HORSE_NOT_IN_STABLE,
+      INSTRUCTOR_INACTIVE,
+      SCHEDULE_DAY_PAST,
+      PLACE_NOT_IN_STABLE,
+      PLACE_INACTIVE,
+    ]) {
       expect(scheduleErrorMessage(code, undefined, "instructor")).not.toContain("może właściciel");
     }
   });

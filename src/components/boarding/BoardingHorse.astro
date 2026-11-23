@@ -1,0 +1,292 @@
+---
+// Koń pensjonatowy z pobytami (#114) — wspólny dla strony „Pensjonariusze” właściciela i „Moich koni”
+// pensjonariusza. Renderuje `BoardingHorseView` z `@/lib/boarding/view`: pobyty od najnowszego, przy
+// zakończonym — kto ostatnio wpisał dzień wyjazdu; pod listą formularz dnia wyjazdu najnowszego pobytu
+// („Zakończ pobyt” albo „Popraw dzień wyjazdu”), a u właściciela przy koniu, który wyjechał — „Nowy pobyt”
+// (natywne <details>, bez JavaScriptu).
+//
+// KONTRAKT e2e: `article` z nagłówkiem — imię konia; pigułka `w ośrodku` / `wyjechał` / `bez pobytu`; `list` „Pobyty — {koń}”
+// (koń bez pobytu — bez listy),
+// jedna pozycja na pobyt (okres, kto wpisał dzień wyjazdu); `form` „{Zakończ pobyt|Popraw dzień wyjazdu} — {koń}”
+// z polem „Dzień wyjazdu” i przyciskiem o nazwie czynności; `form` „Nowy pobyt — {koń}” z polem
+// „Dzień przyjazdu” i przyciskiem „Dodaj pobyt”. Opłata za pensjonat (#117): blok „Opłata za pensjonat”
+// z kwotą obok „Obowiązuje teraz:” (osobny element) albo „Opłata nie jest ustawiona.”, zaplanowana zmiana
+// jednym elementem „od {miesiąca} {rok}: {kwota}”; u właściciela `form` „Opłata za pensjonat — {koń}” z polem
+// „Nowa opłata (zł)”, radiami „Od tego miesiąca (…)” / „Od następnego miesiąca (…)” i przyciskiem
+// „Zapisz opłatę”, przy zaplanowanej zmianie przycisk „Usuń zaplanowaną zmianę”.
+import { HorseHead } from "@/components/ui/HorseHead";
+import FormField from "@/components/settlements/FormField.astro";
+import RateFromChoices from "@/components/settlements/RateFromChoices.astro";
+import GhostButton from "@/components/ui/GhostButton.astro";
+import Tag from "@/components/ui/Tag.astro";
+import { DEPARTURE_SIDE_FIELD, horseAnchor } from "@/lib/boarding/redirect";
+import { BOARDING_PAGE_TEXTS } from "@/lib/boarding/texts";
+import type { BoardingHorseView } from "@/lib/boarding/view";
+
+interface Props {
+  horse: BoardingHorseView;
+  /** Strona, na której stoi koń — wraca na nią formularz dnia wyjazdu. */
+  side: "stable" | "rider";
+  /** Ośrodek konia — na „Moich koniach”, gdzie konie stoją w różnych ośrodkach. */
+  stableName?: string;
+}
+
+const { horse, side, stableName } = Astro.props;
+const texts = BOARDING_PAGE_TEXTS;
+const headingId = horseAnchor(horse.id);
+const fee = texts.fee;
+---
+
+<article class="horse" aria-labelledby={headingId}>
+  <div class="horse__head">
+    <h3 id={headingId}>
+      <HorseHead className="size-4" />
+      {horse.name}
+    </h3>
+    <Tag variant={horse.current ? "primary" : "neutral"}>{horse.statusText}</Tag>
+  </div>
+  {stableName && <p class="horse__stable">{stableName}</p>}
+
+  {
+    horse.stays.length > 0 && (
+      <ul class="stays" aria-label={`${texts.stays} — ${horse.name}`}>
+        {horse.stays.map((stay) => (
+          <li class="stay">
+            <span class="stay__period">{stay.periodText}</span>
+            {stay.setByText && <span class="stay__by">{stay.setByText}</span>}
+          </li>
+        ))}
+      </ul>
+    )
+  }
+
+  <div class="fee">
+    <h4 class="fee__heading">{fee.heading}</h4>
+    {
+      horse.fee.currentText ? (
+        <p class="fee__current">
+          {fee.current} <strong class="money">{horse.fee.currentText}</strong> {fee.perMonth}
+        </p>
+      ) : (
+        <p class="fee__current">
+          {fee.missing}{" "}
+          <span class="fee__hint">{side === "stable" ? fee.missingStableHint : fee.missingRiderHint}</span>
+        </p>
+      )
+    }
+    {
+      horse.fee.planned && (
+        <div class="fee__planned">
+          <p>
+            {fee.planned}: <span class="money">{horse.fee.planned.text}</span>
+          </p>
+          {side === "stable" && (
+            <form method="post" action="/api/boarding/fee-delete">
+              <input type="hidden" name="feeId" value={horse.fee.planned.id} />
+              <GhostButton>{fee.deletePlanned}</GhostButton>
+            </form>
+          )}
+        </div>
+      )
+    }
+    {
+      horse.fee.choices && (
+        <form method="post" action="/api/boarding/fee" class="fee__form" aria-label={`${fee.heading} — ${horse.name}`}>
+          <input type="hidden" name="horseId" value={horse.id} />
+          <div class="form__field">
+            <FormField
+              id={`fee-amount-${String(horse.id)}`}
+              label={fee.amountLabel}
+              name="amount"
+              inputmode="decimal"
+            />
+          </div>
+          <RateFromChoices legend={fee.fromLegend} choices={horse.fee.choices} />
+          <div class="fee__actions">
+            <GhostButton>{fee.submit}</GhostButton>
+            <p class="fee__hint">{fee.hint}</p>
+          </div>
+        </form>
+      )
+    }
+  </div>
+
+  {
+    horse.departureForm && (
+      <form
+        method="post"
+        action="/api/boarding/departure"
+        class="form"
+        aria-label={`${horse.departureForm.action} — ${horse.name}`}
+      >
+        <input type="hidden" name={DEPARTURE_SIDE_FIELD} value={side} />
+        <input type="hidden" name="stayId" value={horse.departureForm.stayId} />
+        <div class="form__field">
+          <FormField
+            id={`departure-${String(horse.departureForm.stayId)}`}
+            label={texts.departureLabel}
+            name="departure"
+            type="date"
+            value={horse.departureForm.value}
+            min={horse.departureForm.min}
+            max={horse.departureForm.max}
+          />
+        </div>
+        <div>
+          <GhostButton>{horse.departureForm.action}</GhostButton>
+        </div>
+      </form>
+    )
+  }
+
+  {
+    horse.newStay && (
+      <details class="new-stay">
+        <summary>{texts.stable.newStay}</summary>
+        <form
+          method="post"
+          action="/api/boarding/stay"
+          class="form"
+          aria-label={`${texts.stable.newStay} — ${horse.name}`}
+        >
+          <input type="hidden" name="horseId" value={horse.newStay.horseId} />
+          <div class="form__field">
+            <FormField
+              id={`arrival-${String(horse.id)}`}
+              label={texts.stable.newStayLabel}
+              name="arrival"
+              type="date"
+              value={horse.newStay.value}
+              min={horse.newStay.min}
+            />
+          </div>
+          <div>
+            <GhostButton>{texts.stable.addStay}</GhostButton>
+          </div>
+        </form>
+      </details>
+    )
+  }
+</article>
+
+<style>
+  .horse {
+    display: grid;
+    gap: 8px;
+  }
+  .horse__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px 12px;
+  }
+  h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    font-size: 17px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .horse__stable {
+    margin: 0;
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .stays {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .stay {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 10px;
+    padding: 6px 0;
+    font-size: 14.5px;
+  }
+  .stay + .stay {
+    border-top: 1px solid var(--border);
+  }
+  .stay__by {
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 10px 12px;
+  }
+  .form__field {
+    flex: 1 1 180px;
+    min-width: 0;
+    max-width: 240px;
+  }
+  .fee {
+    display: grid;
+    gap: 8px;
+    padding: 10px 0 2px;
+    border-top: 1px solid var(--border);
+  }
+  .fee__heading {
+    margin: 0;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .fee__current,
+  .fee__planned p {
+    margin: 0;
+    font-size: 14.5px;
+  }
+  .fee__planned {
+    display: grid;
+    gap: 6px;
+    justify-items: start;
+  }
+  .fee__hint {
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .money {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .fee__form {
+    display: grid;
+    gap: 10px;
+  }
+  .fee__actions {
+    display: grid;
+    gap: 6px;
+    justify-items: start;
+  }
+  .new-stay summary {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 4px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--primary);
+    cursor: pointer;
+    list-style: none;
+  }
+  .new-stay summary::-webkit-details-marker {
+    display: none;
+  }
+  .new-stay summary:hover {
+    color: var(--primary-strong);
+    text-decoration: underline;
+  }
+  .new-stay summary:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+</style>

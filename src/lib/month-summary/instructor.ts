@@ -1,8 +1,9 @@
 /**
  * Podsumowanie miesiąca instruktora z kontem (`/instruktor/podsumowanie`, #90): jeźdźcy i jazdy
- * wyłącznie z jego slotów, bez kolumny instruktora (to zawsze on). Dane to wiersze funkcji
- * `get_my_month_bookings` (instruktor z sesji, tylko aktywne zapisy na jego sloty w zakresie dat);
- * tu są mapowane na wspólny kształt `SummaryBooking`.
+ * wyłącznie z jego slotów, bez kolumny instruktora (to zawsze on), w sekcjach „Rekreacja” i „Pensjonariusze”
+ * (#118). Dane to wiersze funkcji `get_my_month_bookings` (instruktor z sesji, tylko aktywne zapisy na jego
+ * sloty w zakresie dat, z regułą „pensjonariusz w miesiącu” z bazy); tu są mapowane na wspólny kształt
+ * `SummaryBooking`.
  */
 
 import { INSTRUCTOR_MONTH_SUMMARY_ROUTE } from "@/lib/auth/roles";
@@ -47,6 +48,8 @@ export function composeInstructorMonthSummary(
   input: InstructorMonthSummaryInput,
   now: Date = new Date(),
 ): MonthSummaryView {
+  // Reguła „pensjonariusz w miesiącu” przychodzi z bazy przy każdym zapisie — instruktor nie czyta pobytów.
+  const boarders = new Set(input.bookings.flatMap((row) => (row.boarder && row.riderKey ? [row.riderKey] : [])));
   return composeMonthSummary(
     {
       month: input.month,
@@ -54,6 +57,7 @@ export function composeInstructorMonthSummary(
       viewer: "instructor",
       monthHref: instructorMonthHref,
       dayHref: null,
+      isBoarder: (riderKey) => boarders.has(riderKey),
     },
     now,
   );

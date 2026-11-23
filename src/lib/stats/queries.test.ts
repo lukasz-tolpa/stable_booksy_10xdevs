@@ -32,6 +32,7 @@ function rawBooking(overrides: Partial<RawStatsBooking>): RawStatsBooking {
     rider_id: "rider-anna",
     cancelled_by,
     profiles: { full_name: "Anna Kowalska" },
+    horses: overrides.horse_id === null ? null : { kind: "stable" },
     ...overrides,
   };
 }
@@ -68,12 +69,13 @@ describe("collectStatsRows", () => {
             ],
             [
               {
+                instructor_id: 7,
                 schedule_slots: [
-                  { hour: 10, seats: 1 },
-                  { hour: 11, seats: 0 },
+                  { hour: 10, seats: 1, kind: "recreation", place_id: 21 },
+                  { hour: 11, seats: 0, kind: "recreation", place_id: 21 },
                 ],
               },
-              { schedule_slots: [{ hour: 10, seats: 1 }] },
+              { instructor_id: 8, schedule_slots: [{ hour: 10, seats: 1, kind: "training", place_id: 22 }] },
             ],
           ),
         ],
@@ -89,9 +91,9 @@ describe("collectStatsRows", () => {
           closeHour: 12,
           horseIds: [1, 2],
           slots: [
-            { hour: 10, seats: 1 },
-            { hour: 11, seats: 0 },
-            { hour: 10, seats: 1 },
+            { instructorId: 7, hour: 10, seats: 1, kind: "recreation", placeId: 21 },
+            { instructorId: 7, hour: 11, seats: 0, kind: "recreation", placeId: 21 },
+            { instructorId: 8, hour: 10, seats: 1, kind: "training", placeId: 22 },
           ],
         },
       ],
@@ -104,6 +106,9 @@ describe("collectStatsRows", () => {
           status: "active",
           riderId: "rider-anna",
           cancelledBy: null,
+          slotKind: "recreation",
+          placeId: 21,
+          horseKind: "stable",
         },
         {
           day: "2026-11-05",
@@ -113,6 +118,9 @@ describe("collectStatsRows", () => {
           status: "cancelled",
           riderId: "rider-piotr",
           cancelledBy: "stable",
+          slotKind: "recreation",
+          placeId: 21,
+          horseKind: null,
         },
       ],
       riders: [
@@ -137,7 +145,41 @@ describe("collectStatsRows", () => {
         status: "active",
         riderId: "rider-anna",
         cancelledBy: null,
+        slotKind: "recreation",
+        placeId: null,
+        horseKind: null,
       },
+    ]);
+  });
+
+  // Oracle: AC #115 — wspólny odczyt zwraca dla każdej jazdy rodzaj slotu, plac i rodzaj konia.
+  it("jazda pensjonariusza na slocie treningowym niesie rodzaj slotu, plac i konia pensjonatowego", async () => {
+    const loader = stubLoader([
+      {
+        data: [
+          rawDay(
+            "2026-11-05",
+            [1],
+            [
+              rawBooking({ instructor_id: 8, horse_id: 31, rider_id: "rider-kasia", horses: { kind: "boarding" } }),
+              rawBooking({ instructor_id: 7, hour: 16, status: "cancelled", horse_id: null }),
+            ],
+            [
+              { instructor_id: 7, schedule_slots: [{ hour: 10, seats: 1, kind: "recreation", place_id: 21 }] },
+              { instructor_id: 8, schedule_slots: [{ hour: 10, seats: 2, kind: "training", place_id: 22 }] },
+            ],
+          ),
+        ],
+        error: null,
+      },
+    ]);
+
+    const rows = await collectStatsRows(loader);
+
+    expect(rows.bookings.map((b) => [b.instructorId, b.hour, b.slotKind, b.placeId, b.horseKind])).toEqual([
+      [8, 10, "training", 22, "boarding"],
+      // Slot zniknął (dzień skrócony) — rodzaj jak w bazie, bez placu.
+      [7, 16, "recreation", null, null],
     ]);
   });
 
@@ -204,7 +246,7 @@ describe("collectStatsRows", () => {
 
     const rows = await collectStatsRows(loader);
 
-    expect(rows.bookings).toEqual([
+    expect(rows.bookings).toMatchObject([
       { day: "2026-11-05", horseId: 1, hour: 10, instructorId: 7, status: "active", riderId: null, cancelledBy: null },
       {
         day: "2026-11-05",

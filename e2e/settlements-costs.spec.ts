@@ -2,7 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import {
   clearStableRatesAndCosts,
   DEMO_HINT,
-  emptySettlementsMonth,
+  goToMonthWithRecreationRides,
   grosze,
   openSettlementsWithOtherRiders,
   otherRiders,
@@ -13,6 +13,7 @@ import {
   settlementCard,
   settlementRiders,
   SETTLEMENTS_ROUTE,
+  priceBoarderAtZero,
   setStableRate,
   STABLE_STATE,
 } from "./helpers";
@@ -36,15 +37,12 @@ test.use({ storageState: STABLE_STATE });
 const RATE = 12345;
 
 /**
- * Lista ze stawką: bieżący miesiąc, a gdy jeszcze pusty — poprzedni. Zwraca miesiąc z adresu (`null` —
+ * Lista ze stawką: bieżący miesiąc, a gdy jeszcze bez jazd jeźdźców rekreacyjnych — poprzedni. Zwraca miesiąc z adresu (`null` —
  * bieżący, bez parametru).
  */
 async function openSettlementsWithRides(page: Page): Promise<string | null> {
   await page.goto(SETTLEMENTS_ROUTE);
-  if (await emptySettlementsMonth(page).isVisible()) {
-    await page.getByRole("navigation", { name: "Wybór miesiąca" }).getByRole("link", { name: "Poprzedni" }).click();
-    await page.waitForURL(/miesiac=\d{4}-\d{2}$/);
-  }
+  await goToMonthWithRecreationRides(page);
   await expect(settlementRiders(page).first(), DEMO_HINT).toBeVisible();
   return new URL(page.url()).searchParams.get("miesiac");
 }
@@ -60,6 +58,7 @@ test.describe("Koszty dodatkowe", () => {
   test.beforeAll(() => {
     clearStableRatesAndCosts();
     setStableRate(RATE);
+    priceBoarderAtZero();
   });
   test.afterAll(clearStableRatesAndCosts);
 
@@ -94,7 +93,7 @@ test.describe("Koszty dodatkowe", () => {
     });
 
     await test.step("kwota 0 wraca z polskim komunikatem i nic nie dopisuje", async () => {
-      await addForm.getByLabel("Nazwa kosztu").fill("Pensjonat konia");
+      await addForm.getByLabel("Nazwa kosztu").fill("Wyjazd na zawody");
       await addForm.getByLabel("Kwota (zł)").fill("0");
       await addForm.getByRole("button", { name: "Dopisz koszt", exact: true }).click();
       await page.waitForURL(/error=/);
@@ -104,14 +103,14 @@ test.describe("Koszty dodatkowe", () => {
     });
 
     await test.step("dopisany koszt jest na liście, a „Do zapłaty” = jazdy + koszt", async () => {
-      await addForm.getByLabel("Nazwa kosztu").fill("Pensjonat konia");
+      await addForm.getByLabel("Nazwa kosztu").fill("Wyjazd na zawody");
       await addForm.getByLabel("Kwota (zł)").fill("800");
       await addForm.getByRole("button", { name: "Dopisz koszt", exact: true }).click();
       await page.waitForURL(/sukces=1/);
       expectBackHere();
 
       await expect(costs).toHaveCount(1);
-      await expect(costs.first().getByText("Pensjonat konia", { exact: true })).toBeVisible();
+      await expect(costs.first().getByText("Wyjazd na zawody", { exact: true })).toBeVisible();
       await expect(costs.first().getByText(/^800,00\szł$/)).toBeVisible();
       expect(grosze(await costsLine.innerText()), "suma kosztów w karcie").toBe(80000);
       expect(await due(card)).toBe(ridesAmount + 80000);
@@ -119,16 +118,16 @@ test.describe("Koszty dodatkowe", () => {
 
     await test.step("poprawiony koszt zmienia nazwę, kwotę i „Do zapłaty”", async () => {
       await costs.first().getByText("Popraw", { exact: true }).click();
-      const editForm = costs.first().getByRole("form", { name: "Popraw koszt Pensjonat konia" });
+      const editForm = costs.first().getByRole("form", { name: "Popraw koszt Wyjazd na zawody" });
       await expect(editForm.getByLabel("Kwota (zł)")).toHaveValue("800,00");
-      await editForm.getByLabel("Nazwa kosztu").fill("Pensjonat konia i siano");
+      await editForm.getByLabel("Nazwa kosztu").fill("Wyjazd na zawody i kowal");
       await editForm.getByLabel("Kwota (zł)").fill("750,50");
       await editForm.getByRole("button", { name: "Zapisz koszt", exact: true }).click();
       await page.waitForURL(/sukces=1/);
       expectBackHere();
 
       await expect(costs).toHaveCount(1);
-      await expect(costs.first().getByText("Pensjonat konia i siano", { exact: true })).toBeVisible();
+      await expect(costs.first().getByText("Wyjazd na zawody i kowal", { exact: true })).toBeVisible();
       await expect(costs.first().getByText(/^750,50\szł$/)).toBeVisible();
       expect(await due(card)).toBe(ridesAmount + 75050);
     });

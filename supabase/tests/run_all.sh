@@ -88,6 +88,12 @@ run_one "schedule_arranging.sql" run_sql schedule_arranging.sql
 run_one "instructor_month_summary.sql" run_sql instructor_month_summary.sql
 run_one "settlement_rates.sql" run_sql settlement_rates.sql
 run_one "settlement_extra_costs.sql" run_sql settlement_extra_costs.sql
+run_one "places.sql" run_sql places.sql
+run_one "boarding_horses.sql" run_sql boarding_horses.sql
+run_one "training_slots.sql" run_sql training_slots.sql
+run_one "boarder_account_deletion.sql" run_sql boarder_account_deletion.sql
+run_one "boarding_fees.sql" run_sql boarding_fees.sql
+run_one "place_occupancy.sql" run_sql place_occupancy.sql
 run_one "concurrent_seat_booking.sh" bash "$SCRIPT_DIR/concurrent_seat_booking.sh"
 
 echo

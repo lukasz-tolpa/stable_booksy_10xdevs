@@ -16,14 +16,27 @@ export const SETTLEMENT_TEXTS = {
   ridersList: "Rozliczenia jeźdźców",
   /** Suma miesiąca: etykieta przed kwotą dla czytników ekranu, np. `Razem: 12 340,00 zł`. */
   total: "Razem:",
+  /** Suma sekcji po jej nazwie: `Rekreacja razem: 480,00 zł`. */
+  sectionTotal: "razem:",
   /** Nagłówek sumy w bocznej kolumnie (#105). */
   totalHeading: "Do zapłaty razem",
   /** Suma bez stawki ośrodka. */
   noTotal: "—",
   /** Nad kartami, gdy ośrodek nie ma stawki. */
   amountsNeedRate: "Kwoty pojawią się po ustawieniu stawki ośrodka.",
-  /** Karta jeźdźca (#105): `Do zapłaty`, wyliczenie `… + koszty 50,00 zł`, `Rozliczenie →`. */
-  card: { due: "Do zapłaty", costs: "koszty", open: "Rozliczenie →" },
+  /** Nad kartami sekcji „Pensjonariusze” (#118), gdy ośrodek nie ma stawki treningowej. */
+  amountsNeedTrainingRate: "Kwoty pojawią się po ustawieniu stawki treningowej.",
+  /**
+   * Karta jeźdźca (#105): `Do zapłaty`, wyliczenie `… + opłata za pensjonat 1 500,00 zł + koszty 50,00 zł`
+   * (#118: opłata, przy kilku koniach `opłaty za pensjonat`), `Rozliczenie →`.
+   */
+  card: {
+    due: "Do zapłaty",
+    fee: "opłata za pensjonat",
+    fees: "opłaty za pensjonat",
+    costs: "koszty",
+    open: "Rozliczenie →",
+  },
   /**
    * „Pozostali jeźdźcy ośrodka” pod kartami (#106): zwinięta sekcja z liczbą jeźdźców i dopiskiem, w każdym
    * wierszu link do rozliczenia jeźdźca, gdzie dopisuje się koszt dodatkowy.
@@ -58,12 +71,26 @@ export const SETTLEMENT_TEXTS = {
     breakdown: { heading: "Z kim i na czym", instructors: "Instruktorzy", horses: "Konie" },
     /** Dopisek o źródle stawki przy kwocie za jazdy. */
     source: { stable: "stawka ośrodka", individual: "stawka indywidualna" },
+    /** Dopisek o źródle stawki pensjonariusza (#117) — jego jazdy liczą się po stawce treningowej. */
+    trainingSource: { stable: "stawka treningowa ośrodka", individual: "stawka indywidualna" },
+    /** Pozycja opłaty za pensjonat (#117): `Opłata za pensjonat — Hrabia: 1 500,00 zł`. */
+    fee: {
+      line: (horse: string, amount: string) => `Opłata za pensjonat — ${horse}: ${amount}`,
+      /** Zamiast kwoty, gdy koń nie ma opłaty. */
+      missing: "brak kwoty",
+      /** Link przy pozycji bez kwoty, do konia na stronie „Pensjonariusze”: `Ustaw opłatę za pensjonat — Hrabia`. */
+      set: "Ustaw opłatę za pensjonat",
+      setHint: "„Do zapłaty” pojawi się po ustawieniu opłaty za pensjonat przy koniu na stronie „Pensjonariusze”.",
+    },
     due: "Do zapłaty",
     /** Suma kosztów dodatkowych w karcie rozliczenia (#109), przed kwotą: `Koszty dodatkowe: 850,50 zł`. */
     costs: "Koszty dodatkowe:",
     /** Bez stawki ośrodka: prośba zamiast kwot, link na „Rozliczenia”, gdzie jest formularz stawki. */
     needsRate: "Ustaw stawkę ośrodka",
     needsRateHint: "Kwoty pojawią się po ustawieniu stawki ośrodka na stronie „Rozliczenia”.",
+    /** Pensjonariusz bez stawki treningowej ośrodka (#117) — link na „Rozliczenia”, gdzie jest jej formularz. */
+    needsTrainingRate: "Ustaw stawkę treningową",
+    needsTrainingRateHint: "Kwoty pojawią się po ustawieniu stawki treningowej na stronie „Rozliczenia”.",
     notFound: "Nie ma takiego jeźdźca.",
     notFoundHint: "Rozliczenie ma tylko jeździec, który miał zapis w Twoim ośrodku.",
     failure: "Nie udało się wczytać rozliczenia jeźdźca.",
@@ -78,6 +105,8 @@ export const SETTLEMENT_TEXTS = {
     columns: { date: "Data", hour: "Godzina", instructor: "Instruktor", horse: "Koń" },
     /** Komórka konia, gdy jazda była bez konia. */
     noHorse: "—",
+    /** Nagłówek tabeli opłat za pensjonat pensjonariusza (#117). */
+    feesHeading: "Opłata za pensjonat",
     costName: "Nazwa",
     costAmount: "Kwota",
     /** Przed `formatDateTime`: `Wygenerowano 21.11.2026, 14:05`. */
@@ -93,6 +122,9 @@ export const SETTLEMENT_TEXTS = {
     heading: "Stawka jeźdźca",
     current: "Obowiązuje teraz:",
     hint: "Stawka indywidualna zastępuje stawkę ośrodka, np. karnet albo 0,00 zł dla jeźdźca, który pomaga w ośrodku. Zmiana nie przelicza minionych miesięcy.",
+    /** Pensjonariusz (#117): jego stawka indywidualna jest treningowa. */
+    trainingHint:
+      "Pensjonariusz płaci za jazdy stawkę treningową. Stawka indywidualna zastępuje stawkę treningową ośrodka. Zmiana nie przelicza minionych miesięcy.",
     planned: "Zaplanowana zmiana",
     deletePlanned: "Usuń zaplanowaną zmianę",
     /** Nazwa formularza nowej stawki indywidualnej. */
@@ -108,6 +140,8 @@ export const SETTLEMENT_TEXTS = {
   },
   rate: {
     heading: "Stawka ośrodka",
+    /** Pod nagłówkiem karty: której jazdy dotyczy stawka (#117 — obok stawki treningowej). */
+    lead: "Stawka rekreacyjna — za jazdę na koniu ośrodka.",
     current: "Obowiązuje teraz:",
     planned: "Zaplanowana zmiana",
     deletePlanned: "Usuń zaplanowaną zmianę",
@@ -122,6 +156,16 @@ export const SETTLEMENT_TEXTS = {
     fromNext: "Od następnego miesiąca",
     submit: "Zapisz stawkę",
   },
+  /** Stawka treningowa ośrodka (#117) — druga karta stawki na „Rozliczeniach”; pozostałe teksty jak w `rate`. */
+  trainingRate: {
+    heading: "Stawka treningowa",
+    lead: "Za jazdę pensjonariusza na jego koniu pensjonatowym.",
+    missing: "Ustaw stawkę treningową",
+    missingHint:
+      "To kwota za jedną jazdę pensjonariusza. Pierwsza stawka treningowa obowiązuje też we wszystkich wcześniejszych miesiącach.",
+    amountLabel: "Nowa stawka treningowa (zł)",
+    submit: "Zapisz stawkę treningową",
+  },
   /** Koszty dodatkowe (#96) w rozliczeniu jeźdźca — jedyne miejsce, gdzie się je dopisuje (#106). */
   costs: {
     heading: "Koszty dodatkowe",
@@ -130,10 +174,10 @@ export const SETTLEMENT_TEXTS = {
     none: "W tym miesiącu nie ma kosztów dodatkowych.",
     add: "Dopisz koszt",
     nameLabel: "Nazwa kosztu",
-    namePlaceholder: "np. Pensjonat konia",
+    namePlaceholder: "np. Wyjazd na zawody",
     amountLabel: "Kwota (zł)",
     edit: "Popraw",
-    /** Nazwa formularza poprawki przed nazwą kosztu: `Popraw koszt Pensjonat konia`. */
+    /** Nazwa formularza poprawki przed nazwą kosztu: `Popraw koszt Wyjazd na zawody`. */
     editForm: "Popraw koszt",
     save: "Zapisz koszt",
     delete: "Usuń",

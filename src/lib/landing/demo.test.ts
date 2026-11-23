@@ -6,11 +6,33 @@ describe("landingDemo", () => {
     expect(landingDemo().riderHours).toEqual([
       {
         hour: 10,
-        slots: [{ instructorId: 1, instructorName: "Joanna Wrona", seats: 3, freeSeats: 2, status: "free" }],
+        slots: [
+          {
+            instructorId: 1,
+            instructorName: "Joanna Wrona",
+            placeName: "Hala",
+            seats: 3,
+            freeSeats: 2,
+            status: "free",
+            kind: "recreation",
+            horses: [],
+          },
+        ],
       },
       {
         hour: 11,
-        slots: [{ instructorId: 2, instructorName: "Karol Jasny", seats: 2, freeSeats: 0, status: "mine" }],
+        slots: [
+          {
+            instructorId: 2,
+            instructorName: "Karol Jasny",
+            placeName: "Hala",
+            seats: 2,
+            freeSeats: 0,
+            status: "mine",
+            kind: "recreation",
+            horses: [],
+          },
+        ],
       },
     ]);
   });

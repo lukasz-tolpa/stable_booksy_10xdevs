@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { horseDefaults, instructorDefaults, pastDaySummary, prefillSourceDay } from "@/lib/schedule/form";
+import {
+  horseDefaults,
+  instructorDefaults,
+  kindDefaults,
+  pastDaySummary,
+  placeDefaults,
+  prefillSourceDay,
+} from "@/lib/schedule/form";
 import type { ScheduleDayData } from "@/lib/schedule/queries";
 
 const ania = { id: 1, name: "Ania", active: true };
@@ -16,8 +23,8 @@ describe("instructorDefaults", () => {
     const saved = day(
       [1, 2],
       [
-        { instructorId: 1, hour: 10, seats: 2 },
-        { instructorId: 2, hour: 10, seats: 1 },
+        { instructorId: 1, hour: 10, seats: 2, placeId: 1, kind: "recreation" },
+        { instructorId: 2, hour: 10, seats: 1, placeId: 1, kind: "recreation" },
       ],
     );
 
@@ -32,8 +39,8 @@ describe("instructorDefaults", () => {
     const latest = day(
       [1, 2],
       [
-        { instructorId: 1, hour: 10, seats: 2 },
-        { instructorId: 2, hour: 10, seats: 1 },
+        { instructorId: 1, hour: 10, seats: 2, placeId: 1, kind: "recreation" },
+        { instructorId: 2, hour: 10, seats: 1, placeId: 1, kind: "recreation" },
       ],
     );
 
@@ -123,5 +130,101 @@ describe("pastDaySummary", () => {
       horseNames: "brak",
       instructorNames: "brak",
     });
+  });
+});
+
+const hala = { id: 21, name: "Hala", active: true };
+const lonzownik = { id: 22, name: "Lonżownik", active: false };
+const duzyPlac = { id: 23, name: "Duży plac", active: true };
+const places = [duzyPlac, lonzownik, hala];
+
+function placeDay(slots: [instructorId: number, hour: number, placeId: number][]): ScheduleDayData {
+  return {
+    ...day(
+      [...new Set(slots.map(([instructorId]) => instructorId))],
+      slots.map(([instructorId, hour, placeId]) => ({
+        instructorId,
+        hour,
+        seats: 1,
+        placeId,
+        kind: "recreation" as const,
+      })),
+    ),
+  };
+}
+
+describe("placeDefaults", () => {
+  it("ułożony dzień pokazuje plac każdego slotu, także plac zdezaktywowany po ułożeniu dnia", () => {
+    const saved = placeDay([
+      [1, 10, 21],
+      [1, 11, 22],
+    ]);
+
+    expect(placeDefaults(saved, null, places)).toEqual({
+      places: { "1.10": 21, "1.11": 22 },
+      selectablePlaces: [hala, lonzownik, duzyPlac],
+      defaultPlaceId: 21,
+      choosePlace: true,
+    });
+  });
+
+  it("szkic podpowiada plac każdego slotu z ostatnio ułożonego dnia, ale bez placu już nieaktywnego", () => {
+    const latest = placeDay([
+      [1, 10, 23],
+      [1, 11, 22],
+      [3, 10, 21],
+    ]);
+
+    expect(placeDefaults(null, latest, places)).toEqual({
+      places: { "1.10": 23, "3.10": 21 },
+      selectablePlaces: [hala, duzyPlac],
+      defaultPlaceId: 21,
+      choosePlace: true,
+    });
+  });
+
+  it("plac domyślny to pierwszy założony aktywny plac — jak w bazie dla slotu bez placu", () => {
+    expect(placeDefaults(null, null, places).defaultPlaceId).toBe(21);
+    expect(placeDefaults(null, null, [{ ...hala, active: false }, duzyPlac]).defaultPlaceId).toBe(23);
+  });
+
+  it("ośrodek z jednym aktywnym placem niczego nie wybiera", () => {
+    expect(placeDefaults(null, null, [hala, lonzownik])).toEqual({
+      places: {},
+      selectablePlaces: [hala],
+      defaultPlaceId: 21,
+      choosePlace: false,
+    });
+  });
+});
+
+function kindDay(slots: [instructorId: number, hour: number, kind: "recreation" | "training"][]): ScheduleDayData {
+  return day(
+    [...new Set(slots.map(([instructorId]) => instructorId))],
+    slots.map(([instructorId, hour, kind]) => ({ instructorId, hour, seats: 1, placeId: 21, kind })),
+  );
+}
+
+describe("kindDefaults", () => {
+  it("ułożony dzień pokazuje rodzaj każdego swojego slotu", () => {
+    const saved = kindDay([
+      [1, 10, "training"],
+      [1, 11, "recreation"],
+    ]);
+
+    expect(kindDefaults(saved, null)).toEqual({ "1.10": "training", "1.11": "recreation" });
+  });
+
+  it("szkic kopiuje rodzaj każdego slotu z ostatnio ułożonego dnia", () => {
+    const latest = kindDay([
+      [1, 10, "training"],
+      [3, 10, "recreation"],
+    ]);
+
+    expect(kindDefaults(null, latest)).toEqual({ "1.10": "training", "3.10": "recreation" });
+  });
+
+  it("nowy dzień bez żadnego ułożonego wcześniej nie ma rodzajów — sloty startują jako rekreacyjne", () => {
+    expect(kindDefaults(null, null)).toEqual({});
   });
 });

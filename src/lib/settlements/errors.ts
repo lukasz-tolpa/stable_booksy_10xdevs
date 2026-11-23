@@ -23,8 +23,6 @@ export const RATE_SAVE_FAILED = "Nie udało się zapisać stawki. Spróbuj ponow
 export const RATE_DELETE_FAILED = "Nie udało się usunąć zaplanowanej zmiany. Spróbuj ponownie.";
 /** Usunięcie bez skutku: zmiany nie ma (usunięta w innej karcie) albo nie należy do ośrodka. */
 export const RATE_NOTHING_TO_DELETE = "Nie ma już takiej zaplanowanej zmiany stawki.";
-/** Konto właściciela bez ośrodka. */
-export const SETTLEMENT_NO_STABLE = "Twoje konto nie ma jeszcze ośrodka.";
 
 const SAVE_REFUSALS = new Map<string, string>([
   [

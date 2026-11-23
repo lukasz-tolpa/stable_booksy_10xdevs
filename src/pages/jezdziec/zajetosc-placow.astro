@@ -1,0 +1,160 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import Topbar from "@/components/Topbar.astro";
+import PlaceOccupancyGrid from "@/components/place-occupancy/PlaceOccupancyGrid.astro";
+import Card from "@/components/ui/Card.astro";
+import EmptyState from "@/components/ui/EmptyState.astro";
+import FailureState from "@/components/ui/FailureState.astro";
+import { loadPlaceOccupancy, type PlaceOccupancyState } from "@/lib/place-occupancy/load";
+import { boarderOccupancyStables } from "@/lib/place-occupancy/occupancy";
+import { listBoardingHorses } from "@/lib/boarding/queries";
+import { DAY_PARAM, RIDER_PLACE_OCCUPANCY_ROUTE, STABLE_PARAM, placeOccupancyHref } from "@/lib/place-occupancy/routes";
+import { PLACE_OCCUPANCY_TEXTS } from "@/lib/place-occupancy/texts";
+import { parseScheduleDate, todayIso } from "@/lib/schedule/dates";
+import { parseStableId } from "@/lib/stables/search";
+import { createClient } from "@/lib/supabase";
+import { logError } from "@/lib/log";
+
+// Zajętość placów pensjonariusza (#116): tylko ośrodki, w których jego koń stoi dziś; dzień dowolny (także
+// miniony), ale dostęp do dnia rozstrzyga baza (`get_place_occupancy`, SB054 poza pobytem). Dostęp do
+// przestrzeni jeźdźca pilnuje middleware; jeździec rekreacyjny dostaje tu tylko stan pusty.
+const { profile } = Astro.locals;
+const texts = PLACE_OCCUPANCY_TEXTS;
+const today = todayIso();
+const day = parseScheduleDate(Astro.url.searchParams.get(DAY_PARAM)) ?? today;
+const requestedStable = parseStableId(Astro.url.searchParams.get(STABLE_PARAM));
+
+const supabase = createClient(Astro.request.headers, Astro.cookies);
+
+let stables: { id: number; name: string }[] = [];
+let stable: { id: number; name: string } | null = null;
+let state: PlaceOccupancyState | null = null;
+let loadFailed = false;
+
+if (supabase && profile) {
+  try {
+    stables = boarderOccupancyStables(await listBoardingHorses(supabase, { riderId: profile.id }), today);
+  } catch (error) {
+    loadFailed = true;
+    logError("page:jezdziec/zajetosc-placow", error);
+  }
+  stable = stables.find((entry) => entry.id === requestedStable) ?? stables.at(0) ?? null;
+  if (stable) {
+    state = await loadPlaceOccupancy(supabase, stable.id, day, "page:jezdziec/zajetosc-placow");
+  }
+} else {
+  loadFailed = true;
+}
+
+const current = stable;
+---
+
+<Layout title={texts.title}>
+  <Topbar />
+  <main class="container-narrow page">
+    <h1>{texts.title}</h1>
+    <p class="page-lead">{texts.riderLead}</p>
+
+    {
+      loadFailed ? (
+        <div class="block">
+          <FailureState>
+            <p>{texts.failure}</p>
+            <p>{texts.retry}</p>
+          </FailureState>
+        </div>
+      ) : current === null || state === null ? (
+        <div class="block">
+          <Card>
+            <EmptyState>
+              {texts.noStables.map((line) => (
+                <p>{line}</p>
+              ))}
+            </EmptyState>
+          </Card>
+        </div>
+      ) : (
+        <>
+          {stables.length > 1 ? (
+            <nav class="stables" aria-label={texts.stables}>
+              <ul>
+                {stables.map((entry) => (
+                  <li>
+                    <a
+                      href={placeOccupancyHref(RIDER_PLACE_OCCUPANCY_ROUTE, day, entry.id)}
+                      aria-current={entry.id === current.id ? "page" : undefined}
+                    >
+                      {entry.name}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          ) : (
+            <p class="stable">{current.name}</p>
+          )}
+          <PlaceOccupancyGrid
+            state={state}
+            day={day}
+            dayHref={(target: string) => placeOccupancyHref(RIDER_PLACE_OCCUPANCY_ROUTE, target, current.id)}
+            stableId={current.id}
+          />
+        </>
+      )
+    }
+  </main>
+</Layout>
+
+<style>
+  .page {
+    padding-block: 24px 56px;
+  }
+  h1 {
+    font-size: 32px;
+  }
+  .page-lead {
+    margin: 10px 0 0;
+    font-size: 15.5px;
+    color: var(--muted);
+    max-width: 62ch;
+  }
+  .block {
+    margin-top: 24px;
+  }
+  .stable {
+    margin: 16px 0 0;
+    font-weight: 600;
+  }
+  .stables ul {
+    list-style: none;
+    margin: 16px 0 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .stables a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 16px;
+    border-radius: 999px;
+    border: 1px solid var(--border-2);
+    background: var(--surface);
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--fg);
+  }
+  .stables a:hover {
+    background: var(--primary-soft);
+  }
+  .stables a[aria-current="page"] {
+    background: var(--primary-soft);
+    border-color: var(--primary);
+    color: var(--primary-strong);
+  }
+  .stables a:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+</style>

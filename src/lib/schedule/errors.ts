@@ -5,7 +5,8 @@
  * nie powiela. Od #40 wszystkie odmowy zapisu grafiku podnosi baza: wyzwalacz z S-02
  * (SB001, SB002) i funkcja `public.save_schedule_day` (SB003–SB008, migracja
  * `20261113090000_schedule_day_instructors_and_seats.sql`; SB010, SB011 i nowe znaczenie
- * SB004 — `20261114090000_bookings_on_instructor_seats.sql`). Każdy kod to inna czynność
+ * SB004 — `20261114090000_bookings_on_instructor_seats.sql`; place slotów SB030–SB032 —
+ * `20261201090000_places.sql`, #113; rodzaj slotu SB048 — `20261202090000_training_slots.sql`, #115). Każdy kod to inna czynność
  * po stronie ośrodka.
  *
  * Grafik układa właściciel albo instruktor z uprawnieniem do układania grafiku (#79). Kto zapisuje,
@@ -22,8 +23,9 @@ export const SCHEDULE_DATE_CONFLICT = "SB001";
 /** Zawężenie godzin pod istniejącym zapisem (trigger z S-02). */
 export const SCHEDULE_HOURS_CONFLICT = "SB002";
 /**
- * Odpięcie konia przydzielonego do zapisu w tym dniu (FK `bookings_assigned_horse_fkey`,
- * ON DELETE RESTRICT). Konia ma tylko aktywny zapis, więc odwołane zapisy go nie przypinają.
+ * Odpięcie konia przydzielonego do zapisu w tym dniu (dawniej FK `bookings_assigned_horse_fkey`, od #115 reguła
+ * wyzwalacza `bookings_slot_rules`; odpięcie blokuje SB004). Konia ma tylko aktywny zapis, więc odwołane zapisy go
+ * nie przypinają.
  */
 export const FOREIGN_KEY_VIOLATION = "23503";
 
@@ -43,6 +45,14 @@ export const SCHEDULE_DAY_PAST = "SB008";
 export const SEATS_BELOW_BOOKINGS = "SB010";
 /** Wypisanie z dnia instruktora, który ma w nim aktywne zapisy; DETAIL niesie ich liczbę. */
 export const INSTRUCTOR_HAS_BOOKINGS = "SB011";
+/** Plac spoza ośrodka przy slocie (#113). */
+export const PLACE_NOT_IN_STABLE = "SB030";
+/** Nieaktywny plac w dniu, który jeszcze go nie używa (#113). */
+export const PLACE_INACTIVE = "SB031";
+/** Zmiana placu slotu, który ma aktywne zapisy; DETAIL niesie godzinę i liczbę zapisów (#113). */
+export const PLACE_CHANGE_HAS_BOOKINGS = "SB032";
+/** Zmiana rodzaju slotu, który ma aktywne zapisy; DETAIL niesie godzinę i liczbę zapisów (#115). */
+export const KIND_CHANGE_HAS_BOOKINGS = "SB048";
 /**
  * Wywołujący nie może układać grafiku (`private.schedule_stable_id()` puste, migracja
  * `20261122090000_schedule_arranging.sql`). U instruktora to odebrane uprawnienie (albo dezaktywacja)
@@ -75,6 +85,8 @@ const OWNER_RESOLVABLE_CODES = new Set<string>([
   HORSE_HAS_BOOKINGS,
   SEATS_BELOW_BOOKINGS,
   INSTRUCTOR_HAS_BOOKINGS,
+  PLACE_CHANGE_HAS_BOOKINGS,
+  KIND_CHANGE_HAS_BOOKINGS,
 ]);
 
 const REFUSAL_CODES = new Set<string>([
@@ -89,6 +101,10 @@ const REFUSAL_CODES = new Set<string>([
   SCHEDULE_DAY_PAST,
   SEATS_BELOW_BOOKINGS,
   INSTRUCTOR_HAS_BOOKINGS,
+  PLACE_NOT_IN_STABLE,
+  PLACE_INACTIVE,
+  PLACE_CHANGE_HAS_BOOKINGS,
+  KIND_CHANGE_HAS_BOOKINGS,
 ]);
 
 /** Czy kod to odmowa reguły grafiku (decyzja ośrodka), a nie awaria warta logu. */
@@ -103,7 +119,7 @@ export function isScheduleRefusal(code: string | undefined, caller: ScheduleCall
  * Liczby odmowy z pola DETAIL błędu bazy (PostgREST: `details`). Kontrakt z migracją
  * `20261116090000_structured_schedule_refusal_details.sql`: obiekt JSON z kluczami
  * `bookings` (SB001, SB002, SB011), `hour`/`seats`/`bookings` (SB010), `hour`/`seats`/`horses`
- * (SB007). Treść komunikatu (`message`) może się zmieniać dowolnie — nie jest czytana.
+ * (SB007), `hour`/`bookings` (SB032, migracja `20261201090000_places.sql`; SB048, `20261202090000_training_slots.sql`). Treść komunikatu (`message`) może się zmieniać dowolnie — nie jest czytana.
  */
 export interface RefusalDetail {
   hour?: number;
@@ -209,6 +225,22 @@ function ownerScheduleErrorMessage(code: string | undefined, dbDetail: string | 
       return `Nie można wypisać z dnia instruktora, który ma w nim ${count === null ? "aktywne zapisy" : activeBookings(count)}. Najpierw doprowadź do ${theirCancellation}.`;
     case SCHEDULE_DAY_PAST:
       return "Nie można układać grafiku na przeszłe dni";
+    case PLACE_NOT_IN_STABLE:
+      return "Wybrany plac nie należy do Twojego ośrodka.";
+    case PLACE_INACTIVE:
+      return "Nieaktywnego placu nie można dodać do dnia, w którym wcześniej go nie było. Najpierw go aktywuj albo wybierz inny plac.";
+    case PLACE_CHANGE_HAS_BOOKINGS: {
+      const advice = `Zostaw slot na jego placu albo najpierw doprowadź do ${theirCancellation}.`;
+      return detail.hour !== undefined && count !== null
+        ? `Nie można przenieść slotu o ${formatClockHour(detail.hour)} na inny plac — ma ${activeBookings(count)}. ${advice}`
+        : `Nie można przenieść na inny plac slotu, który ma aktywne zapisy. ${advice}`;
+    }
+    case KIND_CHANGE_HAS_BOOKINGS: {
+      const advice = `Zostaw slotowi jego rodzaj albo najpierw doprowadź do ${theirCancellation}.`;
+      return detail.hour !== undefined && count !== null
+        ? `Nie można zmienić rodzaju slotu o ${formatClockHour(detail.hour)} — ma ${activeBookings(count)}. ${advice}`
+        : `Nie można zmienić rodzaju slotu, który ma aktywne zapisy. ${advice}`;
+    }
     default:
       return FALLBACK;
   }

@@ -2,7 +2,6 @@ import { expect, test, type Page } from "@playwright/test";
 import {
   clearStableRates,
   DEMO_HINT,
-  emptySettlementsMonth,
   grosze,
   pricedSettlementRows,
   RIDER_SETTLEMENT_URL,
@@ -10,6 +9,7 @@ import {
   settlementCard,
   settlementRiders,
   SETTLEMENTS_ROUTE,
+  priceBoarderAtZero,
   setStableRate,
   STABLE_NAME,
   STABLE_STATE,
@@ -80,6 +80,7 @@ test.describe("Stawka indywidualna jeźdźca", () => {
   test.beforeAll(() => {
     clearStableRates();
     setStableRate(STABLE_RATE);
+    priceBoarderAtZero();
   });
   test.afterAll(clearStableRates);
 
@@ -87,7 +88,7 @@ test.describe("Stawka indywidualna jeźdźca", () => {
     page,
   }) => {
     await page.goto(SETTLEMENTS_ROUTE);
-    test.skip(await emptySettlementsMonth(page).isVisible(), NO_RIDES_YET);
+    test.skip((await settlementRiders(page).count()) === 0, NO_RIDES_YET);
     await expect(settlementRiders(page).first(), DEMO_HINT).toBeVisible();
     const listUrl = page.url();
 
@@ -172,7 +173,7 @@ test.describe("Stawka indywidualna jeźdźca", () => {
 
   test("kwota z trzema miejscami po przecinku wraca na rozliczenie jeźdźca z polskim komunikatem", async ({ page }) => {
     await page.goto(SETTLEMENTS_ROUTE);
-    test.skip(await emptySettlementsMonth(page).isVisible(), NO_RIDES_YET);
+    test.skip((await settlementRiders(page).count()) === 0, NO_RIDES_YET);
     await settlementRiders(page).first().getByRole("link").click();
     await page.waitForURL(/\/osrodek\/rozliczenia\/[0-9a-f-]{36}\?miesiac=/);
     const path = new URL(page.url()).pathname;

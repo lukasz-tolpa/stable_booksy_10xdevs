@@ -9,7 +9,14 @@ import { addDays, isPastDate } from "@/lib/schedule/dates";
 import { formatLongDateWithYear } from "@/lib/format";
 import { homeRouteForAccount } from "@/lib/auth/roles";
 import { SCHEDULE_PERMISSION_LOST } from "@/lib/schedule/errors";
-import { horseDefaults, instructorDefaults, pastDaySummary, prefillSourceDay } from "@/lib/schedule/form";
+import {
+  horseDefaults,
+  instructorDefaults,
+  pastDaySummary,
+  kindDefaults,
+  placeDefaults,
+  prefillSourceDay,
+} from "@/lib/schedule/form";
 import {
   getLatestScheduleDay,
   getScheduleDay,
@@ -17,7 +24,8 @@ import {
   type ScheduleDayData,
 } from "@/lib/schedule/queries";
 import { listStableInstructors, type InstructorListItem } from "@/lib/instructors/queries";
-import { listStableHorses, type HorseListItem } from "@/lib/stables/queries";
+import { listStablePlaces, type PlaceListItem } from "@/lib/places/queries";
+import { listStableOwnedHorses, type HorseListItem } from "@/lib/stables/queries";
 import { createClient } from "@/lib/supabase";
 import { logError } from "@/lib/log";
 
@@ -48,6 +56,7 @@ let scheduleDay: ScheduleDayData | null = null;
 let latestDay: ScheduleDayData | null = null;
 let horses: HorseListItem[] = [];
 let instructors: InstructorListItem[] = [];
+let places: PlaceListItem[] = [];
 let loadFailed = false;
 // Uprawnienie odebrane między middleware a odczytem — to nie awaria, tylko brak dostępu do grafiku.
 let permissionLost = false;
@@ -58,11 +67,12 @@ if (supabase && profile) {
     if (stableId === null) {
       permissionLost = true;
     } else {
-      [scheduleDay, latestDay, horses, instructors] = await Promise.all([
+      [scheduleDay, latestDay, horses, instructors, places] = await Promise.all([
         getScheduleDay(supabase, stableId, day),
         getLatestScheduleDay(supabase, stableId),
-        listStableHorses(supabase, stableId),
+        listStableOwnedHorses(supabase, stableId),
         listStableInstructors(supabase, stableId),
+        listStablePlaces(supabase, stableId),
       ]);
     }
   } catch (error) {
@@ -77,6 +87,7 @@ if (supabase && profile) {
 
 const horseForm = horseDefaults(scheduleDay, latestDay, horses);
 const instructorForm = instructorDefaults(scheduleDay, latestDay, instructors);
+const placeForm = placeDefaults(scheduleDay, latestDay, places);
 // Obie strony grafiku leżą w przestrzeniach chronionych rolą `instructor` (middleware).
 const home = homeRouteForAccount("instructor", instructorStanding);
 const pastSummary = scheduleDay ? pastDaySummary(scheduleDay, horses, instructors) : null;
@@ -165,6 +176,11 @@ const dayLabel = formatLongDateWithYear(day);
         selectedInstructorIds={instructorForm.selectedInstructorIds}
         instructors={instructorForm.selectableInstructors}
         seats={instructorForm.seats}
+        places={placeForm.selectablePlaces}
+        slotPlaces={placeForm.places}
+        defaultPlaceId={placeForm.defaultPlaceId}
+        choosePlace={placeForm.choosePlace}
+        slotKinds={kindDefaults(scheduleDay, latestDay)}
         prefillFrom={prefillSourceDay(scheduleDay, latestDay)}
         serverError={error}
         client:load

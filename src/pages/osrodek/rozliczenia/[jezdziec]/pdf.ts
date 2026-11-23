@@ -5,7 +5,7 @@ import { MONTH_PARAM, requestedSummaryMonth, type SummaryMonth } from "@/lib/mon
 import { todayIso } from "@/lib/schedule/dates";
 import { composeSettlementDocument, isSettlementPdfAvailable } from "@/lib/settlements/document";
 import { settlementPdfErrorMessage } from "@/lib/settlements/errors";
-import { settlementOwner, type SettlementOwner } from "@/lib/settlements/owner-request";
+import { ownerRequest, type StableOwner } from "@/lib/stables/owner-request";
 import { loadRiderSettlementInput } from "@/lib/settlements/queries";
 import { backToRiderSettlement, NO_OUTCOME, type BackOutcome } from "@/lib/settlements/redirect";
 import { composeRiderSettlement, parseRiderKey } from "@/lib/settlements/rider";
@@ -31,7 +31,7 @@ function pdfResponse(fileName: string, bytes: Uint8Array<ArrayBuffer>): Response
  * niedostępny (`isSettlementPdfAvailable`: bez stawki ośrodka, bez jazd i kosztów, miesiąc przyszły).
  * Wyjątek odczytu albo generowania leci dalej, do `GET`.
  */
-async function settlementPdf(owner: SettlementOwner, riderKey: string, month: SummaryMonth, now: Date) {
+async function settlementPdf(owner: StableOwner, riderKey: string, month: SummaryMonth, now: Date) {
   const [input, stable] = await Promise.all([
     loadRiderSettlementInput(owner.supabase, owner.stableId, riderKey, month),
     getStableById(owner.supabase, owner.stableId),
@@ -57,7 +57,7 @@ async function settlementPdf(owner: SettlementOwner, riderKey: string, month: Su
 /**
  * PDF rozliczenia jeźdźca za miesiąc (spec #100): `/osrodek/rozliczenia/<jeździec>/pdf?miesiac=RRRR-MM`.
  * Dostęp pilnuje middleware (przestrzeń ośrodka tylko dla właściciela); ośrodek z sesji
- * (`settlementOwner`), jeździec i dane z tego samego odczytu co strona jeźdźca (`loadRiderSettlementInput`)
+ * (`ownerRequest`), jeździec i dane z tego samego odczytu co strona jeźdźca (`loadRiderSettlementInput`)
  * i modelu widoku (`composeRiderSettlement`) — PDF mówi to samo co strona.
  * jsPDF i czcionki ładuje dynamiczny `import()` — tylko tutaj, osobny kawałek paczki workera.
  *
@@ -76,7 +76,7 @@ export const GET: APIRoute = async (context) => {
   }
   const back = (outcome: BackOutcome) => backToRiderSettlement(context, riderKey, month.month, outcome);
 
-  const owner = await settlementOwner(context, SCOPE, back);
+  const owner = await ownerRequest(context, SCOPE, back);
   if (owner instanceof Response) {
     return owner;
   }

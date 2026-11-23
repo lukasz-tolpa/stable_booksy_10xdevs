@@ -3,23 +3,31 @@ import {
   computeSlotHours,
   currentWarsawHour,
   hasSlotStarted,
+  riderSeesDay,
+  riderStandingOn,
   slotStatusLabel,
+  type RiderStanding,
   type SlotHoursInput,
 } from "@/lib/bookings/slots";
+import type { SlotSeats } from "@/lib/schedule/queries";
 
 const JOANNA = { id: 1, name: "Joanna Wrona" };
 const KAROL = { id: 2, name: "Karol Jasny" };
 const ANIA = { id: 3, name: "Ania Bąk" };
+const HALA = { id: 21, name: "Hala" };
+const DUZY_PLAC = { id: 22, name: "Duży plac" };
 
 function input(overrides: Partial<SlotHoursInput> = {}): SlotHoursInput {
   return {
     openHour: 10,
     closeHour: 12,
     instructors: [JOANNA, KAROL],
+    places: [HALA, DUZY_PLAC],
     seats: [],
     occupancy: [],
     myBookings: [],
     currentHour: null,
+    standing: { boarder: false },
     ...overrides,
   };
 }
@@ -29,7 +37,7 @@ describe("computeSlotHours", () => {
   it("wolne miejsca to limit minus aktywne zapisy w slocie", () => {
     const hours = computeSlotHours(
       input({
-        seats: [{ instructorId: JOANNA.id, hour: 10, seats: 4 }],
+        seats: [{ instructorId: JOANNA.id, hour: 10, seats: 4, placeId: HALA.id, kind: "recreation" }],
         occupancy: [{ instructorId: JOANNA.id, hour: 10, taken: 2 }],
       }),
     );
@@ -37,15 +45,46 @@ describe("computeSlotHours", () => {
     expect(hours).toEqual([
       {
         hour: 10,
-        slots: [{ instructorId: 1, instructorName: "Joanna Wrona", seats: 4, freeSeats: 2, status: "free" }],
+        slots: [
+          {
+            instructorId: 1,
+            instructorName: "Joanna Wrona",
+            placeName: "Hala",
+            seats: 4,
+            freeSeats: 2,
+            status: "free",
+            kind: "recreation",
+            horses: [],
+          },
+        ],
       },
+    ]);
+  });
+
+  it("slot pokazuje swój plac; plac spoza listy dostaje nazwę zastępczą", () => {
+    const hours = computeSlotHours(
+      input({
+        seats: [
+          { instructorId: JOANNA.id, hour: 10, seats: 1, placeId: DUZY_PLAC.id, kind: "recreation" },
+          { instructorId: KAROL.id, hour: 10, seats: 1, placeId: HALA.id, kind: "recreation" },
+          { instructorId: KAROL.id, hour: 11, seats: 1, placeId: 99, kind: "recreation" },
+        ],
+      }),
+    );
+
+    expect(hours.map((h) => h.slots.map((s) => [s.instructorName, s.placeName]))).toEqual([
+      [
+        ["Joanna Wrona", "Duży plac"],
+        ["Karol Jasny", "Hala"],
+      ],
+      [["Karol Jasny", "(plac #99)"]],
     ]);
   });
 
   it("slot bez wolnych miejsc jest pełny i nadal widoczny", () => {
     const hours = computeSlotHours(
       input({
-        seats: [{ instructorId: JOANNA.id, hour: 10, seats: 2 }],
+        seats: [{ instructorId: JOANNA.id, hour: 10, seats: 2, placeId: HALA.id, kind: "recreation" }],
         occupancy: [{ instructorId: JOANNA.id, hour: 10, taken: 2 }],
       }),
     );
@@ -57,9 +96,9 @@ describe("computeSlotHours", () => {
     const hours = computeSlotHours(
       input({
         seats: [
-          { instructorId: JOANNA.id, hour: 10, seats: 2 },
-          { instructorId: KAROL.id, hour: 10, seats: 1 },
-          { instructorId: KAROL.id, hour: 11, seats: 1 },
+          { instructorId: JOANNA.id, hour: 10, seats: 2, placeId: HALA.id, kind: "recreation" },
+          { instructorId: KAROL.id, hour: 10, seats: 1, placeId: HALA.id, kind: "recreation" },
+          { instructorId: KAROL.id, hour: 11, seats: 1, placeId: HALA.id, kind: "recreation" },
         ],
         occupancy: [{ instructorId: JOANNA.id, hour: 10, taken: 1 }],
         myBookings: [{ instructorId: JOANNA.id, hour: 10 }],
@@ -79,8 +118,8 @@ describe("computeSlotHours", () => {
     const hours = computeSlotHours(
       input({
         seats: [
-          { instructorId: JOANNA.id, hour: 10, seats: 1 },
-          { instructorId: KAROL.id, hour: 10, seats: 1 },
+          { instructorId: JOANNA.id, hour: 10, seats: 1, placeId: HALA.id, kind: "recreation" },
+          { instructorId: KAROL.id, hour: 10, seats: 1, placeId: HALA.id, kind: "recreation" },
         ],
         occupancy: [
           { instructorId: JOANNA.id, hour: 10, taken: 1 },
@@ -97,10 +136,10 @@ describe("computeSlotHours", () => {
     const hours = computeSlotHours(
       input({
         seats: [
-          { instructorId: JOANNA.id, hour: 10, seats: 0 },
-          { instructorId: KAROL.id, hour: 10, seats: 0 },
-          { instructorId: JOANNA.id, hour: 11, seats: 0 },
-          { instructorId: KAROL.id, hour: 11, seats: 1 },
+          { instructorId: JOANNA.id, hour: 10, seats: 0, placeId: HALA.id, kind: "recreation" },
+          { instructorId: KAROL.id, hour: 10, seats: 0, placeId: HALA.id, kind: "recreation" },
+          { instructorId: JOANNA.id, hour: 11, seats: 0, placeId: HALA.id, kind: "recreation" },
+          { instructorId: KAROL.id, hour: 11, seats: 1, placeId: HALA.id, kind: "recreation" },
         ],
       }),
     );
@@ -114,7 +153,13 @@ describe("computeSlotHours", () => {
       input({
         openHour: 10,
         closeHour: 13,
-        seats: [10, 11, 12].map((hour) => ({ instructorId: JOANNA.id, hour, seats: 1 })),
+        seats: [10, 11, 12].map((hour) => ({
+          instructorId: JOANNA.id,
+          hour,
+          seats: 1,
+          placeId: HALA.id,
+          kind: "recreation",
+        })),
         myBookings: [{ instructorId: JOANNA.id, hour: 11 }],
         currentHour: 11,
       }),
@@ -125,7 +170,15 @@ describe("computeSlotHours", () => {
 
   it("w dzień przyszły (currentHour null) pokazuje wszystkie godziny", () => {
     const hours = computeSlotHours(
-      input({ seats: [10, 11].map((hour) => ({ instructorId: JOANNA.id, hour, seats: 1 })) }),
+      input({
+        seats: [10, 11].map((hour) => ({
+          instructorId: JOANNA.id,
+          hour,
+          seats: 1,
+          placeId: HALA.id,
+          kind: "recreation",
+        })),
+      }),
     );
 
     expect(hours.map((h) => h.hour)).toEqual([10, 11]);
@@ -137,8 +190,8 @@ describe("computeSlotHours", () => {
         openHour: 10,
         closeHour: 12,
         seats: [
-          { instructorId: JOANNA.id, hour: 9, seats: 1 },
-          { instructorId: JOANNA.id, hour: 12, seats: 1 },
+          { instructorId: JOANNA.id, hour: 9, seats: 1, placeId: HALA.id, kind: "recreation" },
+          { instructorId: JOANNA.id, hour: 12, seats: 1, placeId: HALA.id, kind: "recreation" },
         ],
       }),
     );
@@ -151,10 +204,10 @@ describe("computeSlotHours", () => {
       input({
         instructors: [KAROL, JOANNA, ANIA],
         seats: [
-          { instructorId: KAROL.id, hour: 11, seats: 1 },
-          { instructorId: JOANNA.id, hour: 10, seats: 1 },
-          { instructorId: KAROL.id, hour: 10, seats: 1 },
-          { instructorId: ANIA.id, hour: 10, seats: 1 },
+          { instructorId: KAROL.id, hour: 11, seats: 1, placeId: HALA.id, kind: "recreation" },
+          { instructorId: JOANNA.id, hour: 10, seats: 1, placeId: HALA.id, kind: "recreation" },
+          { instructorId: KAROL.id, hour: 10, seats: 1, placeId: HALA.id, kind: "recreation" },
+          { instructorId: ANIA.id, hour: 10, seats: 1, placeId: HALA.id, kind: "recreation" },
         ],
       }),
     );
@@ -170,7 +223,9 @@ describe("computeSlotHours", () => {
   });
 
   it("instruktor spoza listy dostaje nazwę zastępczą zamiast wywrócić widok", () => {
-    const hours = computeSlotHours(input({ seats: [{ instructorId: 99, hour: 10, seats: 1 }] }));
+    const hours = computeSlotHours(
+      input({ seats: [{ instructorId: 99, hour: 10, seats: 1, placeId: HALA.id, kind: "recreation" }] }),
+    );
 
     expect(hours[0].slots[0].instructorName).toBe("(instruktor #99)");
   });
@@ -178,12 +233,117 @@ describe("computeSlotHours", () => {
   it("zajętość ponad limit (limit obniżony wstecz) nie daje ujemnych wolnych miejsc", () => {
     const hours = computeSlotHours(
       input({
-        seats: [{ instructorId: JOANNA.id, hour: 10, seats: 1 }],
+        seats: [{ instructorId: JOANNA.id, hour: 10, seats: 1, placeId: HALA.id, kind: "recreation" }],
         occupancy: [{ instructorId: JOANNA.id, hour: 10, taken: 3 }],
       }),
     );
 
     expect(hours[0].slots[0]).toMatchObject({ freeSeats: 0, status: "full" });
+  });
+});
+
+const HRABIA = { id: 31, name: "Hrabia" };
+const HRABINA = { id: 32, name: "Hrabina" };
+const RECREATION: RiderStanding = { boarder: false };
+const boarder = (horses = [HRABIA]): RiderStanding => ({ boarder: true, horses });
+
+/** Dzień z jednym slotem rekreacyjnym Joanny i jednym treningowym Karola o 10:00. */
+const MIXED_DAY: SlotSeats[] = [
+  { instructorId: JOANNA.id, hour: 10, seats: 2, placeId: HALA.id, kind: "recreation" },
+  { instructorId: KAROL.id, hour: 10, seats: 3, placeId: DUZY_PLAC.id, kind: "training" },
+];
+
+// Oracle: GLOSSARY „Slot treningowy”, „Pensjonariusz”, AC #115 — jeździec rekreacyjny nie widzi slotów
+// treningowych, pensjonariusz widzi je i zapisuje się na swoim koniu, a sloty rekreacyjne są nie dla niego.
+describe("computeSlotHours — rodzaj slotu wobec jeźdźca", () => {
+  it("jeździec rekreacyjny nie widzi slotów treningowych", () => {
+    const hours = computeSlotHours(input({ seats: MIXED_DAY, standing: RECREATION }));
+
+    expect(hours).toHaveLength(1);
+    expect(hours[0].slots.map((slot) => [slot.instructorName, slot.kind, slot.status])).toEqual([
+      ["Joanna Wrona", "recreation", "free"],
+    ]);
+  });
+
+  it("pensjonariusz widzi slot treningowy jako wolny, a rekreacyjny jako nie dla siebie", () => {
+    const hours = computeSlotHours(input({ seats: MIXED_DAY, standing: boarder() }));
+
+    expect(hours[0].slots.map((slot) => [slot.instructorName, slot.kind, slot.status])).toEqual([
+      ["Joanna Wrona", "recreation", "not_for_me"],
+      ["Karol Jasny", "training", "free"],
+    ]);
+  });
+
+  it("pensjonariusz zapisuje się na koniach z pobytem w dniu jazdy: jeden koń albo wybór kilku", () => {
+    const one = computeSlotHours(input({ seats: MIXED_DAY, standing: boarder() }));
+    const two = computeSlotHours(input({ seats: MIXED_DAY, standing: boarder([HRABIA, HRABINA]) }));
+
+    expect(one[0].slots[1].horses).toEqual([HRABIA]);
+    expect(two[0].slots[1].horses).toEqual([HRABIA, HRABINA]);
+    expect(two[0].slots[0].horses).toEqual([]);
+  });
+
+  it("pensjonariusz bez konia w ośrodku w dniu jazdy nie zapisze się na slot treningowy", () => {
+    const hours = computeSlotHours(input({ seats: MIXED_DAY, standing: boarder([]) }));
+
+    expect(hours[0].slots[1]).toMatchObject({ status: "no_horse", horses: [] });
+  });
+
+  it("własny zapis i zajęta godzina mają pierwszeństwo przed rodzajem slotu", () => {
+    const hours = computeSlotHours(
+      input({ seats: MIXED_DAY, standing: boarder(), myBookings: [{ instructorId: KAROL.id, hour: 10 }] }),
+    );
+
+    expect(hours[0].slots.map((slot) => slot.status)).toEqual(["unavailable", "mine"]);
+  });
+});
+
+describe("riderSeesDay", () => {
+  const trainingOnly: SlotSeats[] = [
+    { instructorId: KAROL.id, hour: 10, seats: 3, placeId: HALA.id, kind: "training" },
+    { instructorId: JOANNA.id, hour: 10, seats: 0, placeId: HALA.id, kind: "recreation" },
+  ];
+
+  it("jeździec rekreacyjny nie widzi dnia, w którym są wyłącznie sloty treningowe", () => {
+    expect(riderSeesDay(trainingOnly, RECREATION)).toBe(false);
+    expect(riderSeesDay(MIXED_DAY, RECREATION)).toBe(true);
+  });
+
+  it("pensjonariusz widzi każdy ułożony dzień", () => {
+    expect(riderSeesDay(trainingOnly, boarder())).toBe(true);
+    expect(riderSeesDay([], boarder())).toBe(true);
+  });
+});
+
+describe("riderStandingOn", () => {
+  const stays = (arrivalDay: string, departureDay: string | null) => [{ arrivalDay, departureDay }];
+  const standing = (horse: { id: number; name: string }, arrivalDay: string, departureDay: string | null) => ({
+    horseId: horse.id,
+    horseName: horse.name,
+    stays: stays(arrivalDay, departureDay),
+  });
+
+  it("jeździec bez koni pensjonatowych w ośrodku jest rekreacyjny", () => {
+    expect(riderStandingOn([], "2026-12-15")).toEqual({ boarder: false });
+  });
+
+  it("pensjonariusz w miesiącu dnia z końmi, których pobyt obejmuje dzień jazdy", () => {
+    const horses = [
+      standing(HRABIA, "2026-09-01", null),
+      standing(HRABINA, "2026-12-16", null),
+      standing({ id: 33, name: "Baron" }, "2026-09-01", "2026-12-15"),
+    ];
+
+    expect(riderStandingOn(horses, "2026-12-15")).toEqual({
+      boarder: true,
+      horses: [{ id: 33, name: "Baron" }, HRABIA],
+    });
+  });
+
+  it("koń, który wyjechał w poprzednim miesiącu, nie czyni jeźdźca pensjonariuszem", () => {
+    expect(riderStandingOn([standing(HRABIA, "2026-09-01", "2026-11-30")], "2026-12-15")).toEqual({
+      boarder: false,
+    });
   });
 });
 
@@ -194,6 +354,11 @@ describe("slotStatusLabel", () => {
     expect(slotStatusLabel("mine")).toBe("Twój zapis");
     expect(slotStatusLabel("full")).toBe("Brak miejsc");
     expect(slotStatusLabel("unavailable")).toBe("Masz już zapis o tej godzinie");
+  });
+
+  it("slot nie dla pensjonariusza i slot treningowy bez konia mają własne podpisy", () => {
+    expect(slotStatusLabel("not_for_me")).toBe("Slot rekreacyjny — nie dla pensjonariuszy");
+    expect(slotStatusLabel("no_horse")).toBe("Twój koń nie stoi tego dnia w ośrodku");
   });
 
   it("wolny slot nie ma pigułki", () => {

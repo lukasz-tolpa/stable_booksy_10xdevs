@@ -3,13 +3,13 @@ import { firstErrorMessage } from "@/lib/auth/schemas";
 import { errorCode } from "@/lib/db-errors";
 import { formValue } from "@/lib/form-data";
 import { logError } from "@/lib/log";
-import { currentMonth } from "@/lib/schedule/dates";
 import { isExpectedRateRefusal, RATE_SAVE_FAILED, riderRateSaveErrorMessage } from "@/lib/settlements/errors";
-import { settlementOwner } from "@/lib/settlements/owner-request";
+import { ownerRequest } from "@/lib/stables/owner-request";
+import { listBoardingHorses } from "@/lib/boarding/queries";
 import { saveRate } from "@/lib/settlements/queries";
-import { rateFromMonth } from "@/lib/settlements/rates";
 import { backToRiderSettlement, backToSettlements, returnMonth, RIDER_PARAM } from "@/lib/settlements/redirect";
 import { parseRiderKey } from "@/lib/settlements/rider";
+import { riderRateStart } from "@/lib/settlements/rider-rate";
 import { RIDER_RATE_KIND, riderRateSchema } from "@/lib/settlements/schemas";
 import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
 
@@ -22,6 +22,8 @@ const SCOPE = "api:settlements/rider-rate";
  * do stawki ośrodka), „od tego” albo „od następnego miesiąca”; drugi zapis na ten sam miesiąc nadpisuje.
  * Miesiąc „od” liczy serwer z dzisiejszej daty; reguły czasu pilnuje baza (SB026), jeźdźca spoza ośrodka
  * odrzuca RLS (42501). Powrót na rozliczenie jeźdźca tego samego miesiąca; błędny jeździec — na listę.
+ * Rodzaj stawki indywidualnej to rodzaj jeźdźca w miesiącu, od którego stawka obowiązuje (`riderRateStart`,
+ * #117/#112 — pensjonariusz: treningowa), liczony z pobytów jego koni tak jak na stronie, nie z formularza.
  */
 export const POST: APIRoute = async (context) => {
   const now = new Date();
@@ -42,15 +44,25 @@ export const POST: APIRoute = async (context) => {
     return back(firstErrorMessage(parsed.error));
   }
 
-  const owner = await settlementOwner(context, SCOPE, back);
+  const owner = await ownerRequest(context, SCOPE, back);
   if (owner instanceof Response) {
     return owner;
   }
 
+  let boarding;
+  try {
+    boarding = await listBoardingHorses(owner.supabase, { stableId: owner.stableId });
+  } catch (error) {
+    logError(SCOPE, error);
+    return back(RATE_SAVE_FAILED);
+  }
+
+  const { kind, fromMonth } = riderRateStart(boarding, riderKey, parsed.data.from, now);
   const { data, error } = await saveRate(owner.supabase, {
     stableId: owner.stableId,
     riderId: riderKey,
-    fromMonth: rateFromMonth(parsed.data.from, currentMonth(now)),
+    kind,
+    fromMonth,
     amount: parsed.data.kind === RIDER_RATE_KIND.set ? parsed.data.amount : null,
   });
 

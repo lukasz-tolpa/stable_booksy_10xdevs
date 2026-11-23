@@ -1,70 +1,128 @@
 ---
-// Karty jeźdźców na stronie „Rozliczenia” (#105, wariant B prototypu): nazwa i „Do zapłaty”, pod nimi
-// wyliczenie „N jazd × stawka [źródło stawki] = kwota za jazdy + koszty”, na dole „Rozliczenie →”.
-// Cała karta to jeden link do rozliczenia jeźdźca oglądanego miesiąca. Bez stawki ośrodka karta ma samą
-// liczbę jazd, a nad kartami stoi zdanie, że kwoty czekają na stawkę. Stawka indywidualna ma dopisek
-// wyróżniony, stawka ośrodka — neutralny.
-// Renderuje karty z `SettlementsView` (`@/lib/settlements/settlements`) — kolejność, kwoty, adresy,
-// teksty i wariant dopisku są już policzone.
+// Sekcja kart jeźdźców na stronie „Rozliczenia” (#118: „Rekreacja” albo „Pensjonariusze”): nagłówek z sumą
+// sekcji i „N jeźdźców · N jazd”, zdanie o brakującej stawce albo opłacie, potem karty (#105, wariant B
+// prototypu): nazwa i „Do zapłaty”, pod nimi wyliczenie „N jazd × stawka [źródło stawki] = kwota za jazdy
+// + opłata za pensjonat + koszty”, na dole „Rozliczenie →”. Cała karta to jeden link do rozliczenia jeźdźca
+// oglądanego miesiąca. Bez stawki rodzaju sekcji karta ma samą liczbę jazd, a sekcja — zamiast sumy „—”.
+// Stawka indywidualna ma dopisek wyróżniony, stawka ośrodka — neutralny.
+// Renderuje `SettlementLinkSection` (`@/lib/settlements/settlements`) — kolejność, kwoty, adresy, teksty
+// i wariant dopisku są już policzone.
 //
-// KONTRAKT e2e: `list` „Rozliczenia jeźdźców”, jedna pozycja na jeźdźca: link, którego tekst zaczyna się
-// od nazwy; pierwsza kwota w pozycji to „Do zapłaty”, potem „N jazd…”.
+// KONTRAKT e2e: `region` o nazwie sekcji („Rekreacja”, „Pensjonariusze”) z `list` „Rozliczenia jeźdźców —
+// {sekcja}”, jedna pozycja na jeźdźca: link, którego tekst zaczyna się od nazwy; pierwsza kwota w pozycji to
+// „Do zapłaty”, potem „N jazd…”. Suma sekcji to jeden element z samym tekstem „{sekcja} razem: {kwota}”
+// — wizualnie ukryty; bez stawki rodzaju sekcji takiego elementu nie ma.
 import Card from "@/components/ui/Card.astro";
 import Tag from "@/components/ui/Tag.astro";
-import type { SettlementsView } from "@/lib/settlements/settlements";
+import type { SettlementLinkSection } from "@/lib/settlements/settlements";
 import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
 
 interface Props {
-  list: SettlementsView["list"];
+  section: SettlementLinkSection;
 }
 
-const { list } = Astro.props;
+const { section } = Astro.props;
 const texts = SETTLEMENT_TEXTS;
+const headingId = `section-${section.kind}`;
 ---
 
-{list.needsRate && <p class="note">{texts.amountsNeedRate}</p>}
-<ul class="cards" aria-label={texts.ridersList}>
-  {
-    list.rows.map((row) => (
-      <li>
-        <Card padding={0}>
-          <a class="rider" href={row.href}>
-            <span class="rider__top">
-              <span class="rider__name">{row.name}</span>
-              {row.dueText && (
-                <span class="rider__due">
-                  <span class="rider__due-label">{texts.card.due}</span>
-                  <span class="rider__amount">{row.dueText}</span>
-                </span>
-              )}
+<section class="section" aria-labelledby={headingId}>
+  <div class="section__head">
+    <h2 id={headingId}>{section.heading}</h2>
+    <p class="section__sum">
+      {
+        section.totalText ? (
+          <>
+            <span class="sr-only">{section.totalLabel}</span>
+            <span class="section__amount" aria-hidden="true">
+              {section.totalText}
             </span>
-            <span class="rider__calc">
-              <span>{row.ridesText}</span>
-              {row.rateText && (
-                <>
-                  <span>×</span>
-                  <span>{row.rateText}</span>
-                  {row.rateTag && <Tag variant={row.rateTag.variant}>{row.rateTag.text}</Tag>}
-                  <span>=</span>
-                  <span>{row.ridesAmountText}</span>
-                </>
-              )}
-              {row.costsText && (
-                <>
-                  <span>+</span>
-                  <span>{row.costsText}</span>
-                </>
-              )}
-            </span>
-            <span class="rider__more">{texts.card.open}</span>
-          </a>
-        </Card>
-      </li>
-    ))
-  }
-</ul>
+          </>
+        ) : (
+          <span class="section__amount">{texts.noTotal}</span>
+        )
+      }
+    </p>
+    <p class="section__counts">{section.countsText}</p>
+  </div>
+  {section.note && <p class="note">{section.note}</p>}
+  <ul class="cards" aria-label={section.listLabel}>
+    {
+      section.rows.map((row) => (
+        <li>
+          <Card padding={0}>
+            <a class="rider" href={row.href}>
+              <span class="rider__top">
+                <span class="rider__name">{row.name}</span>
+                {row.dueText && (
+                  <span class="rider__due">
+                    <span class="rider__due-label">{texts.card.due}</span>
+                    <span class="rider__amount">{row.dueText}</span>
+                  </span>
+                )}
+              </span>
+              <span class="rider__calc">
+                <span>{row.ridesText}</span>
+                {row.rateText && (
+                  <>
+                    <span>×</span>
+                    <span>{row.rateText}</span>
+                    {row.rateTag && <Tag variant={row.rateTag.variant}>{row.rateTag.text}</Tag>}
+                    <span>=</span>
+                    <span>{row.ridesAmountText}</span>
+                  </>
+                )}
+                {row.feesText && (
+                  <>
+                    <span>+</span>
+                    <span>{row.feesText}</span>
+                  </>
+                )}
+                {row.costsText && (
+                  <>
+                    <span>+</span>
+                    <span>{row.costsText}</span>
+                  </>
+                )}
+              </span>
+              <span class="rider__more">{texts.card.open}</span>
+            </a>
+          </Card>
+        </li>
+      ))
+    }
+  </ul>
+</section>
 
 <style>
+  .section__head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: 2px 12px;
+    margin-bottom: 12px;
+  }
+  h2 {
+    margin: 0;
+    font-size: 20px;
+    overflow-wrap: anywhere;
+  }
+  .section__sum {
+    margin: 0;
+    text-align: right;
+  }
+  .section__amount {
+    font-size: 20px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .section__counts {
+    grid-column: 1 / -1;
+    margin: 0;
+    font-size: 14px;
+    color: var(--muted);
+  }
   .note {
     margin: 0 0 12px;
     font-size: 14.5px;

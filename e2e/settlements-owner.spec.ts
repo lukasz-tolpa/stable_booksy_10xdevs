@@ -3,9 +3,9 @@ import {
   calendarRideDays,
   clearStableRatesAndCosts,
   DEMO_HINT,
-  emptySettlementsMonth,
   expectDocumentOrder,
   expectNoHorizontalScroll,
+  goToMonthWithRecreationRides,
   grosze,
   INSTRUCTOR_EMAIL,
   otherRidersToggle,
@@ -18,6 +18,7 @@ import {
   settlementRiders,
   settlementRows,
   SETTLEMENTS_ROUTE,
+  priceBoarderAtZero,
   setStableRate,
   showAllRides,
   signIn,
@@ -33,8 +34,9 @@ import {
  * usuwa (reguła bazy SB027), więc przed i po scenariuszu stawki ośrodka usuwa superuser — z wyłączonymi
  * wyzwalaczami (`session_replication_role = replica`), bo reguła czasu dotyczy także jego.
  *
- * Historia sięga 24 dni wstecz, więc pierwszego dnia miesiąca bieżący miesiąc nie ma jeszcze jazd —
- * scenariusz rozlicza wtedy poprzedni miesiąc (pierwsza stawka ośrodka działa wstecz).
+ * Historia sięga 24 dni wstecz, więc pierwszego dnia miesiąca bieżący miesiąc nie ma jeszcze jazd jeźdźców
+ * rekreacyjnych — scenariusz rozlicza wtedy poprzedni miesiąc (pierwsza stawka ośrodka działa wstecz).
+ * Kwoty sprawdza w sekcji „Rekreacja” (#118); pensjonariuszkę i jej sekcję — `settlements-sections.spec.ts`.
  *
  * Rozliczenie jeźdźca (#95): wiersz listy prowadzi do rozliczenia tego samego miesiąca; liczba jazd
  * zgadza się z listą jazd i z wierszem listy, kwota = N × stawka, „Do zapłaty” = kwota za jazdy.
@@ -42,14 +44,17 @@ import {
  */
 test.describe("Rozliczenia właściciela", () => {
   test.use({ storageState: STABLE_STATE });
-  // Bez stawek i kosztów dodatkowych: na liście są tylko jeźdźcy z jazdami (kroki rozliczenia jeźdźca ich potrzebują).
-  test.beforeAll(clearStableRatesAndCosts);
+  // Bez stawki ośrodka i kosztów dodatkowych: na liście są tylko jeźdźcy z jazdami (kroki rozliczenia jeźdźca ich
+  // potrzebują). Pensjonariuszka po 0,00 zł — sekcja „Pensjonariusze” ma sumę, więc „Razem” = suma kart rekreacji.
+  test.beforeAll(() => {
+    clearStableRatesAndCosts();
+    priceBoarderAtZero();
+  });
   test.afterAll(clearStableRatesAndCosts);
 
   test("właściciel ustawia stawkę ośrodka: kwota jeźdźca = liczba jazd × stawka, „Razem” = suma wierszy", async ({
     page,
   }) => {
-    const empty = emptySettlementsMonth(page);
     const total = page.getByText(/^Razem: /);
     const rateRegion = page.getByRole("region", { name: "Stawka ośrodka" });
 
@@ -57,10 +62,7 @@ test.describe("Rozliczenia właściciela", () => {
       await page.goto(SETTLEMENTS_ROUTE);
       await expect(page.getByRole("heading", { level: 1, name: "Rozliczenia" })).toBeVisible();
       await expect(rateRegion.getByText("Ustaw stawkę ośrodka", { exact: true })).toBeVisible();
-      if (await empty.isVisible()) {
-        await page.getByRole("navigation", { name: "Wybór miesiąca" }).getByRole("link", { name: "Poprzedni" }).click();
-        await page.waitForURL(/miesiac=\d{4}-\d{2}$/);
-      }
+      await goToMonthWithRecreationRides(page);
       await expect(settlementRiders(page).first(), DEMO_HINT).toBeVisible();
       await expect(page.getByText("Kwoty pojawią się po ustawieniu stawki ośrodka.")).toBeVisible();
       await expect(total).toHaveCount(0);
@@ -211,10 +213,7 @@ test.describe("Rozliczenia właściciela", () => {
     await page.goto(SETTLEMENTS_ROUTE);
     await expect(page.getByRole("heading", { level: 1, name: "Rozliczenia" })).toBeVisible();
     const monthNav = page.getByRole("navigation", { name: "Wybór miesiąca" });
-    if (await emptySettlementsMonth(page).isVisible()) {
-      await monthNav.getByRole("link", { name: "Poprzedni" }).click();
-      await page.waitForURL(/miesiac=\d{4}-\d{2}$/);
-    }
+    await goToMonthWithRecreationRides(page);
     await expect(settlementRiders(page).first(), DEMO_HINT).toBeVisible();
 
     // „Pozostali jeźdźcy ośrodka” są tylko, gdy jakiś jeździec ośrodka nie ma jazd w miesiącu (zależy od
@@ -239,10 +238,7 @@ test.describe("Rozliczenia właściciela", () => {
     try {
       await page.setViewportSize({ width: 390, height: 844 });
       await page.goto(SETTLEMENTS_ROUTE);
-      if (await emptySettlementsMonth(page).isVisible()) {
-        await page.getByRole("navigation", { name: "Wybór miesiąca" }).getByRole("link", { name: "Poprzedni" }).click();
-        await page.waitForURL(/miesiac=\d{4}-\d{2}$/);
-      }
+      await goToMonthWithRecreationRides(page);
       // Bez kosztów na liście są tylko jeźdźcy z jazdami.
       await expect(settlementRiders(page).first(), DEMO_HINT).toBeVisible();
       await settlementRiders(page).first().getByRole("link").click();

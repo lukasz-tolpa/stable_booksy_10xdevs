@@ -16,6 +16,7 @@ import {
 import { composeMonthNav } from "@/lib/month-summary/summary";
 import { MONTH_SUMMARY_TEXTS } from "@/lib/month-summary/texts";
 import { todayIso } from "@/lib/schedule/dates";
+import { listBoardingHorses } from "@/lib/boarding/queries";
 import { settlementsHref } from "@/lib/settlements/redirect";
 import { getOwnedStableId, listStableHorses } from "@/lib/stables/queries";
 import { getStatsRows } from "@/lib/stats/queries";
@@ -42,14 +43,23 @@ if (supabase && profile) {
       // Middleware nie wpuszcza tu właściciela bez stadniny; jej brak to awaria odczytu, nie pusty miesiąc.
       logError(SCOPE, new Error("Brak stadniny dla konta właściciela"));
     } else {
-      // Stado i instruktorzy obejmują zdezaktywowanych — jedyne źródło nazw przy minionych jazdach.
-      const [rows, horses, instructors] = await Promise.all([
+      // Stado i instruktorzy obejmują zdezaktywowanych — jedyne źródło nazw przy minionych jazdach. Konie
+      // pensjonatowe z pobytami dzielą jeźdźców na sekcje (#118) — ten sam odczyt co w Rozliczeniach.
+      const [rows, horses, instructors, boarding] = await Promise.all([
         getStatsRows(supabase, stableId, month),
         listStableHorses(supabase, stableId),
         listStableInstructors(supabase, stableId),
+        listBoardingHorses(supabase, { stableId }),
       ]);
       view = composeOwnerMonthSummary(
-        { month, ...rows, horses, instructors, instructorParam: Astro.url.searchParams.get(INSTRUCTOR_PARAM) },
+        {
+          month,
+          ...rows,
+          horses,
+          instructors,
+          boardingHorses: boarding,
+          instructorParam: Astro.url.searchParams.get(INSTRUCTOR_PARAM),
+        },
         now,
       );
     }
@@ -71,7 +81,7 @@ const settlementsLink = settlementsHref(month.month);
 <Layout title={texts.heading}>
   <Topbar />
   <main class="container-narrow page">
-    <MonthSummaryBody lead={texts.owner.lead} nav={nav} view={view} list={view?.list}>
+    <MonthSummaryBody lead={texts.owner.lead} nav={nav} view={view} riders={view ?? undefined}>
       <p slot="related" class="related">
         <a href={settlementsLink}>{texts.owner.settlementsLink}</a>
       </p>

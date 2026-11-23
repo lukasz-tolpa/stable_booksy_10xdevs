@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   ALREADY_BOOKED_THIS_HOUR,
+  BOARDER_ON_RECREATION_SLOT,
   HOUR_OUTSIDE_WORKING_HOURS,
+  NO_HORSE_ON_RIDE_DAY,
   NO_SEATS_LEFT,
+  NOT_A_BOARDER_ON_TRAINING_SLOT,
+  NOT_MY_BOARDING_HORSE,
   SCHEDULE_CHANGED,
+  TRAINING_HORSE_NOT_CHOSEN,
   bookingErrorMessage,
 } from "@/lib/bookings/errors";
 
@@ -88,10 +93,15 @@ describe("bookingErrorMessage", () => {
       [ALREADY_BOOKED_THIS_HOUR, HORSE_HOUR_KEY],
       [SCHEDULE_CHANGED, undefined],
       [HOUR_OUTSIDE_WORKING_HOURS, undefined],
+      [BOARDER_ON_RECREATION_SLOT, undefined],
+      [NOT_A_BOARDER_ON_TRAINING_SLOT, undefined],
+      [NOT_MY_BOARDING_HORSE, undefined],
+      [TRAINING_HORSE_NOT_CHOSEN, undefined],
+      [NO_HORSE_ON_RIDE_DAY, undefined],
       [undefined, undefined],
     ];
     const closedSet = new Set(refusals.map(([code, constraint]) => bookingErrorMessage(code, constraint)));
-    expect(closedSet.size).toBe(6);
+    expect(closedSet.size).toBe(11);
 
     const probes: [string | undefined, string | undefined][] = [
       ...refusals,
@@ -106,6 +116,33 @@ describe("bookingErrorMessage", () => {
       expect(closedSet.has(message)).toBe(true);
       expect(message).not.toMatch(/fetch|TypeError|duplicate key|violates|\{\}/);
     }
+  });
+
+  // Oracle: AC #115 — odmowy zapisu w obie strony i koń przy slocie treningowym mają nowe kody
+  // (migracja 20261202090000_training_slots.sql) i polskie komunikaty dla jeźdźca.
+  it("odmowy rodzaju slotu (SB049–SB053) mówią jeźdźcowi, co zrobić", () => {
+    expect([
+      BOARDER_ON_RECREATION_SLOT,
+      NOT_A_BOARDER_ON_TRAINING_SLOT,
+      NOT_MY_BOARDING_HORSE,
+      TRAINING_HORSE_NOT_CHOSEN,
+      NO_HORSE_ON_RIDE_DAY,
+    ]).toEqual(["SB049", "SB050", "SB051", "SB052", "SB053"]);
+    expect(bookingErrorMessage(BOARDER_ON_RECREATION_SLOT)).toBe(
+      "Jako pensjonariusz jeździsz na swoim koniu — zapisz się na slot treningowy.",
+    );
+    expect(bookingErrorMessage(NOT_A_BOARDER_ON_TRAINING_SLOT)).toBe(
+      "Na slot treningowy zapisują się tylko pensjonariusze ośrodka. Wybierz slot rekreacyjny.",
+    );
+    expect(bookingErrorMessage(NOT_MY_BOARDING_HORSE)).toBe(
+      "Na slot treningowy zapisujesz się na swoim koniu, który stoi w ośrodku w dniu jazdy. Wybierz swojego konia.",
+    );
+    expect(bookingErrorMessage(TRAINING_HORSE_NOT_CHOSEN)).toBe(
+      "Masz w ośrodku kilka koni — wybierz, na którym jedziesz.",
+    );
+    expect(bookingErrorMessage(NO_HORSE_ON_RIDE_DAY)).toBe(
+      "Żaden z Twoich koni nie stoi w ośrodku w dniu jazdy, więc nie zapiszesz się na slot treningowy.",
+    );
   });
 
   // Słownik (GLOSSARY „Slot”): termin to nie slot.

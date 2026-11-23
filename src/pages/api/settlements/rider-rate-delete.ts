@@ -4,7 +4,7 @@ import { errorCode } from "@/lib/db-errors";
 import { formValue } from "@/lib/form-data";
 import { logError } from "@/lib/log";
 import { isExpectedRateRefusal, RATE_NOTHING_TO_DELETE, rateDeleteErrorMessage } from "@/lib/settlements/errors";
-import { settlementOwner } from "@/lib/settlements/owner-request";
+import { ownerRequest } from "@/lib/stables/owner-request";
 import { deleteRiderRate } from "@/lib/settlements/queries";
 import { backToRiderSettlement, backToSettlements, returnMonth, RIDER_PARAM } from "@/lib/settlements/redirect";
 import { parseRiderKey } from "@/lib/settlements/rider";
@@ -34,7 +34,7 @@ export const POST: APIRoute = async (context) => {
     return back(firstErrorMessage(parsed.error));
   }
 
-  const owner = await settlementOwner(context, SCOPE, back);
+  const owner = await ownerRequest(context, SCOPE, back);
   if (owner instanceof Response) {
     return owner;
   }

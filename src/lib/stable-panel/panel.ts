@@ -1,6 +1,8 @@
 import { OWNER_MONTH_SUMMARY_ROUTE, OWNER_SCHEDULE_ROUTE, OWNER_SETTLEMENTS_ROUTE } from "@/lib/auth/roles";
 import { STABLE_DAY_BOOKINGS_ROUTE } from "@/lib/bookings/stable-redirect";
 import { INSTRUCTORS_ROUTE } from "@/lib/instructors/redirect";
+import { OWNER_PLACE_OCCUPANCY_ROUTE } from "@/lib/place-occupancy/routes";
+import { PLACES_ROUTE } from "@/lib/places/redirect";
 import {
   BOOKING_FORMS,
   formatCount,
@@ -16,9 +18,11 @@ import {
 } from "@/lib/format";
 import { resolveSummaryMonth } from "@/lib/month-summary/month";
 import { monthRides } from "@/lib/month-summary/summary";
+import { STABLE_BOARDERS_ROUTE } from "@/lib/boarding/redirect";
 import { addDays } from "@/lib/schedule/dates";
 import type { SettlementList } from "@/lib/settlements/settlements";
-import { ACTIVE_FORMS, DAY_FORMS, PANEL_TEXTS, SEAT_FORMS } from "@/lib/stable-panel/texts";
+import { isStableHorse, type HorseKind } from "@/lib/stables/kind";
+import { ACTIVE_FORMS, BOARDING_HORSE_FORMS, DAY_FORMS, PANEL_TEXTS, SEAT_FORMS } from "@/lib/stable-panel/texts";
 import { rideHoursBars, type BarChartItem } from "@/lib/stats/chart-items";
 import { statsPeriodSearch } from "@/lib/stats/period";
 import type { StatsRider } from "@/lib/stats/riders";
@@ -180,8 +184,10 @@ export interface SideColumnInput {
   today: string;
   /** Model tygodnia; `null`, gdy tygodnia nie udało się wczytać. */
   week: WeekView | null;
-  /** Stado ośrodka (`listStableHorses`); `null` — nie wczytano. */
-  horses: { active: boolean }[] | null;
+  /** Wszystkie konie ośrodka, także pensjonatowe (`listStableHorses`); `null` — nie wczytano. */
+  horses: { active: boolean; kind: HorseKind }[] | null;
+  /** Place ośrodka (`listStablePlaces`, #113); `null` — nie wczytano. */
+  places: { active: boolean }[] | null;
   /** Instruktorzy ośrodka (`listStableInstructors`); `null` — nie wczytano. */
   instructors: { id: number; active: boolean }[] | null;
   /** Instruktorzy z kontem (`listInstructorAccounts`); `null` — nie wczytano. */
@@ -259,11 +265,55 @@ export function composeSettlementsLink(input: Pick<SideColumnInput, "today" | "s
   if (settlementsTotal === null) {
     return { ...link, fact: null, warn: false };
   }
-  if (settlementsTotal.needsRate || settlementsTotal.total === null) {
-    return { ...link, fact: texts.setRate, warn: true };
+  // Brak sumy — ta sama „—” co w „Do zapłaty razem” (spec #112: nigdy suma częściowa): sekcja czeka na stawkę
+  // swojego rodzaju albo, przy stawkach, koń pensjonatowy — na opłatę za pensjonat.
+  if (settlementsTotal.total === null) {
+    return { ...link, fact: settlementsTotal.needsRate ? texts.setRate : texts.setBoardingFee, warn: true };
   }
   const month = resolveSummaryMonth(null, input.today).month;
   return { ...link, fact: `${formatMonthName(month)}: ${formatMoney(settlementsTotal.total)}`, warn: false };
+}
+
+/**
+ * Link „Pensjonariusze” (#114) z liczbą koni pensjonatowych ośrodka, np. `2 konie pensjonatowe`. Dolny pasek
+ * go nie mieści, więc jak Podsumowanie miesiąca jest w bocznej kolumnie i poniżej 1000 px w kolumnie głównej.
+ */
+export function composeBoardersLink(input: Pick<SideColumnInput, "horses">): SideLink {
+  const boarding = input.horses?.filter((horse) => !isStableHorse(horse)).length ?? null;
+  return {
+    name: PANEL_TEXTS.side.boarders,
+    href: STABLE_BOARDERS_ROUTE,
+    fact: boarding === null ? null : formatCount(boarding, BOARDING_HORSE_FORMS),
+    warn: false,
+  };
+}
+
+/**
+ * Wejście na stronę „Place” (#113) z liczbą aktywnych placów — w bocznej kolumnie i poniżej 1000 px
+ * w kolumnie głównej (dolny pasek nie ma placów).
+ */
+export function composePlacesLink(input: Pick<SideColumnInput, "places">): SideLink {
+  const activePlaces = input.places?.filter((place) => place.active).length ?? null;
+
+  return {
+    name: PANEL_TEXTS.side.places,
+    href: PLACES_ROUTE,
+    fact: activePlaces === null ? null : formatCount(activePlaces, ACTIVE_FORMS),
+    warn: false,
+  };
+}
+
+/**
+ * Wejście na „Zajętość placów” (#116) — to, co o placach widzą pensjonariusze, dla dowolnego dnia. Jak Place:
+ * w bocznej kolumnie i poniżej 1000 px w kolumnie głównej.
+ */
+export function composePlaceOccupancyLink(): SideLink {
+  return {
+    name: PANEL_TEXTS.side.placeOccupancy,
+    href: OWNER_PLACE_OCCUPANCY_ROUTE,
+    fact: PANEL_TEXTS.side.anyDay,
+    warn: false,
+  };
 }
 
 /**
@@ -274,7 +324,7 @@ export function composeSettlementsLink(input: Pick<SideColumnInput, "today" | "s
 export function composeSideColumn(input: SideColumnInput, now: Date = new Date()): SideLink[] {
   const texts = PANEL_TEXTS.side;
   const today = input.week?.days[0];
-  const activeHorses = input.horses?.filter((horse) => horse.active).length ?? null;
+  const activeHorses = input.horses?.filter((horse) => isStableHorse(horse) && horse.active).length ?? null;
 
   return [
     { name: texts.schedule, href: dayHref(OWNER_SCHEDULE_ROUTE, addDays(input.today, 1)), ...tomorrowFact(input.week) },
@@ -290,6 +340,9 @@ export function composeSideColumn(input: SideColumnInput, now: Date = new Date()
       fact: activeHorses === null ? null : formatCount(activeHorses, ACTIVE_FORMS),
       warn: false,
     },
+    composeBoardersLink(input),
+    composePlacesLink(input),
+    composePlaceOccupancyLink(),
     { name: texts.instructors, href: INSTRUCTORS_ROUTE, fact: instructorsFact(input), warn: false },
     composeMonthSummaryLink(input, now),
     composeSettlementsLink(input),

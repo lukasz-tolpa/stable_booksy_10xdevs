@@ -191,3 +191,82 @@ describe("composeOwnerMonthSummary — filtr instruktora", () => {
     expect(view).toMatchObject({ isEmpty: true, emptyText: "W sierpniu 2026 nie było jazd." });
   });
 });
+
+// Oracle: AC #118 — podsumowanie właściciela dzieli jeźdźców na „Rekreację” i „Pensjonariuszy” według reguły
+// „pensjonariusz w miesiącu” (pobyt jego konia zachodzi na miesiąc); zanonimizowani łącznie, jak dziś.
+describe("composeOwnerMonthSummary — sekcje „Rekreacja” i „Pensjonariusze” (#118)", () => {
+  const HRABIA = 5;
+  const kasia = (day: string, hour: number) => booking(day, hour, { riderId: "kasia", horseId: HRABIA });
+  const sectionsInput = (overrides: Partial<OwnerMonthSummaryInput> = {}) =>
+    input({
+      riders: [
+        { id: "anna", name: "Anna Kowalska" },
+        { id: "kasia", name: "Katarzyna Zając" },
+      ],
+      horses: [
+        { id: BELLA, name: "Bella" },
+        { id: HRABIA, name: "Hrabia" },
+      ],
+      // Hrabia stoi od sierpnia; Wicher Anny wyjechał we wrześniu — w listopadzie Anna nie jest pensjonariuszką.
+      boardingHorses: [
+        { riderKey: "kasia", stays: [{ arrivalDay: "2026-08-10", departureDay: null }] },
+        { riderKey: "anna", stays: [{ arrivalDay: "2026-08-01", departureDay: "2026-09-30" }] },
+      ],
+      bookings: [
+        booking("2026-11-06", 10),
+        booking("2026-11-07", 10),
+        kasia("2026-11-04", 10),
+        booking("2026-11-05", 11, { riderId: null }),
+      ],
+      ...overrides,
+    });
+
+  it("jeźdźcy rekreacyjni i pensjonariusze w osobnych sekcjach z liczbami, zanonimizowani w jednym wierszu", () => {
+    const view = composeOwnerMonthSummary(sectionsInput(), NOW);
+
+    expect(
+      view.sections.map((section) => ({
+        heading: section.heading,
+        label: section.label,
+        countsText: section.countsText,
+        riders: section.rows.map((row) => [row.name, row.ridesText]),
+      })),
+    ).toEqual([
+      {
+        heading: "Rekreacja",
+        label: "Jeźdźcy — Rekreacja",
+        countsText: "1 jeździec · 2 jazdy",
+        riders: [["Anna Kowalska", "2 jazdy"]],
+      },
+      {
+        heading: "Pensjonariusze",
+        label: "Jeźdźcy — Pensjonariusze",
+        countsText: "1 jeździec · 1 jazda",
+        riders: [["Katarzyna Zając", "1 jazda"]],
+      },
+    ]);
+    expect(view.sections[1]?.rows[0]?.list.map((ride) => ride.horseName)).toEqual(["Hrabia"]);
+    expect(view.pooled).toMatchObject({ riderKey: null, name: "Usunięci jeźdźcy", ridesText: "1 jazda" });
+    // Suma miesiąca zostaje: wszystkie jazdy, także zanonimizowanych.
+    expect(view.list.totalText).toBe("4 jazdy · 2 jeźdźców");
+  });
+
+  it("sekcja bez nikogo jest pominięta, a bez jeźdźców zanonimizowanych nie ma wiersza zbiorczego", () => {
+    const view = composeOwnerMonthSummary(sectionsInput({ bookings: [booking("2026-11-06", 10)] }), NOW);
+    expect(view.sections.map((section) => section.heading)).toEqual(["Rekreacja"]);
+    expect(view.pooled).toBeNull();
+  });
+
+  it("filtr instruktora zawęża też sekcje", () => {
+    const view = composeOwnerMonthSummary(
+      sectionsInput({
+        bookings: [booking("2026-11-06", 10), booking("2026-11-04", 10, { riderId: "kasia", instructorId: KAROL })],
+        instructorParam: String(KAROL),
+      }),
+      NOW,
+    );
+    expect(view.sections.map((section) => [section.heading, section.rows.map((row) => row.name)])).toEqual([
+      ["Pensjonariusze", ["Katarzyna Zając"]],
+    ]);
+  });
+});

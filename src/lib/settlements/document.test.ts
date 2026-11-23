@@ -15,7 +15,7 @@ const zl = (text: string) => text.replaceAll(" ", " ");
 const THIS_MONTH = currentMonth(NOW);
 const LAST_MONTH = shiftMonth(THIS_MONTH, -1);
 const STABLE = { name: "Stadnina Pod Dębem", city: "Kraków" };
-const STABLE_120: RateChange = { id: 1, riderKey: null, fromMonth: LAST_MONTH, amount: 12000 };
+const STABLE_120: RateChange = { id: 1, riderKey: null, kind: "recreation", fromMonth: LAST_MONTH, amount: 12000 };
 
 function ride(day: string, overrides: Partial<SummaryBooking> = {}): SummaryBooking {
   return {
@@ -43,6 +43,8 @@ function settlement(month: string, overrides: Partial<RiderSettlementInput> = {}
       bookings: [ride(`${month}-02`), ride(`${month}-09`, { hour: 12 })],
       rates: [STABLE_120],
       costs: [],
+      boardingHorses: [],
+      boardingFees: [],
       dayHref: null,
       ...overrides,
     },
@@ -114,7 +116,7 @@ describe("composeSettlementDocument — ośrodek, jeździec i jazdy", () => {
 describe("composeSettlementDocument — kwoty i stopka", () => {
   it("jazdy razy stawka ośrodka, koszty dodatkowe i „Do zapłaty”", () => {
     const document = documentFor(LAST_MONTH, {
-      costs: [cost(1, "Pensjonat konia", 115000), cost(2, "Wypożyczenie kasku", 1550)],
+      costs: [cost(1, "Wyjazd na zawody", 115000), cost(2, "Wypożyczenie kasku", 1550)],
     });
 
     expect(document.ridesLine).toBe(`Jazdy: 2 × ${zl("120,00 zł")} = ${zl("240,00 zł")}`);
@@ -123,7 +125,7 @@ describe("composeSettlementDocument — kwoty i stopka", () => {
       heading: "Koszty dodatkowe",
       columns: ["Nazwa", "Kwota"],
       rows: [
-        ["Pensjonat konia", zl("1 150,00 zł")],
+        ["Wyjazd na zawody", zl("1 150,00 zł")],
         ["Wypożyczenie kasku", zl("15,50 zł")],
       ],
       emptyText: null,
@@ -133,7 +135,7 @@ describe("composeSettlementDocument — kwoty i stopka", () => {
 
   it("stawka indywidualna jeźdźca — dopisek „stawka indywidualna”", () => {
     const document = documentFor(LAST_MONTH, {
-      rates: [STABLE_120, { id: 2, riderKey: "anna", fromMonth: LAST_MONTH, amount: 9000 }],
+      rates: [STABLE_120, { id: 2, riderKey: "anna", kind: "recreation", fromMonth: LAST_MONTH, amount: 9000 }],
     });
 
     expect(document.ridesLine).toBe(`Jazdy: 2 × ${zl("90,00 zł")} = ${zl("180,00 zł")}`);
@@ -148,7 +150,7 @@ describe("composeSettlementDocument — kwoty i stopka", () => {
   });
 
   it("same koszty dodatkowe: „Jazdy: 0 × stawka = 0,00 zł”, zamiast tabeli jazd tekst o braku jazd", () => {
-    const document = documentFor(LAST_MONTH, { bookings: [], costs: [cost(1, "Pensjonat konia", 50000)] });
+    const document = documentFor(LAST_MONTH, { bookings: [], costs: [cost(1, "Wyjazd na zawody", 50000)] });
 
     expect(document.ridesLine).toBe(`Jazdy: 0 × ${zl("120,00 zł")} = ${zl("0,00 zł")}`);
     expect(document.rides.rows).toEqual([]);
@@ -175,7 +177,7 @@ describe("composeSettlementDocument — kwoty i stopka", () => {
     // Pierwszy dzień miesiąca: jazd jeszcze nie ma, PDF jest dzięki kosztowi dodatkowemu.
     const document = documentFor(
       month,
-      { rates: [{ ...STABLE_120, fromMonth: shiftMonth(month, -2) }], costs: [cost(1, "Pensjonat konia", 50000)] },
+      { rates: [{ ...STABLE_120, fromMonth: shiftMonth(month, -2) }], costs: [cost(1, "Wyjazd na zawody", 50000)] },
       midnight,
     );
 
@@ -201,7 +203,9 @@ describe("isSettlementPdfAvailable — kiedy PDF jest dostępny", () => {
     expect(isSettlementPdfAvailable(settlement(LAST_MONTH, { rates: [] }), NOW)).toBe(false);
     expect(
       isSettlementPdfAvailable(
-        settlement(LAST_MONTH, { rates: [{ id: 2, riderKey: "anna", fromMonth: LAST_MONTH, amount: 9000 }] }),
+        settlement(LAST_MONTH, {
+          rates: [{ id: 2, riderKey: "anna", kind: "recreation", fromMonth: LAST_MONTH, amount: 9000 }],
+        }),
         NOW,
       ),
     ).toBe(false);
@@ -214,7 +218,7 @@ describe("isSettlementPdfAvailable — kiedy PDF jest dostępny", () => {
   it("same koszty dodatkowe bez jazd — dostępny", () => {
     expect(
       isSettlementPdfAvailable(
-        settlement(LAST_MONTH, { bookings: [], costs: [cost(1, "Pensjonat konia", 50000)] }),
+        settlement(LAST_MONTH, { bookings: [], costs: [cost(1, "Wyjazd na zawody", 50000)] }),
         NOW,
       ),
     ).toBe(true);
@@ -224,7 +228,7 @@ describe("isSettlementPdfAvailable — kiedy PDF jest dostępny", () => {
     const next = shiftMonth(THIS_MONTH, 1);
     const future = settlement(next, {
       month: requestedSummaryMonth(next, todayIso(NOW)),
-      costs: [cost(1, "Pensjonat konia", 50000)],
+      costs: [cost(1, "Wyjazd na zawody", 50000)],
     });
 
     expect(future.month).toBe(next);
@@ -257,5 +261,57 @@ describe("composeSettlementDocument — nazwa pliku", () => {
   it("bez imienia i nazwiska albo z samymi znakami spoza alfabetu — `jezdziec`", () => {
     expect(fileNameOf(null)).toBe(`rozliczenie-${LAST_MONTH}-jezdziec.pdf`);
     expect(fileNameOf("???")).toBe(`rozliczenie-${LAST_MONTH}-jezdziec.pdf`);
+  });
+});
+
+// Oracle: AC #117 — PDF pensjonariusza ma te same pozycje co strona (ten sam model): jazdy × stawka
+// treningowa ze źródłem, opłata za pensjonat za każdego konia (koń, kwota), koszty dodatkowe, „Do zapłaty”.
+describe("composeSettlementDocument — pensjonariusz", () => {
+  const TRAINING_150: RateChange = { id: 3, riderKey: null, kind: "training", fromMonth: LAST_MONTH, amount: 15000 };
+  const stay = { arrivalDay: `${LAST_MONTH}-15`, departureDay: null };
+  const boarder: Partial<RiderSettlementInput> = {
+    rates: [STABLE_120, TRAINING_150],
+    boardingHorses: [
+      { horseId: 8, horseName: "Wicher", riderKey: "anna", riderName: "Anna Kowalska", stays: [stay] },
+      { horseId: 7, horseName: "Hrabia", riderKey: "anna", riderName: "Anna Kowalska", stays: [stay] },
+    ],
+    boardingFees: [
+      { id: 1, horseId: 7, fromMonth: LAST_MONTH, amount: 150000 },
+      { id: 2, horseId: 8, fromMonth: LAST_MONTH, amount: 120050 },
+    ],
+    costs: [cost(1, "Wyjazd na zawody", 25000)],
+  };
+
+  it("jazdy po stawce treningowej, opłaty za pensjonat każdego konia, koszty i „Do zapłaty”", () => {
+    const document = documentFor(LAST_MONTH, boarder);
+
+    expect(document.ridesLine).toBe(`Jazdy: 2 × ${zl("150,00 zł")} = ${zl("300,00 zł")}`);
+    expect(document.rateSourceText).toBe("stawka treningowa ośrodka");
+    expect(document.fees).toEqual({
+      heading: "Opłata za pensjonat",
+      columns: ["Koń", "Kwota"],
+      rows: [
+        ["Hrabia", zl("1 500,00 zł")],
+        ["Wicher", zl("1 200,50 zł")],
+      ],
+    });
+    expect(document.costs.rows).toEqual([["Wyjazd na zawody", zl("250,00 zł")]]);
+    expect(document.due).toEqual({ label: "Do zapłaty", value: zl("3 250,50 zł") });
+  });
+
+  it("miesiąc bez jazd z pobytem konia — PDF z opłatą i tekstem zamiast tabeli jazd", () => {
+    const document = documentFor(LAST_MONTH, { ...boarder, bookings: [], costs: [] });
+    expect(document.rides.emptyText).toBe("W październiku 2026 nie było jazd.");
+    expect(document.fees?.rows).toHaveLength(2);
+    expect(document.due.value).toBe(zl("2 700,50 zł"));
+  });
+
+  it("bez opłaty konia albo bez stawki treningowej PDF nie jest dostępny", () => {
+    expect(isSettlementPdfAvailable(settlement(LAST_MONTH, { ...boarder, boardingFees: [] }), NOW)).toBe(false);
+    expect(isSettlementPdfAvailable(settlement(LAST_MONTH, { ...boarder, rates: [STABLE_120] }), NOW)).toBe(false);
+  });
+
+  it("jeździec rekreacyjny nie ma w PDF części opłat za pensjonat", () => {
+    expect(documentFor(LAST_MONTH).fees).toBeNull();
   });
 });

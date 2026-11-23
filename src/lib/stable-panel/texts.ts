@@ -43,6 +43,11 @@ export const PANEL_TEXTS = {
     schedule: "Grafik",
     bookings: "Zapisy",
     horses: "Konie",
+    /** Konie pensjonatowe i pobyty (#114) — strona `/osrodek/pensjonariusze`. */
+    boarders: "Pensjonariusze",
+    places: "Place",
+    /** Zajętość placów (#116) — strona `/osrodek/zajetosc-placow`. */
+    placeOccupancy: "Zajętość placów",
     instructors: "Instruktorzy",
     monthSummary: "Podsumowanie miesiąca",
     settlements: "Rozliczenia",
@@ -50,8 +55,11 @@ export const PANEL_TEXTS = {
     tomorrowScheduled: "jutro: ułożony",
     tomorrowUnscheduled: "jutro: brak grafiku",
     anyPeriod: "dowolny okres",
+    anyDay: "dowolny dzień",
     /** Przy „Rozliczeniach”, gdy ośrodek nie ma stawki (zamiast sumy miesiąca). */
     setRate: "Ustaw stawkę",
+    /** Rozliczenia ze stawkami, ale koń pensjonatowy bez opłaty za pensjonat — suma miesiąca czeka na nią. */
+    setBoardingFee: "Ustaw opłatę za pensjonat",
     /** `dziś: 3` — zapisy dziś. */
     todayPrefix: "dziś:",
     /** `2 z 3 z kontem` — aktywni instruktorzy z kontem. */
@@ -65,3 +73,8 @@ export const PANEL_TEXTS = {
 export const SEAT_FORMS: PluralForms = { one: "miejsce", few: "miejsca", many: "miejsc" };
 export const DAY_FORMS: PluralForms = { one: "dzień", few: "dni", many: "dni" };
 export const ACTIVE_FORMS: PluralForms = { one: "aktywny", few: "aktywne", many: "aktywnych" };
+export const BOARDING_HORSE_FORMS: PluralForms = {
+  one: "koń pensjonatowy",
+  few: "konie pensjonatowe",
+  many: "koni pensjonatowych",
+};

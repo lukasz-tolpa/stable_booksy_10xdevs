@@ -1,13 +1,21 @@
 import { describe, expect, it } from "vitest";
 import {
+  columnKind,
+  columnPlace,
   fillAll,
+  fillKind,
+  fillPlace,
+  kindAt,
   lastRideLabel,
   parseSeatInput,
+  placeAt,
   seatKey,
   sheetRows,
   stepSeat,
   withoutInstructor,
   workingHours,
+  type KindMap,
+  type PlaceMap,
   type SeatMap,
 } from "@/lib/schedule/sheet";
 
@@ -115,6 +123,33 @@ describe("sheetRows", () => {
     expect(sheetRows([10], [KAROL], {}, 2)).toEqual([{ hour: 10, total: 0, fill: "free" }]);
   });
 
+  it("sloty treningowe nie zużywają koni ośrodka: liczą się tylko limity slotów rekreacyjnych", () => {
+    const seats = seatMap([
+      [KAROL, 10, 2],
+      [OLA, 10, 3],
+      [KAROL, 11, 1],
+      [OLA, 11, 1],
+    ]);
+    const kinds: KindMap = { [seatKey(OLA, 10)]: "training", [seatKey(OLA, 11)]: "recreation" };
+
+    expect(sheetRows([10, 11], [KAROL, OLA], seats, 2, kinds)).toEqual([
+      { hour: 10, total: 2, fill: "full" },
+      { hour: 11, total: 2, fill: "full" },
+    ]);
+  });
+
+  it("rodzaj wiersza instruktora obejmuje jego godziny bez poprawki — cały wiersz treningowy nie liczy koni", () => {
+    const seats = seatMap([
+      [KAROL, 10, 4],
+      [KAROL, 11, 4],
+    ]);
+
+    expect(sheetRows([10, 11], [KAROL], seats, 1, { [seatKey(KAROL, 10)]: "training" })).toEqual([
+      { hour: 10, total: 0, fill: "free" },
+      { hour: 11, total: 0, fill: "free" },
+    ]);
+  });
+
   it("dzień bez koni: godzina bez miejsc jest wolna, a każde wystawione miejsce ją przekracza", () => {
     const seats = seatMap([[KAROL, 11, 1]]);
 
@@ -192,5 +227,105 @@ describe("workingHours", () => {
 
   it("cała doba to godziny od 0 do 23", () => {
     expect(workingHours("0", "24")).toHaveLength(24);
+  });
+});
+
+const HALA = 11;
+const DUZY_PLAC = 12;
+
+function placeMap(entries: [instructorId: number, hour: number, placeId: number][]): PlaceMap {
+  return Object.fromEntries(entries.map(([instructorId, hour, placeId]) => [seatKey(instructorId, hour), placeId]));
+}
+
+describe("placeAt", () => {
+  it("slot ma plac ustawiony dla swojej godziny", () => {
+    const places = placeMap([
+      [KAROL, 10, HALA],
+      [KAROL, 11, DUZY_PLAC],
+    ]);
+
+    expect(placeAt(places, KAROL, 11, HALA)).toBe(DUZY_PLAC);
+  });
+
+  it("godzina bez placu dostaje plac wiersza instruktora — z jego najwcześniejszej godziny z placem", () => {
+    const places = placeMap([
+      [KAROL, 12, HALA],
+      [KAROL, 11, DUZY_PLAC],
+    ]);
+
+    expect(placeAt(places, KAROL, 15, HALA)).toBe(DUZY_PLAC);
+  });
+
+  it("instruktor bez żadnego placu dostaje plac domyślny; bez placu domyślnego — brak placu", () => {
+    const places = placeMap([[KAROL, 10, DUZY_PLAC]]);
+
+    expect(placeAt(places, OLA, 10, HALA)).toBe(HALA);
+    expect(placeAt(places, OLA, 10, null)).toBeNull();
+  });
+});
+
+describe("columnPlace", () => {
+  it("plac całego wiersza instruktora, gdy wszystkie jego godziny są na jednym placu", () => {
+    const places = placeMap([
+      [KAROL, 10, DUZY_PLAC],
+      [KAROL, 11, DUZY_PLAC],
+    ]);
+
+    expect(columnPlace(places, KAROL, [10, 11, 12], HALA)).toBe(DUZY_PLAC);
+  });
+
+  it("godziny na różnych placach nie mają jednego placu wiersza", () => {
+    const places = placeMap([
+      [KAROL, 10, DUZY_PLAC],
+      [KAROL, 11, HALA],
+    ]);
+
+    expect(columnPlace(places, KAROL, [10, 11], HALA)).toBeNull();
+  });
+});
+
+describe("fillPlace", () => {
+  it("ustawia plac całego wiersza w godzinach zakresu i tylko danemu instruktorowi; poprawka godziny zostaje możliwa", () => {
+    const places = placeMap([
+      [KAROL, 10, HALA],
+      [OLA, 10, HALA],
+    ]);
+
+    const filled = fillPlace(places, KAROL, [10, 11], DUZY_PLAC);
+    const corrected = { ...filled, [seatKey(KAROL, 11)]: HALA };
+
+    expect(filled).toEqual(
+      placeMap([
+        [KAROL, 10, DUZY_PLAC],
+        [KAROL, 11, DUZY_PLAC],
+        [OLA, 10, HALA],
+      ]),
+    );
+    expect(placeAt(corrected, KAROL, 11, HALA)).toBe(HALA);
+    expect(columnPlace(corrected, KAROL, [10, 11], HALA)).toBeNull();
+  });
+});
+
+describe("kindAt", () => {
+  it("slot bez żadnego rodzaju w wierszu jest rekreacyjny — jak nowy slot w bazie", () => {
+    expect(kindAt({}, KAROL, 10)).toBe("recreation");
+  });
+
+  it("godzina bez rodzaju dostaje rodzaj wiersza instruktora, a poprawka godziny wygrywa", () => {
+    const kinds: KindMap = { [seatKey(KAROL, 10)]: "training", [seatKey(KAROL, 12)]: "recreation" };
+
+    expect(kindAt(kinds, KAROL, 11)).toBe("training");
+    expect(kindAt(kinds, KAROL, 12)).toBe("recreation");
+    expect(kindAt(kinds, OLA, 11)).toBe("recreation");
+  });
+});
+
+describe("columnKind i fillKind", () => {
+  it("rodzaj całego wiersza ustawia się naraz, a różne rodzaje godzin nie mają jednego rodzaju wiersza", () => {
+    const filled = fillKind({ [seatKey(OLA, 10)]: "training" }, KAROL, [10, 11], "training");
+
+    expect(columnKind(filled, KAROL, [10, 11])).toBe("training");
+    expect(kindAt(filled, OLA, 10)).toBe("training");
+    expect(columnKind({ ...filled, [seatKey(KAROL, 11)]: "recreation" }, KAROL, [10, 11])).toBeNull();
   });
 });

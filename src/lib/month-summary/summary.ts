@@ -5,13 +5,16 @@
  * grupuje je po jeźdźcu i składa model widoku. Strony tylko wczytują dane i renderują wynik.
  *
  * Klocki dla ról:
- * - `composeMonthSummary` — cały widok jednej listy jeźdźców (właściciel, instruktor);
+ * - `composeMonthSummary` — cały widok listy jeźdźców w sekcjach „Rekreacja” i „Pensjonariusze” (właściciel,
+ *   instruktor);
  * - `monthRides` — same jazdy miesiąca (np. lista instruktorów do filtra, liczba na panelu);
  * - `composeSummaryList` — lista jeźdźców z sumą z gotowych jazd;
  * - `composeRideRows` — same wiersze jazd z gotowych jazd (jeździec: osobno w każdym ośrodku);
  * - `composeMonthNav`, `emptyMonthText` — przełącznik miesięcy i tekst stanu pustego.
  */
 
+import { RIDER_KIND, RIDER_KINDS, type RiderKind } from "@/lib/boarding/month";
+import { RIDER_KIND_HEADINGS } from "@/lib/boarding/texts";
 import { isRide, slotEndedAt, type RideCandidate } from "@/lib/bookings/rides";
 import { NO_HORSE, UNNAMED_RIDER } from "@/lib/bookings/rows";
 import {
@@ -110,9 +113,27 @@ export interface MonthNav {
   nextHref: string | null;
 }
 
+/** Sekcja jeźdźców podsumowania (#118): „Rekreacja” albo „Pensjonariusze”. */
+export interface SummarySection {
+  kind: RiderKind;
+  /** `Rekreacja` albo `Pensjonariusze`. */
+  heading: string;
+  /** Nazwa listy jeźdźców sekcji dla czytników ekranu, np. `Jeźdźcy — Rekreacja`. */
+  label: string;
+  /** Np. `2 jeźdźców · 8 jazd`. */
+  countsText: string;
+  /** Jeźdźcy z kontem alfabetycznie, jak w `SummaryList.rows`. */
+  rows: SummaryRiderRow[];
+}
+
 export interface MonthSummaryView {
   nav: MonthNav;
+  /** Cały miesiąc — suma `totalText` obejmuje obie sekcje i jeźdźców zanonimizowanych. */
   list: SummaryList;
+  /** Sekcje z jeźdźcami: „Rekreacja”, potem „Pensjonariusze” (#118); puste pominięte. */
+  sections: SummarySection[];
+  /** Wiersz zbiorczy „Usunięci jeźdźcy” — poza sekcjami, ich rodzaju nie znamy (ADR-0001); `null` — brak. */
+  pooled: SummaryRiderRow | null;
   /** Miesiąc bez jazd — strona pokazuje `EmptyState` z `emptyText`. */
   isEmpty: boolean;
   /** Np. `W październiku 2026 nie było jazd.` */
@@ -130,6 +151,11 @@ export interface MonthSummaryInput extends SummaryListOptions {
   bookings: SummaryBooking[];
   /** Adres strony dla miesiąca `RRRR-MM` — wołający dokłada w nim swoje parametry. */
   monthHref: (month: string) => string;
+  /**
+   * Czy jeździec (klucz) jest pensjonariuszem w oglądanym miesiącu (#118) — rozstrzyga wołający według
+   * reguły „pensjonariusz w miesiącu”. Bez niej wszyscy są w „Rekreacji”.
+   */
+  isBoarder?: (riderKey: string) => boolean;
 }
 
 /**
@@ -227,12 +253,35 @@ export function emptyMonthText(month: SummaryMonth, viewer: SummaryViewer): stri
   return `${capitalize(formatInMonthYear(month.month))} ${MONTH_SUMMARY_TEXTS.empty[viewer]}`;
 }
 
-/** Widok podsumowania jednej listy jeźdźców (właściciel, instruktor). `now` jak w statystykach. */
+/** Sekcje z wierszy jeźdźców z kontem (`isBoarder` rozstrzyga rodzaj); puste pominięte. */
+function summarySections(rows: readonly SummaryRiderRow[], isBoarder: (riderKey: string) => boolean): SummarySection[] {
+  const texts = MONTH_SUMMARY_TEXTS;
+  const kindOf = (riderKey: string): RiderKind => (isBoarder(riderKey) ? RIDER_KIND.boarder : RIDER_KIND.recreation);
+  return RIDER_KINDS.map((kind): SummarySection => {
+    const own = rows.filter((row) => row.riderKey !== null && kindOf(row.riderKey) === kind);
+    const rides = own.reduce((sum, row) => sum + row.rides, 0);
+    return {
+      kind,
+      heading: RIDER_KIND_HEADINGS[kind],
+      label: `${texts.ridersHeading} — ${RIDER_KIND_HEADINGS[kind]}`,
+      countsText: `${formatCount(own.length, RIDER_FORMS)} · ${formatCount(rides, RIDE_FORMS)}`,
+      rows: own,
+    };
+  }).filter((section) => section.rows.length > 0);
+}
+
+/**
+ * Widok podsumowania listy jeźdźców (właściciel, instruktor): cały miesiąc, sekcje „Rekreacja”
+ * i „Pensjonariusze” (#118) i wiersz zbiorczy zanonimizowanych. `now` jak w statystykach.
+ */
 export function composeMonthSummary(input: MonthSummaryInput, now: Date = new Date()): MonthSummaryView {
   const rides = monthRides(input.bookings, input.month, now);
+  const list = composeSummaryList(rides, input);
   return {
     nav: composeMonthNav(input.month, input.monthHref),
-    list: composeSummaryList(rides, input),
+    list,
+    sections: summarySections(list.rows, input.isBoarder ?? (() => false)),
+    pooled: list.rows.find((row) => row.riderKey === null) ?? null,
     isEmpty: rides.length === 0,
     emptyText: emptyMonthText(input.month, input.viewer),
   };

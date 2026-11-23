@@ -10,6 +10,20 @@ describe("bookingSchema", () => {
     expect(parsed).toEqual({ stableId: 1, day: "2026-08-20", instructorId: 2, hour: 12 });
   });
 
+  // #115: koń pensjonatowy wybrany przy zapisie na slot treningowy; bez wyboru (pole puste albo brak) — bez konia.
+  it("koń wybrany przy zapisie daje jego identyfikator, a brak wyboru — brak konia", () => {
+    expect(bookingSchema.parse({ ...VALID, horseId: "31" }).horseId).toBe(31);
+    expect(bookingSchema.parse({ ...VALID, horseId: "" }).horseId).toBeUndefined();
+    expect(bookingSchema.parse(VALID).horseId).toBeUndefined();
+  });
+
+  it("odrzuca konia, który nie jest identyfikatorem, z polskim komunikatem", () => {
+    const result = bookingSchema.safeParse({ ...VALID, horseId: "Hrabia" });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.message).toBe("Nieprawidłowy koń");
+  });
+
   it("odrzuca niepoprawną datę kalendarzową", () => {
     expect(bookingSchema.safeParse({ ...VALID, day: "2026-02-30" }).success).toBe(false);
     expect(bookingSchema.safeParse({ ...VALID, day: "jutro" }).success).toBe(false);

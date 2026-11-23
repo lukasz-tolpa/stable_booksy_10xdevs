@@ -1,10 +1,12 @@
 /**
- * Podsumowanie miesiąca właściciela (`/osrodek/podsumowanie`, #88): wszyscy jeźdźcy ośrodka.
+ * Podsumowanie miesiąca właściciela (`/osrodek/podsumowanie`, #88): wszyscy jeźdźcy ośrodka, w sekcjach
+ * „Rekreacja” i „Pensjonariusze” (#118).
  * Dane to wiersze statystyk (`getStatsRows` dla granic miesiąca — zapisy z instruktorem slotu),
  * stado i instruktorzy ośrodka; tu są mapowane na wspólny kształt `SummaryBooking`.
  */
 
 import { OWNER_MONTH_SUMMARY_ROUTE } from "@/lib/auth/roles";
+import { horsesOf, isBoarderWith, type BoardingHorse } from "@/lib/boarding/month";
 import { unknownHorseName } from "@/lib/bookings/rows";
 import { unknownInstructorName } from "@/lib/bookings/slots";
 import { STABLE_DAY_BOOKINGS_ROUTE } from "@/lib/bookings/stable-redirect";
@@ -36,7 +38,15 @@ export interface OwnerMonthSummaryInput {
   instructors: SummaryInstructor[];
   /** Surowa wartość `?instruktor=` — nieznany instruktor albo bez jazd w miesiącu daje wszystkich. */
   instructorParam?: string | null;
+  /**
+   * Konie pensjonatowe ośrodka z właścicielem i pobytami (`listBoardingHorses`, #118) — z nich reguła
+   * „pensjonariusz w miesiącu” dzieli jeźdźców na sekcje. Brak — wszyscy w „Rekreacji”.
+   */
+  boardingHorses?: readonly SummaryBoardingHorse[];
 }
+
+/** Koń pensjonatowy w zakresie potrzebnym podsumowaniu: właściciel (`null` — bez właściciela) i pobyty. */
+export type SummaryBoardingHorse = Pick<BoardingHorse, "riderKey" | "stays">;
 
 /** Pozycja listy wyboru instruktora; `value: ""` — „Wszyscy instruktorzy”. */
 export interface InstructorFilterOption {
@@ -98,6 +108,7 @@ export function composeOwnerMonthSummary(input: OwnerMonthSummaryInput, now: Dat
       viewer: "owner",
       monthHref: (month) => ownerMonthHref(month, selected),
       dayHref: (day) => dayHref(STABLE_DAY_BOOKINGS_ROUTE, day),
+      isBoarder: (riderKey) => isBoarderWith(horsesOf(input.boardingHorses ?? [], riderKey), input.month.month),
     },
     now,
   );

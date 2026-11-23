@@ -1,9 +1,11 @@
 import { ANONYMISED_RIDER, NO_HORSE, UNNAMED_RIDER } from "@/lib/bookings/rows";
+import { SLOT_KIND, type SlotKind } from "@/lib/schedule/kind";
 
 /**
  * „Moje sloty” instruktora (#72): dni od dziś, w każdym jego godziny z limitem > 0, zajęte
  * miejsca wobec limitu i zapisani jeźdźcy z przydzielonym koniem albo „bez konia”, a przy każdym
- * zapisie konie do przydziału (#81): pracujące tego dnia, zajęte o tej godzinie oznaczone „zajęty”.
+ * zapisie konie do przydziału (#81): pracujące tego dnia (przy slocie treningowym — konie pensjonariusza, #115),
+ * zajęte o tej godzinie oznaczone „zajęty”.
  * Limit zero znaczy „nie prowadzę jazdy w tej godzinie” (GLOSSARY „Limit miejsc”), więc taka
  * godzina nie trafia na listę, a dzień bez żadnej prowadzonej godziny — też nie.
  */
@@ -13,6 +15,10 @@ export interface MySlotInput {
   day: string;
   hour: number;
   seats: number;
+  /** Plac slotu (#113). */
+  placeName: string;
+  /** Rodzaj slotu (#115); przy treningowym konie do przydziału to konie pensjonariusza (`get_my_slot_horse_options`). */
+  kind: SlotKind;
 }
 
 /** Aktywny zapis na slot instruktora — z `get_my_slot_bookings`. */
@@ -57,12 +63,19 @@ export interface MySlotRider {
   /** Nazwa konia albo `NO_HORSE`. */
   horse: string;
   hasHorse: boolean;
-  /** Konie pracujące tego dnia, alfabetycznie; „bez konia” dokłada formularz. */
+  /** Konie do przydziału (z `get_my_slot_horse_options`), alfabetycznie; „bez konia” dokłada formularz. */
   horseChoices: MySlotHorseChoice[];
+  /**
+   * Formularz dokłada „bez konia” (cofnięcie przydziału) — tylko przy slocie rekreacyjnym; zapis na slot
+   * treningowy zawsze ma konia pensjonariusza (#112, odmowa bazy SB063).
+   */
+  noHorseChoice: boolean;
 }
 
 export interface MySlotView {
   hour: number;
+  placeName: string;
+  kind: SlotKind;
   seats: number;
   taken: number;
   riders: MySlotRider[];
@@ -104,7 +117,7 @@ export function composeMySlots(input: MySlotsInput): MySlotsDay[] {
     optionsByBooking.set(option.bookingId, options);
   }
 
-  const ridersBySlot = new Map<string, MySlotRider[]>();
+  const ridersBySlot = new Map<string, Omit<MySlotRider, "noHorseChoice">[]>();
   for (const booking of input.bookings) {
     const key = slotKey(booking.day, booking.hour);
     const riders = ridersBySlot.get(key) ?? [];
@@ -124,11 +137,18 @@ export function composeMySlots(input: MySlotsInput): MySlotsDay[] {
     .sort((a, b) => a.day.localeCompare(b.day) || a.hour - b.hour);
 
   for (const slot of taught) {
-    const riders = (ridersBySlot.get(slotKey(slot.day, slot.hour)) ?? []).sort((a, b) =>
-      a.name.localeCompare(b.name, "pl"),
-    );
+    const riders = (ridersBySlot.get(slotKey(slot.day, slot.hour)) ?? [])
+      .map((rider) => ({ ...rider, noHorseChoice: slot.kind !== SLOT_KIND.training }))
+      .sort((a, b) => a.name.localeCompare(b.name, "pl"));
     const daySlots = days.get(slot.day) ?? [];
-    daySlots.push({ hour: slot.hour, seats: slot.seats, taken: riders.length, riders });
+    daySlots.push({
+      hour: slot.hour,
+      placeName: slot.placeName,
+      kind: slot.kind,
+      seats: slot.seats,
+      taken: riders.length,
+      riders,
+    });
     days.set(slot.day, daySlots);
   }
 

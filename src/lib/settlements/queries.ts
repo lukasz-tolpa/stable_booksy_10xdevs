@@ -4,7 +4,8 @@ import { listStableInstructors } from "@/lib/instructors/queries";
 import type { SummaryMonth } from "@/lib/month-summary/month";
 import { ownerSummaryBookings } from "@/lib/month-summary/owner";
 import type { ExtraCost } from "@/lib/settlements/costs";
-import type { RateChange } from "@/lib/settlements/rates";
+import { listBoardingHorses } from "@/lib/boarding/queries";
+import { toRateKind, type RateChange, type RateKind } from "@/lib/settlements/rates";
 import type { RiderSettlementInput, SettlementRider } from "@/lib/settlements/rider";
 import { settlementBookings, type SettlementIngredients, type SettlementsInput } from "@/lib/settlements/settlements";
 import { listStableHorses } from "@/lib/stables/queries";
@@ -19,8 +20,14 @@ export function monthStartDate(month: string): string {
 }
 
 /** Wiersz `public.rates` w kształcie modułu rozliczeń. */
-export function toRateChange(row: Pick<Rate, "id" | "rider_id" | "from_month" | "amount">): RateChange {
-  return { id: row.id, riderKey: row.rider_id, fromMonth: row.from_month.slice(0, 7), amount: row.amount };
+export function toRateChange(row: Pick<Rate, "id" | "rider_id" | "kind" | "from_month" | "amount">): RateChange {
+  return {
+    id: row.id,
+    riderKey: row.rider_id,
+    kind: toRateKind(row.kind),
+    fromMonth: row.from_month.slice(0, 7),
+    amount: row.amount,
+  };
 }
 
 /**
@@ -30,7 +37,7 @@ export function toRateChange(row: Pick<Rate, "id" | "rider_id" | "from_month" | 
 export async function listRates(client: Client, stableId: number): Promise<RateChange[]> {
   const { data, error } = await client
     .from("rates")
-    .select("id, rider_id, from_month, amount")
+    .select("id, rider_id, kind, from_month, amount")
     .eq("stable_id", stableId)
     .order("from_month");
 
@@ -47,12 +54,18 @@ export async function listRates(client: Client, stableId: number): Promise<RateC
  * jeźdźca dostają go bez zmian u siebie.
  */
 async function loadSettlementParts(client: Client, stableId: number, month: SummaryMonth) {
-  const [rows, rates, costs] = await Promise.all([
+  const [rows, rates, costs, boarding] = await Promise.all([
     getStatsRows(client, stableId, month),
     listRates(client, stableId),
     listMonthCosts(client, stableId, month.month),
+    listBoardingHorses(client, { stableId }),
   ]);
-  const ingredients: SettlementIngredients = { rates, costs };
+  const ingredients: SettlementIngredients = {
+    rates,
+    costs,
+    boardingHorses: boarding,
+    boardingFees: boarding.flatMap((horse) => horse.fees),
+  };
   return { rows, ingredients };
 }
 
@@ -98,6 +111,8 @@ export interface RateWrite {
   stableId: number;
   /** `null` — stawka ośrodka. */
   riderId: string | null;
+  /** Rodzaj stawki (#117); stawka indywidualna — rodzaj jeźdźca. */
+  kind: RateKind;
   /** Miesiąc „od” `RRRR-MM` — bieżący albo następny (pilnuje baza, SB026). */
   fromMonth: string;
   /** Grosze; `null` tylko przy stawce indywidualnej (powrót do stawki ośrodka, #97). */
@@ -115,12 +130,13 @@ export function saveRate(client: Client, rate: RateWrite) {
       {
         stable_id: rate.stableId,
         rider_id: rate.riderId,
+        kind: rate.kind,
         from_month: monthStartDate(rate.fromMonth),
         amount: rate.amount,
       },
-      { onConflict: "stable_id,rider_id,from_month" },
+      { onConflict: "stable_id,rider_id,kind,from_month" },
     )
-    .select("id, rider_id, from_month, amount")
+    .select("id, rider_id, kind, from_month, amount")
     .maybeSingle();
 }
 

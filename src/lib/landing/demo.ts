@@ -13,6 +13,9 @@ const INSTRUCTORS = [
   { id: 2, name: "Karol Jasny", sheetName: "Karol" },
 ];
 
+/** Ośrodek z ilustracji ma jeden plac — sloty są na nim, jak w ośrodku, który placów nie wybiera. */
+const PLACES = [{ id: 1, name: "Hala" }];
+
 const OPEN_HOUR = 10;
 const CLOSE_HOUR = 12;
 const HORSE_COUNT = 3;
@@ -23,8 +26,8 @@ const HORSE_COUNT = 3;
  * i „Twój zapis” mogą stać obok siebie tylko w różnych godzinach.
  */
 const SEATS: SlotSeats[] = [
-  { instructorId: 1, hour: 10, seats: 3 },
-  { instructorId: 2, hour: 11, seats: 2 },
+  { instructorId: 1, hour: 10, seats: 3, placeId: 1, kind: "recreation" },
+  { instructorId: 2, hour: 11, seats: 2, placeId: 1, kind: "recreation" },
 ];
 
 /** Jedno miejsce zajęte u Joanny; u Karola komplet, w tym zapis oglądającego jeźdźca. */
@@ -60,10 +63,13 @@ export function landingDemo(): LandingDemo {
     openHour: OPEN_HOUR,
     closeHour: CLOSE_HOUR,
     instructors: INSTRUCTORS,
+    places: PLACES,
     seats: SEATS,
     occupancy: OCCUPANCY,
     myBookings: MY_BOOKINGS,
     currentHour: null,
+    // Ilustracja pokazuje dzień jeźdźca rekreacyjnego.
+    standing: { boarder: false },
   });
 
   return {

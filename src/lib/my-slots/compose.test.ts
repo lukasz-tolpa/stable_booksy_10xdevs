@@ -5,21 +5,82 @@ describe("composeMySlots", () => {
   it("pokazuje godziny z limitem > 0 i pomija godziny z limitem zero", () => {
     const days = composeMySlots({
       slots: [
-        { day: "2026-11-18", hour: 10, seats: 0 },
-        { day: "2026-11-18", hour: 11, seats: 2 },
-        { day: "2026-11-18", hour: 12, seats: 0 },
+        { day: "2026-11-18", hour: 10, seats: 0, placeName: "Hala", kind: "recreation" },
+        { day: "2026-11-18", hour: 11, seats: 2, placeName: "Hala", kind: "recreation" },
+        { day: "2026-11-18", hour: 12, seats: 0, placeName: "Hala", kind: "recreation" },
       ],
       bookings: [],
     });
 
-    expect(days).toEqual([{ day: "2026-11-18", slots: [{ hour: 11, seats: 2, taken: 0, riders: [] }] }]);
+    expect(days).toEqual([
+      {
+        day: "2026-11-18",
+        slots: [{ hour: 11, placeName: "Hala", kind: "recreation", seats: 2, taken: 0, riders: [] }],
+      },
+    ]);
+  });
+
+  it("każdy slot pokazuje swój plac", () => {
+    const days = composeMySlots({
+      slots: [
+        { day: "2026-11-18", hour: 10, seats: 1, placeName: "Hala", kind: "recreation" },
+        { day: "2026-11-18", hour: 11, seats: 1, placeName: "Duży plac", kind: "recreation" },
+      ],
+      bookings: [],
+    });
+
+    expect(days[0]?.slots.map((slot) => [slot.hour, slot.placeName])).toEqual([
+      [10, "Hala"],
+      [11, "Duży plac"],
+    ]);
+  });
+
+  // Oracle: AC #115 — sloty instruktora pokazują rodzaj slotu.
+  it("każdy slot pokazuje swój rodzaj", () => {
+    const days = composeMySlots({
+      slots: [
+        { day: "2026-11-18", hour: 10, seats: 1, placeName: "Hala", kind: "training" },
+        { day: "2026-11-18", hour: 11, seats: 1, placeName: "Hala", kind: "recreation" },
+      ],
+      bookings: [],
+    });
+
+    expect(days[0]?.slots.map((slot) => [slot.hour, slot.kind])).toEqual([
+      [10, "training"],
+      [11, "recreation"],
+    ]);
+  });
+
+  // Oracle: spec #112 — zapis na slot treningowy zawsze ma konia pensjonariusza: instruktor nie cofa przydziału.
+  it("„bez konia” do wyboru tylko przy zapisie na slot rekreacyjny", () => {
+    const booking = (bookingId: number, hour: number) => ({
+      bookingId,
+      day: "2026-11-18",
+      hour,
+      riderName: "Katarzyna Zając",
+      horseId: 31,
+      horseName: "Hrabia",
+      anonymised: false,
+    });
+    const days = composeMySlots({
+      slots: [
+        { day: "2026-11-18", hour: 10, seats: 1, placeName: "Hala", kind: "training" },
+        { day: "2026-11-18", hour: 11, seats: 1, placeName: "Hala", kind: "recreation" },
+      ],
+      bookings: [booking(1, 10), booking(2, 11)],
+    });
+
+    expect(days[0]?.slots.map((slot) => [slot.hour, slot.riders.map((rider) => rider.noHorseChoice)])).toEqual([
+      [10, [false]],
+      [11, [true]],
+    ]);
   });
 
   it("pomija dzień, w którym wszystkie godziny mają limit zero", () => {
     const days = composeMySlots({
       slots: [
-        { day: "2026-11-18", hour: 10, seats: 0 },
-        { day: "2026-11-19", hour: 10, seats: 1 },
+        { day: "2026-11-18", hour: 10, seats: 0, placeName: "Hala", kind: "recreation" },
+        { day: "2026-11-19", hour: 10, seats: 1, placeName: "Hala", kind: "recreation" },
       ],
       bookings: [],
     });
@@ -29,7 +90,7 @@ describe("composeMySlots", () => {
 
   it("liczy zajęte miejsca i pokazuje zapisanych z przydzielonym koniem albo „bez konia”", () => {
     const days = composeMySlots({
-      slots: [{ day: "2026-11-18", hour: 11, seats: 3 }],
+      slots: [{ day: "2026-11-18", hour: 11, seats: 3, placeName: "Hala", kind: "recreation" }],
       bookings: [
         {
           bookingId: 101,
@@ -55,11 +116,27 @@ describe("composeMySlots", () => {
     expect(days[0]?.slots).toEqual([
       {
         hour: 11,
+        placeName: "Hala",
+        kind: "recreation",
         seats: 3,
         taken: 2,
         riders: [
-          { bookingId: 102, name: "Anna Kowalska", horse: "Bella", hasHorse: true, horseChoices: [] },
-          { bookingId: 101, name: "Piotr Nowak", horse: "bez konia", hasHorse: false, horseChoices: [] },
+          {
+            bookingId: 102,
+            name: "Anna Kowalska",
+            horse: "Bella",
+            hasHorse: true,
+            horseChoices: [],
+            noHorseChoice: true,
+          },
+          {
+            bookingId: 101,
+            name: "Piotr Nowak",
+            horse: "bez konia",
+            hasHorse: false,
+            horseChoices: [],
+            noHorseChoice: true,
+          },
         ],
       },
     ]);
@@ -68,8 +145,8 @@ describe("composeMySlots", () => {
   it("przypisuje zapis do slotu tego samego dnia i godziny", () => {
     const days = composeMySlots({
       slots: [
-        { day: "2026-11-18", hour: 11, seats: 1 },
-        { day: "2026-11-19", hour: 11, seats: 1 },
+        { day: "2026-11-18", hour: 11, seats: 1, placeName: "Hala", kind: "recreation" },
+        { day: "2026-11-19", hour: 11, seats: 1, placeName: "Hala", kind: "recreation" },
       ],
       bookings: [
         {
@@ -90,9 +167,9 @@ describe("composeMySlots", () => {
   it("układa dni i godziny chronologicznie", () => {
     const days = composeMySlots({
       slots: [
-        { day: "2026-11-19", hour: 9, seats: 1 },
-        { day: "2026-11-18", hour: 14, seats: 1 },
-        { day: "2026-11-18", hour: 10, seats: 1 },
+        { day: "2026-11-19", hour: 9, seats: 1, placeName: "Hala", kind: "recreation" },
+        { day: "2026-11-18", hour: 14, seats: 1, placeName: "Hala", kind: "recreation" },
+        { day: "2026-11-18", hour: 10, seats: 1, placeName: "Hala", kind: "recreation" },
       ],
       bookings: [],
     });
@@ -105,7 +182,7 @@ describe("composeMySlots", () => {
 
   it("podpisuje jeźdźca bez nazwiska i jeźdźca, który usunął konto", () => {
     const days = composeMySlots({
-      slots: [{ day: "2026-11-18", hour: 11, seats: 2 }],
+      slots: [{ day: "2026-11-18", hour: 11, seats: 2, placeName: "Hala", kind: "recreation" }],
       bookings: [
         {
           bookingId: 104,
@@ -133,7 +210,7 @@ describe("composeMySlots", () => {
 
   it("przy zapisie podaje konie pracujące tego dnia, a zajęte o tej godzinie oznacza „zajęty”", () => {
     const days = composeMySlots({
-      slots: [{ day: "2026-11-18", hour: 11, seats: 1 }],
+      slots: [{ day: "2026-11-18", hour: 11, seats: 1, placeName: "Hala", kind: "recreation" }],
       bookings: [
         {
           bookingId: 7,
@@ -163,7 +240,7 @@ describe("composeMySlots", () => {
 
   it("zaznacza konia przydzielonego temu zapisowi", () => {
     const days = composeMySlots({
-      slots: [{ day: "2026-11-18", hour: 11, seats: 1 }],
+      slots: [{ day: "2026-11-18", hour: 11, seats: 1, placeName: "Hala", kind: "recreation" }],
       bookings: [
         {
           bookingId: 7,

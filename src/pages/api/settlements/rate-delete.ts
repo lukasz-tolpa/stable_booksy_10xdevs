@@ -4,7 +4,7 @@ import { errorCode } from "@/lib/db-errors";
 import { formValue } from "@/lib/form-data";
 import { logError } from "@/lib/log";
 import { isExpectedRateRefusal, RATE_NOTHING_TO_DELETE, rateDeleteErrorMessage } from "@/lib/settlements/errors";
-import { settlementOwner } from "@/lib/settlements/owner-request";
+import { ownerRequest } from "@/lib/stables/owner-request";
 import { deleteRate } from "@/lib/settlements/queries";
 import { backToSettlements, returnMonth } from "@/lib/settlements/redirect";
 import { rateIdSchema } from "@/lib/settlements/schemas";
@@ -27,7 +27,7 @@ export const POST: APIRoute = async (context) => {
     return back(firstErrorMessage(parsed.error));
   }
 
-  const owner = await settlementOwner(context, SCOPE, back);
+  const owner = await ownerRequest(context, SCOPE, back);
   if (owner instanceof Response) {
     return owner;
   }

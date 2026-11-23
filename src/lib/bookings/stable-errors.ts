@@ -12,10 +12,20 @@ import { INSUFFICIENT_PRIVILEGE } from "@/lib/db-errors";
 
 /** Koń ma już aktywny zapis o tej godzinie dnia — indeks `bookings_horse_hour_key`. */
 export const HORSE_TAKEN_THIS_HOUR = "23505";
-/** Koń nie pracuje tego dnia — FK `bookings_assigned_horse_fkey` do `schedule_day_horses`. */
+/**
+ * Koń nie pracuje tego dnia — przy slocie rekreacyjnym wyzwalacz `bookings_slot_rules` (#115) z nazwą dawnego
+ * klucza obcego `bookings_assigned_horse_fkey` do `schedule_day_horses`.
+ */
 export const HORSE_NOT_WORKING_THIS_DAY = "23503";
 /** Zapis nie jest już aktywny — CHECK `bookings_horse_only_when_active_check`. */
 export const BOOKING_NOT_ACTIVE = "23514";
+/**
+ * Przy slocie treningowym koń spoza koni pensjonatowych zapisanego pensjonariusza z pobytem w dniu jazdy —
+ * wyzwalacz `bookings_slot_rules` (#115).
+ */
+export const NOT_RIDERS_BOARDING_HORSE = "SB051";
+/** Cofnięcie konia („bez konia”) przy zapisie na slot treningowy — wyzwalacz `bookings_slot_rules` (#112). */
+export const TRAINING_BOOKING_NEEDS_HORSE = "SB063";
 
 const FALLBACK = "Nie udało się przydzielić konia. Spróbuj ponownie.";
 
@@ -40,6 +50,14 @@ const OWNER_MESSAGES = new Map<string, string>([
   ],
   [HORSE_NOT_WORKING_THIS_DAY, "Ten koń nie pracuje tego dnia. Dodaj go w grafiku dnia albo wybierz innego."],
   [BOOKING_NOT_ACTIVE, "Zapis został odwołany — konia przydziela się tylko do aktywnych zapisów."],
+  [
+    NOT_RIDERS_BOARDING_HORSE,
+    "Przy slocie treningowym jeździec jedzie na swoim koniu pensjonatowym, który stoi w ośrodku w dniu jazdy. Wybierz jednego z jego koni.",
+  ],
+  [
+    TRAINING_BOOKING_NEEDS_HORSE,
+    "Przy slocie treningowym jeździec zawsze jedzie na swoim koniu pensjonatowym — nie da się zostawić zapisu bez konia. Wybierz jednego z jego koni.",
+  ],
 ]);
 
 /**

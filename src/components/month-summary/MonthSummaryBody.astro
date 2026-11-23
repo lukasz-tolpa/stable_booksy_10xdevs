@@ -1,16 +1,20 @@
 ---
 // Treść strony Podsumowania miesiąca, wspólna dla właściciela, instruktora i jeźdźca: nagłówek, opis
 // roli, przełącznik miesięcy, potem stan — awaria odczytu (`view === null`), pusty miesiąc albo lista.
-// Lista jeźdźców (`list`, właściciel i instruktor) renderuje się tu; inna lista (jeździec: ośrodek po
-// ośrodku) idzie w domyślny slot. Slot `filter` — formularz między przełącznikiem a listą (właściciel);
+// Lista jeźdźców (`riders`, właściciel i instruktor) renderuje się tu: suma miesiąca, sekcje „Rekreacja”
+// i „Pensjonariusze” (#118) i wiersz „Usunięci jeźdźcy”; inna lista (jeździec: ośrodek po ośrodku) idzie
+// w domyślny slot. Slot `filter` — formularz między przełącznikiem a listą (właściciel);
 // slot `related` — link pod opisem roli (właściciel: Rozliczenia tego miesiąca).
 // Przełącznik zostaje także przy awarii — da się przejść do innego miesiąca.
+//
+// KONTRAKT e2e: suma miesiąca to jedyny tekst „N jazd · M jeźdźców” (sekcje mają „M jeźdźców · N jazd”);
+// sekcja to `region` o nazwie „Rekreacja” albo „Pensjonariusze” z listą jeźdźców „Jeźdźcy — {sekcja}”.
 import MonthNav from "@/components/month-summary/MonthNav.astro";
 import RiderRides from "@/components/month-summary/RiderRides.astro";
 import Card from "@/components/ui/Card.astro";
 import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
-import type { MonthNav as MonthNavView, SummaryList } from "@/lib/month-summary/summary";
+import type { MonthNav as MonthNavView, MonthSummaryView } from "@/lib/month-summary/summary";
 import { MONTH_SUMMARY_TEXTS } from "@/lib/month-summary/texts";
 
 interface Props {
@@ -18,11 +22,11 @@ interface Props {
   nav: MonthNavView;
   /** `null` — nie udało się wczytać. */
   view: { isEmpty: boolean; emptyText: string } | null;
-  /** Lista jeźdźców; bez niej niepusty miesiąc renderuje domyślny slot. */
-  list?: SummaryList;
+  /** Jeźdźcy miesiąca w sekcjach; bez nich niepusty miesiąc renderuje domyślny slot. */
+  riders?: Pick<MonthSummaryView, "list" | "sections" | "pooled"> | undefined;
 }
 
-const { lead, nav, view, list } = Astro.props;
+const { lead, nav, view, riders } = Astro.props;
 const texts = MONTH_SUMMARY_TEXTS;
 ---
 
@@ -47,10 +51,29 @@ const texts = MONTH_SUMMARY_TEXTS;
         <p>{texts.emptyHint}</p>
       </EmptyState>
     </Card>
-  ) : list ? (
+  ) : riders ? (
     <section aria-labelledby="riders-heading">
       <h2 id="riders-heading">{texts.ridersHeading}</h2>
-      <RiderRides list={list} labelledby="riders-heading" />
+      <p class="total mono-nums">{riders.list.totalText}</p>
+      <div class="sections">
+        {riders.sections.map((section) => (
+          <section aria-labelledby={`riders-${section.kind}`}>
+            <div class="section__head">
+              <h3 id={`riders-${section.kind}`}>{section.heading}</h3>
+              <span class="section__counts mono-nums">{section.countsText}</span>
+            </div>
+            <RiderRides rows={section.rows} label={section.label} />
+          </section>
+        ))}
+        {riders.pooled && (
+          <Card padding={0}>
+            <p class="pooled">
+              <span class="pooled__name">{riders.pooled.name}</span>
+              <span class="mono-nums">{riders.pooled.ridesText}</span>
+            </p>
+          </Card>
+        )}
+      </div>
     </section>
   ) : (
     <slot />
@@ -64,6 +87,50 @@ const texts = MONTH_SUMMARY_TEXTS;
   h2 {
     margin: 0 0 8px;
     font-size: 20px;
+  }
+  .total {
+    margin: 0 0 14px;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .sections {
+    display: grid;
+    gap: 20px;
+  }
+  .section__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 2px 12px;
+    margin-bottom: 8px;
+  }
+  h3 {
+    margin: 0;
+    font-size: 17px;
+  }
+  .section__counts {
+    font-size: 14px;
+    color: var(--muted);
+  }
+  /* Wiersz zbiorczy jak wiersz jeźdźca bez rozwijania (`RiderRides`). */
+  .pooled {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 52px;
+    margin: 0;
+    padding: 8px 16px;
+    color: var(--muted);
+  }
+  .pooled__name {
+    flex: 1;
+    min-width: 0;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+  .pooled__name + span {
+    font-size: 14px;
   }
   .lead {
     margin: 10px 0 0;

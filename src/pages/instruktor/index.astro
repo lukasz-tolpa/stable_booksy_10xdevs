@@ -8,6 +8,7 @@ import GhostButton from "@/components/ui/GhostButton.astro";
 import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
 import Tag from "@/components/ui/Tag.astro";
+import { SLOT_KIND, TRAINING_SLOT_TAG } from "@/lib/schedule/kind";
 import { formatClockHour, formatLongDate, formatTakenSeats } from "@/lib/format";
 import { composeMySlots, type MySlotsDay } from "@/lib/my-slots/compose";
 import { getOwnInstructor } from "@/lib/instructors/queries";
@@ -111,6 +112,8 @@ if (supabase && profile) {
                     <div class="slot__head">
                       {/* Cały tekst tego elementu to sama godzina. */}
                       <span class="slot__when">{formatClockHour(slot.hour)}</span>
+                      <span class="slot__place">{slot.placeName}</span>
+                      {slot.kind === SLOT_KIND.training && <Tag variant="primary">{TRAINING_SLOT_TAG}</Tag>}
                       <span class="slot__seats">{formatTakenSeats(slot.taken, slot.seats)}</span>
                     </div>
                     {slot.riders.length === 0 ? (
@@ -131,9 +134,11 @@ if (supabase && profile) {
                                 Koń<span class="sr-only"> — {rider.name}</span>
                               </label>
                               <select id={`horse-${String(rider.bookingId)}`} name="horseId">
-                                <option value="" selected={!rider.hasHorse}>
-                                  {NO_HORSE}
-                                </option>
+                                {rider.noHorseChoice && (
+                                  <option value="" selected={!rider.hasHorse}>
+                                    {NO_HORSE}
+                                  </option>
+                                )}
                                 {rider.horseChoices.map((horse) => (
                                   <option value={horse.id} selected={horse.selected} disabled={horse.taken}>
                                     {horse.label}
@@ -214,6 +219,10 @@ if (supabase && profile) {
     font-size: 14px;
     font-weight: 600;
     white-space: nowrap;
+  }
+  .slot__place {
+    font-weight: 600;
+    font-size: 14.5px;
   }
   .slot__seats {
     color: var(--muted);

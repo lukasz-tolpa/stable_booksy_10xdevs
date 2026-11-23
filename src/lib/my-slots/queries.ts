@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/db/database.types";
 import type { MySlotBookingInput, MySlotHorseOptionInput, MySlotInput } from "@/lib/my-slots/compose";
 import type { DateRange } from "@/lib/schedule/dates";
+import { toSlotKind } from "@/lib/schedule/kind";
 
 type Client = SupabaseClient<Database>;
 
@@ -14,7 +15,8 @@ export async function getMySlots(client: Client, instructorId: number, from: str
   const { data, error } = await client
     .from("schedule_slots")
     // Slot wskazuje dzień przez przypisanie instruktora do dnia (złożony FK), nie wprost.
-    .select("hour, seats, schedule_day_instructors!inner(schedule_days!inner(day))")
+    // Plac przez FK `place_id`; RLS `places` pokazuje instruktorowi place jego ośrodka (#113).
+    .select("hour, seats, kind, places(name), schedule_day_instructors!inner(schedule_days!inner(day))")
     .eq("instructor_id", instructorId)
     .gte("schedule_day_instructors.schedule_days.day", from);
 
@@ -26,6 +28,8 @@ export async function getMySlots(client: Client, instructorId: number, from: str
     day: row.schedule_day_instructors.schedule_days.day,
     hour: row.hour,
     seats: row.seats,
+    placeName: row.places.name,
+    kind: toSlotKind(row.kind),
   }));
 }
 
@@ -70,6 +74,11 @@ export interface InstructorSummaryRow {
   horseName: string | null;
   /** Jeździec zanonimizowany (ADR-0001) — jazda trafia do wiersza „Usunięci jeźdźcy”. */
   anonymised: boolean;
+  /**
+   * Jeździec jest pensjonariuszem ośrodka w miesiącu dnia jazdy (#118, reguła „pensjonariusz w miesiącu”
+   * z bazy, `private.is_boarder_in_month`) — sekcja „Pensjonariusze”.
+   */
+  boarder: boolean;
 }
 
 /**
@@ -96,13 +105,15 @@ export async function getMyMonthBookings(client: Client, days: DateRange): Promi
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     horseName: row.horse_name ?? null,
     anonymised: row.anonymised,
+    boarder: row.boarder,
   }));
 }
 
 /**
  * Konie do przydziału przy aktywnych zapisach na sloty zalogowanego instruktora od podanego dnia —
  * przez RPC `get_my_slot_horse_options`: konie pracujące tego dnia ze znacznikiem „zajęty o tej
- * godzinie”, bez danych jeźdźca ani instruktora, który ma zajętego konia (#81).
+ * godzinie”, bez danych jeźdźca ani instruktora, który ma zajętego konia (#81); przy slocie treningowym
+ * konie pensjonatowe zapisanego pensjonariusza z pobytem w dniu jazdy (#115).
  */
 export async function getMySlotHorseOptions(client: Client, from: string): Promise<MySlotHorseOptionInput[]> {
   const { data, error } = await client.rpc("get_my_slot_horse_options", { p_from: from });

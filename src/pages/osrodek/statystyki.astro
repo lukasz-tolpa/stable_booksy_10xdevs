@@ -87,6 +87,13 @@ const topRiderItems = (view?.topRiders ?? []).map((point) => ({
   value: point.rideHours,
   valueText: formatHours(point.rideHours),
 }));
+// --- Rekreacja i sloty treningowe osobno (#119) ---
+// Bez slotów treningowych w okresie model nie ma podziału (pusta lista), a strona wygląda jak dawniej.
+const slotKindRows = view?.slotKindRows ?? [];
+// Konie pensjonatowe z jazdami dostają własną tabelę; nagłówki tabel koni liczy model widoku.
+const hasBoardingHorses = (view?.boardingHorses.length ?? 0) > 0;
+const horseHeadings = view?.horseHeadings;
+
 // Wykres obciążenia koni rysuje te same wiersze co tabela koni, w tej samej kolejności.
 const horseWorkloadItems = (view?.horses ?? []).map((row) => ({
   label: row.name,
@@ -178,6 +185,45 @@ const horseWorkloadItems = (view?.horses ?? []).map((row) => ({
               </Card>
             </dl>
           </section>
+          {slotKindRows.length > 0 && (
+            <section aria-labelledby="slot-kinds-heading">
+              <h2 id="slot-kinds-heading">Rekreacja i sloty treningowe</h2>
+              <p class="stats-lead">
+                Jazdy, godziny jazd i obłożenie grafiku osobno dla slotów rekreacyjnych i treningowych.
+              </p>
+              <Card padding={0} class="overflow-hidden">
+                <table class="stats-table">
+                  <caption class="sr-only">
+                    Rekreacja i sloty treningowe: jazdy, godziny jazd i obłożenie grafiku każdego rodzaju slotów
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Rodzaj slotów</th>
+                      <th scope="col" class="num">
+                        Jazdy
+                      </th>
+                      <th scope="col" class="num">
+                        Godziny jazd
+                      </th>
+                      <th scope="col" class="num">
+                        Obłożenie grafiku
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {slotKindRows.map((row) => (
+                      <tr>
+                        <th scope="row">{row.label}</th>
+                        <td class="num">{row.ridesText}</td>
+                        <td class="num">{row.rideHoursText}</td>
+                        <td class="num">{row.occupancyText}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </Card>
+            </section>
+          )}
           {timeSeries && timeNames && (
             <section aria-labelledby="time-chart-heading">
               <h2 id="time-chart-heading">Godziny jazd w czasie</h2>
@@ -215,10 +261,10 @@ const horseWorkloadItems = (view?.horses ?? []).map((row) => ({
           )}
           {horseWorkloadItems.length > 0 && (
             <section aria-labelledby="horse-chart-heading">
-              <h2 id="horse-chart-heading">Obciążenie koni</h2>
+              <h2 id="horse-chart-heading">{horseHeadings?.workload}</h2>
               <p class="stats-lead">Godziny jazd każdego konia w wybranym okresie, od najbardziej obciążonego.</p>
               <BarChart
-                title="Obciążenie koni: godziny jazd w okresie"
+                title={`${horseHeadings?.workload}: godziny jazd w okresie`}
                 items={horseWorkloadItems}
                 orientation="horizontal"
                 labelHeader="Koń"
@@ -227,9 +273,19 @@ const horseWorkloadItems = (view?.horses ?? []).map((row) => ({
             </section>
           )}
           <section aria-labelledby="horses-heading">
-            <h2 id="horses-heading">Konie</h2>
-            <HorseStatsTable rows={stats.horses} />
+            <h2 id="horses-heading">{horseHeadings?.table}</h2>
+            <HorseStatsTable rows={stats.horses} caption={horseHeadings?.caption ?? undefined} />
           </section>
+          {hasBoardingHorses && (
+            <section aria-labelledby="boarding-horses-heading">
+              <h2 id="boarding-horses-heading">Konie pensjonatowe</h2>
+              <p class="stats-lead">Godziny jazd koni pensjonariuszy na slotach treningowych w wybranym okresie.</p>
+              <HorseStatsTable
+                rows={stats.boardingHorses}
+                caption="Obciążenie koni pensjonatowych w okresie: liczba jazd i godziny jazd każdego konia pensjonatowego"
+              />
+            </section>
+          )}
         </>
       )
     }

@@ -111,7 +111,7 @@ function table(doc: jsPDF, data: DocumentTable, y: number, columns: Partial<Styl
 
 /** Kolumny tabeli jazd: data, godzina — stała szerokość; instruktor i koń dzielą resztę. */
 const RIDE_COLUMNS: Partial<Styles>[] = [{ cellWidth: 78 }, { cellWidth: 56 }, {}, { cellWidth: 130 }];
-/** Kolumny tabeli kosztów: nazwa, kwota do prawej. */
+/** Kolumny tabeli kosztów (i opłat za pensjonat — koń, kwota): nazwa, kwota do prawej. */
 const COST_COLUMNS: Partial<Styles>[] = [{}, { cellWidth: 110, halign: "right" }];
 
 /**
@@ -151,6 +151,11 @@ export function renderSettlementPdf(content: SettlementDocument): Uint8Array<Arr
     content.rides.emptyText === null
       ? table(doc, content.rides, y, RIDE_COLUMNS)
       : paragraph(doc, content.rides.emptyText, y, SIZE.body);
+
+  if (content.fees) {
+    y = paragraph(doc, content.fees.heading, y + 16, SIZE.heading, "bold");
+    y = table(doc, content.fees, y + 2, COST_COLUMNS);
+  }
 
   y = paragraph(doc, content.costs.heading, y + 16, SIZE.heading, "bold");
   y += 2;

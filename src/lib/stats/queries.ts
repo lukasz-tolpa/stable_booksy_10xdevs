@@ -1,15 +1,39 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/db/database.types";
 import { toBookingStatus, toCancelledBy } from "@/lib/bookings/status";
+import { SLOT_KIND, toSlotKind, type SlotKind } from "@/lib/schedule/kind";
+import { toHorseKind, type HorseKind } from "@/lib/stables/kind";
 import type { StatsRider } from "@/lib/stats/riders";
-import type { StatsBooking, StatsPeriod, StatsScheduleDay } from "@/lib/stats/stats";
+import type { StatsBooking, StatsPeriod, StatsScheduleDay, StatsSlot } from "@/lib/stats/stats";
 
 type Client = SupabaseClient<Database>;
 
+/** Slot dnia z instruktorem, rodzajem i placem (#115) — dla podziału na rekreację i pensjonariuszy. */
+export interface StatsRowsSlot extends StatsSlot {
+  instructorId: number;
+  kind: SlotKind;
+  placeId: number;
+}
+
+export interface StatsRowsDay extends StatsScheduleDay {
+  slots: StatsRowsSlot[];
+}
+
+/**
+ * Zapis z rodzajem slotu, placem i rodzajem konia (#115). Rodzaj i plac pochodzą ze slotu zapisu (instruktor ×
+ * godzina); zapis, którego slot zniknął (odwołany po skróceniu dnia), jest rekreacyjny — jak w bazie — i bez placu.
+ */
+export interface StatsRide extends StatsBooking {
+  slotKind: SlotKind;
+  placeId: number | null;
+  /** `null` — zapis bez konia. */
+  horseKind: HorseKind | null;
+}
+
 /** Wiersze danych ośrodka, z których `computeStableStats` liczy statystyki. */
 export interface StatsRows {
-  days: StatsScheduleDay[];
-  bookings: StatsBooking[];
+  days: StatsRowsDay[];
+  bookings: StatsRide[];
   /** Jeźdźcy z zapisów okresu, każde konto raz. */
   riders: StatsRider[];
 }
@@ -28,6 +52,8 @@ export interface RawStatsBooking {
   cancelled_by: string | null;
   /** `null`, gdy zapis nie ma jeźdźca albo RLS ukryje profil. */
   profiles: { full_name: string | null } | null;
+  /** Rodzaj przydzielonego konia (FK `bookings_horse_fkey`); `null` — zapis bez konia. */
+  horses: { kind: string } | null;
 }
 
 /**
@@ -40,7 +66,10 @@ export interface RawStatsDay {
   open_hour: number;
   close_hour: number;
   schedule_day_horses: { horse_id: number }[];
-  schedule_day_instructors: { schedule_slots: { hour: number; seats: number }[] }[];
+  schedule_day_instructors: {
+    instructor_id: number;
+    schedule_slots: { hour: number; seats: number; kind: string; place_id: number }[];
+  }[];
   bookings: RawStatsBooking[];
 }
 
@@ -74,16 +103,26 @@ export async function collectStatsRows(loadPage: StatsPageLoader, pageSize: numb
 
     const page = data ?? [];
     for (const day of page) {
+      const slots = day.schedule_day_instructors.flatMap((instructor) =>
+        instructor.schedule_slots.map(
+          (slot): StatsRowsSlot => ({
+            instructorId: instructor.instructor_id,
+            hour: slot.hour,
+            seats: slot.seats,
+            kind: toSlotKind(slot.kind),
+            placeId: slot.place_id,
+          }),
+        ),
+      );
       rows.days.push({
         day: day.day,
         openHour: day.open_hour,
         closeHour: day.close_hour,
         horseIds: day.schedule_day_horses.map((entry) => entry.horse_id),
-        slots: day.schedule_day_instructors.flatMap((instructor) =>
-          instructor.schedule_slots.map((slot) => ({ hour: slot.hour, seats: slot.seats })),
-        ),
+        slots,
       });
       for (const booking of day.bookings) {
+        const slot = slots.find((entry) => entry.instructorId === booking.instructor_id && entry.hour === booking.hour);
         rows.bookings.push({
           day: day.day,
           horseId: booking.horse_id,
@@ -92,6 +131,9 @@ export async function collectStatsRows(loadPage: StatsPageLoader, pageSize: numb
           status: toBookingStatus(booking.status),
           riderId: booking.rider_id,
           cancelledBy: toCancelledBy(booking.cancelled_by),
+          slotKind: slot?.kind ?? SLOT_KIND.recreation,
+          placeId: slot?.placeId ?? null,
+          horseKind: booking.horses ? toHorseKind(booking.horses.kind) : null,
         });
         // Zapis bez jeźdźca nie ma kogo dopisać — trafi do wiersza „Usunięci jeźdźcy".
         if (booking.rider_id !== null && !seenRiders.has(booking.rider_id)) {
@@ -111,7 +153,8 @@ export async function collectStatsRows(loadPage: StatsPageLoader, pageSize: numb
 
 /**
  * Dni grafiku stadniny z okresu wraz z przydziałami koni i WSZYSTKIMI zapisami —
- * także odwołanymi (lista dnia czyta tylko aktywne; statystyki liczą odwołania).
+ * także odwołanymi (lista dnia czyta tylko aktywne; statystyki liczą odwołania). Każdy zapis niesie
+ * rodzaj slotu, plac i rodzaj konia (#115) — wspólny odczyt statystyk, rozliczeń, podsumowań i PDF.
  *
  * Jedno zapytanie na stronę: zapisy dociąga embedded select przez FK `bookings → schedule_days`
  * (od #41 zapis wskazuje dzień wprost, a koń jest opcjonalny), więc termin zapisu (dzień)
@@ -132,7 +175,7 @@ export function getStatsRows(client: Client, stableId: number, period: StatsPeri
     client
       .from("schedule_days")
       .select(
-        "day, open_hour, close_hour, schedule_day_horses(horse_id), schedule_day_instructors(schedule_slots(hour, seats)), bookings(hour, instructor_id, status, cancelled_by, horse_id, rider_id, profiles(full_name))",
+        "day, open_hour, close_hour, schedule_day_horses(horse_id), schedule_day_instructors(instructor_id, schedule_slots(hour, seats, kind, place_id)), bookings(hour, instructor_id, status, cancelled_by, horse_id, rider_id, profiles(full_name), horses(kind))",
       )
       .eq("stable_id", stableId)
       .gte("day", period.from)

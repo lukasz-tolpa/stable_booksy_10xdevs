@@ -6,6 +6,7 @@ import {
   RIDER_A_STATE,
   runSql,
   settlementCard,
+  settlementRiders,
   SETTLEMENTS_ROUTE,
   setStableRate,
   showAllRides,
@@ -112,7 +113,7 @@ test.describe("PDF rozliczenia jeźdźca — ośrodek ze stawką", () => {
   test("na liście „Rozliczenia” nie ma „Pobierz PDF”", async ({ page }) => {
     await test.step("lista jeźdźców miesiąca jest widoczna", async () => {
       await page.goto(`${SETTLEMENTS_ROUTE}?miesiac=${monthWithRides()}`);
-      await expect(page.getByRole("list", { name: "Rozliczenia jeźdźców" }), DEMO_HINT).toBeVisible();
+      await expect(settlementRiders(page).first(), DEMO_HINT).toBeVisible();
     });
 
     await test.step("przycisku „Pobierz PDF” nie ma", async () => {

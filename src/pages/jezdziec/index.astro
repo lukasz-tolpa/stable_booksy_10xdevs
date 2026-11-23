@@ -8,7 +8,14 @@ import Card from "@/components/ui/Card.astro";
 import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
 import { RIDER_MONTH_SUMMARY_ROUTE, ROLE_HOME } from "@/lib/auth/roles";
+import { MY_HORSES_ROUTE } from "@/lib/boarding/redirect";
+import { BOARDING_PAGE_TEXTS } from "@/lib/boarding/texts";
 import { MONTH_SUMMARY_TEXTS } from "@/lib/month-summary/texts";
+import { boarderOccupancyStables, type BoarderHorseStays } from "@/lib/place-occupancy/occupancy";
+import { listBoardingHorses } from "@/lib/boarding/queries";
+import { RIDER_PLACE_OCCUPANCY_ROUTE } from "@/lib/place-occupancy/routes";
+import { PLACE_OCCUPANCY_TEXTS } from "@/lib/place-occupancy/texts";
+import { todayIso } from "@/lib/schedule/dates";
 import { listStables, type StableListItem } from "@/lib/stables/queries";
 import { prepareSearchTerm } from "@/lib/stables/search";
 import { createClient } from "@/lib/supabase";
@@ -26,13 +33,28 @@ const supabase = createClient(Astro.request.headers, Astro.cookies);
 // pokazujemy stan awarii obok dwóch stanów pustych.
 let stables: StableListItem[] = [];
 let loadFailed = false;
+// „Moje konie” tylko u pensjonariusza (#114), „Zajętość placów” tylko u tego, którego koń stoi dziś w ośrodku
+// (#116). Awaria tego odczytu chowa oba linki, nie psuje katalogu.
+let boarder = false;
+let seesPlaceOccupancy = false;
 
 if (supabase) {
-  try {
-    stables = await listStables(supabase, term);
-  } catch (error) {
+  const profileId = Astro.locals.profile?.id;
+  const [catalogue, horses] = await Promise.allSettled([
+    listStables(supabase, term),
+    profileId ? listBoardingHorses(supabase, { riderId: profileId }) : Promise.resolve<BoarderHorseStays[]>([]),
+  ]);
+  if (catalogue.status === "fulfilled") {
+    stables = catalogue.value;
+  } else {
     loadFailed = true;
-    logError("page:jezdziec/index", error);
+    logError("page:jezdziec/index", catalogue.reason);
+  }
+  if (horses.status === "fulfilled") {
+    boarder = horses.value.length > 0;
+    seesPlaceOccupancy = boarderOccupancyStables(horses.value, todayIso()).length > 0;
+  } else {
+    logError("page:jezdziec/index", horses.reason);
   }
 }
 
@@ -47,6 +69,12 @@ const isEmpty = stables.length === 0;
       <h1>Ośrodki</h1>
       <div class="page-head__links">
         <GhostButton href="/jezdziec/zapisy">Moje zapisy</GhostButton>
+        {boarder && <GhostButton href={MY_HORSES_ROUTE}>{BOARDING_PAGE_TEXTS.rider.title}</GhostButton>}
+        {
+          seesPlaceOccupancy && (
+            <GhostButton href={RIDER_PLACE_OCCUPANCY_ROUTE}>{PLACE_OCCUPANCY_TEXTS.title}</GhostButton>
+          )
+        }
         <GhostButton href={RIDER_MONTH_SUMMARY_ROUTE}>{MONTH_SUMMARY_TEXTS.heading}</GhostButton>
       </div>
     </div>

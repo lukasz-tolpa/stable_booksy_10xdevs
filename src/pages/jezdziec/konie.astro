@@ -1,0 +1,107 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import Topbar from "@/components/Topbar.astro";
+import Banner from "@/components/Banner.astro";
+import BoardingHorse from "@/components/boarding/BoardingHorse.astro";
+import Card from "@/components/ui/Card.astro";
+import EmptyState from "@/components/ui/EmptyState.astro";
+import FailureState from "@/components/ui/FailureState.astro";
+import { listBoardingHorses } from "@/lib/boarding/queries";
+import { SUCCESS_PARAM } from "@/lib/boarding/redirect";
+import { BOARDING_PAGE_TEXTS } from "@/lib/boarding/texts";
+import { boardingNotice, composeMyBoardingHorses, type MyBoardingHorseView } from "@/lib/boarding/view";
+import { todayIso } from "@/lib/schedule/dates";
+import { createClient } from "@/lib/supabase";
+import { logError } from "@/lib/log";
+
+// „Moje konie” pensjonariusza (#114): jego konie pensjonatowe, ich pobyty, kto ostatnio wpisał dzień
+// wyjazdu, i zakończenie pobytu. Dane konia prowadzi ośrodek — tu nie ma ich edycji. Dostęp pilnuje
+// middleware (przestrzeń jeźdźca); wiersze właściciela konia i pobytów zawęża RLS do konta.
+const { profile } = Astro.locals;
+const error = Astro.url.searchParams.get("error");
+const notice = error ? null : boardingNotice(Astro.url.searchParams.get(SUCCESS_PARAM));
+const texts = BOARDING_PAGE_TEXTS.rider;
+
+const supabase = createClient(Astro.request.headers, Astro.cookies);
+
+let horses: MyBoardingHorseView[] = [];
+let loadFailed = false;
+
+if (supabase && profile) {
+  try {
+    horses = composeMyBoardingHorses(await listBoardingHorses(supabase, { riderId: profile.id }), todayIso());
+  } catch (error) {
+    loadFailed = true;
+    logError("page:jezdziec/konie", error);
+  }
+}
+---
+
+<Layout title={texts.title}>
+  <Topbar />
+  <main class="container-narrow page">
+    <h1>{texts.title}</h1>
+    <p class="page-lead">{texts.lead}</p>
+
+    {
+      error && (
+        <div class="notice">
+          <Banner variant="error">{error}</Banner>
+        </div>
+      )
+    }
+    {
+      notice && (
+        <div class="notice">
+          <Banner variant="success">{notice}</Banner>
+        </div>
+      )
+    }
+
+    <div class="horses">
+      {
+        loadFailed ? (
+          <FailureState>
+            <p>{texts.failure}</p>
+            <p>{BOARDING_PAGE_TEXTS.retry}</p>
+          </FailureState>
+        ) : horses.length === 0 ? (
+          <Card>
+            <EmptyState>
+              <p>{texts.empty}</p>
+            </EmptyState>
+          </Card>
+        ) : (
+          horses.map((horse) => (
+            <Card padding={18}>
+              <BoardingHorse horse={horse} side="rider" stableName={horse.stableName} />
+            </Card>
+          ))
+        )
+      }
+    </div>
+  </main>
+</Layout>
+
+<style>
+  .page {
+    padding-block: 24px 56px;
+  }
+  h1 {
+    font-size: 32px;
+  }
+  .page-lead {
+    margin: 10px 0 0 0;
+    font-size: 15.5px;
+    color: var(--muted);
+    max-width: 62ch;
+  }
+  .notice {
+    margin-top: 18px;
+  }
+  .horses {
+    margin-top: 24px;
+    display: grid;
+    gap: 12px;
+  }
+</style>

@@ -1,10 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
 import {
   clearStableRates,
-  emptySettlementsMonth,
   grosze,
   SETTLEMENTS_ROUTE,
+  setBoarderFee,
   setStableRate,
+  setTrainingRate,
   STABLE_STATE,
 } from "./helpers";
 
@@ -43,7 +44,18 @@ test.describe("Wejścia do Rozliczeń", () => {
       await expect(sideLink(page)).toHaveAccessibleName("Rozliczenia Ustaw stawkę");
     });
 
+    // Pobyt Hrabi trwa zawsze, więc pensjonariuszka ma kartę w bieżącym miesiącu. Ze stawkami, ale bez opłaty
+    // za pensjonat jej karta nie ma „Do zapłaty” — suma miesiąca nie jest częściowa (spec #112).
     setStableRate(12345);
+    setTrainingRate(0);
+    await test.step("stawki są, koń bez opłaty za pensjonat: przy linku prośba „Ustaw opłatę za pensjonat”", async () => {
+      await page.reload();
+      await expect(sideLink(page)).toHaveAccessibleName("Rozliczenia Ustaw opłatę za pensjonat");
+    });
+
+    // Stawka treningowa i opłata 0,00 zł: karta pensjonariuszki wnosi 0, więc suma to same jazdy rekreacyjne —
+    // i pierwszego dnia miesiąca jest „Razem” (0,00 zł).
+    setBoarderFee(0);
     let sideTotal = 0;
     let monthName = "";
 
@@ -62,12 +74,7 @@ test.describe("Wejścia do Rozliczeń", () => {
       await page.waitForURL(`**${SETTLEMENTS_ROUTE}`);
       await expect(page.getByRole("heading", { level: 1, name: "Rozliczenia" })).toBeVisible();
       await expect(monthNav(page)).toContainText(monthName);
-      const empty = emptySettlementsMonth(page);
-      if (await empty.isVisible()) {
-        expect(sideTotal, "miesiąc bez jazd ma sumę zero").toBe(0);
-      } else {
-        expect(grosze(await page.getByText(/^Razem: /).innerText())).toBe(sideTotal);
-      }
+      expect(grosze(await page.getByText(/^Razem: /).innerText())).toBe(sideTotal);
     });
   });
 

@@ -88,7 +88,7 @@ begin
 
   -- Drugi zapis na ten sam miesiac - jak upsert PostgREST (on_conflict po kolumnach klucza).
   insert into public.rates (stable_id, rider_id, from_month, amount) values (v_debem, null, v_current, 13050)
-  on conflict (stable_id, rider_id, from_month) do update set amount = excluded.amount;
+  on conflict (stable_id, rider_id, kind, from_month) do update set amount = excluded.amount;
   select count(*), max(amount) into v, v_amount from public.rates where stable_id = v_debem and from_month = v_current;
   if v <> 1 or v_amount <> 13050 then
     raise exception 'FAIL 3: po drugim zapisie na ten sam miesiac: wierszy=% kwota=%', v, v_amount;
@@ -226,9 +226,9 @@ begin
 
   -- Drugi zapis na ten sam miesiac - jak upsert PostgREST; 0,00 zl, potem powrot do stawki osrodka.
   insert into public.rates (stable_id, rider_id, from_month, amount) values (v_debem, v_anna, v_current, 0)
-  on conflict (stable_id, rider_id, from_month) do update set amount = excluded.amount;
+  on conflict (stable_id, rider_id, kind, from_month) do update set amount = excluded.amount;
   insert into public.rates (stable_id, rider_id, from_month, amount) values (v_debem, v_anna, v_current, null)
-  on conflict (stable_id, rider_id, from_month) do update set amount = excluded.amount;
+  on conflict (stable_id, rider_id, kind, from_month) do update set amount = excluded.amount;
   select count(*), max(amount) into v, v_amount
   from public.rates where stable_id = v_debem and rider_id = v_anna and from_month = v_current;
   if v <> 1 or v_amount is not null then
@@ -466,5 +466,113 @@ begin
   end if;
   raise notice 'PASS 17: usuniecie konta jezdzca usuwa jego stawki (takze obowiazujaca), stawki osrodka zostaja';
 end $$;
+
+\echo '=== Dwa rodzaje stawki: rekreacyjna i treningowa (#117) ==='
+
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
+
+do $$
+declare
+  v_debem bigint := current_setting('app.debem')::bigint;
+  v_current date := current_setting('app.current')::date;
+  v_next date := current_setting('app.next')::date;
+  v_kasia uuid := '12121212-1212-1212-1212-121212121212';
+  v int;
+  v_amount int;
+  v_kind text;
+  v_training bigint;
+  v_planned bigint;
+begin
+  select kind into v_kind from public.rates
+  where stable_id = v_debem and rider_id is null and from_month = v_current;
+  if v_kind is distinct from 'recreation' then
+    raise exception 'FAIL 30: stawka zapisana bez rodzaju ma rodzaj %', v_kind;
+  end if;
+  raise notice 'PASS 30: stawka bez wskazanego rodzaju jest rekreacyjna (istniejace stawki)';
+
+  insert into public.rates (stable_id, kind, from_month, amount) values (v_debem, 'training', v_current, 15000)
+  returning id into v_training;
+  select count(*) into v from public.rates
+  where stable_id = v_debem and rider_id is null and from_month = v_current;
+  if v <> 2 then
+    raise exception 'FAIL 31: w biezacym miesiacu % stawek osrodka (oczekiwano rekreacyjnej i treningowej)', v;
+  end if;
+  raise notice 'PASS 31: stawka treningowa osrodka obok rekreacyjnej w tym samym miesiacu - unikalnosc obejmuje rodzaj';
+
+  -- Drugi zapis treningowej na ten sam miesiac - jak upsert PostgREST; rekreacyjna bez zmian.
+  insert into public.rates (stable_id, rider_id, kind, from_month, amount) values (v_debem, null, 'training', v_current, 16000)
+  on conflict (stable_id, rider_id, kind, from_month) do update set amount = excluded.amount;
+  select count(*), max(amount) into v, v_amount from public.rates
+  where stable_id = v_debem and rider_id is null and kind = 'training' and from_month = v_current;
+  if v <> 1 or v_amount <> 16000 then
+    raise exception 'FAIL 32: po nadpisaniu stawki treningowej: wierszy=% kwota=%', v, v_amount;
+  end if;
+  select amount into v_amount from public.rates
+  where stable_id = v_debem and rider_id is null and kind = 'recreation' and from_month = v_current;
+  if v_amount <> 0 then
+    raise exception 'FAIL 32b: nadpisanie treningowej zmienilo rekreacyjna na %', v_amount;
+  end if;
+  raise notice 'PASS 32: zapis na zajety miesiac nadpisuje tylko stawke tego rodzaju';
+
+  begin
+    insert into public.rates (stable_id, kind, from_month, amount)
+    values (v_debem, 'training', current_setting('app.previous')::date, 15000);
+    raise exception 'FAIL 33: stawka treningowa od minionego miesiaca przeszla';
+  exception when sqlstate 'SB026' then
+    raise notice 'PASS 33: stawka treningowa od minionego miesiaca - SB026';
+  end;
+  begin
+    insert into public.rates (stable_id, kind, from_month, amount)
+    values (v_debem, 'training', current_setting('app.after_next')::date, 15000);
+    raise exception 'FAIL 33b: stawka treningowa za dwa miesiace przeszla';
+  exception when sqlstate 'SB026' then
+    raise notice 'PASS 33b: stawka treningowa za dwa miesiace - SB026';
+  end;
+
+  begin
+    update public.rates set kind = 'recreation' where id = v_training;
+    raise exception 'FAIL 34: zmiana rodzaju stawki przeszla';
+  exception when sqlstate 'SB028' then
+    raise notice 'PASS 34: rodzaj zmiany stawki niezmienny - SB028';
+  end;
+
+  begin
+    insert into public.rates (stable_id, kind, from_month, amount) values (v_debem, 'boarding', v_next, 15000);
+    raise exception 'FAIL 35: nieznany rodzaj stawki przeszedl';
+  exception when check_violation then
+    raise notice 'PASS 35: nieznany rodzaj stawki - 23514';
+  end;
+
+  begin
+    delete from public.rates where id = v_training;
+    raise exception 'FAIL 36: usuniecie obowiazujacej stawki treningowej przeszlo';
+  exception when sqlstate 'SB027' then
+    raise notice 'PASS 36: usuniecie obowiazujacej stawki treningowej - SB027';
+  end;
+  insert into public.rates (stable_id, kind, from_month, amount) values (v_debem, 'training', v_next, 17000)
+  returning id into v_planned;
+  delete from public.rates where id = v_planned;
+  get diagnostics v = row_count;
+  if v <> 1 then
+    raise exception 'FAIL 36b: usuniecie zaplanowanej stawki treningowej - % wierszy', v;
+  end if;
+  raise notice 'PASS 36b: zaplanowana stawka treningowa usunieta';
+
+  -- Pensjonariuszka bez zapisu (Katarzyna, kon Hrabia w pobycie) - stawka indywidualna treningowa;
+  -- jej rekreacyjna stawka indywidualna w tym samym miesiacu to osobna zmiana.
+  insert into public.rates (stable_id, rider_id, kind, from_month, amount) values (v_debem, v_kasia, 'training', v_current, 11000);
+  insert into public.rates (stable_id, rider_id, kind, from_month, amount) values (v_debem, v_kasia, 'recreation', v_current, 9000);
+  insert into public.rates (stable_id, rider_id, kind, from_month, amount) values (v_debem, v_kasia, 'training', v_current, 12000)
+  on conflict (stable_id, rider_id, kind, from_month) do update set amount = excluded.amount;
+  select count(*), max(amount) filter (where kind = 'training') into v, v_amount
+  from public.rates where stable_id = v_debem and rider_id = v_kasia and from_month = v_current;
+  if v <> 2 or v_amount <> 12000 then
+    raise exception 'FAIL 37: stawki indywidualne pensjonariuszki: wierszy=% treningowa=%', v, v_amount;
+  end if;
+  raise notice 'PASS 37: stawka indywidualna treningowa pensjonariuszki bez zapisu, osobno od rekreacyjnej';
+end $$;
+
+reset role;
 
 rollback;

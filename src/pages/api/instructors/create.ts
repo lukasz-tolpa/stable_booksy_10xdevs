@@ -3,7 +3,7 @@ import { firstErrorMessage } from "@/lib/auth/schemas";
 import { errorCode } from "@/lib/db-errors";
 import { formValue } from "@/lib/form-data";
 import { INSTRUCTOR_NAME_TAKEN, instructorErrorMessage } from "@/lib/instructors/errors";
-import { ownerRequest } from "@/lib/instructors/owner-request";
+import { ownerRequest } from "@/lib/stables/owner-request";
 import { backToInstructors } from "@/lib/instructors/redirect";
 import { newInstructorSchema } from "@/lib/instructors/schemas";
 import { logError } from "@/lib/log";
@@ -21,7 +21,7 @@ export const POST: APIRoute = async (context) => {
 
   // Stadnina z sesji, nigdy z formularza; polityka `instructors_insert_own_stable` i tak
   // odrzuciłaby cudzą.
-  const owner = await ownerRequest(context, "api:instructors/create");
+  const owner = await ownerRequest(context, "api:instructors/create", (error) => backToInstructors(context, error));
   if (owner instanceof Response) {
     return owner;
   }

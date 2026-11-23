@@ -12,6 +12,7 @@ import {
   formatHours,
   formatLongDate,
   formatLongDateWithYear,
+  formatDayMonthYear,
   formatNumber,
   formatPercent,
   formatTakenSeats,
@@ -56,6 +57,18 @@ describe("formatLongDateWithYear", () => {
   it("zapisuje dzień nawigacji dniami z dniem tygodnia i rokiem", () => {
     expect(formatLongDateWithYear("2026-11-18")).toBe("środa, 18 listopada 2026");
     expect(formatLongDateWithYear("2027-01-01")).toBe("piątek, 1 stycznia 2027");
+  });
+});
+
+describe("formatDayMonthYear", () => {
+  it("zapisuje dzień kalendarzowy z miesiącem w dopełniaczu i rokiem, bez dnia tygodnia", () => {
+    expect(formatDayMonthYear("2026-11-03")).toBe("3 listopada 2026");
+    expect(formatDayMonthYear("2027-01-01")).toBe("1 stycznia 2027");
+  });
+
+  it("chwilę zapisuje dniem w strefie ośrodka — 23:30 UTC 31 grudnia to już 1 stycznia", () => {
+    expect(formatDayMonthYear(new Date("2026-12-31T23:30:00Z"))).toBe("1 stycznia 2027");
+    expect(formatDayMonthYear(new Date("2026-11-21T10:00:00Z"))).toBe("21 listopada 2026");
   });
 });
 

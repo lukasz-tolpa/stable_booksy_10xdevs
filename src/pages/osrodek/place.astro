@@ -1,0 +1,310 @@
+---
+import { MapPin } from "lucide-react";
+import Layout from "@/layouts/Layout.astro";
+import Topbar from "@/components/Topbar.astro";
+import Banner from "@/components/Banner.astro";
+import PlaceForm from "@/components/places/PlaceForm";
+import Card from "@/components/ui/Card.astro";
+import FailureState from "@/components/ui/FailureState.astro";
+import { composePlaceList, type PlaceList } from "@/lib/places/list";
+import { listStablePlaces } from "@/lib/places/queries";
+import { PLACE_NAME_MAX } from "@/lib/places/schemas";
+import { getOwnedStableId } from "@/lib/stables/queries";
+import { createClient } from "@/lib/supabase";
+import { logError } from "@/lib/log";
+
+// Place ośrodka (#113). Dostęp pilnuje middleware (mapa tras w @/lib/auth/roles); konto ośrodka ma
+// gwarantowaną stadninę, a stadnina — zawsze co najmniej jeden aktywny plac (baza), więc lista nie
+// bywa pusta. Wzorzec: strona instruktorów.
+const { profile } = Astro.locals;
+const error = Astro.url.searchParams.get("error");
+
+const supabase = createClient(Astro.request.headers, Astro.cookies);
+
+let list: PlaceList = { active: [], inactive: [], canDeactivate: false };
+let loadFailed = false;
+
+if (supabase && profile) {
+  try {
+    const stableId = await getOwnedStableId(supabase, profile.id);
+    if (stableId !== null) {
+      list = composePlaceList(await listStablePlaces(supabase, stableId));
+    }
+  } catch (error) {
+    loadFailed = true;
+    logError("page:osrodek/place", error);
+  }
+} else {
+  loadFailed = true;
+}
+
+const { active, inactive, canDeactivate } = list;
+---
+
+<Layout title="Place">
+  <Topbar />
+  <main class="container-narrow page">
+    <h1>Place</h1>
+    <p class="page-lead">
+      Miejsca jazd w Twoim ośrodku, np. hala, duży plac, lonżownik. Przy układaniu grafiku każdy slot dostaje plac —
+      przy jednym placu niczego nie wybierasz. Plac dezaktywujesz zamiast usuwać: zostaje w dniach już ułożonych.
+    </p>
+
+    {
+      error && (
+        <div class="notice">
+          <Banner variant="error">{error}</Banner>
+        </div>
+      )
+    }
+
+    <div class="cols">
+      <div class="list">
+        {
+          loadFailed ? (
+            <FailureState>
+              <p>Nie udało się wczytać placów.</p>
+              <p>Odśwież stronę za chwilę.</p>
+            </FailureState>
+          ) : (
+            <>
+              <ul class="places" aria-label="Aktywne place">
+                {active.map((place) => (
+                  <li>
+                    <Card padding={18}>
+                      <article class="place">
+                        <div class="place__head">
+                          <h2>
+                            <MapPin className="size-4" />
+                            {place.name}
+                          </h2>
+                          {canDeactivate && (
+                            <form method="POST" action="/api/places/toggle-active">
+                              <input type="hidden" name="placeId" value={place.id} />
+                              <input type="hidden" name="active" value="false" />
+                              <button type="submit" aria-label={`Dezaktywuj — ${place.name}`}>
+                                Dezaktywuj
+                              </button>
+                            </form>
+                          )}
+                        </div>
+                        <details class="place__rename">
+                          <summary>Zmień nazwę</summary>
+                          <form method="POST" action="/api/places/rename">
+                            <input type="hidden" name="placeId" value={place.id} />
+                            <label for={`place-name-${String(place.id)}`}>Nowa nazwa — {place.name}</label>
+                            <div class="place__rename-row">
+                              <input
+                                id={`place-name-${String(place.id)}`}
+                                name="name"
+                                value={place.name}
+                                maxlength={PLACE_NAME_MAX}
+                                required
+                              />
+                              <button type="submit">Zapisz nazwę</button>
+                            </div>
+                          </form>
+                        </details>
+                      </article>
+                    </Card>
+                  </li>
+                ))}
+              </ul>
+
+              {inactive.length > 0 && (
+                <>
+                  <h2 class="inactive-head">Nieaktywne</h2>
+                  <ul class="places" aria-label="Nieaktywne place">
+                    {inactive.map((place) => (
+                      <li>
+                        <Card padding={18} class="opacity-70">
+                          <article class="place">
+                            <div class="place__head">
+                              <h3>
+                                <MapPin className="size-4" />
+                                {place.name}
+                              </h3>
+                              <form method="POST" action="/api/places/toggle-active">
+                                <input type="hidden" name="placeId" value={place.id} />
+                                <input type="hidden" name="active" value="true" />
+                                <button type="submit" aria-label={`Aktywuj — ${place.name}`}>
+                                  Aktywuj
+                                </button>
+                              </form>
+                            </div>
+                          </article>
+                        </Card>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </>
+          )
+        }
+      </div>
+
+      <Card>
+        <h2 class="form-head">Dodaj plac</h2>
+        <PlaceForm client:load />
+      </Card>
+    </div>
+  </main>
+</Layout>
+
+<style>
+  .page {
+    padding-block: 24px 56px;
+  }
+  h1 {
+    font-size: 32px;
+  }
+  .page-lead {
+    margin: 10px 0 0 0;
+    font-size: 15.5px;
+    color: var(--muted);
+    max-width: 62ch;
+  }
+  .notice {
+    margin-top: 18px;
+  }
+
+  .cols {
+    margin-top: 24px;
+    display: grid;
+    gap: 22px;
+    align-items: start;
+  }
+  @media (width >= 900px) {
+    .cols {
+      grid-template-columns: 1fr 20rem;
+    }
+  }
+
+  .list {
+    display: grid;
+    gap: 12px;
+    min-width: 0;
+  }
+  .places {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 12px;
+  }
+
+  .place__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .place h2,
+  .place h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-size: 17px;
+    margin: 0;
+  }
+  .place :global(svg) {
+    flex-shrink: 0;
+  }
+  .place button,
+  .place summary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 10px 16px;
+    border-radius: 999px;
+    border: 1px solid var(--border-2);
+    background: var(--surface);
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    color: var(--fg);
+    cursor: pointer;
+    transition:
+      background 0.15s,
+      border-color 0.15s;
+  }
+  .place summary {
+    list-style: none;
+  }
+  .place summary::-webkit-details-marker {
+    display: none;
+  }
+  .place button:hover,
+  .place summary:hover {
+    background: var(--surface-2);
+  }
+  .place button:focus-visible,
+  .place summary:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+  .place :global(details[open]) summary {
+    background: var(--primary-soft);
+    border-color: var(--primary-tint);
+  }
+
+  .place__rename {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+  .place__rename form {
+    margin-top: 12px;
+    display: grid;
+    gap: 6px;
+  }
+  .place__rename label {
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .place__rename-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .place__rename input {
+    flex: 1 1 12rem;
+    min-width: 0;
+    min-height: 44px;
+    padding: 10px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border-2);
+    border-radius: var(--r);
+    font-size: 15px;
+    color: var(--fg);
+    transition:
+      border-color 0.15s,
+      box-shadow 0.15s;
+  }
+  .place__rename input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-soft);
+  }
+
+  .inactive-head {
+    margin: 10px 0 0;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-weight: 500;
+    color: var(--muted);
+  }
+
+  .form-head {
+    font-size: 17px;
+    margin: 0 0 14px;
+  }
+</style>

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { formInt } from "@/lib/form-data";
 import { EXTRA_COST_AMOUNT, parseAmount, RATE_AMOUNT, type AmountLimits } from "@/lib/settlements/amounts";
-import { RATE_FROM } from "@/lib/settlements/rates";
+import { RATE_FROM, type RateKind } from "@/lib/settlements/rates";
 import { parseRiderKey } from "@/lib/settlements/rider";
 
 /**
@@ -28,6 +28,26 @@ export const stableRateSchema = z.object({
   amount: formAmount(RATE_AMOUNT),
   from: z.enum([RATE_FROM.current, RATE_FROM.next], { error: RATE_FROM_MESSAGE }),
 });
+
+/** Rodzaj stawki ośrodka w formularzu (#117) — wartość ukrytego pola `rodzaj` (polska, jak `od`). */
+export const RATE_KIND_FIELD = "rodzaj";
+export const RATE_KIND_VALUE: Readonly<Record<RateKind, string>> = {
+  recreation: "rekreacyjna",
+  training: "treningowa",
+};
+
+const RATE_KIND_MESSAGE = "Nieprawidłowy rodzaj stawki";
+
+/** Pole `rodzaj`: „treningowa” albo „rekreacyjna”; puste (formularz sprzed #117) — stawka rekreacyjna. */
+const rateKindField = z.string().transform((raw, ctx): RateKind => {
+  if (raw === "" || raw === RATE_KIND_VALUE.recreation) return "recreation";
+  if (raw === RATE_KIND_VALUE.training) return "training";
+  ctx.addIssue({ code: "custom", message: RATE_KIND_MESSAGE, input: raw });
+  return z.NEVER;
+});
+
+/** Formularz stawki ośrodka na „Rozliczeniach” (#117): kwota, „od kiedy” i rodzaj stawki. */
+export const stableRateFormSchema = stableRateSchema.extend({ [RATE_KIND_FIELD]: rateKindField });
 
 /** Rodzaj zmiany stawki jeźdźca (#97) — wartość ukrytego pola `kind` formularza. */
 export const RIDER_RATE_KIND = { set: "indywidualna", end: "osrodka" } as const;

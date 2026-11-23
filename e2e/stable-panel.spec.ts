@@ -108,19 +108,25 @@ test("panel ośrodka pokazuje liczby z ostatnich 30 dni zgodne ze Statystykami t
 });
 
 test("boczna kolumna „Ośrodek” prowadzi do sekcji ośrodka, każda z krótką informacją", async ({ page }) => {
-  await test.step("siedem linków z informacją i adresem sekcji", async () => {
+  await test.step("dziesięć linków z informacją i adresem sekcji", async () => {
     const side = page.getByRole("navigation", { name: "Ośrodek" });
     const links = side.getByRole("link");
-    await expect(links).toHaveCount(7);
+    await expect(links).toHaveCount(10);
 
     const expected: [RegExp, string][] = [
       [/^Grafik jutro: ułożony$/, `/osrodek/grafik?dzien=${seedDay()}`],
       [/^Zapisy dziś: \d+$/, "/osrodek/zapisy?dzien="],
       [/^Konie \d+ aktywn\S+$/, "/osrodek/konie"],
+      // Konie pensjonatowe ośrodka (#114) — seed ma jednego.
+      [/^Pensjonariusze \d+ ko\S+ pensjonatow\S+$/, "/osrodek/pensjonariusze"],
+      // Ośrodek z seeda ma dwa place, Hala i Duży plac (#113).
+      [/^Place \d+ aktywn\S+$/, "/osrodek/place"],
+      // Zajętość placów (#116) — to, co widzą pensjonariusze, dla dowolnego dnia.
+      [/^Zajętość placów dowolny dzień$/, "/osrodek/zajetosc-placow"],
       [/^Instruktorzy \d+ z \d+ z kontem$/, "/osrodek/instruktorzy"],
       [/^Podsumowanie miesiąca \S+: \d+ jazd\S*$/, "/osrodek/podsumowanie"],
       // Bez stawki ośrodka prośba o nią, ze stawką — suma bieżącego miesiąca (#98).
-      [/^Rozliczenia (Ustaw stawkę|\S+: [\d\s]+,\d{2}\szł)$/, "/osrodek/rozliczenia"],
+      [/^Rozliczenia (Ustaw stawkę|Ustaw opłatę za pensjonat|\S+: [\d\s]+,\d{2}\szł)$/, "/osrodek/rozliczenia"],
       [/^Statystyki dowolny okres$/, "/osrodek/statystyki"],
     ];
     for (const [name, href] of expected) {
@@ -130,7 +136,8 @@ test("boczna kolumna „Ośrodek” prowadzi do sekcji ośrodka, każda z krótk
     }
   });
 
-  await test.step("obok bocznej kolumny kolumna główna nie powtarza linków do Podsumowania miesiąca i Rozliczeń", async () => {
+  await test.step("obok bocznej kolumny kolumna główna nie powtarza linków do Placów, Podsumowania miesiąca i Rozliczeń", async () => {
+    await expect(page.getByRole("link", { name: /^Place · / })).toBeHidden();
     await expect(page.getByRole("link", { name: /^Podsumowanie miesiąca · / })).toBeHidden();
     await expect(page.getByRole("link", { name: /^Rozliczenia · / })).toBeHidden();
   });
@@ -172,7 +179,9 @@ test("na telefonie panel i sekcje ośrodka są pod ręką w dolnym pasku, a pane
   });
 
   await test.step("Rozliczenia, których nie ma w dolnym pasku, otwierają się z kolumny głównej panelu", async () => {
-    const link = page.getByRole("link", { name: /^Rozliczenia · (Ustaw stawkę|\S+: [\d\s]+,\d{2}\szł)$/ });
+    const link = page.getByRole("link", {
+      name: /^Rozliczenia · (Ustaw stawkę|Ustaw opłatę za pensjonat|\S+: [\d\s]+,\d{2}\szł)$/,
+    });
     await expect(link).toBeVisible();
     await link.click();
     await page.waitForURL("**/osrodek/rozliczenia");

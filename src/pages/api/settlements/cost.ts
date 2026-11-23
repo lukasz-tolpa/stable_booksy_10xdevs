@@ -3,7 +3,7 @@ import { errorCode } from "@/lib/db-errors";
 import { formValue } from "@/lib/form-data";
 import { logError } from "@/lib/log";
 import { COST_SAVE_FAILED, costSaveErrorMessage, isExpectedCostRefusal } from "@/lib/settlements/errors";
-import { settlementOwner } from "@/lib/settlements/owner-request";
+import { ownerRequest } from "@/lib/stables/owner-request";
 import { addCost } from "@/lib/settlements/queries";
 import { costFormEndpoint, RIDER_PARAM } from "@/lib/settlements/redirect";
 import { extraCostSchema } from "@/lib/settlements/schemas";
@@ -28,7 +28,7 @@ export const POST = costFormEndpoint(async (context, { form, month, back }) => {
     return back(firstErrorMessage(parsed.error));
   }
 
-  const owner = await settlementOwner(context, SCOPE, back);
+  const owner = await ownerRequest(context, SCOPE, back);
   if (owner instanceof Response) {
     return owner;
   }

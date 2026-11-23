@@ -1,0 +1,217 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import Topbar from "@/components/Topbar.astro";
+import Banner from "@/components/Banner.astro";
+import BoardingHorse from "@/components/boarding/BoardingHorse.astro";
+import FormField from "@/components/settlements/FormField.astro";
+import Card from "@/components/ui/Card.astro";
+import EmptyState from "@/components/ui/EmptyState.astro";
+import FailureState from "@/components/ui/FailureState.astro";
+import GhostButton from "@/components/ui/GhostButton.astro";
+import { listStableBoardingFees, listStableBoardingHorses } from "@/lib/boarding/queries";
+import { SUCCESS_PARAM } from "@/lib/boarding/redirect";
+import { BOARDING_PAGE_TEXTS } from "@/lib/boarding/texts";
+import { boardingNotice, composeStableBoarders, type StableBoardersView } from "@/lib/boarding/view";
+import { todayIso } from "@/lib/schedule/dates";
+import { getOwnedStableId } from "@/lib/stables/queries";
+import { createClient } from "@/lib/supabase";
+import { logError } from "@/lib/log";
+
+// Strona „Pensjonariusze” właściciela (#114): konie pensjonatowe ośrodka z właścicielami i pobytami,
+// dodanie konia po adresie e-mail pensjonariusza, zakończenie i poprawka pobytu, nowy pobyt.
+// Dostęp pilnuje middleware (przestrzeń ośrodka tylko dla właściciela); lista przychodzi z
+// `public.get_stable_boarding_horses()`, która sama bierze ośrodek z sesji. Przy koniu opłata za pensjonat
+// z formularzem (#117) — zmiany opłat ośrodka z `public.boarding_fees`. Pod listą osobna sekcja „Konie bez
+// właściciela” (#112): konie, których właściciel usunął konto, z pobytami — także bez żadnego.
+const { profile } = Astro.locals;
+const error = Astro.url.searchParams.get("error");
+const notice = error ? null : boardingNotice(Astro.url.searchParams.get(SUCCESS_PARAM));
+const texts = BOARDING_PAGE_TEXTS.stable;
+const today = todayIso();
+
+const supabase = createClient(Astro.request.headers, Astro.cookies);
+
+let view: StableBoardersView = { boarders: [], ownerless: { heading: texts.ownerless, horses: [] } };
+let loadFailed = false;
+
+if (supabase && profile) {
+  try {
+    const stableId = await getOwnedStableId(supabase, profile.id);
+    const [rows, fees] = await Promise.all([
+      listStableBoardingHorses(supabase),
+      stableId === null ? Promise.resolve([]) : listStableBoardingFees(supabase, stableId),
+    ]);
+    view = composeStableBoarders(rows, today, fees);
+  } catch (error) {
+    loadFailed = true;
+    logError("page:osrodek/pensjonariusze", error);
+  }
+}
+---
+
+<Layout title={texts.title}>
+  <Topbar />
+  <main class="container-narrow page">
+    <h1>{texts.title}</h1>
+    <p class="page-lead">{texts.lead}</p>
+
+    {
+      error && (
+        <div class="notice">
+          <Banner variant="error">{error}</Banner>
+        </div>
+      )
+    }
+    {
+      notice && (
+        <div class="notice">
+          <Banner variant="success">{notice}</Banner>
+        </div>
+      )
+    }
+
+    <div class="cols">
+      <div class="list">
+        {
+          loadFailed ? (
+            <FailureState>
+              <p>{texts.failure}</p>
+              <p>{BOARDING_PAGE_TEXTS.retry}</p>
+            </FailureState>
+          ) : view.boarders.length === 0 && view.ownerless.horses.length === 0 ? (
+            <Card>
+              <EmptyState>
+                <p>{texts.empty}</p>
+              </EmptyState>
+            </Card>
+          ) : (
+            <>
+              {view.boarders.length > 0 && (
+                <ul class="boarders" aria-label={texts.listLabel}>
+                  {view.boarders.map((boarder) => (
+                    <li>
+                      <Card padding={18}>
+                        <h2 class="boarder__name">{boarder.name}</h2>
+                        {boarder.email && boarder.email !== boarder.name && (
+                          <p class="boarder__email">{boarder.email}</p>
+                        )}
+                        <div class="boarder__horses">
+                          {boarder.horses.map((horse) => (
+                            <BoardingHorse horse={horse} side="stable" />
+                          ))}
+                        </div>
+                      </Card>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {view.ownerless.horses.length > 0 && (
+                <section class="ownerless" aria-labelledby="ownerless-heading">
+                  <Card padding={18}>
+                    <h2 id="ownerless-heading" class="boarder__name">
+                      {view.ownerless.heading}
+                    </h2>
+                    <p class="boarder__email">{texts.ownerlessHint}</p>
+                    <div class="boarder__horses">
+                      {view.ownerless.horses.map((horse) => (
+                        <BoardingHorse horse={horse} side="stable" />
+                      ))}
+                    </div>
+                  </Card>
+                </section>
+              )}
+            </>
+          )
+        }
+      </div>
+
+      <Card>
+        <form method="post" action="/api/boarding/horse" class="add" aria-labelledby="add-heading">
+          <h2 id="add-heading" class="form-head">{texts.addHeading}</h2>
+          <p class="hint">{texts.addHint}</p>
+          <FormField id="boarding-name" label={texts.nameLabel} name="name" />
+          <FormField id="boarding-email" label={texts.emailLabel} name="email" type="email" />
+          <FormField id="boarding-arrival" label={texts.arrivalLabel} name="arrival" type="date" value={today} />
+          <div>
+            <GhostButton>{texts.add}</GhostButton>
+          </div>
+        </form>
+      </Card>
+    </div>
+  </main>
+</Layout>
+
+<style>
+  .page {
+    padding-block: 24px 56px;
+  }
+  h1 {
+    font-size: 32px;
+  }
+  .page-lead {
+    margin: 10px 0 0 0;
+    font-size: 15.5px;
+    color: var(--muted);
+    max-width: 62ch;
+  }
+  .notice {
+    margin-top: 18px;
+  }
+  .cols {
+    margin-top: 24px;
+    display: grid;
+    gap: 22px;
+    align-items: start;
+  }
+  @media (width >= 900px) {
+    .cols {
+      grid-template-columns: minmax(0, 1fr) 20rem;
+    }
+  }
+  .boarders {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 12px;
+  }
+  .ownerless {
+    margin-top: 12px;
+  }
+  .ownerless:first-child {
+    margin-top: 0;
+  }
+  .boarder__name {
+    margin: 0;
+    font-size: 19px;
+    overflow-wrap: anywhere;
+  }
+  .boarder__email {
+    margin: 2px 0 0;
+    font-size: 14px;
+    color: var(--muted);
+    overflow-wrap: anywhere;
+  }
+  .boarder__horses {
+    display: grid;
+    gap: 16px;
+    margin-top: 14px;
+  }
+  .boarder__horses > :global(* + *) {
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+  .add {
+    display: grid;
+    gap: 12px;
+  }
+  .form-head {
+    font-size: 17px;
+    margin: 0;
+  }
+  .hint {
+    margin: 0;
+    font-size: 14px;
+    color: var(--muted);
+  }
+</style>
