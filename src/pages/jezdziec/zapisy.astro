@@ -101,13 +101,13 @@ function formatDay(day: string): string {
                     <span class="row__sub">{row.stableName}</span>
                     <span class="row__horse">{row.instructorName}</span>
                     {row.horseLabel && <span class="row__sub">{row.horseLabel}</span>}
-                    {/* Zapis oczekujący (#124) i wygasły w trakcie slotu — cały tekst elementu to sam stan;
-                        odrzucony (#125) — „Odrzucony: <powód>” tekstem, bo powód ma do 300 znaków. */}
-                    {row.stateLabel &&
-                      (row.state === "rejected" ? (
-                        <span class="row__rejected">{row.stateLabel}</span>
+                    {/* Zapis oczekujący (#124) i wygasły w trakcie slotu — pigułka, cały tekst elementu to sam stan;
+                        odrzucony (#125) — „Odrzucony: <powód>” tekstem (sposób pokazania daje `stateView`). */}
+                    {row.stateView &&
+                      (row.stateView.as === "text" ? (
+                        <span class="row__rejected">{row.stateView.label}</span>
                       ) : (
-                        <Tag variant={row.state === "pending" ? "warn" : undefined}>{row.stateLabel}</Tag>
+                        <Tag variant={row.stateView.variant}>{row.stateView.label}</Tag>
                       ))}
                   </span>
                   {row.cancellable && (
@@ -145,11 +145,11 @@ function formatDay(day: string): string {
                     {/* Cały tekst tego elementu to samo słowo - scenariusz odwołania
                         szuka wiersza po dokładnym dopasowaniu. */}
                     {row.status === "cancelled" && <Tag>odwołany</Tag>}
-                    {row.stateLabel &&
-                      (row.state === "rejected" ? (
-                        <span class="row__rejected">{row.stateLabel}</span>
+                    {row.stateView &&
+                      (row.stateView.as === "text" ? (
+                        <span class="row__rejected">{row.stateView.label}</span>
                       ) : (
-                        <Tag>{row.stateLabel}</Tag>
+                        <Tag variant={row.stateView.variant}>{row.stateView.label}</Tag>
                       ))}
                     {row.cancelledByLabel && <span class="row__sub">{row.cancelledByLabel}</span>}
                   </span>

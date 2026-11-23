@@ -1,0 +1,74 @@
+---
+// Krok potwierdzenia akcji, której nie da się cofnąć, bez JavaScriptu (US 83): `<details>` z obrysowanym na
+// czerwono `summary` („Odrzuć”, „Odwołaj zapis”), a w środku formularz wołającego z przyciskiem `btn-danger`
+// („Potwierdź …”). Jedyne miejsce wyglądu tego kroku — „Odrzuć” zapisu oczekującego (`RejectBookingForm`)
+// i „Odwołaj zapis” na liście dnia. Układ formularza w środku należy do wołającego.
+interface Props {
+  /** Podpis `summary`, np. „Odrzuć”. */
+  label: string;
+}
+
+const { label } = Astro.props;
+---
+
+<details class="danger">
+  <summary>
+    <slot name="icon" />
+    {label}
+  </summary>
+  <slot />
+</details>
+
+<style>
+  .danger {
+    min-width: 0;
+  }
+  .danger :global(.btn-danger),
+  .danger summary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 10px 15px;
+    border-radius: 999px;
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+      background 0.15s,
+      border-color 0.15s;
+  }
+  .danger summary {
+    list-style: none;
+    border: 1px solid var(--danger);
+    background: var(--surface);
+    color: var(--danger-ink);
+  }
+  .danger summary::-webkit-details-marker {
+    display: none;
+  }
+  .danger summary:hover {
+    background: var(--danger-soft);
+  }
+  /* `[open]` ustawia przeglądarka — analiza selektorów Astro go nie widzi. */
+  .danger:global([open]) summary {
+    background: var(--danger-soft);
+  }
+  .danger summary:focus-visible,
+  .danger :global(.btn-danger:focus-visible) {
+    outline: 2px solid var(--danger);
+    outline-offset: 2px;
+  }
+  .danger :global(.btn-danger) {
+    border: 1px solid var(--danger);
+    background: var(--danger);
+    color: var(--surface);
+  }
+  .danger :global(.btn-danger:hover) {
+    background: var(--danger-ink);
+  }
+</style>

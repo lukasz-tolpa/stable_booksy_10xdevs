@@ -40,10 +40,10 @@ describe("composePendingBookings", () => {
             instructorName: "Joanna Wrona",
             placeName: "Hala",
             kind: "recreation",
-            freeSeats: 2,
-            seats: 3,
+            full: false,
+            seatsLabel: "2 z 3 wolne",
             rejectedBefore: false,
-            othersWaiting: 0,
+            othersWaitingLabel: null,
           },
         ],
       },
@@ -82,13 +82,16 @@ describe("composePendingBookings", () => {
     expect(view.flatMap((day) => day.rows.map((row) => row.id))).toEqual([3]);
   });
 
-  it("pełny slot (także limit obniżony poniżej zajętych) ma zero wolnych miejsc", () => {
+  it("pełny slot (także limit obniżony poniżej zajętych) ma „Brak miejsc”", () => {
     const view = composePendingBookings(
       [pending({ id: 1, seats: 1, taken: 1 }), pending({ id: 2, hour: 12, seats: 1, taken: 2 })],
       NOW,
     );
 
-    expect(view[0].rows.map((row) => row.freeSeats)).toEqual([0, 0]);
+    expect(view[0].rows.map((row) => [row.full, row.seatsLabel])).toEqual([
+      [true, "Brak miejsc"],
+      [true, "Brak miejsc"],
+    ]);
   });
 
   it("brakujące imię, adres albo plac dostają podpis zastępczy zamiast pustego pola", () => {
@@ -126,11 +129,11 @@ describe("composePendingBookings — inni czekający na ten slot (US 26)", () =>
       NOW,
     );
 
-    expect(view.flatMap((day) => day.rows.map((row) => [row.id, row.othersWaiting]))).toEqual([
-      [1, 2],
-      [2, 2],
-      [3, 2],
-      [4, 0],
+    expect(view.flatMap((day) => day.rows.map((row) => [row.id, row.othersWaitingLabel]))).toEqual([
+      [1, "inni czekający na ten slot: 2"],
+      [2, "inni czekający na ten slot: 2"],
+      [3, "inni czekający na ten slot: 2"],
+      [4, null],
     ]);
   });
 });
@@ -163,9 +166,9 @@ describe("composeDayPendingSlots", () => {
         instructorName: "Karol Jasny",
         placeName: "Hala",
         kind: "training",
-        freeSeats: 0,
-        seats: 1,
-        waiting: 1,
+        full: true,
+        seatsLabel: "Brak miejsc",
+        waitingLabel: "1 czeka",
         rows: [{ id: 3, riderName: "Anna Kowalska", riderEmail: "anna.kowalska@example.com", rejectedBefore: false }],
       },
       {
@@ -173,9 +176,9 @@ describe("composeDayPendingSlots", () => {
         instructorName: "Joanna Wrona",
         placeName: "Hala",
         kind: "recreation",
-        freeSeats: 2,
-        seats: 2,
-        waiting: 2,
+        full: false,
+        seatsLabel: "2 z 2 wolne",
+        waitingLabel: "2 czekają",
         rows: [
           { id: 2, riderName: "Anna", riderEmail: "anna.kowalska@example.com", rejectedBefore: true },
           { id: 1, riderName: "Piotr", riderEmail: "anna.kowalska@example.com", rejectedBefore: false },

@@ -22,6 +22,14 @@ import type { BookingStatus } from "@/types";
  * `bookingStateAt`. `now` jest wstrzykiwane parametrem, żeby testy nie zależały od zegara.
  */
 
+/**
+ * Jak pokazać stan zapisu: pigułką (`tag`) — oczekujący (wyróżniony `warn`, czeka na ośrodek) i wygasły (neutralna);
+ * tekstem (`text`) — odrzucony z powodem, bo powód ma do 300 znaków i nie mieści się w pigułce.
+ */
+export type RiderBookingStateView =
+  | { as: "tag"; label: string; variant: "warn" | "neutral" }
+  | { as: "text"; label: string };
+
 export interface RiderBookingRow {
   id: number;
   day: string;
@@ -33,8 +41,11 @@ export interface RiderBookingRow {
   status: BookingStatus;
   /** Stan widoczny dla jeźdźca — z wyprowadzonym wygaśnięciem (`bookingStateAt`). */
   state: BookingState;
-  /** „Czeka na przyjęcie” / „Wygasł — ośrodek nie zdecydował przed terminem” / „Odrzucony: <powód>”; `null` przy aktywnym i odwołanym. */
-  stateLabel: string | null;
+  /**
+   * „Czeka na przyjęcie” / „Wygasł — ośrodek nie zdecydował przed terminem” / „Odrzucony: <powód>” i sposób pokazania;
+   * `null` przy aktywnym i odwołanym.
+   */
+  stateView: RiderBookingStateView | null;
   /** Wiersz ma „Odwołaj”: zapis aktywny albo oczekujący, którego slot się nie zaczął. */
   cancellable: boolean;
   /** „przez Ciebie" / „przez ośrodek" przy zapisie odwołanym, inaczej `null`. */
@@ -62,12 +73,15 @@ export function rejectedLabel(reason: string): string {
   return `Odrzucony: ${reason}`;
 }
 
-const STATE_LABELS: Partial<Record<BookingState, string>> = { pending: PENDING_LABEL, expired: EXPIRED_LABEL };
+const STATE_TAGS: Partial<Record<BookingState, RiderBookingStateView>> = {
+  pending: { as: "tag", label: PENDING_LABEL, variant: "warn" },
+  expired: { as: "tag", label: EXPIRED_LABEL, variant: "neutral" },
+};
 
-function stateLabel(booking: RiderBooking, state: BookingState): string | null {
+function stateView(booking: RiderBooking, state: BookingState): RiderBookingStateView | null {
   // CHECK spójności: odrzucony zapis zawsze ma powód.
-  if (state === "rejected") return rejectedLabel(booking.rejectionReason ?? "");
-  return STATE_LABELS[state] ?? null;
+  if (state === "rejected") return { as: "text", label: rejectedLabel(booking.rejectionReason ?? "") };
+  return STATE_TAGS[state] ?? null;
 }
 
 function byDayHourAsc(a: RiderBookingRow, b: RiderBookingRow): number {
@@ -112,7 +126,7 @@ export function splitRiderBookings(bookings: RiderBooking[], now: Date = new Dat
       horseLabel: horseLabel(booking, state, isUpcoming),
       status: booking.status,
       state,
-      stateLabel: stateLabel(booking, state),
+      stateView: stateView(booking, state),
       cancellable,
       cancelledByLabel: cancelledByLine(booking),
     };

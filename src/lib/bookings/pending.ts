@@ -1,4 +1,6 @@
 import { bookingStateAt } from "@/lib/bookings/status";
+import { formatOthersWaiting, formatWaitingCount } from "@/lib/bookings/waiting";
+import { formatFreeSeats } from "@/lib/format";
 import type { SlotKind } from "@/lib/schedule/kind";
 
 /**
@@ -28,21 +30,31 @@ export interface PendingBooking {
   rejectedBefore: boolean;
 }
 
-export interface PendingBookingRow {
+/** Wolne miejsca slotu zapisu oczekującego: podpis i to, czy slot jest pełny (wtedy podpis to „Brak miejsc”). */
+export interface PendingSlotSeats {
+  /** `full` — slot pełny: przyjęcie ponad limit odrzuci baza. */
+  full: boolean;
+  /** „Brak miejsc” albo np. „2 z 4 wolne”. */
+  seatsLabel: string;
+}
+
+/** Jeździec zapisu oczekującego — wspólny wiersz „Zapisów do przyjęcia” i zapisów oczekujących dnia. */
+export interface PendingSlotRider {
   id: number;
-  hour: number;
   riderName: string;
   /** `null` — adresu nie udało się odczytać. */
   riderEmail: string | null;
+  /** „Wcześniej odrzucony na ten slot” — ośrodek odrzucił już temu jeźdźcowi zapis na ten slot. */
+  rejectedBefore: boolean;
+}
+
+export interface PendingBookingRow extends PendingSlotRider, PendingSlotSeats {
+  hour: number;
   instructorName: string;
   placeName: string;
   kind: SlotKind;
-  freeSeats: number;
-  seats: number;
-  /** „Wcześniej odrzucony na ten slot” — ośrodek odrzucił już temu jeźdźcowi zapis na ten slot. */
-  rejectedBefore: boolean;
-  /** Pozostałe zapisy oczekujące tego samego slotu (#128, US 26). */
-  othersWaiting: number;
+  /** Np. „inni czekający na ten slot: 2” (#128, US 26); `null` — nikt inny nie czeka. */
+  othersWaitingLabel: string | null;
 }
 
 export interface PendingBookingsDay {
@@ -86,8 +98,23 @@ function waitingBySlot(bookings: readonly PendingBooking[]): Map<string, number>
   return counts;
 }
 
-function freeSeatsOf(booking: PendingBooking): number {
-  return Math.max(0, booking.seats - booking.taken);
+/** Podpis „Brak miejsc” przy pełnym slocie (także limit obniżony poniżej zajętych). */
+export const NO_SEATS_LABEL = "Brak miejsc";
+
+function seatsOf(booking: PendingBooking): PendingSlotSeats {
+  const freeSeats = Math.max(0, booking.seats - booking.taken);
+  return freeSeats === 0
+    ? { full: true, seatsLabel: NO_SEATS_LABEL }
+    : { full: false, seatsLabel: formatFreeSeats(freeSeats, booking.seats) };
+}
+
+function riderOf(booking: PendingBooking): PendingSlotRider {
+  return {
+    id: booking.id,
+    riderName: booking.riderName ?? UNKNOWN_RIDER,
+    riderEmail: booking.riderEmail,
+    rejectedBefore: booking.rejectedBefore,
+  };
 }
 
 export function composePendingBookings(bookings: PendingBooking[], now: Date = new Date()): PendingBookingsDay[] {
@@ -102,41 +129,27 @@ export function composePendingBookings(bookings: PendingBooking[], now: Date = n
       days.push(day);
     }
     day.rows.push({
-      id: booking.id,
+      ...riderOf(booking),
       hour: booking.hour,
-      riderName: booking.riderName ?? UNKNOWN_RIDER,
-      riderEmail: booking.riderEmail,
       instructorName: booking.instructorName,
       placeName: booking.placeName ?? UNKNOWN_PLACE,
       kind: booking.kind,
-      freeSeats: freeSeatsOf(booking),
-      seats: booking.seats,
-      rejectedBefore: booking.rejectedBefore,
-      othersWaiting: (waiting.get(slotKey(booking)) ?? 1) - 1,
+      ...seatsOf(booking),
+      othersWaitingLabel: formatOthersWaiting((waiting.get(slotKey(booking)) ?? 1) - 1),
     });
   }
 
   return days;
 }
 
-/** Jeździec zapisu oczekującego przy slocie na liście dnia ośrodka. */
-export interface PendingSlotRider {
-  id: number;
-  riderName: string;
-  riderEmail: string | null;
-  rejectedBefore: boolean;
-}
-
 /** Slot dnia z zapisami oczekującymi (#128, US 32): wolne miejsca, liczba czekających i jeźdźcy. */
-export interface PendingSlot {
+export interface PendingSlot extends PendingSlotSeats {
   hour: number;
   instructorName: string;
   placeName: string;
   kind: SlotKind;
-  freeSeats: number;
-  seats: number;
-  /** Zapisy oczekujące slotu — ośrodek widzi tę liczbę zawsze (ADR 0006). */
-  waiting: number;
+  /** Zapisy oczekujące slotu, np. „2 czekają” — ośrodek widzi tę liczbę zawsze (ADR 0006). */
+  waitingLabel: string;
   /** Kto pierwszy się zapisał, ten wyżej. */
   rows: PendingSlotRider[];
 }
@@ -151,7 +164,7 @@ export function composeDayPendingSlots(
   day: string,
   now: Date = new Date(),
 ): PendingSlot[] {
-  const slots = new Map<string, PendingSlot>();
+  const slots = new Map<string, Omit<PendingSlot, "waitingLabel">>();
 
   for (const booking of undecided(
     bookings.filter((booking) => booking.day === day),
@@ -165,21 +178,15 @@ export function composeDayPendingSlots(
         instructorName: booking.instructorName,
         placeName: booking.placeName ?? UNKNOWN_PLACE,
         kind: booking.kind,
-        freeSeats: freeSeatsOf(booking),
-        seats: booking.seats,
-        waiting: 0,
+        ...seatsOf(booking),
         rows: [],
       };
       slots.set(key, slot);
     }
-    slot.waiting += 1;
-    slot.rows.push({
-      id: booking.id,
-      riderName: booking.riderName ?? UNKNOWN_RIDER,
-      riderEmail: booking.riderEmail,
-      rejectedBefore: booking.rejectedBefore,
-    });
+    slot.rows.push(riderOf(booking));
   }
 
-  return [...slots.values()].sort((a, b) => a.hour - b.hour || a.instructorName.localeCompare(b.instructorName, "pl"));
+  return [...slots.values()]
+    .map((slot) => ({ ...slot, waitingLabel: formatWaitingCount(slot.rows.length) }))
+    .sort((a, b) => a.hour - b.hour || a.instructorName.localeCompare(b.instructorName, "pl"));
 }

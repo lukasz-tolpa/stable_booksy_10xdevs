@@ -6,17 +6,14 @@
 // Przyjęcie ponad limit miejsc, po starcie slotu i zapisu, który przestał czekać, odrzuca baza — tu tylko wolne
 // miejsca. Odrzucenie wymaga powodu, który jeździec zobaczy; zapis jeźdźca, któremu ośrodek odrzucił już zapis na
 // ten slot, jest oznaczony.
-import { Check } from "lucide-react";
 import Banner from "@/components/Banner.astro";
-import RejectBookingForm from "@/components/bookings/RejectBookingForm.astro";
+import PendingBookingRow from "@/components/bookings/PendingBookingRow.astro";
 import Card from "@/components/ui/Card.astro";
 import EmptyState from "@/components/ui/EmptyState.astro";
-import GhostButton from "@/components/ui/GhostButton.astro";
 import FailureState from "@/components/ui/FailureState.astro";
 import Tag from "@/components/ui/Tag.astro";
 import type { PendingBookingsDay } from "@/lib/bookings/pending";
-import { formatOthersWaiting } from "@/lib/bookings/waiting";
-import { formatClockHour, formatFreeSeats, formatLongDateWithYear } from "@/lib/format";
+import { formatClockHour, formatLongDateWithYear } from "@/lib/format";
 import { SLOT_KIND, TRAINING_SLOT_TAG } from "@/lib/schedule/kind";
 
 interface Props {
@@ -70,38 +67,23 @@ const { lead, days, loadFailed, success, error } = Astro.props;
           <h2>{formatLongDateWithYear(day.day)}</h2>
           <ul class="rows">
             {day.rows.map((row) => (
-              <li data-pending-booking={row.id}>
-                <span class="row__when">{formatClockHour(row.hour)}</span>
-                <span class="row__meta">
-                  <span class="row__strong">{row.riderName}</span>
-                  {row.riderEmail && <span class="row__sub">{row.riderEmail}</span>}
-                  {row.rejectedBefore && <Tag>wcześniej odrzucony na ten slot</Tag>}
+              <PendingBookingRow rider={row}>
+                <span slot="when" class="row__when">
+                  {formatClockHour(row.hour)}
                 </span>
-                <span class="row__meta row__slot">
+                <span class="row__slot">
                   <span>{row.instructorName}</span>
                   <span class="row__sub">{row.placeName}</span>
                   {row.kind === SLOT_KIND.training && <Tag variant="primary">{TRAINING_SLOT_TAG}</Tag>}
-                  {row.freeSeats === 0 ? (
-                    <Tag variant="warn">Brak miejsc</Tag>
+                  {row.full ? (
+                    <Tag variant="warn">{row.seatsLabel}</Tag>
                   ) : (
-                    <span class="row__sub mono-nums">{formatFreeSeats(row.freeSeats, row.seats)}</span>
+                    <span class="row__sub mono-nums">{row.seatsLabel}</span>
                   )}
                   {/* Inni czekający na ten slot (#128, US 26). */}
-                  {row.othersWaiting > 0 && (
-                    <span class="row__sub mono-nums">{formatOthersWaiting(row.othersWaiting)}</span>
-                  )}
+                  {row.othersWaitingLabel && <span class="row__sub mono-nums">{row.othersWaitingLabel}</span>}
                 </span>
-                <div class="row__actions">
-                  <form method="post" action="/api/bookings/accept">
-                    <input type="hidden" name="bookingId" value={row.id} />
-                    <GhostButton>
-                      <Check className="size-4" aria-hidden="true" />
-                      Przyjmij
-                    </GhostButton>
-                  </form>
-                  <RejectBookingForm bookingId={row.id} riderName={row.riderName} />
-                </div>
-              </li>
+              </PendingBookingRow>
             ))}
           </ul>
         </Card>
@@ -132,26 +114,11 @@ const { lead, days, loadFailed, success, error } = Astro.props;
     margin: 0 0 14px;
   }
 
-  /* Ten sam wzorzec wiersza co „Zapisy dnia”. */
+  /* Wiersz zapisu oczekującego (układ, jeździec, akcje) należy do `PendingBookingRow`; tu godzina i fakty slotu. */
   .rows {
     list-style: none;
     margin: 0;
     padding: 0;
-  }
-  .rows > li {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px 14px;
-    padding: 14px 0;
-    border-top: 1px solid var(--border);
-  }
-  .rows > li:first-child {
-    border-top: 0;
-    padding-top: 0;
-  }
-  .rows > li:last-child {
-    padding-bottom: 0;
   }
   .row__when {
     font-family: var(--font-mono);
@@ -160,31 +127,17 @@ const { lead, days, loadFailed, success, error } = Astro.props;
     font-weight: 600;
     white-space: nowrap;
   }
-  .row__meta {
+  .row__slot {
+    flex-basis: 100%;
     display: flex;
     flex-wrap: wrap;
-    align-items: baseline;
+    align-items: center;
     gap: 2px 12px;
     min-width: 0;
   }
-  .row__slot {
-    flex-basis: 100%;
-    align-items: center;
-  }
-  .row__strong {
-    font-weight: 600;
-  }
-  /* Adres e-mail jeźdźca musi się łamać, a nie rozpychać wiersza w bok. */
   .row__sub {
     color: var(--muted);
     font-size: 14.5px;
     overflow-wrap: anywhere;
-  }
-  .row__actions {
-    flex-basis: 100%;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-start;
-    gap: 8px 10px;
   }
 </style>

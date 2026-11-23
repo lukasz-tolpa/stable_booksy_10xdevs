@@ -1,0 +1,82 @@
+---
+// Wiersz zapisu oczekującego (#124, #125, #128; GLOSSARY „Zapis oczekujący”, „Przyjęcie zapisu”, „Odrzucenie
+// zapisu”) — jeden dla „Zapisów do przyjęcia” (właściciel, instruktor z kontem) i zapisów oczekujących na liście
+// dnia ośrodka: jeździec (imię, e-mail, „wcześniej odrzucony na ten slot”), opcjonalnie godzina (slot `when`) i fakty
+// slotu (slot domyślny, zawartość od wołającego), a pod spodem „Przyjmij” i „Odrzuć”. `day` — decyzja wraca na
+// zapisy tego dnia; bez niego — na „Zapisy do przyjęcia” wołającego.
+import { Check } from "lucide-react";
+import RejectBookingForm from "@/components/bookings/RejectBookingForm.astro";
+import GhostButton from "@/components/ui/GhostButton.astro";
+import Tag from "@/components/ui/Tag.astro";
+import type { PendingSlotRider } from "@/lib/bookings/pending";
+
+interface Props {
+  rider: PendingSlotRider;
+  day?: string;
+}
+
+const { rider, day } = Astro.props;
+---
+
+<li data-pending-booking={rider.id}>
+  <slot name="when" />
+  <span class="rider">
+    <span class="rider__name">{rider.riderName}</span>
+    {rider.riderEmail && <span class="rider__email">{rider.riderEmail}</span>}
+    {rider.rejectedBefore && <Tag>wcześniej odrzucony na ten slot</Tag>}
+  </span>
+  <slot />
+  <div class="actions">
+    <form method="post" action="/api/bookings/accept">
+      <input type="hidden" name="bookingId" value={rider.id} />
+      {day && <input type="hidden" name="day" value={day} />}
+      <GhostButton>
+        <Check className="size-4" aria-hidden="true" />
+        Przyjmij
+      </GhostButton>
+    </form>
+    <RejectBookingForm bookingId={rider.id} riderName={rider.riderName} day={day} />
+  </div>
+</li>
+
+<style>
+  /* Ten sam wzorzec wiersza co pozostałe listy zapisów: opis w linii, akcje pod nim na całą szerokość. */
+  li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 14px;
+    padding: 14px 0;
+    border-top: 1px solid var(--border);
+  }
+  li:first-child {
+    border-top: 0;
+    padding-top: 0;
+  }
+  li:last-child {
+    padding-bottom: 0;
+  }
+  .rider {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 12px;
+    min-width: 0;
+  }
+  .rider__name {
+    font-weight: 600;
+  }
+  /* Adres e-mail jeźdźca musi się łamać, a nie rozpychać wiersza w bok. */
+  .rider__email {
+    color: var(--muted);
+    font-size: 14.5px;
+    overflow-wrap: anywhere;
+  }
+  .actions {
+    flex-basis: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 8px 10px;
+  }
+</style>

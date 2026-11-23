@@ -1,8 +1,9 @@
 ---
-import { CalendarX2, Check, ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarX2, ChevronLeft, ChevronRight } from "lucide-react";
 import Layout from "@/layouts/Layout.astro";
 import Banner from "@/components/Banner.astro";
-import RejectBookingForm from "@/components/bookings/RejectBookingForm.astro";
+import DangerDetails from "@/components/bookings/DangerDetails.astro";
+import PendingBookingRow from "@/components/bookings/PendingBookingRow.astro";
 import Topbar from "@/components/Topbar.astro";
 import Card from "@/components/ui/Card.astro";
 import GhostButton from "@/components/ui/GhostButton.astro";
@@ -16,8 +17,7 @@ import { getDayBookings, getPendingBookings } from "@/lib/bookings/queries";
 import { composeDayBookingSections, NO_HORSE, type DayBookingSections } from "@/lib/bookings/rows";
 import { PENDING_BOOKINGS_ROUTE } from "@/lib/auth/roles";
 import { stableBookingSuccessMessage } from "@/lib/bookings/stable-redirect";
-import { formatWaitingCount } from "@/lib/bookings/waiting";
-import { formatClockHour, formatFreeSeats, formatLongDateWithYear } from "@/lib/format";
+import { formatClockHour, formatLongDateWithYear } from "@/lib/format";
 import { addDays, parseScheduleDate, todayIso } from "@/lib/schedule/dates";
 import { SLOT_KIND, TRAINING_SLOT_TAG } from "@/lib/schedule/kind";
 import { getScheduleDay, type ScheduleDayData } from "@/lib/schedule/queries";
@@ -152,34 +152,17 @@ const successMessage = stableBookingSuccessMessage(success);
                           <span class="row__strong">{slot.instructorName}</span>
                           <span class="row__sub">{slot.placeName}</span>
                           {slot.kind === SLOT_KIND.training && <Tag variant="primary">{TRAINING_SLOT_TAG}</Tag>}
-                          {slot.freeSeats === 0 ? (
-                            <Tag variant="warn">Brak miejsc</Tag>
+                          {slot.full ? (
+                            <Tag variant="warn">{slot.seatsLabel}</Tag>
                           ) : (
-                            <span class="row__sub mono-nums">{formatFreeSeats(slot.freeSeats, slot.seats)}</span>
+                            <span class="row__sub mono-nums">{slot.seatsLabel}</span>
                           )}
-                          <Tag variant="warn">{formatWaitingCount(slot.waiting)}</Tag>
+                          <Tag variant="warn">{slot.waitingLabel}</Tag>
                         </span>
                       </div>
                       <ul class="rows">
                         {slot.rows.map((row) => (
-                          <li data-pending-booking={row.id}>
-                            <span class="row__meta">
-                              <span class="row__strong">{row.riderName}</span>
-                              {row.riderEmail && <span class="row__sub">{row.riderEmail}</span>}
-                              {row.rejectedBefore && <Tag>wcześniej odrzucony na ten slot</Tag>}
-                            </span>
-                            <div class="row__actions">
-                              <form method="post" action="/api/bookings/accept">
-                                <input type="hidden" name="bookingId" value={row.id} />
-                                <input type="hidden" name="day" value={day} />
-                                <GhostButton>
-                                  <Check className="size-4" aria-hidden="true" />
-                                  Przyjmij
-                                </GhostButton>
-                              </form>
-                              <RejectBookingForm bookingId={row.id} riderName={row.riderName} day={day} />
-                            </div>
-                          </li>
+                          <PendingBookingRow rider={row} day={day} />
                         ))}
                       </ul>
                     </li>
@@ -238,11 +221,10 @@ const successMessage = stableBookingSuccessMessage(success);
                         </form>
                         {row.cancellable && (
                           /* Jeden krok potwierdzenia bez JavaScriptu (US 83): odwołania nie da się cofnąć. */
-                          <details class="cancel">
-                            <summary>
+                          <DangerDetails label="Odwołaj zapis">
+                            <Fragment slot="icon">
                               <CalendarX2 className="size-4" />
-                              Odwołaj zapis
-                            </summary>
+                            </Fragment>
                             <form method="post" action="/api/bookings/stable-cancel" class="cancel__confirm">
                               <input type="hidden" name="bookingId" value={row.id} />
                               <input type="hidden" name="day" value={day} />
@@ -254,7 +236,7 @@ const successMessage = stableBookingSuccessMessage(success);
                                 Potwierdź odwołanie
                               </button>
                             </form>
-                          </details>
+                          </DangerDetails>
                         )}
                       </div>
                     </li>
@@ -438,46 +420,7 @@ const successMessage = stableBookingSuccessMessage(success);
     outline-offset: 2px;
   }
 
-  .btn-danger,
-  .cancel summary {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    min-height: 44px;
-    padding: 10px 15px;
-    border-radius: 999px;
-    font-family: var(--font-display);
-    font-size: 14px;
-    font-weight: 600;
-    line-height: 1;
-    white-space: nowrap;
-    cursor: pointer;
-    transition:
-      background 0.15s,
-      border-color 0.15s;
-  }
-  .cancel summary {
-    list-style: none;
-    border: 1px solid var(--danger);
-    background: var(--surface);
-    color: var(--danger-ink);
-  }
-  .cancel summary::-webkit-details-marker {
-    display: none;
-  }
-  .cancel summary:hover {
-    background: var(--danger-soft);
-  }
-  /* `[open]` ustawia przeglądarka — analiza selektorów Astro go nie widzi. */
-  .cancel:global([open]) summary {
-    background: var(--danger-soft);
-  }
-  .cancel summary:focus-visible,
-  .btn-danger:focus-visible {
-    outline: 2px solid var(--danger);
-    outline-offset: 2px;
-  }
+  /* Wygląd kroku potwierdzenia („Odwołaj zapis”, „Potwierdź odwołanie”) należy do `DangerDetails`. */
   .cancel__confirm {
     margin-top: 10px;
     display: flex;
@@ -489,13 +432,5 @@ const successMessage = stableBookingSuccessMessage(success);
     margin: 0;
     font-size: 14.5px;
     max-width: 52ch;
-  }
-  .btn-danger {
-    border: 1px solid var(--danger);
-    background: var(--danger);
-    color: var(--surface);
-  }
-  .btn-danger:hover {
-    background: var(--danger-ink);
   }
 </style>

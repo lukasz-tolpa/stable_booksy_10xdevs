@@ -1,9 +1,10 @@
 ---
 // „Odrzuć” zapis oczekujący z powodem, który jeździec zobaczy (#125, GLOSSARY „Odrzucenie zapisu”). Jeden krok
-// potwierdzenia bez JavaScriptu, jak „Odwołaj zapis” na liście dnia: `<details>` z polem powodu i przyciskiem
+// potwierdzenia bez JavaScriptu, jak „Odwołaj zapis” na liście dnia (`DangerDetails`): pole powodu i przycisk
 // „Potwierdź odrzucenie”. Te same reguły powodu (wymagany, do `REJECTION_REASON_MAX` znaków) sprawdzają
 // przeglądarka, endpoint i baza. Wspólny dla „Zapisów do przyjęcia” i (#128) zapisów dnia.
 import { X } from "lucide-react";
+import DangerDetails from "@/components/bookings/DangerDetails.astro";
 import { REJECTION_REASON_MAX } from "@/lib/bookings/decisions";
 
 interface Props {
@@ -18,11 +19,8 @@ const { bookingId, riderName, day } = Astro.props;
 const fieldId = `reject-reason-${String(bookingId)}`;
 ---
 
-<details class="reject">
-  <summary>
-    <X className="size-4" aria-hidden="true" />
-    Odrzuć
-  </summary>
+<DangerDetails label="Odrzuć">
+  <Fragment slot="icon"><X className="size-4" aria-hidden="true" /></Fragment>
   <form method="post" action="/api/bookings/reject" class="reject__form">
     <input type="hidden" name="bookingId" value={bookingId} />
     {day && <input type="hidden" name="day" value={day} />}
@@ -31,52 +29,9 @@ const fieldId = `reject-reason-${String(bookingId)}`;
     <p class="reject__hint">Jeździec zobaczy ten powód w swoich zapisach.</p>
     <button type="submit" class="btn-danger">Potwierdź odrzucenie</button>
   </form>
-</details>
+</DangerDetails>
 
 <style>
-  .reject {
-    min-width: 0;
-  }
-  .btn-danger,
-  .reject summary {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    min-height: 44px;
-    padding: 10px 15px;
-    border-radius: 999px;
-    font-family: var(--font-display);
-    font-size: 14px;
-    font-weight: 600;
-    line-height: 1;
-    white-space: nowrap;
-    cursor: pointer;
-    transition:
-      background 0.15s,
-      border-color 0.15s;
-  }
-  .reject summary {
-    list-style: none;
-    border: 1px solid var(--danger);
-    background: var(--surface);
-    color: var(--danger-ink);
-  }
-  .reject summary::-webkit-details-marker {
-    display: none;
-  }
-  .reject summary:hover {
-    background: var(--danger-soft);
-  }
-  /* `[open]` ustawia przeglądarka — analiza selektorów Astro go nie widzi. */
-  .reject:global([open]) summary {
-    background: var(--danger-soft);
-  }
-  .reject summary:focus-visible,
-  .btn-danger:focus-visible {
-    outline: 2px solid var(--danger);
-    outline-offset: 2px;
-  }
   .reject__form {
     margin-top: 10px;
     display: grid;
@@ -109,14 +64,8 @@ const fieldId = `reject-reason-${String(bookingId)}`;
     color: var(--muted);
     font-size: 13.5px;
   }
-  .btn-danger {
+  .reject__form .btn-danger {
     justify-self: start;
     margin-top: 4px;
-    border: 1px solid var(--danger);
-    background: var(--danger);
-    color: var(--surface);
-  }
-  .btn-danger:hover {
-    background: var(--danger-ink);
   }
 </style>
