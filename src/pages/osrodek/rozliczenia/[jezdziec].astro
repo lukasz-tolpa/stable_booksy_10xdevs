@@ -22,7 +22,7 @@ import { loadRiderSettlementInput } from "@/lib/settlements/queries";
 import { riderSettlementHref, settlementsHref } from "@/lib/settlements/redirect";
 import { composeRiderSettlementPage, parseRiderKey, type RiderSettlementView } from "@/lib/settlements/rider";
 import { composeRiderRate, type RiderRateView } from "@/lib/settlements/rider-rate";
-import { riderKindIn } from "@/lib/settlements/settlements";
+import { riderRateKindIn } from "@/lib/settlements/settlements";
 import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
 import { dayHref } from "@/lib/stable-panel/panel";
 import { getOwnedStableId } from "@/lib/stables/queries";
@@ -79,7 +79,7 @@ if (riderKey !== null) {
             input.rates,
             riderKey,
             now,
-            riderKindIn(input.boardingHorses, riderKey, currentMonth(now)),
+            riderRateKindIn(input.boardingHorses, riderKey, currentMonth(now)),
           );
         }
       }

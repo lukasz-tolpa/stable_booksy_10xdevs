@@ -16,8 +16,6 @@ export const SETTLEMENT_TEXTS = {
   ridersList: "Rozliczenia jeźdźców",
   /** Suma miesiąca: etykieta przed kwotą dla czytników ekranu, np. `Razem: 12 340,00 zł`. */
   total: "Razem:",
-  /** Sekcje listy (#118), według reguły „pensjonariusz w miesiącu”. */
-  sections: { recreation: "Rekreacja", training: "Pensjonariusze" },
   /** Suma sekcji po jej nazwie: `Rekreacja razem: 480,00 zł`. */
   sectionTotal: "razem:",
   /** Nagłówek sumy w bocznej kolumnie (#105). */

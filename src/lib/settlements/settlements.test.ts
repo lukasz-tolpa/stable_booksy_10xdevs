@@ -663,7 +663,7 @@ describe("composeSettlementList — sekcje „Rekreacja” i „Pensjonariusze�
         totalText: `Rekreacja razem: ${zl("360,00 zł")}`,
       },
       {
-        kind: "training",
+        kind: "boarder",
         heading: "Pensjonariusze",
         riders: [["Katarzyna Zając", zl("1 800,00 zł")]],
         total: 180000,
@@ -689,7 +689,7 @@ describe("composeSettlementList — sekcje „Rekreacja” i „Pensjonariusze�
       NOW,
     );
 
-    expect(list.sections.map((section) => section.kind)).toEqual(["training"]);
+    expect(list.sections.map((section) => section.kind)).toEqual(["boarder"]);
     expect(list.rows.map((row) => [row.name, row.ridesText, row.fees.map((fee) => fee.line), row.dueText])).toEqual([
       ["Katarzyna Zając", "0 jazd", [`Opłata za pensjonat — Hrabia: ${zl("1 500,00 zł")}`], zl("1 500,00 zł")],
     ]);

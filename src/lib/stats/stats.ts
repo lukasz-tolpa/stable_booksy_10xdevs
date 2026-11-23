@@ -7,7 +7,8 @@ import { isRide, SLOT_DURATION_HOURS, slotEndedAt, type SlotEnded } from "@/lib/
 import { unknownHorseName } from "@/lib/bookings/rows";
 import { HORSE_KIND, type HorseKind } from "@/lib/stables/kind";
 import type { DateRange } from "@/lib/schedule/dates";
-import { SLOT_KIND, type SlotKind } from "@/lib/schedule/kind";
+import { SLOT_KIND, SLOT_KIND_TEXTS, type SlotKind } from "@/lib/schedule/kind";
+import { formatHours, formatNumber, formatPercent } from "@/lib/format";
 import { buildTopRidersSeries, type TopRiderPoint } from "@/lib/stats/rankings";
 import { computeRiderRows, type StatsRider, type StatsRiderRow } from "@/lib/stats/riders";
 import { buildRideHoursSeries, type RideHoursSeries } from "@/lib/stats/time-series";
@@ -110,6 +111,47 @@ export interface StatsSummary {
   cancellations: number;
 }
 
+/** Wiersz tabeli rodzajów slotów: podpis i liczby jako tekst. */
+export interface StatsSlotKindRow {
+  /** `Sloty rekreacyjne` albo `Sloty treningowe`. */
+  label: string;
+  ridesText: string;
+  /** Np. `12 h`. */
+  rideHoursText: string;
+  /** Np. `75%`; `brak danych` — w minionych slotach rodzaju ośrodek nie wystawił miejsc. */
+  occupancyText: string;
+}
+
+export interface StatsHorseHeadings {
+  /** Nagłówek tabeli koni ośrodka: `Konie` albo `Konie ośrodka`. */
+  table: string;
+  /** Nagłówek wykresu obciążenia: `Obciążenie koni` albo `Obciążenie koni ośrodka`. */
+  workload: string;
+  /** Podpis tabeli dla czytników ekranu; `null` — domyślny podpis tabeli. */
+  caption: string | null;
+}
+
+/** Brak obłożenia: w minionych slotach nie wystawiono miejsc. */
+export const STATS_NO_DATA = "brak danych";
+
+const HORSE_HEADINGS: Record<"single" | "split", StatsHorseHeadings> = {
+  single: { table: "Konie", workload: "Obciążenie koni", caption: null },
+  split: {
+    table: "Konie ośrodka",
+    workload: "Obciążenie koni ośrodka",
+    caption: "Obciążenie koni ośrodka w okresie: liczba jazd i godziny jazd każdego konia ośrodka",
+  },
+};
+
+function slotKindRow(kind: SlotKind, part: StatsSlotKindPart): StatsSlotKindRow {
+  return {
+    label: SLOT_KIND_TEXTS[kind].plural,
+    ridesText: formatNumber(part.rides),
+    rideHoursText: formatHours(part.rideHours),
+    occupancyText: part.occupancyPercent === null ? STATS_NO_DATA : formatPercent(part.occupancyPercent),
+  };
+}
+
 /** Kompletny model widoku strony statystyk; kolejne sekcje dokładają tu swoje pola. */
 export interface StatsView {
   summary: StatsSummary;
@@ -138,6 +180,10 @@ export interface StatsView {
    * przed slotami treningowymi.
    */
   bySlotKind: StatsBySlotKind | null;
+  /** Wiersze tabeli „Rekreacja i sloty treningowe” z gotowymi napisami (#112); pusta — bez podziału (`bySlotKind`). */
+  slotKindRows: StatsSlotKindRow[];
+  /** Nagłówki tabel koni: z końmi pensjonatowymi w okresie pierwsza tabela to „Konie ośrodka” (#119). */
+  horseHeadings: StatsHorseHeadings;
   /** Seria wykresu godzin jazd w czasie; jej suma równa się `summary.rideHours`. */
   rideHoursOverTime: RideHoursSeries;
   /** Seria wykresu pierwszej dziesiątki jeźdźców według godzin jazd; liczby z `riders`. */
@@ -230,6 +276,10 @@ export function computeStableStats(input: StatsInput, now: Date = new Date()): S
     horses,
     boardingHorses,
     bySlotKind,
+    slotKindRows: bySlotKind
+      ? [slotKindRow(SLOT_KIND.recreation, bySlotKind.recreation), slotKindRow(SLOT_KIND.training, bySlotKind.training)]
+      : [],
+    horseHeadings: HORSE_HEADINGS[boardingHorses.length > 0 ? "split" : "single"],
     rideHoursOverTime: buildRideHoursSeries(
       input.period,
       rideBookings.map((booking) => booking.day),

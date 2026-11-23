@@ -71,3 +71,6 @@ export const BOARDING_PAGE_TEXTS = {
   },
   retry: "Odśwież stronę za chwilę.",
 } as const;
+
+/** Nagłówki sekcji jeźdźców wg rodzaju jeźdźca w miesiącu (#118, #112) — rozliczenia i podsumowanie miesiąca. */
+export const RIDER_KIND_HEADINGS = { recreation: "Rekreacja", boarder: "Pensjonariusze" } as const;

@@ -8,10 +8,20 @@ export const SLOT_KIND = { recreation: "recreation", training: "training" } as c
 
 export type SlotKind = (typeof SLOT_KIND)[keyof typeof SLOT_KIND];
 
+/**
+ * Podpisy rodzajów slotu — jedyne miejsce tych słów (#112): `label` przy slocie (formularz grafiku, zapisy dnia,
+ * sloty instruktora, dzień ośrodka), `tag` — pigułka przy slocie (zajętość placów, slot treningowy), `plural` —
+ * wiersz statystyk.
+ */
+export const SLOT_KIND_TEXTS: Record<SlotKind, { label: string; tag: string; plural: string }> = {
+  recreation: { label: "rekreacyjny", tag: "slot rekreacyjny", plural: "Sloty rekreacyjne" },
+  training: { label: "treningowy", tag: "slot treningowy", plural: "Sloty treningowe" },
+};
+
 /** Podpis rodzaju przy slocie: formularz grafiku, zapisy dnia, sloty instruktora, dzień ośrodka. */
 export const SLOT_KIND_LABELS: Record<SlotKind, string> = {
-  recreation: "rekreacyjny",
-  training: "treningowy",
+  recreation: SLOT_KIND_TEXTS.recreation.label,
+  training: SLOT_KIND_TEXTS.training.label,
 };
 
 export function isSlotKind(value: unknown): value is SlotKind {
@@ -27,4 +37,4 @@ export function toSlotKind(value: string): SlotKind {
 }
 
 /** Pigułka przy slocie treningowym (dzień ośrodka, zapisy dnia, „Moje sloty”) — e2e szuka jej dokładnie. */
-export const TRAINING_SLOT_TAG = "slot treningowy";
+export const TRAINING_SLOT_TAG = SLOT_KIND_TEXTS.training.tag;

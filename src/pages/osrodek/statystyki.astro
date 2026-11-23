@@ -9,13 +9,13 @@ import FailureState from "@/components/ui/FailureState.astro";
 import HorseStatsTable from "@/components/stats/HorseStatsTable.astro";
 import "@/components/stats/stats.css";
 import { OWNER_MONTH_SUMMARY_ROUTE } from "@/lib/auth/roles";
-import { formatHours, formatNumber, formatPercent, HOURS_UNIT } from "@/lib/format";
+import { formatHours, formatNumber, HOURS_UNIT } from "@/lib/format";
 import { logError } from "@/lib/log";
 import { MONTH_SUMMARY_TEXTS } from "@/lib/month-summary/texts";
 import { rideHoursBars } from "@/lib/stats/chart-items";
 import { resolveStatsPeriod } from "@/lib/stats/period";
 import { getStatsRows } from "@/lib/stats/queries";
-import { computeStableStats, type StatsSlotKindPart, type StatsView } from "@/lib/stats/stats";
+import { computeStableStats, type StatsView } from "@/lib/stats/stats";
 import { GRANULARITY_NAMES } from "@/lib/stats/time-series-labels";
 import { getOwnedStableId, listStableHorses } from "@/lib/stables/queries";
 import { createClient } from "@/lib/supabase";
@@ -88,20 +88,11 @@ const topRiderItems = (view?.topRiders ?? []).map((point) => ({
   valueText: formatHours(point.rideHours),
 }));
 // --- Rekreacja i sloty treningowe osobno (#119) ---
-// Bez slotów treningowych w okresie model nie ma podziału, a strona wygląda jak dawniej.
-const slotKindRows: { label: string; part: StatsSlotKindPart }[] = view?.bySlotKind
-  ? [
-      { label: "Sloty rekreacyjne", part: view.bySlotKind.recreation },
-      { label: "Sloty treningowe", part: view.bySlotKind.training },
-    ]
-  : [];
-// Konie pensjonatowe z jazdami dostają własną tabelę; wtedy pierwsza tabela to „Konie ośrodka”.
+// Bez slotów treningowych w okresie model nie ma podziału (pusta lista), a strona wygląda jak dawniej.
+const slotKindRows = view?.slotKindRows ?? [];
+// Konie pensjonatowe z jazdami dostają własną tabelę; nagłówki tabel koni liczy model widoku.
 const hasBoardingHorses = (view?.boardingHorses.length ?? 0) > 0;
-const horsesHeading = hasBoardingHorses ? "Konie ośrodka" : "Konie";
-const horseWorkloadHeading = hasBoardingHorses ? "Obciążenie koni ośrodka" : "Obciążenie koni";
-const horsesCaption = hasBoardingHorses
-  ? "Obciążenie koni ośrodka w okresie: liczba jazd i godziny jazd każdego konia ośrodka"
-  : undefined;
+const horseHeadings = view?.horseHeadings;
 
 // Wykres obciążenia koni rysuje te same wiersze co tabela koni, w tej samej kolejności.
 const horseWorkloadItems = (view?.horses ?? []).map((row) => ({
@@ -220,14 +211,12 @@ const horseWorkloadItems = (view?.horses ?? []).map((row) => ({
                     </tr>
                   </thead>
                   <tbody>
-                    {slotKindRows.map(({ label, part }) => (
+                    {slotKindRows.map((row) => (
                       <tr>
-                        <th scope="row">{label}</th>
-                        <td class="num">{formatNumber(part.rides)}</td>
-                        <td class="num">{formatHours(part.rideHours)}</td>
-                        <td class="num">
-                          {part.occupancyPercent === null ? "brak danych" : formatPercent(part.occupancyPercent)}
-                        </td>
+                        <th scope="row">{row.label}</th>
+                        <td class="num">{row.ridesText}</td>
+                        <td class="num">{row.rideHoursText}</td>
+                        <td class="num">{row.occupancyText}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -272,10 +261,10 @@ const horseWorkloadItems = (view?.horses ?? []).map((row) => ({
           )}
           {horseWorkloadItems.length > 0 && (
             <section aria-labelledby="horse-chart-heading">
-              <h2 id="horse-chart-heading">{horseWorkloadHeading}</h2>
+              <h2 id="horse-chart-heading">{horseHeadings?.workload}</h2>
               <p class="stats-lead">Godziny jazd każdego konia w wybranym okresie, od najbardziej obciążonego.</p>
               <BarChart
-                title={`${horseWorkloadHeading}: godziny jazd w okresie`}
+                title={`${horseHeadings?.workload}: godziny jazd w okresie`}
                 items={horseWorkloadItems}
                 orientation="horizontal"
                 labelHeader="Koń"
@@ -284,8 +273,8 @@ const horseWorkloadItems = (view?.horses ?? []).map((row) => ({
             </section>
           )}
           <section aria-labelledby="horses-heading">
-            <h2 id="horses-heading">{horsesHeading}</h2>
-            <HorseStatsTable rows={stats.horses} caption={horsesCaption} />
+            <h2 id="horses-heading">{horseHeadings?.table}</h2>
+            <HorseStatsTable rows={stats.horses} caption={horseHeadings?.caption ?? undefined} />
           </section>
           {hasBoardingHorses && (
             <section aria-labelledby="boarding-horses-heading">

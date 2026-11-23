@@ -9,6 +9,7 @@
  * Kwoty liczy `riderAmounts` — to samo, co wiersz listy „Rozliczenia”.
  */
 
+import { RIDER_KIND } from "@/lib/boarding/month";
 import { formatCount, formatLongDayMonth, formatMoney, formatMonthYear, RIDE_FORMS } from "@/lib/format";
 import { NO_HORSE, UNNAMED_RIDER } from "@/lib/bookings/rows";
 import { addDays } from "@/lib/schedule/dates";
@@ -101,7 +102,7 @@ function settlementOf(input: RiderSettlementInput, rides: SummaryBooking[]): Rid
     boardingFees: input.boardingFees,
   });
   const texts = SETTLEMENT_TEXTS.rider;
-  const training = amounts.kind === "training";
+  const training = amounts.kind === RIDER_KIND.boarder;
   const ridesText = formatCount(rides.length, RIDE_FORMS);
 
   return {

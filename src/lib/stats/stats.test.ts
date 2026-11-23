@@ -808,4 +808,53 @@ describe("computeStableStats — rekreacja i sloty treningowe osobno", () => {
       training: { rides: 0, rideHours: 0, occupancyPercent: null },
     });
   });
+  // #112: strona tylko renderuje — podpisy wierszy i napisy liczb z modelu widoku.
+  it("wiersze tabeli rodzajów slotów mają gotowe napisy, a obłożenie bez miejsc to „brak danych”", () => {
+    const stats = computeStableStats(
+      input({
+        days: [
+          day("2026-11-05", {
+            slots: [
+              { hour: 10, seats: 2, kind: "recreation" },
+              { hour: 11, seats: 0, kind: "training" },
+            ],
+          }),
+        ],
+        bookings: [booking("2026-11-05", 10)],
+      }),
+      NOW,
+    );
+
+    expect(stats.slotKindRows).toEqual([
+      { label: "Sloty rekreacyjne", ridesText: "1", rideHoursText: "1 h", occupancyText: "50%" },
+      { label: "Sloty treningowe", ridesText: "0", rideHoursText: "0 h", occupancyText: "brak danych" },
+    ]);
+  });
+
+  it("bez slotów treningowych tabela rodzajów slotów jest pusta, a tabela koni nazywa się „Konie”", () => {
+    const stats = computeStableStats(input({ days: [day("2026-11-05")], bookings: [booking("2026-11-05", 10)] }), NOW);
+
+    expect(stats.slotKindRows).toEqual([]);
+    expect(stats.horseHeadings).toEqual({ table: "Konie", workload: "Obciążenie koni", caption: null });
+  });
+
+  it("z końmi pensjonatowymi z jazdami pierwsza tabela to „Konie ośrodka” z własnym podpisem", () => {
+    const stats = computeStableStats(
+      input({
+        horses: [
+          { id: BELLA, name: "Bella", kind: "stable" },
+          { id: HRABIA, name: "Hrabia", kind: "boarding" },
+        ],
+        days: [mixedDay("2026-11-05")],
+        bookings: [booking("2026-11-05", 11, { slotKind: "training", horseId: HRABIA, riderId: "rider-kasia" })],
+      }),
+      NOW,
+    );
+
+    expect(stats.horseHeadings).toEqual({
+      table: "Konie ośrodka",
+      workload: "Obciążenie koni ośrodka",
+      caption: "Obciążenie koni ośrodka w okresie: liczba jazd i godziny jazd każdego konia ośrodka",
+    });
+  });
 });

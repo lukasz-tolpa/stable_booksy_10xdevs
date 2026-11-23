@@ -73,3 +73,24 @@ export function horsesInMonth<H extends Pick<BoardingHorse, "stays">>(horses: re
 export function horsesOnDay<H extends Pick<BoardingHorse, "stays">>(horses: readonly H[], day: string): H[] {
   return horses.filter((horse) => horse.stays.some((stay) => stayCoversDay(stay, day)));
 }
+
+/**
+ * Rodzaj jeźdźca w miesiącu (#112) — wynik reguły „pensjonariusz w miesiącu”: jeździec rekreacyjny albo
+ * pensjonariusz. Jeden podział dla sekcji rozliczeń i podsumowania miesiąca (nagłówki `RIDER_KIND_HEADINGS`).
+ * Rodzaj stawki (`RateKind`: rekreacyjna, treningowa) to inne pojęcie — wynika z rodzaju jeźdźca.
+ */
+export const RIDER_KIND = { recreation: "recreation", boarder: "boarder" } as const;
+
+export type RiderKind = (typeof RIDER_KIND)[keyof typeof RIDER_KIND];
+
+/** Kolejność sekcji list jeźdźców: rekreacja, potem pensjonariusze. */
+export const RIDER_KINDS: readonly RiderKind[] = [RIDER_KIND.recreation, RIDER_KIND.boarder];
+
+/** Rodzaj jeźdźca `riderKey` w miesiącu `RRRR-MM` wobec koni pensjonatowych ośrodka. */
+export function riderKindOf(
+  horses: readonly Pick<BoardingHorse, "riderKey" | "stays">[],
+  riderKey: string,
+  month: string,
+): RiderKind {
+  return isBoarderWith(horsesOf(horses, riderKey), month) ? RIDER_KIND.boarder : RIDER_KIND.recreation;
+}

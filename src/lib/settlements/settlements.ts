@@ -12,7 +12,16 @@
  */
 
 import { boardingFeeFor, type BoardingFeeChange } from "@/lib/boarding/fees";
-import { horsesInMonth, horsesOf, isBoarderWith, type BoardingHorse } from "@/lib/boarding/month";
+import {
+  RIDER_KIND,
+  RIDER_KINDS,
+  horsesInMonth,
+  horsesOf,
+  riderKindOf,
+  type BoardingHorse,
+  type RiderKind,
+} from "@/lib/boarding/month";
+import { RIDER_KIND_HEADINGS } from "@/lib/boarding/texts";
 import type { RideCandidate } from "@/lib/bookings/rides";
 import { UNNAMED_RIDER } from "@/lib/bookings/rows";
 import {
@@ -63,10 +72,10 @@ export interface SettlementBooking extends RideCandidate {
  */
 export interface RiderAmounts {
   /**
-   * Rodzaj jeźdźca w miesiącu (#117, reguła „pensjonariusz w miesiącu”): `training` — pensjonariusz,
+   * Rodzaj jeźdźca w miesiącu (#117, reguła „pensjonariusz w miesiącu”): `boarder` — pensjonariusz,
    * liczy się po stawce treningowej i płaci opłaty za pensjonat; `recreation` — jeździec rekreacyjny.
    */
-  kind: RateKind;
+  kind: RiderKind;
   /** Stawka jazd jeźdźca w miesiącu (jego rodzaju); `null` — ośrodek bez stawki tego rodzaju. */
   rate: EffectiveRate | null;
   /** Dopisek źródła stawki: `stawka ośrodka` / `stawka indywidualna`; `null` — bez stawki. */
@@ -120,11 +129,11 @@ export interface SettlementRow extends RiderAmounts {
 
 /**
  * Sekcja listy rozliczeń (#118): „Rekreacja” (jeźdźcy rekreacyjni) albo „Pensjonariusze” — według reguły
- * „pensjonariusz w miesiącu” (`riderKindIn`), z własną sumą.
+ * „pensjonariusz w miesiącu” (`riderKindOf`), z własną sumą.
  */
 export interface SettlementSection {
-  /** Rodzaj jeźdźców sekcji — zarazem rodzaj stawki ich jazd. */
-  kind: RateKind;
+  /** Rodzaj jeźdźców sekcji; rodzaj stawki ich jazd — `RATE_KIND_OF`. */
+  kind: RiderKind;
   /** `Rekreacja` albo `Pensjonariusze`. */
   heading: string;
   /** Alfabetycznie; sekcja bez nikogo nie trafia na listę. */
@@ -212,13 +221,16 @@ export interface RiderAmountsInput extends Pick<SettlementIngredients, "boarding
   costs: readonly ExtraCost[];
 }
 
+/** Rodzaj stawki jazd jeźdźca danego rodzaju: pensjonariusz — treningowa, jeździec rekreacyjny — rekreacyjna. */
+export const RATE_KIND_OF: Readonly<Record<RiderKind, RateKind>> = { recreation: "recreation", boarder: "training" };
+
 /**
- * Rodzaj jeźdźca w miesiącu `RRRR-MM` (reguła „pensjonariusz w miesiącu”, `isBoarderInMonth`): pobyt
+ * Rodzaj stawki jeźdźca w miesiącu `RRRR-MM` (reguła „pensjonariusz w miesiącu”, `riderKindOf`): pobyt
  * choć jednego jego konia zachodzi na miesiąc — `training`, inaczej `recreation`. Także rodzaj stawki
  * indywidualnej, którą ustawia formularz rozliczenia jeźdźca.
  */
-export function riderKindIn(horses: readonly SettlementBoardingHorse[], riderKey: string, month: string): RateKind {
-  return isBoarderWith(horsesOf(horses, riderKey), month) ? "training" : "recreation";
+export function riderRateKindIn(horses: readonly SettlementBoardingHorse[], riderKey: string, month: string): RateKind {
+  return RATE_KIND_OF[riderKindOf(horses, riderKey, month)];
 }
 
 /** Pozycje opłat za pensjonat: konie jeźdźca z pobytem w miesiącu, po imieniu konia. */
@@ -258,18 +270,19 @@ export function riderAmounts({
   boardingHorses,
   boardingFees,
 }: RiderAmountsInput): RiderAmounts {
-  const kind = riderKindIn(boardingHorses, riderKey, month);
+  const kind = riderKindOf(boardingHorses, riderKey, month);
+  const rateKind = RATE_KIND_OF[kind];
   // Dopóki ośrodek nie ma stawki ośrodka rodzaju jeźdźca, jego kwot nie ma — także przy stawce
   // indywidualnej (lista, suma, panel i rozliczenie jeźdźca proszą o stawkę ośrodka).
-  const rate = stableRateFor(rates, month, kind) === null ? null : effectiveRate(rates, month, riderKey, kind);
+  const rate = stableRateFor(rates, month, rateKind) === null ? null : effectiveRate(rates, month, riderKey, rateKind);
   const amount = ridesAmount(rides, rate);
   const costsAmount = costsSum(riderCosts(costs, riderKey));
-  const fees = kind === "training" ? feeLines(boardingHorses, boardingFees, riderKey, month) : [];
+  const fees = kind === RIDER_KIND.boarder ? feeLines(boardingHorses, boardingFees, riderKey, month) : [];
   const needsFee = fees.some((fee) => fee.amount === null);
   const feesAmount = fees.reduce((sum, fee) => sum + (fee.amount ?? 0), 0);
   // Bez stawki (albo bez opłaty konia) „do zapłaty” czeka — koszty i znane pozycje widać osobno.
   const due = amount === null || needsFee ? null : amount + feesAmount + costsAmount;
-  const sources = kind === "training" ? SETTLEMENT_TEXTS.rider.trainingSource : SETTLEMENT_TEXTS.rider.source;
+  const sources = kind === RIDER_KIND.boarder ? SETTLEMENT_TEXTS.rider.trainingSource : SETTLEMENT_TEXTS.rider.source;
   return {
     kind,
     rate,
@@ -335,7 +348,7 @@ export function composeSettlementList(input: SettlementsInput, now: Date = new D
     )
     .sort((a, b) => a.name.localeCompare(b.name, "pl") || a.riderKey.localeCompare(b.riderKey));
 
-  const sections = SECTION_KINDS.map((kind) => section(kind, rows, input)).filter((part) => part.rows.length > 0);
+  const sections = RIDER_KINDS.map((kind) => section(kind, rows, input)).filter((part) => part.rows.length > 0);
   // Prośba o stawkę, gdy jakaś sekcja na nią czeka; pusty miesiąc — gdy ośrodek nie ma stawki ośrodka.
   const needsRate =
     sections.length === 0
@@ -358,13 +371,10 @@ export function composeSettlementList(input: SettlementsInput, now: Date = new D
   };
 }
 
-/** Kolejność sekcji listy: rekreacja, potem pensjonariusze. */
-const SECTION_KINDS: readonly RateKind[] = ["recreation", "training"];
-
 /** Sekcja rodzaju `kind`: karty jeźdźców tego rodzaju w miesiącu i ich suma. */
-function section(kind: RateKind, rows: readonly SettlementRow[], input: SettlementsInput): SettlementSection {
-  const heading = SETTLEMENT_TEXTS.sections[kind];
-  const needsRate = stableRateFor(input.rates, input.month.month, kind) === null;
+function section(kind: RiderKind, rows: readonly SettlementRow[], input: SettlementsInput): SettlementSection {
+  const heading = RIDER_KIND_HEADINGS[kind];
+  const needsRate = stableRateFor(input.rates, input.month.month, RATE_KIND_OF[kind]) === null;
   const own = rows.filter((row) => row.kind === kind);
   // Suma sekcji tylko, gdy każda jej karta ma „Do zapłaty” — bez stawki albo bez opłaty konia jej nie ma.
   const total =
@@ -433,7 +443,7 @@ export interface SettlementLinkRow extends SettlementRow {
 
 /** Sekcja na stronie „Rozliczenia” (#118): nagłówek, suma i liczby sekcji, karty jeźdźców. */
 export interface SettlementLinkSection {
-  kind: RateKind;
+  kind: RiderKind;
   /** `Rekreacja` albo `Pensjonariusze`. */
   heading: string;
   /** Nazwa listy kart dla czytników ekranu, np. `Rozliczenia jeźdźców — Rekreacja`. */
@@ -587,7 +597,9 @@ function countsText(rows: readonly SettlementRow[]): string {
 /** Zdanie nad kartami sekcji: najpierw brak stawki jej rodzaju, potem koń bez opłaty za pensjonat. */
 function sectionNote(part: SettlementSection): string | null {
   if (part.needsRate) {
-    return part.kind === "training" ? SETTLEMENT_TEXTS.amountsNeedTrainingRate : SETTLEMENT_TEXTS.amountsNeedRate;
+    return part.kind === RIDER_KIND.boarder
+      ? SETTLEMENT_TEXTS.amountsNeedTrainingRate
+      : SETTLEMENT_TEXTS.amountsNeedRate;
   }
   return part.rows.some((row) => row.needsFee) ? SETTLEMENT_TEXTS.rider.fee.setHint : null;
 }

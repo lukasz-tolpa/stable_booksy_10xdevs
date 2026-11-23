@@ -656,7 +656,7 @@ describe("composeRiderSettlement — rozliczenie pensjonariusza", () => {
   it("jazdy × stawka treningowa ośrodka, opłata za pensjonat konia i „Do zapłaty”", () => {
     const settlement = composeRiderSettlement(boarderInput(), NOW);
 
-    expect(settlement.kind).toBe("training");
+    expect(settlement.kind).toBe("boarder");
     expect(settlement.ridesLine).toBe(`Jazdy: 2 × ${zl("150,00 zł")} = ${zl("300,00 zł")}`);
     expect(settlement.rateSourceText).toBe("stawka treningowa ośrodka");
     expect(settlement.fees).toEqual([
@@ -732,7 +732,7 @@ describe("composeRiderSettlement — rozliczenie pensjonariusza", () => {
   it("bez stawki treningowej: liczba jazd, prośba o stawkę treningową, opłata widoczna, bez „Do zapłaty”", () => {
     const settlement = composeRiderSettlement(boarderInput({ rates: [STABLE_120] }), NOW);
     expect(settlement).toMatchObject({
-      kind: "training",
+      kind: "boarder",
       needsRate: true,
       needsRateText: "Ustaw stawkę treningową",
       ridesLine: "Jazdy: 2 jazdy",
@@ -770,7 +770,7 @@ describe("composeRiderSettlement — rozliczenie pensjonariusza", () => {
       boarderInput({ bookings: [], costs: [cost(1, 25000, "Kowal", "kasia")] }),
       NOW,
     );
-    expect(settlement).toMatchObject({ kind: "training", rides: 0, due: 175000 });
+    expect(settlement).toMatchObject({ kind: "boarder", rides: 0, due: 175000 });
     expect(settlement.ridesLine).toBe(`Jazdy: 0 × ${zl("150,00 zł")} = ${zl("0,00 zł")}`);
     expect(settlement.emptyText).toBe("W październiku 2026 nie było jazd.");
   });

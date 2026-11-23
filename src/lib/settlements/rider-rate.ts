@@ -11,7 +11,7 @@ import { rateFromMonth, rateSchedule, type RateChange, type RateFrom, type RateK
 import {
   plannedRateText,
   rateChoices,
-  riderKindIn,
+  riderRateKindIn,
   type RateChoice,
   type SettlementBoardingHorse,
 } from "@/lib/settlements/settlements";
@@ -33,7 +33,7 @@ export interface RiderRateView {
 
 /**
  * Stawka jeźdźca `riderKey` dziś i jego zaplanowana zmiana. `now` — bieżący miesiąc w strefie ośrodka;
- * `kind` — rodzaj jeźdźca w bieżącym miesiącu (`riderKindIn`; pensjonariusz — treningowa, #117).
+ * `kind` — rodzaj jeźdźca w bieżącym miesiącu (`riderRateKindIn`; pensjonariusz — treningowa, #117).
  */
 export function composeRiderRate(
   rates: readonly RateChange[],
@@ -57,7 +57,7 @@ export function composeRiderRate(
 
 /**
  * Zapisywana stawka indywidualna jeźdźca: miesiąc „od” z wyboru formularza (względem bieżącego miesiąca)
- * i rodzaj — rodzaj jeźdźca w tym właśnie miesiącu (`riderKindIn`; pensjonariusz — treningowa), więc stawka
+ * i rodzaj — rodzaj jeźdźca w tym właśnie miesiącu (`riderRateKindIn`; pensjonariusz — treningowa), więc stawka
  * „od następnego miesiąca” dla konia, który wtedy przyjeżdża albo już wyjechał, ma rodzaj tamtego miesiąca.
  */
 export function riderRateStart(
@@ -67,5 +67,5 @@ export function riderRateStart(
   now: Date = new Date(),
 ): { kind: RateKind; fromMonth: string } {
   const fromMonth = rateFromMonth(from, currentMonth(now));
-  return { kind: riderKindIn(horses, riderKey, fromMonth), fromMonth };
+  return { kind: riderRateKindIn(horses, riderKey, fromMonth), fromMonth };
 }

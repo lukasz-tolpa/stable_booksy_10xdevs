@@ -5,6 +5,7 @@ import {
   horsesOnDay,
   isBoarderInMonth,
   isBoarderWith,
+  riderKindOf,
   stayCoversDay,
   stayOverlapsMonth,
   type BoardingStay,
@@ -112,5 +113,18 @@ describe("konie pensjonatowe jeźdźca wobec miesiąca i dnia", () => {
   it("horsesOnDay — konie, których pobyt obejmuje dzień; dzień przed przyjazdem w tym samym miesiącu — nie", () => {
     expect(horsesOnDay(horsesOf(horses, "kasia"), "2026-11-14")).toEqual([]);
     expect(horsesOnDay(horsesOf(horses, "kasia"), "2026-11-15").map((horse) => horse.horseId)).toEqual([2]);
+  });
+});
+
+describe("riderKindOf — rodzaj jeźdźca w miesiącu", () => {
+  const horses = [
+    { riderKey: "kasia", stays: [stay("2026-03-01", "2026-05-31")] },
+    { riderKey: null, stays: [stay("2026-01-01", null)] },
+  ];
+
+  it("pensjonariusz w miesiącu pobytu jego konia, rekreacyjny poza nim i bez koni", () => {
+    expect(riderKindOf(horses, "kasia", "2026-05")).toBe("boarder");
+    expect(riderKindOf(horses, "kasia", "2026-06")).toBe("recreation");
+    expect(riderKindOf(horses, "anna", "2026-05")).toBe("recreation");
   });
 });

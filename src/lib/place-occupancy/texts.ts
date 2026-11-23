@@ -1,5 +1,5 @@
 import type { PluralForms } from "@/lib/format";
-import { TRAINING_SLOT_TAG, type SlotKind } from "@/lib/schedule/kind";
+import { SLOT_KIND_TEXTS, type SlotKind } from "@/lib/schedule/kind";
 
 /**
  * Teksty zajętości placów (#116) — strona pensjonariusza `/jezdziec/zajetosc-placow` i właściciela
@@ -29,7 +29,10 @@ export const PLACE_OCCUPANCY_TEXTS = {
   ],
   failure: "Nie udało się wczytać zajętości placów.",
   retry: "Odśwież stronę za chwilę.",
-  kind: { recreation: "slot rekreacyjny", training: TRAINING_SLOT_TAG } satisfies Record<SlotKind, string>,
+  kind: { recreation: SLOT_KIND_TEXTS.recreation.tag, training: SLOT_KIND_TEXTS.training.tag } satisfies Record<
+    SlotKind,
+    string
+  >,
 } as const;
 
 export const TAKEN_SEAT_FORMS: PluralForms = { one: "zajęte miejsce", few: "zajęte miejsca", many: "zajętych miejsc" };

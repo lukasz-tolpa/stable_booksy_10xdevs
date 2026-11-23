@@ -19,8 +19,6 @@ export const MONTH_SUMMARY_TEXTS = {
   retry: "Odśwież stronę za chwilę.",
   /** Nagłówek listy jeźdźców (sekcja i jej nazwa dla czytników ekranu). */
   ridersHeading: "Jeźdźcy",
-  /** Sekcje jeźdźców (#118), według reguły „pensjonariusz w miesiącu”. */
-  sections: { recreation: "Rekreacja", boarders: "Pensjonariusze" },
   /** Podpis rozwijanej listy jazd jeźdźca. */
   ridesOf: "Jazdy",
   instructor: {
