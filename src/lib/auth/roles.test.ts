@@ -372,7 +372,7 @@ describe("instructorTabs", () => {
   it("instruktor z uprawnieniem ma zakładki „Moje sloty”, „Zapisy do przyjęcia”, „Grafik” i „Podsumowanie miesiąca”", () => {
     expect(instructorTabs("arranging-instructor")).toEqual([
       { href: "/instruktor", label: "Moje sloty" },
-      { href: "/instruktor/zapisy-do-przyjecia", label: "Zapisy do przyjęcia" },
+      { href: "/instruktor/zapisy-do-przyjecia", label: "Zapisy do przyjęcia", counter: "pendingBookings" },
       { href: "/instruktor/grafik", label: "Grafik" },
       { href: "/instruktor/podsumowanie", label: "Podsumowanie miesiąca" },
     ]);
@@ -381,7 +381,7 @@ describe("instructorTabs", () => {
   it("instruktor bez uprawnienia ma zakładki „Moje sloty”, „Zapisy do przyjęcia” i „Podsumowanie miesiąca”, bez „Grafik”", () => {
     expect(instructorTabs("instructor")).toEqual([
       { href: "/instruktor", label: "Moje sloty" },
-      { href: "/instruktor/zapisy-do-przyjecia", label: "Zapisy do przyjęcia" },
+      { href: "/instruktor/zapisy-do-przyjecia", label: "Zapisy do przyjęcia", counter: "pendingBookings" },
       { href: "/instruktor/podsumowanie", label: "Podsumowanie miesiąca" },
     ]);
   });
@@ -475,8 +475,13 @@ describe("stableSections", () => {
       { href: "/osrodek", label: "Panel" },
       { href: "/osrodek/grafik", label: "Grafik" },
       { href: "/osrodek/zapisy", label: "Zapisy" },
-      // #124: zapisy oczekujące czekają na decyzję ośrodka; w dolnym pasku krótko.
-      { href: "/osrodek/zapisy-do-przyjecia", label: "Zapisy do przyjęcia", shortLabel: "Przyjęcia" },
+      // #124: zapisy oczekujące czekają na decyzję ośrodka; w dolnym pasku krótko, z licznikiem czekających (#128).
+      {
+        href: "/osrodek/zapisy-do-przyjecia",
+        label: "Zapisy do przyjęcia",
+        shortLabel: "Przyjęcia",
+        counter: "pendingBookings",
+      },
       { href: "/osrodek/konie", label: "Konie" },
       { href: "/osrodek/instruktorzy", label: "Instruktorzy" },
       { href: "/osrodek/statystyki", label: "Statystyki" },

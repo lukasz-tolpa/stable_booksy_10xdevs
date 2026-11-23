@@ -19,6 +19,7 @@ import {
   slotStatusLabel,
   type SlotHour,
 } from "@/lib/bookings/slots";
+import { formatSlotWaiting } from "@/lib/bookings/waiting";
 import { SLOT_KIND, TRAINING_SLOT_TAG } from "@/lib/schedule/kind";
 import { formatClockHour, formatFreeSeats, formatLongDateWithYear } from "@/lib/format";
 import { listStableInstructors } from "@/lib/instructors/queries";
@@ -197,6 +198,10 @@ const dayLabel = formatLongDateWithYear(day);
                               {slot.placeName}
                             </span>
                             <span class="slot__seats">{formatFreeSeats(slot.freeSeats, slot.seats)}</span>
+                            {/* Liczba czekających — tylko pensjonariusz przy slocie treningowym (#128, ADR 0006). */}
+                            {slot.waiting !== null && (
+                              <span class="slot__waiting">{formatSlotWaiting(slot.waiting)}</span>
+                            )}
                             {slot.kind === SLOT_KIND.training && <Tag variant="primary">{TRAINING_SLOT_TAG}</Tag>}
                             {label === null ? (
                               <form method="post" action="/api/bookings/create">
@@ -428,6 +433,10 @@ const dayLabel = formatLongDateWithYear(day);
   .slot__seats {
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
+    font-size: 13.5px;
+    color: var(--muted);
+  }
+  .slot__waiting {
     font-size: 13.5px;
     color: var(--muted);
   }

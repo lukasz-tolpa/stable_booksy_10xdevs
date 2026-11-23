@@ -23,6 +23,11 @@ export interface SlotOccupancy {
   instructorId: number;
   hour: number;
   taken: number;
+  /**
+   * Zapisy oczekujące slotu (#128, ADR 0006); `null` (albo brak) — baza tej liczby wołającemu nie pokazuje
+   * (jeździec rekreacyjny, slot rekreacyjny u jeźdźca).
+   */
+  waiting?: number | null;
 }
 
 /** Własny zapis jeźdźca w oglądanym dniu: aktywny albo oczekujący (`pending`). */
@@ -107,6 +112,11 @@ export interface RiderSlot {
   kind: SlotKind;
   /** Konie pensjonariusza do zapisu na slot treningowy (jeden — przydzielony od razu, kilka — wybór); inaczej pusto. */
   horses: RiderHorse[];
+  /**
+   * Ile zapisów czeka na przyjęcie na ten slot (#128, ADR 0006) — tylko pensjonariusz przy slocie treningowym;
+   * inaczej `null` (jeździec rekreacyjny widzi tylko wolne miejsca i swój zapis).
+   */
+  waiting: number | null;
 }
 
 export interface SlotHour {
@@ -162,7 +172,7 @@ function statusOf(
 export function computeSlotHours(input: SlotHoursInput): SlotHour[] {
   const names = new Map(input.instructors.map((instructor) => [instructor.id, instructor.name]));
   const placeName = placeNamer(input.places);
-  const taken = new Map(input.occupancy.map((entry) => [slotKey(entry.instructorId, entry.hour), entry.taken]));
+  const occupancy = new Map(input.occupancy.map((entry) => [slotKey(entry.instructorId, entry.hour), entry]));
   const mine = new Map(input.myBookings.map((booking) => [slotKey(booking.instructorId, booking.hour), booking]));
   const myHours = new Set(input.myBookings.map((booking) => booking.hour));
   const byHour = new Map<number, RiderSlot[]>();
@@ -175,7 +185,9 @@ export function computeSlotHours(input: SlotHoursInput): SlotHour[] {
     if (slot.hour < input.openHour || slot.hour >= input.closeHour) continue;
     if (input.currentHour !== null && slot.hour <= input.currentHour) continue;
 
-    const freeSeats = Math.max(0, slot.seats - (taken.get(slotKey(slot.instructorId, slot.hour)) ?? 0));
+    const entry = occupancy.get(slotKey(slot.instructorId, slot.hour));
+    const freeSeats = Math.max(0, slot.seats - (entry?.taken ?? 0));
+    const trainingForBoarder = standing.boarder && slot.kind === SLOT_KIND.training;
     const slots = byHour.get(slot.hour) ?? [];
     slots.push({
       instructorId: slot.instructorId,
@@ -185,7 +197,9 @@ export function computeSlotHours(input: SlotHoursInput): SlotHour[] {
       freeSeats,
       status: statusOf(slot, freeSeats, mine, myHours, standing),
       kind: slot.kind,
-      horses: standing.boarder && slot.kind === SLOT_KIND.training ? standing.horses : [],
+      horses: trainingForBoarder ? standing.horses : [],
+      // Brak wiersza zajętości — slot bez żadnego zapisu, nikt nie czeka.
+      waiting: trainingForBoarder ? (entry === undefined ? 0 : (entry.waiting ?? null)) : null,
     });
     byHour.set(slot.hour, slots);
   }

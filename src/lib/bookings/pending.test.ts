@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { composePendingBookings, type PendingBooking } from "@/lib/bookings/pending";
+import { composeDayPendingSlots, composePendingBookings, type PendingBooking } from "@/lib/bookings/pending";
 
 /** 2026-08-20, 13:30 w Warszawie (czas letni, UTC+2). */
 const NOW = new Date("2026-08-20T11:30:00Z");
@@ -43,6 +43,7 @@ describe("composePendingBookings", () => {
             freeSeats: 2,
             seats: 3,
             rejectedBefore: false,
+            othersWaiting: 0,
           },
         ],
       },
@@ -107,5 +108,93 @@ describe("composePendingBookings", () => {
 
   it("bez zapisów oczekujących — pusta lista", () => {
     expect(composePendingBookings([], NOW)).toEqual([]);
+  });
+});
+
+describe("composePendingBookings — inni czekający na ten slot (US 26)", () => {
+  it("przy zapisie liczba pozostałych zapisów oczekujących tego samego slotu; wygasłe się nie liczą", () => {
+    const view = composePendingBookings(
+      [
+        pending({ id: 1, riderName: "Anna" }),
+        pending({ id: 2, riderName: "Piotr" }),
+        pending({ id: 3, riderName: "Zofia" }),
+        // Inny instruktor o tej samej godzinie — inny slot.
+        pending({ id: 4, instructorId: 2, instructorName: "Karol Jasny" }),
+        // Ten sam instruktor, dziś o 13 — slot się zaczął, zapis wygasł.
+        pending({ id: 5, day: TODAY, hour: 13 }),
+      ],
+      NOW,
+    );
+
+    expect(view.flatMap((day) => day.rows.map((row) => [row.id, row.othersWaiting]))).toEqual([
+      [1, 2],
+      [2, 2],
+      [3, 2],
+      [4, 0],
+    ]);
+  });
+});
+
+describe("composeDayPendingSlots", () => {
+  it("zapisy oczekujące dnia przy swoim slocie: slot z wolnymi miejscami i liczbą czekających, jeźdźcy po kolei zapisów", () => {
+    const slots = composeDayPendingSlots(
+      [
+        pending({ id: 1, hour: 12, riderName: "Piotr", createdAt: "2026-08-19T12:00:00Z" }),
+        pending({ id: 2, hour: 12, riderName: "Anna", createdAt: "2026-08-19T09:00:00Z", rejectedBefore: true }),
+        pending({
+          id: 3,
+          hour: 10,
+          instructorId: 2,
+          instructorName: "Karol Jasny",
+          kind: "training",
+          seats: 1,
+          taken: 1,
+        }),
+        // Inny dzień — nie na tej liście.
+        pending({ id: 4, day: "2026-08-22", hour: 12 }),
+      ],
+      "2026-08-21",
+      NOW,
+    );
+
+    expect(slots).toEqual([
+      {
+        hour: 10,
+        instructorName: "Karol Jasny",
+        placeName: "Hala",
+        kind: "training",
+        freeSeats: 0,
+        seats: 1,
+        waiting: 1,
+        rows: [{ id: 3, riderName: "Anna Kowalska", riderEmail: "anna.kowalska@example.com", rejectedBefore: false }],
+      },
+      {
+        hour: 12,
+        instructorName: "Joanna Wrona",
+        placeName: "Hala",
+        kind: "recreation",
+        freeSeats: 2,
+        seats: 2,
+        waiting: 2,
+        rows: [
+          { id: 2, riderName: "Anna", riderEmail: "anna.kowalska@example.com", rejectedBefore: true },
+          { id: 1, riderName: "Piotr", riderEmail: "anna.kowalska@example.com", rejectedBefore: false },
+        ],
+      },
+    ]);
+  });
+
+  it("dziś zapisy, których slot się zaczął (wygasłe), znikają; późniejsze zostają", () => {
+    const slots = composeDayPendingSlots(
+      [pending({ id: 1, day: TODAY, hour: 13 }), pending({ id: 2, day: TODAY, hour: 14 })],
+      TODAY,
+      NOW,
+    );
+
+    expect(slots.map((slot) => [slot.hour, slot.rows.map((row) => row.id)])).toEqual([[14, [2]]]);
+  });
+
+  it("dzień bez zapisów oczekujących — pusta lista", () => {
+    expect(composeDayPendingSlots([pending({ day: "2026-08-22" })], "2026-08-21", NOW)).toEqual([]);
   });
 });

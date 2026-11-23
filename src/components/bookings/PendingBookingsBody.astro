@@ -15,6 +15,7 @@ import GhostButton from "@/components/ui/GhostButton.astro";
 import FailureState from "@/components/ui/FailureState.astro";
 import Tag from "@/components/ui/Tag.astro";
 import type { PendingBookingsDay } from "@/lib/bookings/pending";
+import { formatOthersWaiting } from "@/lib/bookings/waiting";
 import { formatClockHour, formatFreeSeats, formatLongDateWithYear } from "@/lib/format";
 import { SLOT_KIND, TRAINING_SLOT_TAG } from "@/lib/schedule/kind";
 
@@ -84,6 +85,10 @@ const { lead, days, loadFailed, success, error } = Astro.props;
                     <Tag variant="warn">Brak miejsc</Tag>
                   ) : (
                     <span class="row__sub mono-nums">{formatFreeSeats(row.freeSeats, row.seats)}</span>
+                  )}
+                  {/* Inni czekający na ten slot (#128, US 26). */}
+                  {row.othersWaiting > 0 && (
+                    <span class="row__sub mono-nums">{formatOthersWaiting(row.othersWaiting)}</span>
                   )}
                 </span>
                 <div class="row__actions">

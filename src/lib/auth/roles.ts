@@ -120,13 +120,20 @@ export interface InstructorTab {
   label: string;
   /** Krótszy podpis w dolnym pasku sekcji na telefonie, gdy pełny się nie mieści. */
   shortLabel?: string;
+  /** Licznik przy pozycji (#128): `pendingBookings` — zapisy do przyjęcia konta (`countPendingBookings`). */
+  counter?: "pendingBookings";
 }
 
 /** Zakładki przestrzeni instruktora wspólne dla stanów z uprawnieniem do grafiku i bez. */
 const MY_SLOTS_TAB: InstructorTab = { href: INSTRUCTOR_HOME_ROUTE, label: "Moje sloty" };
 const MONTH_SUMMARY_TAB: InstructorTab = { href: INSTRUCTOR_MONTH_SUMMARY_ROUTE, label: "Podsumowanie miesiąca" };
 /** Zapisy oczekujące na sloty instruktora (#126) — przyjmuje je i odrzuca jak właściciel, tylko na swoich slotach. */
-const PENDING_BOOKINGS_TAB: InstructorTab = { href: INSTRUCTOR_PENDING_BOOKINGS_ROUTE, label: "Zapisy do przyjęcia" };
+const PENDING_BOOKINGS_TAB: InstructorTab = {
+  href: INSTRUCTOR_PENDING_BOOKINGS_ROUTE,
+  label: "Zapisy do przyjęcia",
+  // Licznik zapisów do przyjęcia na swoich slotach (#128).
+  counter: "pendingBookings",
+};
 
 /**
  * Sekcje przestrzeni ośrodka właściciela — dolny pasek nawigacji na telefonie (spec #83), żeby
@@ -136,7 +143,7 @@ const STABLE_SECTIONS: readonly InstructorTab[] = [
   { href: ROLE_HOME.instructor, label: "Panel" },
   { href: OWNER_SCHEDULE_ROUTE, label: "Grafik" },
   { href: STABLE_DAY_BOOKINGS_ROUTE, label: "Zapisy" },
-  { href: PENDING_BOOKINGS_ROUTE, label: "Zapisy do przyjęcia", shortLabel: "Przyjęcia" },
+  { href: PENDING_BOOKINGS_ROUTE, label: "Zapisy do przyjęcia", shortLabel: "Przyjęcia", counter: "pendingBookings" },
   { href: `${ROLE_HOME.instructor}/konie`, label: "Konie" },
   { href: INSTRUCTORS_ROUTE, label: "Instruktorzy" },
   { href: `${ROLE_HOME.instructor}/statystyki`, label: "Statystyki" },
