@@ -765,7 +765,7 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
-      accept_booking: { Args: { p_booking_id: number }; Returns: undefined };
+      accept_booking: { Args: { p_booking_id: number }; Returns: string };
       add_boarding_horse: {
         Args: { p_arrival: string; p_name: string; p_rider_email: string };
         Returns: number;
@@ -930,7 +930,7 @@ export type Database = {
       };
       reject_booking: {
         Args: { p_booking_id: number; p_reason: string };
-        Returns: undefined;
+        Returns: string;
       };
       revoke_instructor_invitation: {
         Args: { p_instructor_id: number };

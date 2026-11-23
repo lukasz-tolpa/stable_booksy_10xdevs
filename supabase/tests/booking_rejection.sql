@@ -288,6 +288,7 @@ do $$
 declare
   r record;
   v int;
+  v_result text;
 begin
   -- Powod na granicy dlugosci (300 znakow po przycieciu) przechodzi.
   perform public.reject_booking(current_setting('app.katarzyna_14')::bigint, '  ' || repeat('k', 300) || ' ');
@@ -299,7 +300,12 @@ begin
   end if;
   raise notice 'PASS: odrzucenie z powodem 300 znakow, przycietym; kon pensjonatowy zwolniony';
 
-  perform public.reject_booking(current_setting('app.zofia_13')::bigint, '  Na tę godzinę mamy już komplet.  ');
+  -- Funkcja oddaje stan zapisu po odrzuceniu (odczyt zwrotny dla endpointu przed komunikatem sukcesu).
+  v_result := public.reject_booking(current_setting('app.zofia_13')::bigint, '  Na tę godzinę mamy już komplet.  ');
+  if v_result is distinct from 'rejected' then
+    raise exception 'FAIL: odrzucenie zwrocilo stan %, oczekiwano rejected', v_result;
+  end if;
+  raise notice 'PASS: odrzucenie zwraca stan zapisu po zmianie (rejected)';
   select status, rejection_reason, rejection_source, rejected_at, accepted_at into r from public.bookings
   where id = current_setting('app.zofia_13')::bigint;
   if r.status <> 'rejected' or r.rejection_reason <> 'Na tę godzinę mamy już komplet.'

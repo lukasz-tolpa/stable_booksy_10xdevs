@@ -39,8 +39,9 @@ export const POST: APIRoute = async (context) => {
     return caller;
   }
 
+  let status: string;
   try {
-    await rejectBooking(caller.supabase, parsed.data.bookingId, parsed.data.reason);
+    status = await rejectBooking(caller.supabase, parsed.data.bookingId, parsed.data.reason);
   } catch (error) {
     const message = rejectionErrorMessage(errorCode(error));
     // Odmowa reguły to projektowany UX; nieznany kod to awaria — do logu.
@@ -48,6 +49,12 @@ export const POST: APIRoute = async (context) => {
       logError(SCOPE, error);
     }
     return back(message);
+  }
+
+  // Odczyt zwrotny: sukces tylko, gdy baza potwierdziła stan zapisu po zmianie.
+  if (status !== "rejected") {
+    logError(SCOPE, new Error(`Zapis ${String(parsed.data.bookingId)} po decyzji ma stan ${status}`));
+    return back(rejectionErrorMessage(undefined));
   }
 
   return backAfterPendingDecision(context, day, { success: "odrzucenie" });

@@ -36,8 +36,9 @@ export const POST: APIRoute = async (context) => {
     return caller;
   }
 
+  let status: string;
   try {
-    await acceptBooking(caller.supabase, parsed.data.bookingId);
+    status = await acceptBooking(caller.supabase, parsed.data.bookingId);
   } catch (error) {
     const message = acceptanceErrorMessage(errorCode(error));
     // Odmowa reguły to projektowany UX; nieznany kod to awaria — do logu.
@@ -45,6 +46,12 @@ export const POST: APIRoute = async (context) => {
       logError(SCOPE, error);
     }
     return back(message);
+  }
+
+  // Odczyt zwrotny: sukces tylko, gdy baza potwierdziła stan zapisu po zmianie.
+  if (status !== "active") {
+    logError(SCOPE, new Error(`Zapis ${String(parsed.data.bookingId)} po decyzji ma stan ${status}`));
+    return back(acceptanceErrorMessage(undefined));
   }
 
   return backAfterPendingDecision(context, day, { success: "przyjecie" });

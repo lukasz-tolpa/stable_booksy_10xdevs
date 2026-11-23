@@ -366,6 +366,7 @@ set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","r
 do $$
 declare
   v_status text;
+  v_result text;
   v_accepted timestamptz;
   v_horse bigint;
   v int;
@@ -377,7 +378,12 @@ begin
     raise notice 'PASS: nieistniejacy zapis - SB066';
   end;
 
-  perform public.accept_booking(current_setting('app.zofia_13')::bigint);
+  -- Funkcja oddaje stan zapisu po przyjeciu (odczyt zwrotny dla endpointu przed komunikatem sukcesu).
+  v_result := public.accept_booking(current_setting('app.zofia_13')::bigint);
+  if v_result is distinct from 'active' then
+    raise exception 'FAIL: przyjecie zwrocilo stan %, oczekiwano active', v_result;
+  end if;
+  raise notice 'PASS: przyjecie zwraca stan zapisu po zmianie (active)';
   select status, accepted_at into v_status, v_accepted from public.bookings
   where id = current_setting('app.zofia_13')::bigint;
   if v_status <> 'active' or v_accepted is null then
