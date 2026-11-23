@@ -1,9 +1,10 @@
 ---
 import { instructorTabs } from "@/lib/auth/roles";
 
-// Zakładki przestrzeni instruktora: „Moje sloty” i „Podsumowanie miesiąca” (#90) u każdego instruktora
-// z kontem, między nimi „Grafik” u instruktora z uprawnieniem do układania grafiku (#79). Pusta lista
-// (właściciel, zdezaktywowany) — pasek się nie pokazuje; mapa stanów konta w @/lib/auth/roles decyduje, nie strona.
+// Zakładki przestrzeni instruktora: „Moje sloty”, „Zapisy do przyjęcia” (#126) i „Podsumowanie miesiąca” (#90)
+// u każdego instruktora z kontem, przed podsumowaniem „Grafik” u instruktora z uprawnieniem do układania grafiku
+// (#79). Pusta lista (właściciel, zdezaktywowany) — pasek się nie pokazuje; mapa stanów konta w @/lib/auth/roles
+// decyduje, nie strona.
 const tabs = instructorTabs(Astro.locals.instructorStanding);
 const current = Astro.url.pathname.replace(/\/$/, "");
 ---

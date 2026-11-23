@@ -103,6 +103,9 @@ export function dayBookingRow(page: Page, section: "Aktywne" | "Odwołane", hour
 /** „Zapisy do przyjęcia” ośrodka (#124) — zapisy oczekujące jeźdźców. */
 export const PENDING_BOOKINGS_ROUTE = "/osrodek/zapisy-do-przyjecia";
 
+/** „Zapisy do przyjęcia” instruktora z kontem (#126) — zapisy oczekujące na jego sloty. */
+export const INSTRUCTOR_PENDING_BOOKINGS_ROUTE = "/instruktor/zapisy-do-przyjecia";
+
 /** Wiersz zapisu oczekującego na „Zapisach do przyjęcia”: godzina, instruktor i jeździec. */
 export function pendingBookingRow(page: Page, hour: number, instructor: string, rider: string): Locator {
   return page
@@ -115,13 +118,15 @@ export function pendingBookingRow(page: Page, hour: number, instructor: string, 
 /**
  * Ośrodek przyjmuje zapis oczekujący jeźdźca (#124) — wspólny krok każdego scenariusza, w którym jeździec
  * zapisuje się na jazdę i potrzebuje zapisu aktywnego (zapis jeźdźca zawsze czeka na przyjęcie). Dowód
- * z bazy: po przekierowaniu strona jest wyrenderowana z bazy i wiersza już na niej nie ma.
+ * z bazy: po przekierowaniu strona jest wyrenderowana z bazy i wiersza już na niej nie ma. `route` —
+ * czyje „Zapisy do przyjęcia”: domyślnie właściciela, instruktor z kontem ma swoje (#126).
  */
 export async function acceptPendingBooking(
   stablePage: Page,
   booking: { hour: number; instructor: string; rider: string },
+  route: string = PENDING_BOOKINGS_ROUTE,
 ): Promise<void> {
-  await stablePage.goto(PENDING_BOOKINGS_ROUTE);
+  await stablePage.goto(route);
   await expect(stablePage.getByRole("heading", { level: 1, name: "Zapisy do przyjęcia" })).toBeVisible();
   const row = pendingBookingRow(stablePage, booking.hour, booking.instructor, booking.rider);
   await row.getByRole("button", { name: "Przyjmij", exact: true }).click();

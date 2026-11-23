@@ -350,17 +350,19 @@ describe("instruktor z uprawnieniem do układania grafiku", () => {
 });
 
 describe("instructorTabs", () => {
-  it("instruktor z uprawnieniem ma zakładki „Moje sloty”, „Grafik” i „Podsumowanie miesiąca”", () => {
+  it("instruktor z uprawnieniem ma zakładki „Moje sloty”, „Zapisy do przyjęcia”, „Grafik” i „Podsumowanie miesiąca”", () => {
     expect(instructorTabs("arranging-instructor")).toEqual([
       { href: "/instruktor", label: "Moje sloty" },
+      { href: "/instruktor/zapisy-do-przyjecia", label: "Zapisy do przyjęcia" },
       { href: "/instruktor/grafik", label: "Grafik" },
       { href: "/instruktor/podsumowanie", label: "Podsumowanie miesiąca" },
     ]);
   });
 
-  it("instruktor bez uprawnienia ma zakładki „Moje sloty” i „Podsumowanie miesiąca”, bez „Grafik”", () => {
+  it("instruktor bez uprawnienia ma zakładki „Moje sloty”, „Zapisy do przyjęcia” i „Podsumowanie miesiąca”, bez „Grafik”", () => {
     expect(instructorTabs("instructor")).toEqual([
       { href: "/instruktor", label: "Moje sloty" },
+      { href: "/instruktor/zapisy-do-przyjecia", label: "Zapisy do przyjęcia" },
       { href: "/instruktor/podsumowanie", label: "Podsumowanie miesiąca" },
     ]);
   });
@@ -387,6 +389,23 @@ describe("instructorRedirect — Podsumowanie miesiąca instruktora", () => {
 
   it("strona wymaga konta instruktora — jeźdźca strażnik tras przenosi do jego przestrzeni", () => {
     expect(routeGuardFor("/instruktor/podsumowanie")).toEqual({ prefix: "/instruktor", role: "instructor" });
+  });
+});
+
+describe("instructorRedirect — Zapisy do przyjęcia instruktora (#126)", () => {
+  it("wpuszcza instruktora z kontem, z uprawnieniem do układania grafiku i bez", () => {
+    expect(instructorRedirect("/instruktor/zapisy-do-przyjecia", "instructor")).toBeNull();
+    expect(instructorRedirect("/instruktor/zapisy-do-przyjecia", "arranging-instructor")).toBeNull();
+  });
+
+  it("właściciela przenosi do przestrzeni ośrodka (ma tam własne „Zapisy do przyjęcia”), zdezaktywowanego — na ekran nieaktywnego konta", () => {
+    expect(instructorRedirect("/instruktor/zapisy-do-przyjecia", "owner")).toBe("/osrodek");
+    expect(instructorRedirect("/instruktor/zapisy-do-przyjecia", "inactive")).toBe("/instruktor/konto-nieaktywne");
+  });
+
+  it("„Zapisy do przyjęcia” ośrodka zostają przy właścicielu — instruktora przenosi do „Moje sloty”", () => {
+    expect(instructorRedirect("/osrodek/zapisy-do-przyjecia", "owner")).toBeNull();
+    expect(instructorRedirect("/osrodek/zapisy-do-przyjecia", "instructor")).toBe("/instruktor");
   });
 });
 

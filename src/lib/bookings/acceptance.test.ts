@@ -22,7 +22,9 @@ describe("acceptanceErrorMessage", () => {
     expect(acceptanceErrorMessage(ACCEPT_NOT_PENDING)).toBe(
       "Ten zapis nie czeka już na przyjęcie — jeździec mógł go odwołać albo zapis został przyjęty lub odrzucony.",
     );
-    expect(acceptanceErrorMessage(ACCEPT_NOT_ALLOWED)).toBe("Nie znaleziono zapisu do przyjęcia w Twoim ośrodku.");
+    expect(acceptanceErrorMessage(ACCEPT_NOT_ALLOWED)).toBe(
+      "Nie znaleziono tego zapisu wśród Twoich zapisów do przyjęcia.",
+    );
     expect(acceptanceErrorMessage("23503")).toBe("Tego slotu nie ma już w grafiku — zapisu nie można przyjąć.");
   });
 
