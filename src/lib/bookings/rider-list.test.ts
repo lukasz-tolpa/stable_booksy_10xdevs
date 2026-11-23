@@ -163,7 +163,7 @@ describe("splitRiderBookings", () => {
     expect(history).toHaveLength(0);
     expect(upcoming[0]).toMatchObject({
       state: "expired",
-      stateLabel: "Nie przyjęty w terminie",
+      stateLabel: "Wygasł — ośrodek nie zdecydował przed terminem",
       cancellable: false,
       horseLabel: null,
     });
@@ -180,8 +180,8 @@ describe("splitRiderBookings", () => {
 
     expect(upcoming).toHaveLength(0);
     expect(history.map((r) => [r.id, r.state, r.stateLabel, r.horseLabel])).toEqual([
-      [1, "expired", "Nie przyjęty w terminie", null],
-      [2, "expired", "Nie przyjęty w terminie", null],
+      [1, "expired", "Wygasł — ośrodek nie zdecydował przed terminem", null],
+      [2, "expired", "Wygasł — ośrodek nie zdecydował przed terminem", null],
     ]);
   });
 

@@ -240,7 +240,7 @@ describe("composeDayBookingSections — zapisy odwołane", () => {
     expect(result.active[0].horseOptions.map((h) => h.name)).toEqual(["Bella", "Kasztan"]);
   });
 
-  it("wycofany przez jeźdźca zapis oczekujący (nigdy nieprzyjęty) nie trafia do odwołanych — po prostu znika", () => {
+  it("wycofany przez jeźdźca zapis oczekujący (bez przyjęcia) nie trafia do odwołanych — po prostu znika", () => {
     const result = sections([
       booking({ id: 1, hour: 10, status: "cancelled", cancelledBy: "rider", riderName: "Piotr Nowak" }),
       booking({ id: 2, hour: 11, status: "cancelled", cancelledBy: "rider", wasAccepted: false }),

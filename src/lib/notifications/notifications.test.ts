@@ -177,11 +177,11 @@ describe("treść i cel powiadomienia", () => {
     expect(item.reason).toBe("Brak miejsc");
   });
 
-  it("wygaśnięcie: „Zapis nie przyjęty w terminie”, prowadzi do „Moich zapisów”", () => {
+  it("wygaśnięcie: „Twój zapis wygasł”, prowadzi do „Moich zapisów”", () => {
     const [item] = composeNotifications(input({ pendingBookings: [pendingBooking({})] }), NOW);
 
     expect(item).toMatchObject({
-      title: "Zapis nie przyjęty w terminie",
+      title: "Twój zapis wygasł",
       subject: "Stadnina Pod Dębem",
       day: "2026-11-24",
       hour: 11,

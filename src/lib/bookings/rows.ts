@@ -175,7 +175,7 @@ export function composeDayBookingSections(input: DayBookingSectionsInput): DayBo
     })
     .sort(byHourInstructorRider);
 
-  // Wycofany zapis oczekujący (nigdy nieprzyjęty) nie jest odwołaniem jazdy — po prostu znika z listy (US 34).
+  // Wycofany zapis oczekujący (bez przyjęcia) nie jest odwołaniem jazdy — po prostu znika z listy (US 34).
   const cancelled = bookings
     .filter(isCancellationOfAccepted)
     .map(

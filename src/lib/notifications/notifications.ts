@@ -113,7 +113,7 @@ const TITLES: Record<NotificationKind, string> = {
   booking_accepted: "Ośrodek przyjął Twój zapis",
   booking_rejected: "Ośrodek odrzucił Twój zapis",
   booking_cancelled_by_stable: "Ośrodek odwołał Twój zapis",
-  booking_expired: "Zapis nie przyjęty w terminie",
+  booking_expired: "Twój zapis wygasł",
 };
 
 /** Powiadomienia ośrodka o zapisie; pozostałe są jeźdźca. */

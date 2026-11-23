@@ -7,7 +7,7 @@ import type { BookingStatus } from "@/types";
 /**
  * Lista zapisów jeźdźca: podział na „nadchodzące" i „historię" (minione lub odwołane, bez akcji)
  * oraz podpisy wiersza — instruktor, koń albo informacja o oczekiwaniu na przydział, stan zapisu
- * („Czeka na przyjęcie”, „Nie przyjęty w terminie”), kto odwołał.
+ * („Czeka na przyjęcie”, „Wygasł — ośrodek nie zdecydował przed terminem”), kto odwołał.
  *
  * Nadchodzące: zapisy aktywne i oczekujące, których slot się nie zaczął (z odwołaniem), oraz wygasłe
  * (GLOSSARY „Wygaśnięcie zapisu”) i odrzucone („Odrzucony: <powód>”, GLOSSARY „Odrzucenie zapisu”) do końca
@@ -27,7 +27,7 @@ export interface RiderBookingRow {
   status: BookingStatus;
   /** Stan widoczny dla jeźdźca — z wyprowadzonym wygaśnięciem (`bookingStateAt`). */
   state: BookingState;
-  /** „Czeka na przyjęcie” / „Nie przyjęty w terminie” / „Odrzucony: <powód>”; `null` przy aktywnym i odwołanym. */
+  /** „Czeka na przyjęcie” / „Wygasł — ośrodek nie zdecydował przed terminem” / „Odrzucony: <powód>”; `null` przy aktywnym i odwołanym. */
   stateLabel: string | null;
   /** Wiersz ma „Odwołaj”: zapis aktywny albo oczekujący, którego slot się nie zaczął. */
   cancellable: boolean;
@@ -49,7 +49,7 @@ export const HORSE_NOT_ASSIGNED = "Bez przydzielonego konia";
 /** Zapis oczekujący (GLOSSARY „Zapis oczekujący”). */
 export const PENDING_LABEL = "Czeka na przyjęcie";
 /** Zapis wygasły — ośrodek nie zdecydował do startu slotu (GLOSSARY „Wygaśnięcie zapisu”). */
-export const EXPIRED_LABEL = "Nie przyjęty w terminie";
+export const EXPIRED_LABEL = "Wygasł — ośrodek nie zdecydował przed terminem";
 
 /** Zapis odrzucony z powodem, który ośrodek podał albo który dało odrzucenie automatyczne („Brak miejsc”). */
 export function rejectedLabel(reason: string): string {
