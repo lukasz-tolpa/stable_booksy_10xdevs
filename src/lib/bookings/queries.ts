@@ -119,6 +119,8 @@ export interface RiderBooking {
   horseName: string | null;
   status: BookingStatus;
   cancelledBy: CancelledBy | null;
+  /** Powód odrzucenia (ręczny albo „Brak miejsc”, #125); `null` przy zapisie nieodrzuconym. */
+  rejectionReason: string | null;
 }
 
 /**
@@ -136,7 +138,7 @@ export async function getRiderBookings(client: Client, riderId: string, days?: D
   let query = client
     .from("bookings")
     .select(
-      "id, hour, status, cancelled_by, instructor_id, schedule_days!inner(day, stable_id, stables(name)), instructors(name), horses(name)",
+      "id, hour, status, cancelled_by, rejection_reason, instructor_id, schedule_days!inner(day, stable_id, stables(name)), instructors(name), horses(name)",
     )
     .eq("rider_id", riderId);
   if (days) {
@@ -153,6 +155,7 @@ export async function getRiderBookings(client: Client, riderId: string, days?: D
     hour: row.hour,
     status: toBookingStatus(row.status),
     cancelledBy: toCancelledBy(row.cancelled_by),
+    rejectionReason: row.rejection_reason,
     instructorId: row.instructor_id,
     // Wygenerowane typy obiecują niepuste obiekty (FK not-null), ale w runtime RLS mógłby
     // ukryć wiersz pośredni - ochrona zostaje, jak w getDayBookings.
@@ -404,6 +407,7 @@ export async function getPendingBookings(client: Client): Promise<PendingBooking
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     riderEmail: row.rider_email ?? null,
     createdAt: row.created_at,
+    rejectedBefore: row.rejected_before,
   }));
 }
 
@@ -415,6 +419,20 @@ export async function getPendingBookings(client: Client): Promise<PendingBooking
  */
 export async function acceptBooking(client: Client, bookingId: number): Promise<void> {
   const { error } = await client.rpc("accept_booking", { p_booking_id: bookingId });
+
+  if (error) {
+    throw error;
+  }
+}
+
+/**
+ * Odrzucenie zapisu oczekującego przez właściciela z powodem, który jeździec zobaczy — RPC `reject_booking`
+ * (zapis staje się odrzucony, źródło „ośrodek ręcznie”). Odmowy podnosi baza: SB070 brak powodu, SB071 za długi
+ * powód, SB064 slot się zaczął, SB065 zapis nie jest oczekujący, SB066 cudzy albo nieistniejący zapis —
+ * wołający tłumaczy je przez `rejectionErrorMessage`.
+ */
+export async function rejectBooking(client: Client, bookingId: number, reason: string): Promise<void> {
+  const { error } = await client.rpc("reject_booking", { p_booking_id: bookingId, p_reason: reason });
 
   if (error) {
     throw error;

@@ -18,6 +18,7 @@ function booking(overrides: Partial<RiderBooking>): RiderBooking {
     horseName: null,
     status: "active",
     cancelledBy: null,
+    rejectionReason: null,
     ...overrides,
   };
 }
@@ -184,14 +185,43 @@ describe("splitRiderBookings", () => {
     ]);
   });
 
-  // Zapisy odrzucone dostaną własny widok w #125; do tego czasu nie udają jazdy ani zapisu aktywnego.
-  it("zapis odrzucony nie trafia do nadchodzących ani do historii", () => {
-    const active = [booking({ id: 1 }), booking({ id: 2, day: "2026-08-19" })];
-    const rejected = [
-      booking({ id: 5, status: "rejected" }),
-      booking({ id: 6, status: "rejected", day: "2026-08-19" }),
-    ];
+  it("zapis odrzucony do końca slotu jest w nadchodzących z powodem, bez odwołania i bez konia", () => {
+    const { upcoming, history } = splitRiderBookings(
+      [booking({ status: "rejected", rejectionReason: "Na tę godzinę mamy już komplet." })],
+      NOW,
+    );
 
-    expect(splitRiderBookings([...active, ...rejected], NOW)).toEqual(splitRiderBookings(active, NOW));
+    expect(history).toHaveLength(0);
+    expect(upcoming[0]).toMatchObject({
+      state: "rejected",
+      stateLabel: "Odrzucony: Na tę godzinę mamy już komplet.",
+      cancellable: false,
+      horseLabel: null,
+      cancelledByLabel: null,
+    });
+  });
+
+  it("odrzucenie automatyczne pokazuje swój powód jak ręczne", () => {
+    const { upcoming } = splitRiderBookings([booking({ status: "rejected", rejectionReason: "Brak miejsc" })], NOW);
+
+    expect(upcoming[0].stateLabel).toBe("Odrzucony: Brak miejsc");
+  });
+
+  it("zapis odrzucony, którego slot trwa, zostaje w nadchodzących; po terminie slotu trafia do historii", () => {
+    // 13:30 — slot o 13 trwa, slot o 12 się skończył.
+    const { upcoming, history } = splitRiderBookings(
+      [
+        booking({ id: 1, status: "rejected", rejectionReason: "Brak miejsc", day: TODAY, hour: 13 }),
+        booking({ id: 2, status: "rejected", rejectionReason: "Brak miejsc", day: TODAY, hour: 12 }),
+        booking({ id: 3, status: "rejected", rejectionReason: "Brak miejsc", day: "2026-08-19" }),
+      ],
+      NOW,
+    );
+
+    expect(upcoming.map((r) => r.id)).toEqual([1]);
+    expect(history.map((r) => [r.id, r.stateLabel, r.cancellable])).toEqual([
+      [2, "Odrzucony: Brak miejsc", false],
+      [3, "Odrzucony: Brak miejsc", false],
+    ]);
   });
 });

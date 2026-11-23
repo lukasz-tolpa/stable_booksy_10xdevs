@@ -24,6 +24,8 @@ export interface PendingBooking {
   riderName: string | null;
   riderEmail: string | null;
   createdAt: string;
+  /** Ośrodek odrzucił już ręcznie temu jeźdźcowi zapis na ten slot (#125, US 27). */
+  rejectedBefore: boolean;
 }
 
 export interface PendingBookingRow {
@@ -37,6 +39,8 @@ export interface PendingBookingRow {
   kind: SlotKind;
   freeSeats: number;
   seats: number;
+  /** „Wcześniej odrzucony na ten slot” — ośrodek odrzucił już temu jeźdźcowi zapis na ten slot. */
+  rejectedBefore: boolean;
 }
 
 export interface PendingBookingsDay {
@@ -76,6 +80,7 @@ export function composePendingBookings(bookings: PendingBooking[], now: Date = n
       kind: booking.kind,
       freeSeats: Math.max(0, booking.seats - booking.taken),
       seats: booking.seats,
+      rejectedBefore: booking.rejectedBefore,
     });
   }
 

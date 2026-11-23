@@ -19,6 +19,7 @@ function pending(overrides: Partial<PendingBooking>): PendingBooking {
     riderName: "Anna Kowalska",
     riderEmail: "anna.kowalska@example.com",
     createdAt: "2026-08-19T10:00:00Z",
+    rejectedBefore: false,
     ...overrides,
   };
 }
@@ -41,6 +42,7 @@ describe("composePendingBookings", () => {
             kind: "recreation",
             freeSeats: 2,
             seats: 3,
+            rejectedBefore: false,
           },
         ],
       },
@@ -92,6 +94,15 @@ describe("composePendingBookings", () => {
     const view = composePendingBookings([pending({ riderName: null, riderEmail: null, placeName: null })], NOW);
 
     expect(view[0].rows[0]).toMatchObject({ riderName: "(jeździec)", riderEmail: null, placeName: "(plac)" });
+  });
+
+  it("zapis jeźdźca, któremu ośrodek odrzucił już zapis na ten slot, jest oznaczony", () => {
+    const [day] = composePendingBookings([pending({ id: 1, rejectedBefore: true }), pending({ id: 2 })], NOW);
+
+    expect(day.rows.map((row) => [row.id, row.rejectedBefore])).toEqual([
+      [1, true],
+      [2, false],
+    ]);
   });
 
   it("bez zapisów oczekujących — pusta lista", () => {

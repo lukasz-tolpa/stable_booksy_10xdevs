@@ -71,8 +71,10 @@ begin
   -- Oczekujacy i odrzucony sa stanami kolumny, bez znacznika przyjecia.
   insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status)
   values (v_day, v_joanna, 13, 'abababab-abab-abab-abab-abababababab', 'pending');
-  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status)
-  values (v_day, v_joanna, 14, 'abababab-abab-abab-abab-abababababab', 'rejected');
+  -- Odrzucony zawsze z powodem i zrodlem (#125, bookings_rejection_consistency_check).
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status, rejection_reason,
+                               rejection_source, rejected_at)
+  values (v_day, v_joanna, 14, 'abababab-abab-abab-abab-abababababab', 'rejected', 'Brak koni', 'stable', now());
   select string_agg(status || ':' || (accepted_at is not null)::text, ',' order by hour) into v_state
   from public.bookings where rider_id = 'abababab-abab-abab-abab-abababababab';
   if v_state is distinct from 'pending:false,rejected:false' then

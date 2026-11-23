@@ -77,6 +77,9 @@ export type Database = {
           hour: number;
           id: number;
           instructor_id: number;
+          rejected_at: string | null;
+          rejection_reason: string | null;
+          rejection_source: string | null;
           rider_id: string | null;
           schedule_day_id: number;
           status: string;
@@ -90,6 +93,9 @@ export type Database = {
           hour: number;
           id?: never;
           instructor_id: number;
+          rejected_at?: string | null;
+          rejection_reason?: string | null;
+          rejection_source?: string | null;
           rider_id?: string | null;
           schedule_day_id: number;
           status?: string;
@@ -103,6 +109,9 @@ export type Database = {
           hour?: number;
           id?: never;
           instructor_id?: number;
+          rejected_at?: string | null;
+          rejection_reason?: string | null;
+          rejection_source?: string | null;
           rider_id?: string | null;
           schedule_day_id?: number;
           status?: string;
@@ -753,6 +762,7 @@ export type Database = {
           instructor_name: string;
           kind: string;
           place_name: string;
+          rejected_before: boolean;
           rider_email: string;
           rider_id: string;
           rider_name: string;
@@ -834,6 +844,10 @@ export type Database = {
           stable_name: string;
           stable_owner_id: string;
         }[];
+      };
+      reject_booking: {
+        Args: { p_booking_id: number; p_reason: string };
+        Returns: undefined;
       };
       revoke_instructor_invitation: {
         Args: { p_instructor_id: number };

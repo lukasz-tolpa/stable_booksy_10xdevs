@@ -10,7 +10,8 @@ import type { BookingStatus } from "@/types";
  * („Czeka na przyjęcie”, „Nie przyjęty w terminie”), kto odwołał.
  *
  * Nadchodzące: zapisy aktywne i oczekujące, których slot się nie zaczął (z odwołaniem), oraz wygasłe
- * (GLOSSARY „Wygaśnięcie zapisu”) do końca swojego slotu (bez odwołania); potem wygasły trafia do historii.
+ * (GLOSSARY „Wygaśnięcie zapisu”) i odrzucone („Odrzucony: <powód>”, GLOSSARY „Odrzucenie zapisu”) do końca
+ * swojego slotu (bez odwołania); potem trafiają do historii jak odwołane.
  * Próg „slot się zaczął" to `hasSlotStarted` — ten sam co przy zapisie i odwołaniu, wygaśnięcie wyprowadza
  * `bookingStateAt`. `now` jest wstrzykiwane parametrem, żeby testy nie zależały od zegara.
  */
@@ -26,7 +27,7 @@ export interface RiderBookingRow {
   status: BookingStatus;
   /** Stan widoczny dla jeźdźca — z wyprowadzonym wygaśnięciem (`bookingStateAt`). */
   state: BookingState;
-  /** „Czeka na przyjęcie” / „Nie przyjęty w terminie”; `null` przy zapisie aktywnym i odwołanym. */
+  /** „Czeka na przyjęcie” / „Nie przyjęty w terminie” / „Odrzucony: <powód>”; `null` przy aktywnym i odwołanym. */
   stateLabel: string | null;
   /** Wiersz ma „Odwołaj”: zapis aktywny albo oczekujący, którego slot się nie zaczął. */
   cancellable: boolean;
@@ -35,7 +36,7 @@ export interface RiderBookingRow {
 }
 
 export interface RiderBookingSections {
-  /** Aktywne i oczekujące zapisy, które się nie zaczęły, i wygasłe do końca slotu — rosnąco (data, godzina). */
+  /** Aktywne i oczekujące zapisy, które się nie zaczęły, i wygasłe albo odrzucone do końca slotu — rosnąco. */
   upcoming: RiderBookingRow[];
   /** Minione i odwołane — sortowane malejąco (najnowsze na górze). */
   history: RiderBookingRow[];
@@ -50,7 +51,18 @@ export const PENDING_LABEL = "Czeka na przyjęcie";
 /** Zapis wygasły — ośrodek nie zdecydował do startu slotu (GLOSSARY „Wygaśnięcie zapisu”). */
 export const EXPIRED_LABEL = "Nie przyjęty w terminie";
 
+/** Zapis odrzucony z powodem, który ośrodek podał albo który dało odrzucenie automatyczne („Brak miejsc”). */
+export function rejectedLabel(reason: string): string {
+  return `Odrzucony: ${reason}`;
+}
+
 const STATE_LABELS: Partial<Record<BookingState, string>> = { pending: PENDING_LABEL, expired: EXPIRED_LABEL };
+
+function stateLabel(booking: RiderBooking, state: BookingState): string | null {
+  // CHECK spójności: odrzucony zapis zawsze ma powód.
+  if (state === "rejected") return rejectedLabel(booking.rejectionReason ?? "");
+  return STATE_LABELS[state] ?? null;
+}
 
 function byDayHourAsc(a: RiderBookingRow, b: RiderBookingRow): number {
   // Daty ISO porównują się poprawnie jako ciągi - ten sam idiom co `isPastDate`.
@@ -80,11 +92,11 @@ export function splitRiderBookings(bookings: RiderBooking[], now: Date = new Dat
   const ended = slotEndedAt(now);
 
   for (const booking of bookings) {
-    // Zapisy odrzucone dostaną własny wiersz w #125; do tego czasu się nie pokazują.
-    if (booking.status === "rejected") continue;
     const state = bookingStateAt(booking, now);
     const cancellable = (state === "active" || state === "pending") && !hasSlotStarted(booking.day, booking.hour, now);
-    const isUpcoming = cancellable || (state === "expired" && !ended(booking.day, booking.hour));
+    // Wygasły i odrzucony zostają widoczne do końca swojego slotu, potem są historią.
+    const decided = state === "expired" || state === "rejected";
+    const isUpcoming = cancellable || (decided && !ended(booking.day, booking.hour));
     const row: RiderBookingRow = {
       id: booking.id,
       day: booking.day,
@@ -94,7 +106,7 @@ export function splitRiderBookings(bookings: RiderBooking[], now: Date = new Dat
       horseLabel: horseLabel(booking, state, isUpcoming),
       status: booking.status,
       state,
-      stateLabel: STATE_LABELS[state] ?? null,
+      stateLabel: stateLabel(booking, state),
       cancellable,
       cancelledByLabel: cancelledByLine(booking),
     };

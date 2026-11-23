@@ -368,6 +368,12 @@ reset role;
 
 \echo '=== Przyjecie przez wlasciciela ==='
 
+-- Joanna o 13 dostaje drugie miejsce: przyjecie Zofii slotu nie zapelnia, wiec Piotr dalej czeka (przyjecie,
+-- ktore zapelnia slot, odrzuca pozostalych - #125, booking_rejection.sql). Postgres pisze grafik wprost.
+update public.schedule_slots set seats = 2
+where schedule_day_id = current_setting('app.day')::bigint and instructor_id = current_setting('app.joanna')::bigint
+  and hour = 13;
+
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
 
@@ -408,7 +414,23 @@ begin
     raise exception 'FAIL: zapisy do przyjecia nie widza zajetego miejsca (taken = %)', v;
   end if;
   raise notice 'PASS: zapisy do przyjecia pokazuja zajete miejsca slotu';
+end $$;
 
+reset role;
+
+-- Ponad limit: osrodek zmniejsza limit slotu do 1 (zajete 1), Piotr nadal czeka.
+update public.schedule_slots set seats = 1
+where schedule_day_id = current_setting('app.day')::bigint and instructor_id = current_setting('app.joanna')::bigint
+  and hour = 13;
+
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
+
+do $$
+declare
+  v_status text;
+  v_horse bigint;
+begin
   begin
     perform public.accept_booking(current_setting('app.piotr_13')::bigint);
     raise exception 'FAIL: przyjecie ponad limit miejsc przeszlo';
@@ -491,10 +513,11 @@ end $$;
 
 reset role;
 
--- Zapis odrzucony (funkcja odrzucenia to #125) wstawia tu postgres.
-insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status)
+-- Zapis odrzucony (odrzucenie: booking_rejection.sql) wstawia tu postgres.
+insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status, rejection_reason,
+                             rejection_source, rejected_at)
 values (current_setting('app.day')::bigint, current_setting('app.joanna')::bigint, 15,
-        '44444444-4444-4444-4444-444444444444', 'rejected');
+        '44444444-4444-4444-4444-444444444444', 'rejected', 'Brak koni', 'stable', now());
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"44444444-4444-4444-4444-444444444444","role":"authenticated"}';

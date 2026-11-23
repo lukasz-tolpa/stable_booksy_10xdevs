@@ -6,11 +6,24 @@ export const STABLE_DAY_BOOKINGS_ROUTE = "/osrodek/zapisy";
 /** „Zapisy do przyjęcia” ośrodka (#124) — zapisy oczekujące; cel powrotu z przyjęcia zapisu. */
 export const PENDING_BOOKINGS_ROUTE = "/osrodek/zapisy-do-przyjecia";
 
-/** Potwierdzenie przyjęcia na „Zapisach do przyjęcia” (`sukces=przyjecie`). */
-export const ACCEPTED_MESSAGE = "Zapis przyjęty. Jeździec ma miejsce w slocie.";
+/** Wartości `sukces=` na „Zapisach do przyjęcia”: przyjęcie (#124) i odrzucenie (#125). */
+export type PendingBookingOutcome = "przyjecie" | "odrzucenie";
 
-/** Powrót na „Zapisy do przyjęcia” z wynikiem przyjęcia. */
-export function backToPendingBookings(context: APIContext, outcome: { error: string } | { success: "przyjecie" }) {
+const PENDING_SUCCESS_MESSAGES: Record<PendingBookingOutcome, string> = {
+  przyjecie: "Zapis przyjęty. Jeździec ma miejsce w slocie.",
+  odrzucenie: "Zapis odrzucony. Jeździec zobaczy powód w swoich zapisach.",
+};
+
+/** Potwierdzenie na „Zapisach do przyjęcia” dla parametru `sukces=`; `null` — brak albo nieznana wartość. */
+export function pendingBookingsSuccessMessage(value: string | null): string | null {
+  return value === "przyjecie" || value === "odrzucenie" ? PENDING_SUCCESS_MESSAGES[value] : null;
+}
+
+/** Powrót na „Zapisy do przyjęcia” z wynikiem przyjęcia albo odrzucenia. */
+export function backToPendingBookings(
+  context: APIContext,
+  outcome: { error: string } | { success: PendingBookingOutcome },
+) {
   const params = new URLSearchParams("error" in outcome ? { error: outcome.error } : { sukces: outcome.success });
   return context.redirect(`${PENDING_BOOKINGS_ROUTE}?${params.toString()}`);
 }

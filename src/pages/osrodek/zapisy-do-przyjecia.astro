@@ -2,6 +2,7 @@
 import { Check } from "lucide-react";
 import Layout from "@/layouts/Layout.astro";
 import Banner from "@/components/Banner.astro";
+import RejectBookingForm from "@/components/bookings/RejectBookingForm.astro";
 import Topbar from "@/components/Topbar.astro";
 import Card from "@/components/ui/Card.astro";
 import EmptyState from "@/components/ui/EmptyState.astro";
@@ -10,7 +11,7 @@ import FailureState from "@/components/ui/FailureState.astro";
 import Tag from "@/components/ui/Tag.astro";
 import { composePendingBookings, type PendingBookingsDay } from "@/lib/bookings/pending";
 import { getPendingBookings } from "@/lib/bookings/queries";
-import { ACCEPTED_MESSAGE } from "@/lib/bookings/stable-redirect";
+import { pendingBookingsSuccessMessage } from "@/lib/bookings/stable-redirect";
 import { formatClockHour, formatFreeSeats, formatLongDateWithYear } from "@/lib/format";
 import { logError } from "@/lib/log";
 import { SLOT_KIND, TRAINING_SLOT_TAG } from "@/lib/schedule/kind";
@@ -19,10 +20,12 @@ import { createClient } from "@/lib/supabase";
 // „Zapisy do przyjęcia” (#124, GLOSSARY „Zapis oczekujący”, „Przyjęcie zapisu”): zapisy jeźdźców, które
 // czekają na decyzję ośrodka, najbliższe terminy na górze. Dostęp pilnuje middleware (mapa tras
 // w @/lib/auth/roles); ośrodek bierze funkcja bazy z sesji. Przyjęcie ponad limit miejsc, po starcie slotu
-// i zapisu, który przestał czekać, odrzuca baza — strona tylko pokazuje wolne miejsca.
+// i zapisu, który przestał czekać, odrzuca baza — strona tylko pokazuje wolne miejsca. Odrzucenie (#125)
+// wymaga powodu, który jeździec zobaczy; zapis jeźdźca, któremu ośrodek odrzucił już zapis na ten slot, jest
+// oznaczony.
 const { profile } = Astro.locals;
 const error = Astro.url.searchParams.get("error");
-const success = Astro.url.searchParams.get("sukces") === "przyjecie" ? ACCEPTED_MESSAGE : null;
+const success = pendingBookingsSuccessMessage(Astro.url.searchParams.get("sukces"));
 
 const supabase = createClient(Astro.request.headers, Astro.cookies);
 
@@ -47,7 +50,8 @@ if (supabase && profile) {
   <main class="container-narrow page">
     <h1>Zapisy do przyjęcia</h1>
     <p class="page-lead">
-      Jeźdźcy, którzy zapisali się na jazdę i czekają na przyjęcie. Przyjęty zapis zajmuje miejsce w slocie.
+      Jeźdźcy, którzy zapisali się na jazdę i czekają na przyjęcie. Przyjęty zapis zajmuje miejsce w slocie, a gdy slot
+      się zapełni, pozostałe zapisy na niego odrzucają się same z powodem „Brak miejsc”.
     </p>
 
     {
@@ -92,6 +96,7 @@ if (supabase && profile) {
                     <span class="row__meta">
                       <span class="row__strong">{row.riderName}</span>
                       {row.riderEmail && <span class="row__sub">{row.riderEmail}</span>}
+                      {row.rejectedBefore && <Tag>wcześniej odrzucony na ten slot</Tag>}
                     </span>
                     <span class="row__meta row__slot">
                       <span>{row.instructorName}</span>
@@ -103,13 +108,16 @@ if (supabase && profile) {
                         <span class="row__sub mono-nums">{formatFreeSeats(row.freeSeats, row.seats)}</span>
                       )}
                     </span>
-                    <form method="post" action="/api/bookings/accept" class="row__actions">
-                      <input type="hidden" name="bookingId" value={row.id} />
-                      <GhostButton>
-                        <Check className="size-4" aria-hidden="true" />
-                        Przyjmij
-                      </GhostButton>
-                    </form>
+                    <div class="row__actions">
+                      <form method="post" action="/api/bookings/accept">
+                        <input type="hidden" name="bookingId" value={row.id} />
+                        <GhostButton>
+                          <Check className="size-4" aria-hidden="true" />
+                          Przyjmij
+                        </GhostButton>
+                      </form>
+                      <RejectBookingForm bookingId={row.id} riderName={row.riderName} />
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -197,5 +205,8 @@ if (supabase && profile) {
   .row__actions {
     flex-basis: 100%;
     display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 8px 10px;
   }
 </style>

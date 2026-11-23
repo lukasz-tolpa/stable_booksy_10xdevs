@@ -1,0 +1,119 @@
+---
+// „Odrzuć” zapis oczekujący z powodem, który jeździec zobaczy (#125, GLOSSARY „Odrzucenie zapisu”). Jeden krok
+// potwierdzenia bez JavaScriptu, jak „Odwołaj zapis” na liście dnia: `<details>` z polem powodu i przyciskiem
+// „Potwierdź odrzucenie”. Te same reguły powodu (wymagany, do `REJECTION_REASON_MAX` znaków) sprawdzają
+// przeglądarka, endpoint i baza. Wspólny dla „Zapisów do przyjęcia” i (#128) zapisów dnia.
+import { X } from "lucide-react";
+import { REJECTION_REASON_MAX } from "@/lib/bookings/rejection";
+
+interface Props {
+  bookingId: number;
+  /** Jeździec w etykiecie pola — etykiety na liście wielu zapisów są rozróżnialne. */
+  riderName: string;
+}
+
+const { bookingId, riderName } = Astro.props;
+const fieldId = `reject-reason-${String(bookingId)}`;
+---
+
+<details class="reject">
+  <summary>
+    <X className="size-4" aria-hidden="true" />
+    Odrzuć
+  </summary>
+  <form method="post" action="/api/bookings/reject" class="reject__form">
+    <input type="hidden" name="bookingId" value={bookingId} />
+    <label for={fieldId}>Powód odrzucenia — {riderName}</label>
+    <textarea id={fieldId} name="reason" rows="3" maxlength={REJECTION_REASON_MAX} required></textarea>
+    <p class="reject__hint">Jeździec zobaczy ten powód w swoich zapisach.</p>
+    <button type="submit" class="btn-danger">Potwierdź odrzucenie</button>
+  </form>
+</details>
+
+<style>
+  .reject {
+    min-width: 0;
+  }
+  .btn-danger,
+  .reject summary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 10px 15px;
+    border-radius: 999px;
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+      background 0.15s,
+      border-color 0.15s;
+  }
+  .reject summary {
+    list-style: none;
+    border: 1px solid var(--danger);
+    background: var(--surface);
+    color: var(--danger-ink);
+  }
+  .reject summary::-webkit-details-marker {
+    display: none;
+  }
+  .reject summary:hover {
+    background: var(--danger-soft);
+  }
+  /* `[open]` ustawia przeglądarka — analiza selektorów Astro go nie widzi. */
+  .reject:global([open]) summary {
+    background: var(--danger-soft);
+  }
+  .reject summary:focus-visible,
+  .btn-danger:focus-visible {
+    outline: 2px solid var(--danger);
+    outline-offset: 2px;
+  }
+  .reject__form {
+    margin-top: 10px;
+    display: grid;
+    gap: 6px;
+    max-width: 52ch;
+  }
+  label {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  textarea {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border-2);
+    border-radius: var(--r);
+    background: var(--surface);
+    color: var(--fg);
+    font: inherit;
+    font-size: 15px;
+    resize: vertical;
+  }
+  textarea:focus-visible {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-soft);
+  }
+  .reject__hint {
+    margin: 0;
+    color: var(--muted);
+    font-size: 13.5px;
+  }
+  .btn-danger {
+    justify-self: start;
+    margin-top: 4px;
+    border: 1px solid var(--danger);
+    background: var(--danger);
+    color: var(--surface);
+  }
+  .btn-danger:hover {
+    background: var(--danger-ink);
+  }
+</style>
