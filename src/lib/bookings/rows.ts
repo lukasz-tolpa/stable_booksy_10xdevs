@@ -1,6 +1,6 @@
 import type { DayBooking } from "@/lib/bookings/queries";
 import { hasSlotStarted, unknownInstructorName } from "@/lib/bookings/slots";
-import { cancelledByLabel } from "@/lib/bookings/status";
+import { cancelledByLabel, isActiveBooking } from "@/lib/bookings/status";
 import { horsesOnDay, type BoardingHorse } from "@/lib/boarding/month";
 import { placeNamer, type PlaceName } from "@/lib/places/names";
 import { SLOT_KIND, type SlotKind } from "@/lib/schedule/kind";
@@ -144,7 +144,7 @@ export function composeDayBookingSections(input: DayBookingSectionsInput): DayBo
     if (horse.riderKey === null) continue;
     boarderHorses.set(horse.riderKey, [...(boarderHorses.get(horse.riderKey) ?? []), named(horse.horseId)]);
   }
-  const activeBookings = bookings.filter((booking) => booking.status === "active");
+  const activeBookings = bookings.filter(isActiveBooking);
 
   const active = activeBookings
     .map((booking): ActiveBookingRow => {

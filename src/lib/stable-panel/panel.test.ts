@@ -37,6 +37,7 @@ function booking(day: string, overrides: Partial<StatsBooking> = {}): StatsBooki
     status: "active",
     riderId: "r1",
     cancelledBy: null,
+    wasAccepted: true,
     ...overrides,
   };
 }
@@ -156,6 +157,21 @@ describe("composeWeek", () => {
 
     expect(week.summary).toBe("1 zapis na 1 miejsce");
     expect(week.unscheduledText).toBe("1 dzień bez grafiku");
+  });
+
+  it("zapis oczekujący ani odrzucony nie zajmuje miejsca: tydzień i licznik „bez konia” bez zmian", () => {
+    const days = [scheduleDay(TODAY, [2, 1]), scheduleDay("2026-11-21", [1])];
+    const bookings = [booking(TODAY, { horseId: null }), booking("2026-11-21")];
+    const notActive = [
+      booking(TODAY, { status: "pending", horseId: null, riderId: "r2", wasAccepted: false }),
+      booking(TODAY, { hour: 11, status: "rejected", horseId: null, riderId: "r3", wasAccepted: false }),
+      booking("2026-11-21", { status: "pending", horseId: null, riderId: "r2", wasAccepted: false }),
+    ];
+
+    const baseline = composeWeek({ today: TODAY, days, bookings });
+
+    expect(baseline).toMatchObject({ booked: 2, seats: 4 });
+    expect(composeWeek({ today: TODAY, days, bookings: [...bookings, ...notActive] })).toEqual(baseline);
   });
 
   it("tydzień ułożony w całości nie ma dopisku o dniach bez grafiku", () => {

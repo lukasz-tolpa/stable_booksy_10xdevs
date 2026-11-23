@@ -208,10 +208,11 @@ begin
   raise notice 'PASS 9: jezdzcy do wyboru - tylko jezdzcy z zapisem w osrodku i pensjonariuszka';
 end $$;
 
--- Piotr dostaje w Pod Dębem jedynie odwolany zapis (jutro u Joanny o 12).
+-- Piotr dostaje w Pod Dębem jedynie odwolany zapis (jutro u Joanny o 12) - zapis przyjety (accepted_at,
+-- #123), wiec Piotr jest jezdzcem osrodka; wycofany zapis oczekujacy by nie wystarczyl (booking_states.sql).
 reset role;
-insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status, cancelled_at, cancelled_by)
-select sd.id, i.id, 12, '44444444-4444-4444-4444-444444444444', 'cancelled', now(), 'rider'
+insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status, accepted_at, cancelled_at, cancelled_by)
+select sd.id, i.id, 12, '44444444-4444-4444-4444-444444444444', 'cancelled', now(), now(), 'rider'
 from public.schedule_days sd
 join public.instructors i on i.stable_id = sd.stable_id and i.name = 'Joanna Wrona'
 where sd.stable_id = current_setting('app.debem')::bigint and sd.day = current_date + 1;

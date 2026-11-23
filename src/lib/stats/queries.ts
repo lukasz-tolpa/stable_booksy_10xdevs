@@ -50,6 +50,8 @@ export interface RawStatsBooking {
   rider_id: string | null;
   /** Kto odwołał: `'rider'` albo `'stable'`; `null` dla zapisu aktywnego. Zawężane w `toCancelledBy`. */
   cancelled_by: string | null;
+  /** Kiedy zapis został przyjęty (stał się aktywny); `null` — nigdy nie był aktywny. Źródło `wasAccepted`. */
+  accepted_at: string | null;
   /** `null`, gdy zapis nie ma jeźdźca albo RLS ukryje profil. */
   profiles: { full_name: string | null } | null;
   /** Rodzaj przydzielonego konia (FK `bookings_horse_fkey`); `null` — zapis bez konia. */
@@ -131,6 +133,7 @@ export async function collectStatsRows(loadPage: StatsPageLoader, pageSize: numb
           status: toBookingStatus(booking.status),
           riderId: booking.rider_id,
           cancelledBy: toCancelledBy(booking.cancelled_by),
+          wasAccepted: booking.accepted_at !== null,
           slotKind: slot?.kind ?? SLOT_KIND.recreation,
           placeId: slot?.placeId ?? null,
           horseKind: booking.horses ? toHorseKind(booking.horses.kind) : null,
@@ -152,8 +155,8 @@ export async function collectStatsRows(loadPage: StatsPageLoader, pageSize: numb
 }
 
 /**
- * Dni grafiku stadniny z okresu wraz z przydziałami koni i WSZYSTKIMI zapisami —
- * także odwołanymi (lista dnia czyta tylko aktywne; statystyki liczą odwołania). Każdy zapis niesie
+ * Dni grafiku stadniny z okresu wraz z przydziałami koni i WSZYSTKIMI zapisami (każdy stan) —
+ * także odwołanymi (liczby czytają tylko aktywne; statystyki liczą odwołania przyjętych). Każdy zapis niesie
  * rodzaj slotu, plac i rodzaj konia (#115) — wspólny odczyt statystyk, rozliczeń, podsumowań i PDF.
  *
  * Jedno zapytanie na stronę: zapisy dociąga embedded select przez FK `bookings → schedule_days`
@@ -175,7 +178,7 @@ export function getStatsRows(client: Client, stableId: number, period: StatsPeri
     client
       .from("schedule_days")
       .select(
-        "day, open_hour, close_hour, schedule_day_horses(horse_id), schedule_day_instructors(instructor_id, schedule_slots(hour, seats, kind, place_id)), bookings(hour, instructor_id, status, cancelled_by, horse_id, rider_id, profiles(full_name), horses(kind))",
+        "day, open_hour, close_hour, schedule_day_horses(horse_id), schedule_day_instructors(instructor_id, schedule_slots(hour, seats, kind, place_id)), bookings(hour, instructor_id, status, cancelled_by, accepted_at, horse_id, rider_id, profiles(full_name), horses(kind))",
       )
       .eq("stable_id", stableId)
       .gte("day", period.from)

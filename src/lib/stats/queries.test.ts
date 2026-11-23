@@ -31,6 +31,8 @@ function rawBooking(overrides: Partial<RawStatsBooking>): RawStatsBooking {
     horse_id: 1,
     rider_id: "rider-anna",
     cancelled_by,
+    // Zapis aktywny albo odwołany po przyjęciu — jak każdy zapis sprzed zapisów oczekujących.
+    accepted_at: overrides.status === "pending" || overrides.status === "rejected" ? null : "2026-11-01T09:00:00+00:00",
     profiles: { full_name: "Anna Kowalska" },
     horses: overrides.horse_id === null ? null : { kind: "stable" },
     ...overrides,
@@ -106,6 +108,7 @@ describe("collectStatsRows", () => {
           status: "active",
           riderId: "rider-anna",
           cancelledBy: null,
+          wasAccepted: true,
           slotKind: "recreation",
           placeId: 21,
           horseKind: "stable",
@@ -118,6 +121,7 @@ describe("collectStatsRows", () => {
           status: "cancelled",
           riderId: "rider-piotr",
           cancelledBy: "stable",
+          wasAccepted: true,
           slotKind: "recreation",
           placeId: 21,
           horseKind: null,
@@ -145,6 +149,7 @@ describe("collectStatsRows", () => {
         status: "active",
         riderId: "rider-anna",
         cancelledBy: null,
+        wasAccepted: true,
         slotKind: "recreation",
         placeId: null,
         horseKind: null,
@@ -270,12 +275,25 @@ describe("collectStatsRows", () => {
     expect(rows.riders).toEqual([{ id: "rider-anna", name: "Anna Kowalska" }]);
   });
 
-  it("zapis o nieznanym statusie leci wyjątkiem, zamiast po cichu trafić do statystyk", async () => {
+  it("zapis odwołany, który nie był przyjęty, nie niesie znacznika przyjęcia", async () => {
     const loader = stubLoader([
-      { data: [rawDay("2026-11-05", [1], [rawBooking({ status: "pending", profiles: null })])], error: null },
+      {
+        data: [rawDay("2026-11-05", [1], [rawBooking({ status: "cancelled", horse_id: null, accepted_at: null })])],
+        error: null,
+      },
     ]);
 
-    await expect(collectStatsRows(loader)).rejects.toThrow("pending");
+    const rows = await collectStatsRows(loader);
+
+    expect(rows.bookings).toMatchObject([{ status: "cancelled", cancelledBy: "rider", wasAccepted: false }]);
+  });
+
+  it("zapis o nieznanym statusie leci wyjątkiem, zamiast po cichu trafić do statystyk", async () => {
+    const loader = stubLoader([
+      { data: [rawDay("2026-11-05", [1], [rawBooking({ status: "archived", profiles: null })])], error: null },
+    ]);
+
+    await expect(collectStatsRows(loader)).rejects.toThrow("archived");
   });
 
   it("odwołanie o nieznanej stronie odwołania leci wyjątkiem, zamiast trafić do złej kolumny", async () => {

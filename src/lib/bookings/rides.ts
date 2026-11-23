@@ -1,5 +1,6 @@
 import { currentWarsawHour } from "@/lib/bookings/slots";
 import { todayIso } from "@/lib/schedule/dates";
+import { isActiveBooking } from "@/lib/bookings/status";
 import type { BookingStatus } from "@/types";
 
 /**
@@ -38,5 +39,5 @@ export interface RideCandidate {
 
 /** Czy zapis jest jazdą: aktywny, a jego slot już się skończył. */
 export function isRide(booking: RideCandidate, ended: SlotEnded): boolean {
-  return booking.status === "active" && ended(booking.day, booking.hour);
+  return isActiveBooking(booking) && ended(booking.day, booking.hour);
 }

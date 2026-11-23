@@ -1,6 +1,6 @@
 import type { RiderBooking } from "@/lib/bookings/queries";
 import { hasSlotStarted, unknownInstructorName } from "@/lib/bookings/slots";
-import { cancelledByLabel } from "@/lib/bookings/status";
+import { cancelledByLabel, isActiveBooking } from "@/lib/bookings/status";
 import type { BookingStatus } from "@/types";
 
 /**
@@ -46,7 +46,7 @@ function byDayHourAsc(a: RiderBookingRow, b: RiderBookingRow): number {
 }
 
 function horseLabel(booking: RiderBooking, upcoming: boolean): string | null {
-  if (booking.status === "cancelled") return null;
+  if (!isActiveBooking(booking)) return null;
   if (booking.horseName !== null) return booking.horseName;
   return upcoming ? HORSE_PENDING : HORSE_NOT_ASSIGNED;
 }
@@ -62,7 +62,9 @@ export function splitRiderBookings(bookings: RiderBooking[], now: Date = new Dat
   const history: RiderBookingRow[] = [];
 
   for (const booking of bookings) {
-    const isUpcoming = booking.status === "active" && !hasSlotStarted(booking.day, booking.hour, now);
+    // Lista pokazuje zapisy aktywne i odwołane; oczekujące i odrzucone (#122) nie udają jazdy.
+    if (!isActiveBooking(booking) && booking.status !== "cancelled") continue;
+    const isUpcoming = isActiveBooking(booking) && !hasSlotStarted(booking.day, booking.hour, now);
     const row: RiderBookingRow = {
       id: booking.id,
       day: booking.day,

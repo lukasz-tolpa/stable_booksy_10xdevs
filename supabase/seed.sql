@@ -204,8 +204,8 @@ cross join lateral generate_series(sd.open_hour, sd.close_hour - 1) h;
 -- (przydzial konia nalezy do osrodka). Kazdy zapis w innej stadninie - material dla testu
 -- izolacji RLS. Zarezerwowane sloty testow: Karol@13 (petla jezdzca e2e), Joanna@14
 -- (odmowa e2e), Joanna@12 (skrypt wspolbieznosci test:db).
-insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id)
-select sd.id, i.id, b.hour, b.rider_id
+insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status)
+select sd.id, i.id, b.hour, b.rider_id, 'active'
 from (
   values
     ('Stadnina Pod Dębem', 'Joanna Wrona', 11::smallint, '33333333-3333-3333-3333-333333333333'::uuid),

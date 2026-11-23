@@ -69,6 +69,7 @@ export type Database = {
       };
       bookings: {
         Row: {
+          accepted_at: string | null;
           cancelled_at: string | null;
           cancelled_by: string | null;
           created_at: string;
@@ -81,6 +82,7 @@ export type Database = {
           status: string;
         };
         Insert: {
+          accepted_at?: string | null;
           cancelled_at?: string | null;
           cancelled_by?: string | null;
           created_at?: string;
@@ -93,6 +95,7 @@ export type Database = {
           status?: string;
         };
         Update: {
+          accepted_at?: string | null;
           cancelled_at?: string | null;
           cancelled_by?: string | null;
           created_at?: string;

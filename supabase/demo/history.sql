@@ -80,12 +80,13 @@ begin
   -- Aktywne zapisy w minionych godzinach = jazdy, kazda z koniem. Kandydaci (kon, godzina)
   -- wedlug dawnego wzoru; w godzinie pierwszy kandydat dostaje jednego jezdzca, drugi -
   -- drugiego, trzeci odpada (jezdziec ma najwyzej jeden zapis na godzine).
-  insert into public.bookings (schedule_day_id, instructor_id, horse_id, hour, rider_id)
+  insert into public.bookings (schedule_day_id, instructor_id, horse_id, hour, rider_id, status)
   select c.schedule_day_id,
          i.id,
          c.horse_id,
          c.hr::smallint,
-         case when (c.rank + c.doy + c.hr) % 2 = 0 then v_anna else v_piotr end
+         case when (c.rank + c.doy + c.hr) % 2 = 0 then v_anna else v_piotr end,
+         'active'
   from (
     select sdh.schedule_day_id,
            sdh.horse_id,
@@ -108,12 +109,14 @@ begin
 
   -- Odwolania Piotra: bez konia, u instruktora wedlug tego samego podzialu; tylko w godzinach,
   -- w ktorych Piotr nie ma jazdy (odwolany zapis nie zajmuje miejsca, ale zostawiamy wzor czytelny).
-  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status, cancelled_at, cancelled_by)
+  -- Kazde odwolanie historii dotyczy zapisu przyjetego (accepted_at) - liczy sie w statystykach odwolan.
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status, accepted_at, cancelled_at, cancelled_by)
   select sdh.schedule_day_id,
          i.id,
          hr::smallint,
          v_piotr,
          'cancelled',
+         sd.day - interval '2 days',
          sd.day - interval '1 day',
          'rider'
   from public.schedule_day_horses sdh
@@ -149,8 +152,8 @@ begin
 
   -- Odwolania przez osrodek: Anna u Joanny o 15:00. Odwolany zapis nie zajmuje miejsca
   -- (wyzwalacz limitu pomija nieaktywne) i nie ma konia (odwolanie czysci przydzial).
-  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status, cancelled_at, cancelled_by)
-  select sd.id, i.id, 15, v_anna, 'cancelled', sd.day - interval '1 day', 'stable'
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status, accepted_at, cancelled_at, cancelled_by)
+  select sd.id, i.id, 15, v_anna, 'cancelled', sd.day - interval '2 days', sd.day - interval '1 day', 'stable'
   from public.schedule_days sd
   join public.instructors i on i.stable_id = v_stable and i.name = 'Joanna Wrona'
   where sd.stable_id = v_stable
@@ -158,8 +161,8 @@ begin
     and extract(doy from sd.day)::int % 3 = 0;
 
   -- Odwolanie, ktorego slot zniknal: o 16:00, poza godzinami dnia 10-16 - jak po skroceniu dnia.
-  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status, cancelled_at, cancelled_by)
-  select sd.id, i.id, 16, v_anna, 'cancelled', sd.day - interval '1 day', 'stable'
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status, accepted_at, cancelled_at, cancelled_by)
+  select sd.id, i.id, 16, v_anna, 'cancelled', sd.day - interval '2 days', sd.day - interval '1 day', 'stable'
   from public.schedule_days sd
   join public.instructors i on i.stable_id = v_stable and i.name = 'Karol Jasny'
   where sd.stable_id = v_stable
@@ -242,8 +245,8 @@ begin
   where sd.stable_id = v_stable and sd.day < current_date;
 
   -- Kon nie podany - wyzwalacz bookings_slot_rules przydziela jedynego konia pensjonariuszki z pobytem.
-  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id)
-  select sl.schedule_day_id, sl.instructor_id, sl.hour, v_kasia
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status)
+  select sl.schedule_day_id, sl.instructor_id, sl.hour, v_kasia, 'active'
   from public.schedule_slots sl
   join public.schedule_days sd on sd.id = sl.schedule_day_id
   where sd.stable_id = v_stable and sd.day < current_date and sl.kind = 'training' and sl.seats > 0;

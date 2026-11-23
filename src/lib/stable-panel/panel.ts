@@ -1,5 +1,6 @@
 import { OWNER_MONTH_SUMMARY_ROUTE, OWNER_SCHEDULE_ROUTE, OWNER_SETTLEMENTS_ROUTE } from "@/lib/auth/roles";
 import { STABLE_DAY_BOOKINGS_ROUTE } from "@/lib/bookings/stable-redirect";
+import { isActiveBooking } from "@/lib/bookings/status";
 import { INSTRUCTORS_ROUTE } from "@/lib/instructors/redirect";
 import { OWNER_PLACE_OCCUPANCY_ROUTE } from "@/lib/place-occupancy/routes";
 import { PLACES_ROUTE } from "@/lib/places/redirect";
@@ -139,7 +140,7 @@ export function composeWeek(input: WeekInput): WeekView {
   const days = Array.from({ length: WEEK_LENGTH }, (_, offset): WeekDay => {
     const day = addDays(input.today, offset);
     const schedule = input.days.find((entry) => entry.day === day);
-    const active = input.bookings.filter((entry) => entry.day === day && entry.status === "active");
+    const active = input.bookings.filter((entry) => entry.day === day && isActiveBooking(entry));
     const seats = schedule?.slots.reduce((sum, slot) => sum + slot.seats, 0) ?? 0;
     const booked = active.length;
     const withoutHorse = active.filter((entry) => entry.horseId === null).length;

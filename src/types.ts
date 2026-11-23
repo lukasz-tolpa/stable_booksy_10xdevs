@@ -14,8 +14,12 @@ type Tables = Database["public"]["Tables"];
  */
 export type UserRole = "instructor" | "rider";
 
-/** Cykl zycia zapisu. Odwolanie nie kasuje wiersza, tylko przestawia status. */
-export type BookingStatus = "active" | "cancelled";
+/**
+ * Stan zapisu w bazie (GLOSSARY „Zapis”, ADR 0006): oczekujacy, aktywny (zajmuje miejsce), odrzucony,
+ * odwolany. Odwolanie i odrzucenie nie kasuja wiersza, tylko przestawiaja status. „Wygasly” jest
+ * wyprowadzany przy odczycie (`bookingStateAt` w `@/lib/bookings/status`).
+ */
+export type BookingStatus = "pending" | "active" | "rejected" | "cancelled";
 
 /** Kto odwolal zapis - wartosci kolumny `bookings.cancelled_by` (CHECK w migracji #41). */
 export type CancelledBy = "rider" | "stable";

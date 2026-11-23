@@ -129,4 +129,17 @@ describe("splitRiderBookings", () => {
   it("pusta lista daje dwie puste sekcje", () => {
     expect(splitRiderBookings([], NOW)).toEqual({ upcoming: [], history: [] });
   });
+
+  // Zapisy oczekujące i odrzucone (#122) dostaną własny widok; do tego czasu nie udają jazdy ani zapisu aktywnego.
+  it("zapis oczekujący (także wygasły) ani odrzucony nie trafia do nadchodzących ani do historii", () => {
+    const active = [booking({ id: 1 }), booking({ id: 2, day: "2026-08-19" })];
+    const notActive = [
+      booking({ id: 3, status: "pending" }),
+      booking({ id: 4, status: "pending", day: "2026-08-19" }),
+      booking({ id: 5, status: "rejected" }),
+      booking({ id: 6, status: "rejected", day: "2026-08-19" }),
+    ];
+
+    expect(splitRiderBookings([...active, ...notActive], NOW)).toEqual(splitRiderBookings(active, NOW));
+  });
 });
