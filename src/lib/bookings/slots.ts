@@ -1,4 +1,4 @@
-import { isBoarderInMonth, stayCoversDay, type BoardingStay } from "@/lib/boarding/month";
+import { horsesOnDay, isBoarderWith, type BoardingHorse } from "@/lib/boarding/month";
 import { placeNamer, type PlaceName } from "@/lib/places/names";
 import { isPastDate, SCHEDULE_TIME_ZONE, todayIso } from "@/lib/schedule/dates";
 import { SLOT_KIND, type SlotKind } from "@/lib/schedule/kind";
@@ -64,26 +64,22 @@ export interface RiderHorse {
  */
 export type RiderStanding = { boarder: false } | { boarder: true; horses: RiderHorse[] };
 
-/** Koń pensjonatowy jeźdźca w ośrodku z pobytami — z `listMyBoardingHorses`. */
-export interface StandingHorse extends RiderHorse {
-  stays: readonly BoardingStay[];
-}
+/** Koń pensjonatowy jeźdźca w ośrodku z pobytami — z `listBoardingHorses`. */
+export type StandingHorse = Pick<BoardingHorse, "horseId" | "horseName" | "stays">;
 
 /**
  * Jeździec wobec dnia ośrodka: pensjonariusz, gdy pobyt choć jednego jego konia w tym ośrodku zachodzi
- * na miesiąc dnia (`isBoarderInMonth`), z końmi, których pobyt obejmuje dzień (`stayCoversDay`), alfabetycznie.
+ * na miesiąc dnia (`isBoarderWith`), z końmi, których pobyt obejmuje dzień (`horsesOnDay`), alfabetycznie.
  */
 export function riderStandingOn(horses: readonly StandingHorse[], day: string): RiderStanding {
-  const stays = horses.flatMap((horse) => horse.stays);
-  if (!isBoarderInMonth(stays, day.slice(0, 7))) {
+  if (!isBoarderWith(horses, day.slice(0, 7))) {
     return { boarder: false };
   }
 
   return {
     boarder: true,
-    horses: horses
-      .filter((horse) => horse.stays.some((stay) => stayCoversDay(stay, day)))
-      .map(({ id, name }) => ({ id, name }))
+    horses: horsesOnDay(horses, day)
+      .map(({ horseId, horseName }) => ({ id: horseId, name: horseName }))
       .sort((a, b) => a.name.localeCompare(b.name, "pl") || a.id - b.id),
   };
 }

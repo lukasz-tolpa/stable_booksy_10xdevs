@@ -317,6 +317,11 @@ describe("riderSeesDay", () => {
 
 describe("riderStandingOn", () => {
   const stays = (arrivalDay: string, departureDay: string | null) => [{ arrivalDay, departureDay }];
+  const standing = (horse: { id: number; name: string }, arrivalDay: string, departureDay: string | null) => ({
+    horseId: horse.id,
+    horseName: horse.name,
+    stays: stays(arrivalDay, departureDay),
+  });
 
   it("jeździec bez koni pensjonatowych w ośrodku jest rekreacyjny", () => {
     expect(riderStandingOn([], "2026-12-15")).toEqual({ boarder: false });
@@ -324,9 +329,9 @@ describe("riderStandingOn", () => {
 
   it("pensjonariusz w miesiącu dnia z końmi, których pobyt obejmuje dzień jazdy", () => {
     const horses = [
-      { ...HRABIA, stays: stays("2026-09-01", null) },
-      { ...HRABINA, stays: stays("2026-12-16", null) },
-      { id: 33, name: "Baron", stays: stays("2026-09-01", "2026-12-15") },
+      standing(HRABIA, "2026-09-01", null),
+      standing(HRABINA, "2026-12-16", null),
+      standing({ id: 33, name: "Baron" }, "2026-09-01", "2026-12-15"),
     ];
 
     expect(riderStandingOn(horses, "2026-12-15")).toEqual({
@@ -336,7 +341,7 @@ describe("riderStandingOn", () => {
   });
 
   it("koń, który wyjechał w poprzednim miesiącu, nie czyni jeźdźca pensjonariuszem", () => {
-    expect(riderStandingOn([{ ...HRABIA, stays: stays("2026-09-01", "2026-11-30") }], "2026-12-15")).toEqual({
+    expect(riderStandingOn([standing(HRABIA, "2026-09-01", "2026-11-30")], "2026-12-15")).toEqual({
       boarder: false,
     });
   });

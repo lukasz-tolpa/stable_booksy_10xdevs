@@ -1,8 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/db/database.types";
 import type { BoardingFeeChange } from "@/lib/boarding/fees";
-import type { MyBoardingHorseRow, StableBoardingRow } from "@/lib/boarding/view";
-import type { StandingHorse } from "@/lib/bookings/slots";
+import type { BoardingHorse, BoardingStay } from "@/lib/boarding/month";
+import type { StableBoardingRow } from "@/lib/boarding/view";
 
 type Client = SupabaseClient<Database>;
 
@@ -42,24 +42,53 @@ export async function setStayDeparture(client: Client, stayId: number, departure
   return { stayId: typeof data === "number" ? data : null, error };
 }
 
+/** Pobyt ze wspólnego odczytu: z identyfikatorem i tym, kto ostatnio ustawił dzień wyjazdu. */
+export interface BoardingStayRecord extends BoardingStay {
+  id: number;
+  departureSetBy: string | null;
+}
+
+/** Wiersz `listBoardingHorses`: koń z ośrodkiem, pensjonariuszem, pobytami i zmianami opłaty za pensjonat. */
+export interface BoardingHorseRecord extends BoardingHorse {
+  stays: BoardingStayRecord[];
+  fees: BoardingFeeChange[];
+}
+
+/** Czyje konie: jednego pensjonariusza (wszędzie albo w jednym ośrodku) albo całego ośrodka. */
+export type BoardingHorsesFilter = { riderId: string; stableId?: number } | { riderId?: undefined; stableId: number };
+
+const BOARDING_HORSE_COLUMNS =
+  "horse_id, stable_id, rider_id, horses(name), stables(name), profiles(full_name), horse_stays(id, arrival_day, departure_day, departure_set_by), boarding_fees(id, from_month, amount)";
+
 /**
- * Konie pensjonatowe pensjonariusza z ośrodkiem i pobytami. Filtr po koncie jawnie obok RLS (wiersze
- * `horse_owners` czyta właściciel ośrodka i sam pensjonariusz). Rzuca przy błędzie odczytu.
+ * Wspólny odczyt koni pensjonatowych z właścicielami i pobytami (#112) — jedyne źródło reguły „pensjonariusz
+ * w miesiącu” i „koń w ośrodku w dniu” po stronie aplikacji: „Moje konie”, dzień ośrodka u jeźdźca, zajętość
+ * placów, zapisy dnia, rozliczenia, podsumowanie miesiąca. Każdy moduł bierze z wiersza swoje pola
+ * (`@/lib/boarding/month`). Wszystkie pobyty i opłaty — pobyt sprzed miesiąca też decyduje, a pierwsza opłata
+ * działa wstecz. RLS: `horse_owners`, `horse_stays` i `boarding_fees` czyta właściciel ośrodka i sam pensjonariusz;
+ * profil pensjonariusza właściciel czyta od dnia przyjazdu konia (wcześniej `riderName` NULL). Filtry konta
+ * i ośrodka jawnie obok RLS. Lista „Pensjonariusze” ma własny odczyt (`listStableBoardingHorses`: e-mail
+ * i nazwisko także przed przyjazdem). Rzuca przy błędzie odczytu.
  */
-export async function listMyBoardingHorses(client: Client, riderId: string): Promise<MyBoardingHorseRow[]> {
-  const { data, error } = await client
-    .from("horse_owners")
-    .select(
-      "horse_id, horses(name), stables(name), horse_stays(id, arrival_day, departure_day, departure_set_by), boarding_fees(id, from_month, amount)",
-    )
-    .eq("rider_id", riderId);
+export async function listBoardingHorses(client: Client, filter: BoardingHorsesFilter): Promise<BoardingHorseRecord[]> {
+  let query = client.from("horse_owners").select(BOARDING_HORSE_COLUMNS);
+  if (filter.riderId !== undefined) {
+    query = query.eq("rider_id", filter.riderId);
+  }
+  if (filter.stableId !== undefined) {
+    query = query.eq("stable_id", filter.stableId);
+  }
+  const { data, error } = await query;
   if (error) {
     throw error;
   }
   return data.map((row) => ({
     horseId: row.horse_id,
     horseName: row.horses.name,
+    stableId: row.stable_id,
     stableName: row.stables.name,
+    riderKey: row.rider_id,
+    riderName: row.profiles?.full_name ?? null,
     stays: row.horse_stays.map((stay) => ({
       id: stay.id,
       arrivalDay: stay.arrival_day,
@@ -130,27 +159,4 @@ export function saveBoardingFee(client: Client, fee: BoardingFeeWrite) {
  */
 export function deleteBoardingFee(client: Client, stableId: number, feeId: number) {
   return client.from("boarding_fees").delete().eq("id", feeId).eq("stable_id", stableId).select("id, horse_id");
-}
-/**
- * Konie pensjonatowe jeźdźca w jednym ośrodku z pobytami — ktoś, kim jeździec jest w dniu ośrodka (#115,
- * `riderStandingOn`). Filtr po koncie i ośrodku jawnie obok RLS. Rzuca przy błędzie odczytu.
- */
-export async function listMyBoardingHorsesAt(
-  client: Client,
-  riderId: string,
-  stableId: number,
-): Promise<StandingHorse[]> {
-  const { data, error } = await client
-    .from("horse_owners")
-    .select("horse_id, horses(name), horse_stays(arrival_day, departure_day)")
-    .eq("rider_id", riderId)
-    .eq("stable_id", stableId);
-  if (error) {
-    throw error;
-  }
-  return data.map((row) => ({
-    id: row.horse_id,
-    name: row.horses.name,
-    stays: row.horse_stays.map((stay) => ({ arrivalDay: stay.arrival_day, departureDay: stay.departure_day })),
-  }));
 }

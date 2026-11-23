@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { isBoarderInMonth, stayCoversDay, stayOverlapsMonth, type BoardingStay } from "@/lib/boarding/month";
+import {
+  horsesInMonth,
+  horsesOf,
+  horsesOnDay,
+  isBoarderInMonth,
+  isBoarderWith,
+  stayCoversDay,
+  stayOverlapsMonth,
+  type BoardingStay,
+} from "@/lib/boarding/month";
 
 function stay(arrivalDay: string, departureDay: string | null): BoardingStay {
   return { arrivalDay, departureDay };
@@ -70,5 +79,38 @@ describe("stayCoversDay — pobyt obejmuje dzień jazdy", () => {
 
   it("pobyt bez dnia wyjazdu obejmuje każdy dzień od przyjazdu", () => {
     expect(stayCoversDay(stay("2026-11-10", null), "2027-05-01")).toBe(true);
+  });
+});
+
+// #112: jedno miejsce „konie jeźdźca → pobyty → reguła” dla rozliczeń, podsumowania, zapisów i zajętości placów.
+describe("konie pensjonatowe jeźdźca wobec miesiąca i dnia", () => {
+  const horses = [
+    { horseId: 1, riderKey: "kasia", stays: [stay("2026-03-01", "2026-05-31")] },
+    { horseId: 2, riderKey: "kasia", stays: [stay("2026-11-15", null)] },
+    { horseId: 3, riderKey: "olek", stays: [stay("2026-01-01", null)] },
+    { horseId: 4, riderKey: null, stays: [stay("2026-01-01", null)] },
+  ];
+
+  it("horsesOf — konie jednego pensjonariusza; koń bez właściciela nie należy do nikogo", () => {
+    expect(horsesOf(horses, "kasia").map((horse) => horse.horseId)).toEqual([1, 2]);
+    expect(horsesOf(horses, "anna")).toEqual([]);
+  });
+
+  it("isBoarderWith — pensjonariusz w miesiącu, gdy pobyt choć jednego z jego koni zachodzi na miesiąc", () => {
+    const kasia = horsesOf(horses, "kasia");
+    expect(isBoarderWith(kasia, "2026-04")).toBe(true);
+    expect(isBoarderWith(kasia, "2026-08")).toBe(false);
+    expect(isBoarderWith(kasia, "2026-11")).toBe(true);
+    expect(isBoarderWith([], "2026-11")).toBe(false);
+  });
+
+  it("horsesInMonth — konie z pobytem w miesiącu (także przyjazd w ostatnim dniu)", () => {
+    expect(horsesInMonth(horsesOf(horses, "kasia"), "2026-05").map((horse) => horse.horseId)).toEqual([1]);
+    expect(horsesInMonth(horsesOf(horses, "kasia"), "2026-11").map((horse) => horse.horseId)).toEqual([2]);
+  });
+
+  it("horsesOnDay — konie, których pobyt obejmuje dzień; dzień przed przyjazdem w tym samym miesiącu — nie", () => {
+    expect(horsesOnDay(horsesOf(horses, "kasia"), "2026-11-14")).toEqual([]);
+    expect(horsesOnDay(horsesOf(horses, "kasia"), "2026-11-15").map((horse) => horse.horseId)).toEqual([2]);
   });
 });

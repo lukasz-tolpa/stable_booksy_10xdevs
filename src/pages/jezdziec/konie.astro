@@ -6,7 +6,7 @@ import BoardingHorse from "@/components/boarding/BoardingHorse.astro";
 import Card from "@/components/ui/Card.astro";
 import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
-import { listMyBoardingHorses } from "@/lib/boarding/queries";
+import { listBoardingHorses } from "@/lib/boarding/queries";
 import { SUCCESS_PARAM } from "@/lib/boarding/redirect";
 import { BOARDING_PAGE_TEXTS } from "@/lib/boarding/texts";
 import { boardingNotice, composeMyBoardingHorses, type MyBoardingHorseView } from "@/lib/boarding/view";
@@ -29,7 +29,7 @@ let loadFailed = false;
 
 if (supabase && profile) {
   try {
-    horses = composeMyBoardingHorses(await listMyBoardingHorses(supabase, profile.id), todayIso());
+    horses = composeMyBoardingHorses(await listBoardingHorses(supabase, { riderId: profile.id }), todayIso());
   } catch (error) {
     loadFailed = true;
     logError("page:jezdziec/konie", error);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { DayBooking } from "@/lib/bookings/queries";
-import { composeDayBookingSections, type BoardingHorseStay } from "@/lib/bookings/rows";
+import { composeDayBookingSections, type DayBoardingHorse } from "@/lib/bookings/rows";
 import type { SlotSeats } from "@/lib/schedule/queries";
 
 const HORSES = [
@@ -16,11 +16,11 @@ const HORSES = [
 const KASIA = "rider-kasia";
 
 /** Konie pensjonatowe: Hrabia i Hrabina Kasi w pobycie, Baron Kasi wyjechał przed dniem listy, Cudzy - Piotra. */
-const BOARDING: BoardingHorseStay[] = [
-  { horseId: 31, riderId: KASIA, arrivalDay: "2026-08-01", departureDay: null },
-  { horseId: 32, riderId: KASIA, arrivalDay: "2026-11-01", departureDay: null },
-  { horseId: 33, riderId: KASIA, arrivalDay: "2026-08-01", departureDay: "2026-11-13" },
-  { horseId: 34, riderId: "rider-piotr", arrivalDay: "2026-08-01", departureDay: null },
+const BOARDING: DayBoardingHorse[] = [
+  { horseId: 31, riderKey: KASIA, stays: [{ arrivalDay: "2026-08-01", departureDay: null }] },
+  { horseId: 32, riderKey: KASIA, stays: [{ arrivalDay: "2026-11-01", departureDay: null }] },
+  { horseId: 33, riderKey: KASIA, stays: [{ arrivalDay: "2026-08-01", departureDay: "2026-11-13" }] },
+  { horseId: 34, riderKey: "rider-piotr", stays: [{ arrivalDay: "2026-08-01", departureDay: null }] },
 ];
 
 const PLACES = [
@@ -63,7 +63,7 @@ function sections(bookings: DayBooking[], options: { dayHorseIds?: number[]; day
     dayHorseIds: options.dayHorseIds ?? [1, 2],
     slots: SLOTS,
     places: PLACES,
-    boardingStays: BOARDING,
+    boardingHorses: BOARDING,
     day: options.day ?? DAY,
     now: NOW,
   });

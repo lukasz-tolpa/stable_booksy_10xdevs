@@ -5,7 +5,8 @@ import { formValue } from "@/lib/form-data";
 import { logError } from "@/lib/log";
 import { isExpectedRateRefusal, RATE_SAVE_FAILED, riderRateSaveErrorMessage } from "@/lib/settlements/errors";
 import { ownerRequest } from "@/lib/stables/owner-request";
-import { listSettlementBoarding, saveRate } from "@/lib/settlements/queries";
+import { listBoardingHorses } from "@/lib/boarding/queries";
+import { saveRate } from "@/lib/settlements/queries";
 import { backToRiderSettlement, backToSettlements, returnMonth, RIDER_PARAM } from "@/lib/settlements/redirect";
 import { parseRiderKey } from "@/lib/settlements/rider";
 import { riderRateStart } from "@/lib/settlements/rider-rate";
@@ -50,13 +51,13 @@ export const POST: APIRoute = async (context) => {
 
   let boarding;
   try {
-    boarding = await listSettlementBoarding(owner.supabase, owner.stableId);
+    boarding = await listBoardingHorses(owner.supabase, { stableId: owner.stableId });
   } catch (error) {
     logError(SCOPE, error);
     return back(RATE_SAVE_FAILED);
   }
 
-  const { kind, fromMonth } = riderRateStart(boarding.horses, riderKey, parsed.data.from, now);
+  const { kind, fromMonth } = riderRateStart(boarding, riderKey, parsed.data.from, now);
   const { data, error } = await saveRate(owner.supabase, {
     stableId: owner.stableId,
     riderId: riderKey,

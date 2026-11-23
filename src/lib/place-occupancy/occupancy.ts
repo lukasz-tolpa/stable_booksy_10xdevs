@@ -1,4 +1,4 @@
-import { stayCoversDay, type BoardingStay } from "@/lib/boarding/month";
+import { horsesOnDay, type BoardingHorse } from "@/lib/boarding/month";
 import { formatClockHour, formatCount } from "@/lib/format";
 import { PLACE_OCCUPANCY_TEXTS, TAKEN_SEAT_FORMS } from "@/lib/place-occupancy/texts";
 import { placeNamer } from "@/lib/places/names";
@@ -116,11 +116,7 @@ export function composePlaceOccupancy(input: PlaceOccupancyInput): PlaceOccupanc
 }
 
 /** Koń pensjonatowy jeźdźca z ośrodkiem i pobytami — źródło ośrodków zajętości placów pensjonariusza. */
-export interface BoarderHorseStays {
-  stableId: number;
-  stableName: string;
-  stays: BoardingStay[];
-}
+export type BoarderHorseStays = Pick<BoardingHorse, "stableId" | "stableName" | "stays">;
 
 /**
  * Ośrodki, których zajętość placów widzi pensjonariusz: te, w których jego koń stoi dziś (pobyt obejmuje
@@ -131,10 +127,8 @@ export function boarderOccupancyStables(
   today: string,
 ): { id: number; name: string }[] {
   const stables = new Map<number, string>();
-  for (const horse of horses) {
-    if (horse.stays.some((stay) => stayCoversDay(stay, today))) {
-      stables.set(horse.stableId, horse.stableName);
-    }
+  for (const horse of horsesOnDay(horses, today)) {
+    stables.set(horse.stableId, horse.stableName);
   }
   return [...stables].map(([id, name]) => ({ id, name })).sort(byName);
 }

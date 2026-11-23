@@ -12,7 +12,7 @@
  */
 
 import { boardingFeeFor, type BoardingFeeChange } from "@/lib/boarding/fees";
-import { isBoarderInMonth, stayOverlapsMonth, type BoardingStay } from "@/lib/boarding/month";
+import { horsesInMonth, horsesOf, isBoarderWith, type BoardingHorse } from "@/lib/boarding/month";
 import type { RideCandidate } from "@/lib/bookings/rides";
 import { UNNAMED_RIDER } from "@/lib/bookings/rows";
 import {
@@ -107,15 +107,7 @@ export interface BoardingFeeLine {
  * Koń pensjonatowy ośrodka z właścicielem i pobytami (#117) — z niego reguła „pensjonariusz w miesiącu”
  * i pozycje opłat za pensjonat. Opłaty konia są osobno (`SettlementIngredients.boardingFees`).
  */
-export interface SettlementBoardingHorse {
-  horseId: number;
-  name: string;
-  /** Pensjonariusz, którego koń stoi w ośrodku; `null` — konto usunięte, koń bez właściciela (nikt nie płaci). */
-  riderKey: string | null;
-  /** Nazwa pensjonariusza z profilu (#118, karta bez jazd); `null` — „(bez nazwiska)”. */
-  riderName: string | null;
-  stays: BoardingStay[];
-}
+export type SettlementBoardingHorse = Pick<BoardingHorse, "horseId" | "horseName" | "riderKey" | "riderName" | "stays">;
 
 /** Wiersz listy rozliczeń: jeden jeździec w miesiącu. */
 export interface SettlementRow extends RiderAmounts {
@@ -170,7 +162,7 @@ export interface SettlementIngredients {
   rates: RateChange[];
   /** Koszty dodatkowe ośrodka w miesiącu (`listMonthCosts`, #96). */
   costs: ExtraCost[];
-  /** Konie pensjonatowe ośrodka z właścicielami i pobytami (`listSettlementBoardingHorses`, #117). */
+  /** Konie pensjonatowe ośrodka z właścicielami i pobytami (`listBoardingHorses`, #117). */
   boardingHorses: SettlementBoardingHorse[];
   /** Wszystkie zmiany opłat za pensjonat koni ośrodka (#117). */
   boardingFees: BoardingFeeChange[];
@@ -220,19 +212,13 @@ export interface RiderAmountsInput extends Pick<SettlementIngredients, "boarding
   costs: readonly ExtraCost[];
 }
 
-/** Konie pensjonatowe jeźdźca (jako właściciela) w ośrodku. */
-function riderHorses(horses: readonly SettlementBoardingHorse[], riderKey: string): SettlementBoardingHorse[] {
-  return horses.filter((horse) => horse.riderKey === riderKey);
-}
-
 /**
  * Rodzaj jeźdźca w miesiącu `RRRR-MM` (reguła „pensjonariusz w miesiącu”, `isBoarderInMonth`): pobyt
  * choć jednego jego konia zachodzi na miesiąc — `training`, inaczej `recreation`. Także rodzaj stawki
  * indywidualnej, którą ustawia formularz rozliczenia jeźdźca.
  */
 export function riderKindIn(horses: readonly SettlementBoardingHorse[], riderKey: string, month: string): RateKind {
-  const stays = riderHorses(horses, riderKey).flatMap((horse) => horse.stays);
-  return isBoarderInMonth(stays, month) ? "training" : "recreation";
+  return isBoarderWith(horsesOf(horses, riderKey), month) ? "training" : "recreation";
 }
 
 /** Pozycje opłat za pensjonat: konie jeźdźca z pobytem w miesiącu, po imieniu konia. */
@@ -243,18 +229,17 @@ function feeLines(
   month: string,
 ): BoardingFeeLine[] {
   const texts = SETTLEMENT_TEXTS.rider.fee;
-  return riderHorses(horses, riderKey)
-    .filter((horse) => horse.stays.some((stay) => stayOverlapsMonth(stay, month)))
-    .sort((a, b) => a.name.localeCompare(b.name, "pl") || a.horseId - b.horseId)
+  return horsesInMonth(horsesOf(horses, riderKey), month)
+    .sort((a, b) => a.horseName.localeCompare(b.horseName, "pl") || a.horseId - b.horseId)
     .map((horse) => {
       const amount = boardingFeeFor(fees, horse.horseId, month);
       const amountText = moneyText(amount);
       return {
         horseId: horse.horseId,
-        horseName: horse.name,
+        horseName: horse.horseName,
         amount,
         amountText,
-        line: texts.line(horse.name, amountText ?? texts.missing),
+        line: texts.line(horse.horseName, amountText ?? texts.missing),
       };
     });
 }
@@ -324,9 +309,8 @@ export function composeSettlementList(input: SettlementsInput, now: Date = new D
     }
   }
   // Pensjonariusz bez jazd, którego koń stał w ośrodku w miesiącu, płaci opłatę za pensjonat (#118).
-  for (const horse of input.boardingHorses) {
-    if (horse.riderKey === null || byRider.has(horse.riderKey)) continue;
-    if (horse.stays.some((stay) => stayOverlapsMonth(stay, input.month.month))) {
+  for (const horse of horsesInMonth(input.boardingHorses, input.month.month)) {
+    if (horse.riderKey !== null && !byRider.has(horse.riderKey)) {
       byRider.set(horse.riderKey, { name: horse.riderName, rides: 0 });
     }
   }

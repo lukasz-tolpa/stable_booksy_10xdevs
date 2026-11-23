@@ -31,3 +31,45 @@ export function isBoarderInMonth(stays: readonly BoardingStay[], month: string):
 export function stayCoversDay(stay: BoardingStay, day: string): boolean {
   return stay.arrivalDay <= day && (stay.departureDay === null || stay.departureDay >= day);
 }
+
+/**
+ * Koń pensjonatowy ośrodka z pensjonariuszem i pobytami — wiersz wspólnego odczytu `listBoardingHorses`
+ * (`@/lib/boarding/queries`, #112). Każdy moduł bierze z niego tylko pola, których potrzebuje.
+ */
+export interface BoardingHorse {
+  horseId: number;
+  horseName: string;
+  stableId: number;
+  stableName: string;
+  /** Pensjonariusz (konto); `null` — konto usunięte, koń bez właściciela. */
+  riderKey: string | null;
+  /** Nazwa pensjonariusza z profilu; `null` — profil nieczytelny albo bez nazwiska. */
+  riderName: string | null;
+  stays: readonly BoardingStay[];
+}
+
+/**
+ * Konie jednego pensjonariusza (#112) — pierwszy krok reguły „konie jeźdźca → pobyty → reguła”; kolejne to
+ * `isBoarderWith`, `horsesInMonth` i `horsesOnDay`. Koń bez właściciela nie należy do nikogo.
+ */
+export function horsesOf<H extends Pick<BoardingHorse, "riderKey">>(horses: readonly H[], riderKey: string): H[] {
+  return horses.filter((horse) => horse.riderKey === riderKey);
+}
+
+/** Reguła „pensjonariusz w miesiącu” dla koni jeźdźca w jednym ośrodku: pobyt choć jednego zachodzi na miesiąc. */
+export function isBoarderWith(horses: readonly Pick<BoardingHorse, "stays">[], month: string): boolean {
+  return isBoarderInMonth(
+    horses.flatMap((horse) => horse.stays),
+    month,
+  );
+}
+
+/** Konie, których pobyt zachodzi na miesiąc `RRRR-MM` — pozycje opłat za pensjonat, karta pensjonariusza. */
+export function horsesInMonth<H extends Pick<BoardingHorse, "stays">>(horses: readonly H[], month: string): H[] {
+  return horses.filter((horse) => horse.stays.some((stay) => stayOverlapsMonth(stay, month)));
+}
+
+/** Konie, których pobyt obejmuje dzień `RRRR-MM-DD` — konie przy slocie treningowym, zajętość placów. */
+export function horsesOnDay<H extends Pick<BoardingHorse, "stays">>(horses: readonly H[], day: string): H[] {
+  return horses.filter((horse) => horse.stays.some((stay) => stayCoversDay(stay, day)));
+}

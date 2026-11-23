@@ -1,7 +1,7 @@
 import type { DayBooking } from "@/lib/bookings/queries";
 import { hasSlotStarted, unknownInstructorName } from "@/lib/bookings/slots";
 import { cancelledByLabel } from "@/lib/bookings/status";
-import { stayCoversDay } from "@/lib/boarding/month";
+import { horsesOnDay, type BoardingHorse } from "@/lib/boarding/month";
 import { placeNamer, type PlaceName } from "@/lib/places/names";
 import { SLOT_KIND, type SlotKind } from "@/lib/schedule/kind";
 import type { SlotSeats } from "@/lib/schedule/queries";
@@ -91,14 +91,8 @@ export interface DayBookingSections {
   cancelled: CancelledBookingRow[];
 }
 
-/** Pobyt konia pensjonatowego ośrodka z właścicielem — wiersz `get_stable_boarding_horses` (#114). */
-export interface BoardingHorseStay {
-  horseId: number;
-  /** Pensjonariusz; `null` — konto usunięte (koń bez właściciela). */
-  riderId: string | null;
-  arrivalDay: string;
-  departureDay: string | null;
-}
+/** Koń pensjonatowy ośrodka z pensjonariuszem i pobytami — z `listBoardingHorses` (#114). */
+export type DayBoardingHorse = Pick<BoardingHorse, "horseId" | "riderKey" | "stays">;
 
 export interface DayBookingSectionsInput {
   bookings: DayBooking[];
@@ -110,8 +104,8 @@ export interface DayBookingSectionsInput {
   slots: SlotSeats[];
   /** Place ośrodka, także nieaktywne — źródło nazw. */
   places: PlaceName[];
-  /** Pobyty koni pensjonatowych ośrodka — konie do wyboru przy slotach treningowych (#115). */
-  boardingStays: BoardingHorseStay[];
+  /** Konie pensjonatowe ośrodka z pobytami — konie do wyboru przy slotach treningowych (#115). */
+  boardingHorses: readonly DayBoardingHorse[];
   /** Dzień listy, ISO. */
   day: string;
   /** Chwila, względem której liczymy próg „slot już się zaczął" (`hasSlotStarted`). */
@@ -146,13 +140,9 @@ export function composeDayBookingSections(input: DayBookingSectionsInput): DayBo
   const dayHorses = dayHorseIds.map(named).sort(byName);
   // Konie pensjonatowe każdego pensjonariusza, których pobyt obejmuje dzień listy.
   const boarderHorses = new Map<string, HorseOption[]>();
-  for (const stay of input.boardingStays) {
-    if (stay.riderId === null || !stayCoversDay(stay, day)) continue;
-    const horsesOfRider = boarderHorses.get(stay.riderId) ?? [];
-    if (!horsesOfRider.some((horse) => horse.id === stay.horseId)) {
-      horsesOfRider.push(named(stay.horseId));
-    }
-    boarderHorses.set(stay.riderId, horsesOfRider);
+  for (const horse of horsesOnDay(input.boardingHorses, day)) {
+    if (horse.riderKey === null) continue;
+    boarderHorses.set(horse.riderKey, [...(boarderHorses.get(horse.riderKey) ?? []), named(horse.horseId)]);
   }
   const activeBookings = bookings.filter((booking) => booking.status === "active");
 

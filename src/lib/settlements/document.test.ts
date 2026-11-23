@@ -272,8 +272,8 @@ describe("composeSettlementDocument — pensjonariusz", () => {
   const boarder: Partial<RiderSettlementInput> = {
     rates: [STABLE_120, TRAINING_150],
     boardingHorses: [
-      { horseId: 8, name: "Wicher", riderKey: "anna", riderName: "Anna Kowalska", stays: [stay] },
-      { horseId: 7, name: "Hrabia", riderKey: "anna", riderName: "Anna Kowalska", stays: [stay] },
+      { horseId: 8, horseName: "Wicher", riderKey: "anna", riderName: "Anna Kowalska", stays: [stay] },
+      { horseId: 7, horseName: "Hrabia", riderKey: "anna", riderName: "Anna Kowalska", stays: [stay] },
     ],
     boardingFees: [
       { id: 1, horseId: 7, fromMonth: LAST_MONTH, amount: 150000 },

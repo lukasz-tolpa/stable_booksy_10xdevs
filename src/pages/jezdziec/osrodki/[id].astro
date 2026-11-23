@@ -9,7 +9,7 @@ import FailureState from "@/components/ui/FailureState.astro";
 import Tag from "@/components/ui/Tag.astro";
 import Layout from "@/layouts/Layout.astro";
 import { ROLE_HOME } from "@/lib/auth/roles";
-import { listMyBoardingHorsesAt } from "@/lib/boarding/queries";
+import { listBoardingHorses } from "@/lib/boarding/queries";
 import { getMyBookings, getSlotOccupancy } from "@/lib/bookings/queries";
 import {
   computeSlotHours,
@@ -57,7 +57,7 @@ if (id !== null && supabase && user) {
     if (stable) {
       const [day_, myHorses] = await Promise.all([
         getScheduleDay(supabase, id, day),
-        listMyBoardingHorsesAt(supabase, user.id, id),
+        listBoardingHorses(supabase, { riderId: user.id, stableId: id }),
       ]);
       // Jeździec rekreacyjny nie widzi dnia z samymi slotami treningowymi (#115) — dla niego to dzień nieułożony.
       const standing = riderStandingOn(myHorses, day);

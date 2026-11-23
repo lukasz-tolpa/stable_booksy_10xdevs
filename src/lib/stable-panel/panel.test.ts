@@ -467,7 +467,7 @@ describe("composeSettlementsLink — Rozliczenia w bocznej kolumnie i w główne
         boardingHorses: [
           {
             horseId: 7,
-            name: "Hrabia",
+            horseName: "Hrabia",
             riderKey: "kasia",
             riderName: "Katarzyna Zając",
             stays: [{ arrivalDay: "2026-08-10", departureDay: null }],

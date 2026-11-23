@@ -6,7 +6,7 @@
  */
 
 import { OWNER_MONTH_SUMMARY_ROUTE } from "@/lib/auth/roles";
-import { isBoarderInMonth, type BoardingStay } from "@/lib/boarding/month";
+import { horsesOf, isBoarderWith, type BoardingHorse } from "@/lib/boarding/month";
 import { unknownHorseName } from "@/lib/bookings/rows";
 import { unknownInstructorName } from "@/lib/bookings/slots";
 import { STABLE_DAY_BOOKINGS_ROUTE } from "@/lib/bookings/stable-redirect";
@@ -39,17 +39,14 @@ export interface OwnerMonthSummaryInput {
   /** Surowa wartość `?instruktor=` — nieznany instruktor albo bez jazd w miesiącu daje wszystkich. */
   instructorParam?: string | null;
   /**
-   * Konie pensjonatowe ośrodka z właścicielem i pobytami (`listSettlementBoarding`, #118) — z nich reguła
+   * Konie pensjonatowe ośrodka z właścicielem i pobytami (`listBoardingHorses`, #118) — z nich reguła
    * „pensjonariusz w miesiącu” dzieli jeźdźców na sekcje. Brak — wszyscy w „Rekreacji”.
    */
   boardingHorses?: readonly SummaryBoardingHorse[];
 }
 
 /** Koń pensjonatowy w zakresie potrzebnym podsumowaniu: właściciel (`null` — bez właściciela) i pobyty. */
-export interface SummaryBoardingHorse {
-  riderKey: string | null;
-  stays: BoardingStay[];
-}
+export type SummaryBoardingHorse = Pick<BoardingHorse, "riderKey" | "stays">;
 
 /** Pozycja listy wyboru instruktora; `value: ""` — „Wszyscy instruktorzy”. */
 export interface InstructorFilterOption {
@@ -111,20 +108,12 @@ export function composeOwnerMonthSummary(input: OwnerMonthSummaryInput, now: Dat
       viewer: "owner",
       monthHref: (month) => ownerMonthHref(month, selected),
       dayHref: (day) => dayHref(STABLE_DAY_BOOKINGS_ROUTE, day),
-      isBoarder: (riderKey) => isBoarder(input.boardingHorses ?? [], riderKey, input.month.month),
+      isBoarder: (riderKey) => isBoarderWith(horsesOf(input.boardingHorses ?? [], riderKey), input.month.month),
     },
     now,
   );
   const filter = instructors.length === 0 ? null : { options: filterOptions(instructors, selected) };
   return { ...summary, filter };
-}
-
-/** Reguła „pensjonariusz w miesiącu” (`isBoarderInMonth`) dla koni pensjonatowych jeźdźca. */
-function isBoarder(horses: readonly SummaryBoardingHorse[], riderKey: string, month: string): boolean {
-  return isBoarderInMonth(
-    horses.filter((horse) => horse.riderKey === riderKey).flatMap((horse) => horse.stays),
-    month,
-  );
 }
 
 /** Id z adresu, jeśli to instruktor z jazdami w miesiącu; inaczej `null` — wszyscy instruktorzy. */

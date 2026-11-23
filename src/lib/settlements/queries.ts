@@ -4,15 +4,10 @@ import { listStableInstructors } from "@/lib/instructors/queries";
 import type { SummaryMonth } from "@/lib/month-summary/month";
 import { ownerSummaryBookings } from "@/lib/month-summary/owner";
 import type { ExtraCost } from "@/lib/settlements/costs";
-import type { BoardingFeeChange } from "@/lib/boarding/fees";
+import { listBoardingHorses } from "@/lib/boarding/queries";
 import { toRateKind, type RateChange, type RateKind } from "@/lib/settlements/rates";
 import type { RiderSettlementInput, SettlementRider } from "@/lib/settlements/rider";
-import {
-  settlementBookings,
-  type SettlementBoardingHorse,
-  type SettlementIngredients,
-  type SettlementsInput,
-} from "@/lib/settlements/settlements";
+import { settlementBookings, type SettlementIngredients, type SettlementsInput } from "@/lib/settlements/settlements";
 import { listStableHorses } from "@/lib/stables/queries";
 import { getStatsRows } from "@/lib/stats/queries";
 import type { Rate } from "@/types";
@@ -63,56 +58,15 @@ async function loadSettlementParts(client: Client, stableId: number, month: Summ
     getStatsRows(client, stableId, month),
     listRates(client, stableId),
     listMonthCosts(client, stableId, month.month),
-    listSettlementBoarding(client, stableId),
+    listBoardingHorses(client, { stableId }),
   ]);
   const ingredients: SettlementIngredients = {
     rates,
     costs,
-    boardingHorses: boarding.horses,
-    boardingFees: boarding.fees,
+    boardingHorses: boarding,
+    boardingFees: boarding.flatMap((horse) => horse.fees),
   };
   return { rows, ingredients };
-}
-
-/**
- * Konie pensjonatowe ośrodka z właścicielami, pobytami i zmianami opłat za pensjonat (#117) — z nich
- * reguła „pensjonariusz w miesiącu”, pozycje opłat w rozliczeniu i karta pensjonariusza bez jazd (#118, nazwa
- * z profilu). Wszystkie pobyty i opłaty (pobyt sprzed miesiąca też decyduje, a pierwsza opłata działa wstecz).
- * Właściciel czyta je przez RLS (`horse_owners`, `horse_stays`, `boarding_fees`, `profiles`); jawny filtr
- * ośrodka obok. Rzuca przy błędzie zapytania.
- */
-export async function listSettlementBoarding(
-  client: Client,
-  stableId: number,
-): Promise<{ horses: SettlementBoardingHorse[]; fees: BoardingFeeChange[] }> {
-  const { data, error } = await client
-    .from("horse_owners")
-    .select(
-      "horse_id, rider_id, horses(name), profiles(full_name), horse_stays(arrival_day, departure_day), boarding_fees(id, from_month, amount)",
-    )
-    .eq("stable_id", stableId);
-
-  if (error) {
-    throw error;
-  }
-  return {
-    horses: data.map((row) => ({
-      horseId: row.horse_id,
-      name: row.horses.name,
-      riderKey: row.rider_id,
-      // Profil pensjonariusza właściciel czyta od dnia przyjazdu konia (`is_rider_of_my_stable`).
-      riderName: row.profiles?.full_name ?? null,
-      stays: row.horse_stays.map((stay) => ({ arrivalDay: stay.arrival_day, departureDay: stay.departure_day })),
-    })),
-    fees: data.flatMap((row) =>
-      row.boarding_fees.map((fee) => ({
-        id: fee.id,
-        horseId: row.horse_id,
-        fromMonth: fee.from_month.slice(0, 7),
-        amount: fee.amount,
-      })),
-    ),
-  };
 }
 
 /**

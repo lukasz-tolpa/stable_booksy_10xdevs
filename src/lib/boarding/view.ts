@@ -252,7 +252,7 @@ export function composeStableBoarders(
   };
 }
 
-/** Koń pensjonatowy pensjonariusza z pobytami — wiersz `listMyBoardingHorses`. */
+/** Koń pensjonatowy pensjonariusza z pobytami — wiersz `listBoardingHorses`. */
 export interface MyBoardingHorseRow {
   horseId: number;
   horseName: string;

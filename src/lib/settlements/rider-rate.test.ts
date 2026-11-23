@@ -108,7 +108,7 @@ describe("composeRiderRate — pensjonariusz", () => {
 describe("riderRateStart — od kiedy i jakiego rodzaju jest zapisywana stawka indywidualna", () => {
   const horse = (arrivalDay: string, departureDay: string | null): SettlementBoardingHorse => ({
     horseId: 7,
-    name: "Hrabia",
+    horseName: "Hrabia",
     riderKey: "kasia",
     riderName: "Katarzyna Zając",
     stays: [{ arrivalDay, departureDay }],

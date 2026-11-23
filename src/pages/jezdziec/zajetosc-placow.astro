@@ -7,7 +7,7 @@ import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
 import { loadPlaceOccupancy, type PlaceOccupancyState } from "@/lib/place-occupancy/load";
 import { boarderOccupancyStables } from "@/lib/place-occupancy/occupancy";
-import { listMyHorseStays } from "@/lib/place-occupancy/queries";
+import { listBoardingHorses } from "@/lib/boarding/queries";
 import { DAY_PARAM, RIDER_PLACE_OCCUPANCY_ROUTE, STABLE_PARAM, placeOccupancyHref } from "@/lib/place-occupancy/routes";
 import { PLACE_OCCUPANCY_TEXTS } from "@/lib/place-occupancy/texts";
 import { parseScheduleDate, todayIso } from "@/lib/schedule/dates";
@@ -33,7 +33,7 @@ let loadFailed = false;
 
 if (supabase && profile) {
   try {
-    stables = boarderOccupancyStables(await listMyHorseStays(supabase, profile.id), today);
+    stables = boarderOccupancyStables(await listBoardingHorses(supabase, { riderId: profile.id }), today);
   } catch (error) {
     loadFailed = true;
     logError("page:jezdziec/zajetosc-placow", error);

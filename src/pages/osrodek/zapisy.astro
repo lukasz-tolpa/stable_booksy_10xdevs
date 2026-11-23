@@ -9,7 +9,7 @@ import DayNav from "@/components/ui/DayNav.astro";
 import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
 import Tag from "@/components/ui/Tag.astro";
-import { listStableBoardingHorses } from "@/lib/boarding/queries";
+import { listBoardingHorses } from "@/lib/boarding/queries";
 import { getDayBookings } from "@/lib/bookings/queries";
 import { composeDayBookingSections, NO_HORSE, type DayBookingSections } from "@/lib/bookings/rows";
 import { stableBookingSuccessMessage } from "@/lib/bookings/stable-redirect";
@@ -49,7 +49,7 @@ if (supabase && profile) {
           getDayBookings(supabase, scheduleDay.id),
           listStableHorses(supabase, stableId),
           listStablePlaces(supabase, stableId),
-          listStableBoardingHorses(supabase),
+          listBoardingHorses(supabase, { stableId }),
         ]);
         sections = composeDayBookingSections({
           bookings,
@@ -58,18 +58,7 @@ if (supabase && profile) {
           slots: scheduleDay.seats,
           places,
           // Konie pensjonariuszy z pobytami — do wyboru przy slotach treningowych (#115).
-          boardingStays: boarding.flatMap((row) =>
-            row.arrival_day === null
-              ? []
-              : [
-                  {
-                    horseId: row.horse_id,
-                    riderId: row.rider_id,
-                    arrivalDay: row.arrival_day,
-                    departureDay: row.departure_day,
-                  },
-                ],
-          ),
+          boardingHorses: boarding,
           day,
         });
       }

@@ -12,7 +12,7 @@ import { MY_HORSES_ROUTE } from "@/lib/boarding/redirect";
 import { BOARDING_PAGE_TEXTS } from "@/lib/boarding/texts";
 import { MONTH_SUMMARY_TEXTS } from "@/lib/month-summary/texts";
 import { boarderOccupancyStables, type BoarderHorseStays } from "@/lib/place-occupancy/occupancy";
-import { listMyHorseStays } from "@/lib/place-occupancy/queries";
+import { listBoardingHorses } from "@/lib/boarding/queries";
 import { RIDER_PLACE_OCCUPANCY_ROUTE } from "@/lib/place-occupancy/routes";
 import { PLACE_OCCUPANCY_TEXTS } from "@/lib/place-occupancy/texts";
 import { todayIso } from "@/lib/schedule/dates";
@@ -42,7 +42,7 @@ if (supabase) {
   const profileId = Astro.locals.profile?.id;
   const [catalogue, horses] = await Promise.allSettled([
     listStables(supabase, term),
-    profileId ? listMyHorseStays(supabase, profileId) : Promise.resolve<BoarderHorseStays[]>([]),
+    profileId ? listBoardingHorses(supabase, { riderId: profileId }) : Promise.resolve<BoarderHorseStays[]>([]),
   ]);
   if (catalogue.status === "fulfilled") {
     stables = catalogue.value;
