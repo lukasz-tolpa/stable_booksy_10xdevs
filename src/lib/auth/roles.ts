@@ -80,6 +80,15 @@ export const INSTRUCTOR_MONTH_SUMMARY_ROUTE = `${INSTRUCTOR_HOME_ROUTE}/podsumow
 export const RIDER_MONTH_SUMMARY_ROUTE = `${ROLE_HOME.rider}/podsumowanie`;
 
 /**
+ * Strona „Powiadomienia” (#129) — wspólna dla każdej roli, poza przestrzeniami ról (dzwonek w górnym pasku).
+ * Wymaga sesji; konto instruktora bez ośrodka i zdezaktywowany instruktor przenosi middleware jak z każdej trasy.
+ */
+export const NOTIFICATIONS_ROUTE = "/powiadomienia";
+
+/** „Moje zapisy” jeźdźca — nadchodzące, odrzucone, wygasłe i historia. */
+export const RIDER_BOOKINGS_ROUTE = `${ROLE_HOME.rider}/zapisy`;
+
+/**
  * Kim jest konto `instructor` w ośrodku — wynika z danych w bazie, nie z roli konta (ADR-0004):
  * `none` — konto bez instruktora (rejestracja „Ośrodek”, ośrodek jeszcze niezałożony),
  * `owner` — instruktor właściciel ośrodka, `instructor` — instruktor z kontem bez praw właściciela,
@@ -239,6 +248,7 @@ const PROTECTED_PREFIXES: readonly RouteGuard[] = [
   { prefix: INSTRUCTOR_HOME_ROUTE, role: "instructor" },
   { prefix: ROLE_HOME.rider, role: "rider" },
   { prefix: LEGACY_HOME_ROUTE, role: null },
+  { prefix: NOTIFICATIONS_ROUTE, role: null },
 ];
 
 /**

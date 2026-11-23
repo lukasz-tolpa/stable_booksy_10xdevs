@@ -1,5 +1,5 @@
 import type { APIContext, APIRoute } from "astro";
-import { SIGN_IN_ROUTE } from "@/lib/auth/roles";
+import { RIDER_BOOKINGS_ROUTE, SIGN_IN_ROUTE } from "@/lib/auth/roles";
 import { firstErrorMessage } from "@/lib/auth/schemas";
 import { RIDER_CANCELLABLE, cancelBooking, getRiderBookingForCancel } from "@/lib/bookings/queries";
 import { cancelSchema } from "@/lib/bookings/schema";
@@ -7,7 +7,6 @@ import { hasSlotStarted } from "@/lib/bookings/slots";
 import { formValue } from "@/lib/form-data";
 import { SUPABASE_NOT_CONFIGURED, createClient } from "@/lib/supabase";
 
-const MY_BOOKINGS_ROUTE = "/jezdziec/zapisy";
 const NOT_FOUND_MESSAGE = "Nie znaleziono zapisu do odwołania.";
 
 function backToMyBookings(context: APIContext, outcome: { error?: string; success?: boolean } = {}) {
@@ -19,7 +18,7 @@ function backToMyBookings(context: APIContext, outcome: { error?: string; succes
   }
 
   const query = params.toString();
-  return context.redirect(query ? `${MY_BOOKINGS_ROUTE}?${query}` : MY_BOOKINGS_ROUTE);
+  return context.redirect(query ? `${RIDER_BOOKINGS_ROUTE}?${query}` : RIDER_BOOKINGS_ROUTE);
 }
 
 export const POST: APIRoute = async (context) => {

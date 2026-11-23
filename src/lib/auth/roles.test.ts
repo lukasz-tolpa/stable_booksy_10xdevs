@@ -185,6 +185,25 @@ describe("homeRouteForAccount", () => {
   });
 });
 
+// Oracle: #129 — strona „Powiadomienia” jest wspólna dla wszystkich ról: wymaga sesji bez konkretnej roli,
+// właściciel i instruktor z kontem na niej zostają, konto bez ośrodka i zdezaktywowany instruktor — nie.
+describe("strona „Powiadomienia” — każda rola", () => {
+  it("wymaga sesji bez konkretnej roli", () => {
+    expect(routeGuardFor("/powiadomienia")).toEqual({ prefix: "/powiadomienia", role: null });
+  });
+
+  it("właściciel i instruktor z kontem zostają na stronie", () => {
+    expect(instructorRedirect("/powiadomienia", "owner")).toBeNull();
+    expect(instructorRedirect("/powiadomienia", "instructor")).toBeNull();
+    expect(instructorRedirect("/powiadomienia", "arranging-instructor")).toBeNull();
+  });
+
+  it("konto bez ośrodka i zdezaktywowany instruktor trafiają na swój ekran", () => {
+    expect(instructorRedirect("/powiadomienia", "none")).toBe("/osrodek/nowa-stadnina");
+    expect(instructorRedirect("/powiadomienia", "inactive")).toBe("/instruktor/konto-nieaktywne");
+  });
+});
+
 describe("instructorRedirect", () => {
   it("przenosi instruktora z przestrzeni ośrodka do „Moje sloty”", () => {
     expect(instructorRedirect("/osrodek", "instructor")).toBe("/instruktor");

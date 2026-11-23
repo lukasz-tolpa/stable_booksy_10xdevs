@@ -227,3 +227,31 @@ export function hasSlotStarted(day: string, hour: number, now: Date = new Date()
   const today = todayIso(now);
   return isPastDate(day, today) || (day === today && hour <= currentWarsawHour(now));
 }
+
+const WARSAW_WALL_CLOCK = new Intl.DateTimeFormat("en-CA", {
+  timeZone: SCHEDULE_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
+/**
+ * Chwila startu slotu (dzień grafiku × godzina w Europe/Warsaw) — ten sam próg co `hasSlotStarted`,
+ * jako punkt w czasie (czas powiadomienia o wygaśnięciu zapisu). Przesunięcie strefy bierzemy z zegara
+ * ściennego Warszawy w chwili „ta godzina w UTC”: sloty leżą daleko od nocnej zmiany czasu.
+ */
+export function slotStartsAt(day: string, hour: number): Date {
+  const asUtc = new Date(`${day}T${String(hour).padStart(2, "0")}:00:00Z`);
+  const part = Object.fromEntries(WARSAW_WALL_CLOCK.formatToParts(asUtc).map(({ type, value }) => [type, value]));
+  const wallClock = Date.UTC(
+    Number(part.year),
+    Number(part.month) - 1,
+    Number(part.day),
+    Number(part.hour),
+    Number(part.minute),
+  );
+  return new Date(asUtc.getTime() - (wallClock - asUtc.getTime()));
+}

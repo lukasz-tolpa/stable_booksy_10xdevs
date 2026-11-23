@@ -413,6 +413,71 @@ export type Database = {
           },
         ];
       };
+      notification_views: {
+        Row: {
+          profile_id: string;
+          seen_at: string;
+        };
+        Insert: {
+          profile_id: string;
+          seen_at: string;
+        };
+        Update: {
+          profile_id?: string;
+          seen_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "notification_views_profile_id_fkey";
+            columns: ["profile_id"];
+            isOneToOne: true;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      notifications: {
+        Row: {
+          booking_id: number;
+          created_at: string;
+          id: number;
+          kind: string;
+          reason: string | null;
+          recipient_id: string;
+        };
+        Insert: {
+          booking_id: number;
+          created_at?: string;
+          id?: never;
+          kind: string;
+          reason?: string | null;
+          recipient_id: string;
+        };
+        Update: {
+          booking_id?: number;
+          created_at?: string;
+          id?: never;
+          kind?: string;
+          reason?: string | null;
+          recipient_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "notifications_booking_id_fkey";
+            columns: ["booking_id"];
+            isOneToOne: false;
+            referencedRelation: "bookings";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "notifications_recipient_id_fkey";
+            columns: ["recipient_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       places: {
         Row: {
           active: boolean;
@@ -730,6 +795,21 @@ export type Database = {
           rider_name: string;
         }[];
       };
+      get_my_notifications: {
+        Args: never;
+        Returns: {
+          booking_id: number;
+          created_at: string;
+          day: string;
+          hour: number;
+          id: number;
+          instructor_name: string;
+          kind: string;
+          reason: string;
+          rider_name: string;
+          stable_name: string;
+        }[];
+      };
       get_my_slot_bookings: {
         Args: { p_from: string };
         Returns: {
@@ -834,6 +914,7 @@ export type Database = {
           instructor_id: number;
         }[];
       };
+      mark_notifications_seen: { Args: never; Returns: string };
       my_instructor: {
         Args: never;
         Returns: {

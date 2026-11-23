@@ -293,7 +293,9 @@ local role authenticated; set local request.jwt.claims =
   own limit at 15:00 on the seed day 1 → 2 in the „Grafik” tab (`/instruktor/grafik`, tabs in
   `getByRole("navigation", { name: "Przestrzeń instruktora" })`), then the owner revokes it while
   her form is open — her save lands on `/instruktor?error=` — and the owner's form sets 15:00 back
-  to 1; a flag-guarded `finally` repeats both. Joanna Wrona@15 is reserved for it. The same scenario (#80) has her lower
+  to 1; a flag-guarded `finally` repeats both. Joanna Wrona@15 is reserved for it, and shared with
+  `booking-acceptance.spec.ts` and `booking-notifications.spec.ts` (rider B; both cancel what they booked). The
+  notifications scenario opens „Powiadomienia” for both sides first, so its bell counts are exact. The same scenario (#80) has her lower
   Joanna@11 to 0 under Anna's booking and asserts the SB010 refusal text with the owner hint — a refusal writes nothing, so it
   needs no cleanup. Do not run `npm run test:db` and `npm run test:e2e` against the
   same database at the same time.
