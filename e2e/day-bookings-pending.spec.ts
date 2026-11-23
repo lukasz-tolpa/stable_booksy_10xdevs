@@ -20,8 +20,9 @@ import {
  * a jeździec ma „Twój zapis”. Dowodem są strony wyrenderowane z bazy, nie baner sukcesu. Liczba czekających jest
  * porównywana względnie — historia demo ma własne zapisy oczekujące.
  *
- * Slot: Joanna Wrona o 10:00 w Stadninie Pod Dębem, dzień seeda — 1 miejsce, wolne w seedzie; inny niż sloty
- * pozostałych scenariuszy zapisu (test-plan §6.3).
+ * Slot: Joanna Wrona o 12:00 w Stadninie Pod Dębem, dzień seeda — 1 miejsce, wolne w seedzie; inny niż sloty
+ * pozostałych scenariuszy zapisu (test-plan §6.3; ten sam slot ma skrypt współbieżności `test:db`, który nigdy
+ * nie dzieli bazy z e2e bez resetu).
  *
  * Sprzątanie: B odwołuje swój zapis (oczekujący albo aktywny), jeśli go założył; błąd sprzątania nigdy nie
  * przykrywa błędu scenariusza.
@@ -29,7 +30,7 @@ import {
 test.use({ storageState: RIDER_B_STATE });
 
 const INSTRUCTOR = "Joanna Wrona";
-const HOUR = 10;
+const HOUR = 12;
 
 /** Licznik zapisów do przyjęcia z bocznej kolumny panelu („nikt nie czeka” — 0). */
 async function panelPendingCount(stablePage: Page): Promise<number> {

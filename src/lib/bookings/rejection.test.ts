@@ -23,7 +23,7 @@ describe("rejectionErrorMessage", () => {
     expect(rejectionErrorMessage("SB065")).toBe(
       "Ten zapis nie czeka już na przyjęcie — jeździec mógł go odwołać albo zapis został przyjęty lub odrzucony.",
     );
-    expect(rejectionErrorMessage("SB066")).toBe("Nie znaleziono zapisu do odrzucenia w Twoim ośrodku.");
+    expect(rejectionErrorMessage("SB066")).toBe("Nie znaleziono tego zapisu wśród Twoich zapisów do przyjęcia.");
   });
 
   // Zbiór zamknięty: treść dostawcy nigdy nie trafia do `?error=`.

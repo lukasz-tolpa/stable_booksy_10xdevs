@@ -1,0 +1,57 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import PendingBookingsBody from "@/components/bookings/PendingBookingsBody.astro";
+import InstructorTabs from "@/components/instructors/InstructorTabs.astro";
+import Topbar from "@/components/Topbar.astro";
+import { composePendingBookings, type PendingBookingsDay } from "@/lib/bookings/pending";
+import { getPendingBookings } from "@/lib/bookings/queries";
+import { pendingBookingsSuccessMessage } from "@/lib/bookings/stable-redirect";
+import { logError } from "@/lib/log";
+import { createClient } from "@/lib/supabase";
+
+// „Zapisy do przyjęcia” instruktora z kontem (#126): zapisy oczekujące na jego sloty — przyjmuje je i odrzuca
+// jak właściciel, tylko na swoich slotach. Dostęp pilnuje middleware (mapa stanów konta w @/lib/auth/roles):
+// właściciela przenosi do przestrzeni ośrodka (ma tam „Zapisy do przyjęcia” całego ośrodka), zdezaktywowanego —
+// na ekran nieaktywnego konta. Które zapisy są jego, rozstrzyga funkcja bazy z sesji. Treść i akcje —
+// `PendingBookingsBody`, wspólna z właścicielem.
+const { profile } = Astro.locals;
+const error = Astro.url.searchParams.get("error");
+const success = pendingBookingsSuccessMessage(Astro.url.searchParams.get("sukces"));
+
+const supabase = createClient(Astro.request.headers, Astro.cookies);
+
+let days: PendingBookingsDay[] = [];
+let loadFailed = false;
+
+if (supabase && profile) {
+  try {
+    days = composePendingBookings(await getPendingBookings(supabase));
+  } catch (error) {
+    loadFailed = true;
+    logError("page:instruktor/zapisy-do-przyjecia", error);
+  }
+} else {
+  // Brak klienta Supabase lub profilu to awaria konfiguracji, nie pusta lista.
+  loadFailed = true;
+}
+---
+
+<Layout title="Zapisy do przyjęcia">
+  <Topbar />
+  <main class="container-narrow page">
+    <InstructorTabs />
+    <PendingBookingsBody
+      lead="Jeźdźcy, którzy zapisali się na jazdę na Twoje sloty i czekają na przyjęcie. Przyjęty zapis zajmuje miejsce w slocie, a gdy slot się zapełni, pozostałe zapisy na niego odrzucają się same z powodem „Brak miejsc”."
+      days={days}
+      loadFailed={loadFailed}
+      success={success}
+      error={error}
+    />
+  </main>
+</Layout>
+
+<style>
+  .page {
+    padding-block: 24px 56px;
+  }
+</style>

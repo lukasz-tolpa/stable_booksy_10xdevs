@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { APIContext } from "astro";
 import {
   backAfterPendingDecision,
+  pendingBookingsRouteFor,
   pendingBookingsSuccessMessage,
   stableBookingSuccessMessage,
 } from "@/lib/bookings/stable-redirect";
@@ -40,8 +41,25 @@ describe("pendingBookingsSuccessMessage", () => {
   });
 });
 
+describe("pendingBookingsRouteFor", () => {
+  it("instruktor z kontem wraca na swoje „Zapisy do przyjęcia” — z uprawnieniem do układania grafiku i bez", () => {
+    expect(pendingBookingsRouteFor("instructor")).toBe("/instruktor/zapisy-do-przyjecia");
+    expect(pendingBookingsRouteFor("arranging-instructor")).toBe("/instruktor/zapisy-do-przyjecia");
+  });
+
+  it("właściciel i pozostałe konta — „Zapisy do przyjęcia” ośrodka", () => {
+    expect(pendingBookingsRouteFor("owner")).toBe("/osrodek/zapisy-do-przyjecia");
+    expect(pendingBookingsRouteFor("inactive")).toBe("/osrodek/zapisy-do-przyjecia");
+    expect(pendingBookingsRouteFor("none")).toBe("/osrodek/zapisy-do-przyjecia");
+    expect(pendingBookingsRouteFor(null)).toBe("/osrodek/zapisy-do-przyjecia");
+  });
+});
+
 describe("backAfterPendingDecision", () => {
-  const context = { redirect: (path: string) => path } as unknown as APIContext;
+  const context = {
+    redirect: (path: string) => path,
+    locals: { instructorStanding: "owner" },
+  } as unknown as APIContext;
 
   it("decyzja z zapisów dnia wraca na ten dzień, z „Zapisów do przyjęcia” — na nie (#128)", () => {
     expect(backAfterPendingDecision(context, "2026-08-21", { success: "przyjecie" })).toBe(

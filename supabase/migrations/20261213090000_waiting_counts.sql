@@ -1,8 +1,8 @@
 -- Liczby zapisow oczekujacych (#128, spec #122, ADR 0006, GLOSSARY „Zapis oczekujacy”).
 --
---   1. public.count_pending_bookings() - licznik zapisow do przyjecia w panelu i w nawigacji: wlasciciel liczy
---      caly osrodek, instruktor z kontem - swoje sloty. Liczy zapisy oczekujace, ktorych slot sie nie zaczal
---      (wygasle nie czekaja na decyzje).
+--   1. public.count_pending_bookings() - licznik zapisow do przyjecia w panelu i w nawigacji: te same zapisy co
+--      get_pending_bookings (private.decides_on_slot, #126 - wlasciciel caly osrodek, aktywny instruktor z kontem
+--      swoje sloty), bez tych, ktorych slot sie zaczal (wygasle nie czekaja na decyzje).
 --   2. public.get_slot_occupancy(stable, day) dostaje kolumne waiting - liczbe zapisow oczekujacych slotu
 --      (bez wygaslych). Widza ja: osrodek zawsze (wlasciciel, instruktor ukladajacy grafik, instruktor na swoim
 --      slocie), pensjonariusz w miesiacu dnia przy slotach treningowych; inni (jezdziec rekreacyjny, slot
@@ -31,10 +31,8 @@ as $$
   where b.status = 'pending'
     and sd.day >= private.warsaw_today()
     and not private.booking_slot_started(sd.day, b.hour)
-    and (
-      sd.stable_id = private.owned_stable_id()
-      or b.instructor_id = private.current_instructor_id()
-    );
+    -- Ta sama regula „kto decyduje o zapisie” co przyjecie, odrzucenie i get_pending_bookings (#126).
+    and private.decides_on_slot(sd.stable_id, b.instructor_id);
 $$;
 
 comment on function public.count_pending_bookings() is

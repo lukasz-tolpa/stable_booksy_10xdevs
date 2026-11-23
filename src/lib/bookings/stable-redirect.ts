@@ -1,10 +1,24 @@
 import type { APIContext } from "astro";
+import type { InstructorStanding } from "@/lib/auth/roles";
 
 /** Lista zapisów dnia ośrodka — cel powrotu z przydziału konia i odwołania zapisu. */
 export const STABLE_DAY_BOOKINGS_ROUTE = "/osrodek/zapisy";
 
 /** „Zapisy do przyjęcia” ośrodka (#124) — zapisy oczekujące; cel powrotu z przyjęcia zapisu. */
 export const PENDING_BOOKINGS_ROUTE = "/osrodek/zapisy-do-przyjecia";
+
+/** „Zapisy do przyjęcia” instruktora z kontem (#126) — zapisy oczekujące na jego sloty, w jego przestrzeni. */
+export const INSTRUCTOR_PENDING_BOOKINGS_ROUTE = "/instruktor/zapisy-do-przyjecia";
+
+/**
+ * Czyje „Zapisy do przyjęcia” — cel powrotu z przyjęcia i odrzucenia: instruktor z kontem (z uprawnieniem do
+ * układania grafiku i bez) — jego strona; właściciel i pozostałe konta — strona ośrodka.
+ */
+export function pendingBookingsRouteFor(standing: InstructorStanding | null): string {
+  return standing === "instructor" || standing === "arranging-instructor"
+    ? INSTRUCTOR_PENDING_BOOKINGS_ROUTE
+    : PENDING_BOOKINGS_ROUTE;
+}
 
 /** Wartości `sukces=` na „Zapisach do przyjęcia”: przyjęcie (#124) i odrzucenie (#125). */
 export type PendingBookingOutcome = "przyjecie" | "odrzucenie";
@@ -19,13 +33,13 @@ export function pendingBookingsSuccessMessage(value: string | null): string | nu
   return value === "przyjecie" || value === "odrzucenie" ? PENDING_SUCCESS_MESSAGES[value] : null;
 }
 
-/** Powrót na „Zapisy do przyjęcia” z wynikiem przyjęcia albo odrzucenia. */
+/** Powrót na „Zapisy do przyjęcia” wołającego (`pendingBookingsRouteFor`) z wynikiem przyjęcia albo odrzucenia. */
 export function backToPendingBookings(
   context: APIContext,
   outcome: { error: string } | { success: PendingBookingOutcome },
 ) {
   const params = new URLSearchParams("error" in outcome ? { error: outcome.error } : { sukces: outcome.success });
-  return context.redirect(`${PENDING_BOOKINGS_ROUTE}?${params.toString()}`);
+  return context.redirect(`${pendingBookingsRouteFor(context.locals.instructorStanding)}?${params.toString()}`);
 }
 
 /**
