@@ -696,7 +696,9 @@ describe("composeSettlementList — sekcje „Rekreacja” i „Pensjonariusze�
     expect(list.total).toBe(150000);
   });
 
-  it("sekcja bez stawki swojego rodzaju nie ma sumy, a suma miesiąca to suma pozostałych sekcji", () => {
+  // Oracle: spec #112 — „suma całego miesiąca zostaje”: suma miesiąca nigdy nie jest częściowa. Sekcja, w której
+  // któraś karta nie ma „Do zapłaty”, nie ma sumy, a wtedy nie ma też sumy miesiąca.
+  it("sekcja bez stawki swojego rodzaju nie ma sumy, a wtedy nie ma też sumy miesiąca", () => {
     const list = composeSettlementList(sectionsInput({ rates: [TRAINING_150] }), NOW);
 
     expect(
@@ -705,19 +707,31 @@ describe("composeSettlementList — sekcje „Rekreacja” i „Pensjonariusze�
       ["Rekreacja", true, null, null],
       ["Pensjonariusze", false, 180000, `Pensjonariusze razem: ${zl("1 800,00 zł")}`],
     ]);
-    expect(list.total).toBe(180000);
+    expect(list.total).toBeNull();
+    expect(list.totalText).toBeNull();
     // Karty rekreacji czekają na stawkę ośrodka.
     expect(list.needsRate).toBe(true);
   });
 
-  it("bez stawki treningowej sekcja pensjonariuszy czeka na nią, rekreacja ma sumę", () => {
+  it("bez stawki treningowej sekcja pensjonariuszy czeka na nią, rekreacja ma sumę, miesiąc — nie", () => {
     const list = composeSettlementList(sectionsInput({ rates: [STABLE_120] }), NOW);
     expect(list.sections.map((section) => [section.needsRate, section.total])).toEqual([
       [false, 36000],
       [true, null],
     ]);
-    expect(list.total).toBe(36000);
+    expect(list.total).toBeNull();
     expect(list.needsRate).toBe(true);
+  });
+
+  it("koń bez opłaty za pensjonat: sekcja pensjonariuszy i miesiąc bez sumy, choć stawki są", () => {
+    const list = composeSettlementList(sectionsInput({ boardingFees: [] }), NOW);
+    expect(list.sections.map((section) => [section.heading, section.needsRate, section.total])).toEqual([
+      ["Rekreacja", false, 36000],
+      ["Pensjonariusze", false, null],
+    ]);
+    expect(list.total).toBeNull();
+    // Stawki są — prośba dotyczy opłaty, nie stawki.
+    expect(list.needsRate).toBe(false);
   });
 
   it("sekcja bez nikogo jest pominięta — bez pustej sumy i bez prośby o jej stawkę", () => {
@@ -812,8 +826,9 @@ describe("composeSettlementsPage — sekcje (#118)", () => {
     expect(section.note).toBe(
       "„Do zapłaty” pojawi się po ustawieniu opłaty za pensjonat przy koniu na stronie „Pensjonariusze”.",
     );
-    // Karta bez kwoty wnosi 0 — suma sekcji zostaje.
-    expect(section.totalText).toBe(zl("0,00 zł"));
+    // Karta bez „Do zapłaty” — sekcja i miesiąc bez sumy („—”), nie suma częściowa.
+    expect([section.totalText, section.totalLabel]).toEqual([null, null]);
+    expect(missing.summary.totalText).toBeNull();
   });
 
   it("sekcja bez stawki swojego rodzaju prosi o nią zamiast sumy", () => {
@@ -823,7 +838,8 @@ describe("composeSettlementsPage — sekcje (#118)", () => {
       [null, zl("1 800,00 zł"), `Pensjonariusze razem: ${zl("1 800,00 zł")}`],
     ]);
     expect(page({ rates: [STABLE_120] }).sections[1]?.note).toBe("Kwoty pojawią się po ustawieniu stawki treningowej.");
-    // Bez stawki żadnej z sekcji „Do zapłaty razem” nie ma.
+    // Bez stawki którejkolwiek z sekcji „Do zapłaty razem” nie ma.
+    expect(page({ rates: [TRAINING_150] }).summary.totalText).toBeNull();
     expect(page({ rates: [] }).summary.totalText).toBeNull();
   });
 });

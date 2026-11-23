@@ -201,7 +201,7 @@ export interface SideColumnInput {
    * Lista rozliczeń bieżącego miesiąca (`composeSettlementList` — ta sama co na stronie „Rozliczenia”);
    * panel czyta z niej tylko sumę. `null` — nie wczytano.
    */
-  settlementsTotal: Pick<SettlementList, "total"> | null;
+  settlementsTotal: Pick<SettlementList, "total" | "needsRate"> | null;
 }
 
 export interface SideLink {
@@ -265,9 +265,10 @@ export function composeSettlementsLink(input: Pick<SideColumnInput, "today" | "s
   if (settlementsTotal === null) {
     return { ...link, fact: null, warn: false };
   }
-  // Brak sumy to brak stawki każdej sekcji z jeźdźcami (#118) — ta sama „—” co w „Do zapłaty razem”.
+  // Brak sumy — ta sama „—” co w „Do zapłaty razem” (spec #112: nigdy suma częściowa): sekcja czeka na stawkę
+  // swojego rodzaju albo, przy stawkach, koń pensjonatowy — na opłatę za pensjonat.
   if (settlementsTotal.total === null) {
-    return { ...link, fact: texts.setRate, warn: true };
+    return { ...link, fact: settlementsTotal.needsRate ? texts.setRate : texts.setBoardingFee, warn: true };
   }
   const month = resolveSummaryMonth(null, input.today).month;
   return { ...link, fact: `${formatMonthName(month)}: ${formatMoney(settlementsTotal.total)}`, warn: false };

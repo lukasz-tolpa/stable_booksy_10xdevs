@@ -433,10 +433,12 @@ describe("composeSettlementsLink — Rozliczenia w bocznej kolumnie i w główne
   });
 
   it("suma pochodzi z listy rozliczeń, nie z własnego liczenia — także suma zero przy stawce bez jazd", () => {
-    expect(composeSettlementsLink({ today: TODAY, settlementsTotal: { total: 1_234_000 } }).fact).toBe(
-      "listopad: 12 340,00 zł",
+    expect(
+      composeSettlementsLink({ today: TODAY, settlementsTotal: { total: 1_234_000, needsRate: false } }).fact,
+    ).toBe("listopad: 12 340,00 zł");
+    expect(composeSettlementsLink({ today: TODAY, settlementsTotal: { total: 0, needsRate: false } }).fact).toBe(
+      "listopad: 0,00 zł",
     );
-    expect(composeSettlementsLink({ today: TODAY, settlementsTotal: { total: 0 } }).fact).toBe("listopad: 0,00 zł");
   });
 
   it("ośrodek bez stawki: zamiast sumy prośba „Ustaw stawkę”, wyróżniona jak jutro bez grafiku", () => {
@@ -452,14 +454,14 @@ describe("composeSettlementsLink — Rozliczenia w bocznej kolumnie i w główne
     });
   });
 
-  // Oracle: AC #118 — suma przy linku to „Do zapłaty razem” strony (suma sekcji), także gdy sekcja
-  // pensjonariuszy czeka jeszcze na stawkę treningową.
-  it("pensjonariusz bez stawki treningowej: przy linku suma rekreacji — ta sama co „Do zapłaty razem”", () => {
-    const settlementsTotal = composeSettlementList(
+  // Oracle: AC #118 + spec #112 — przy linku „Do zapłaty razem” strony; suma miesiąca nie jest częściowa, więc
+  // pensjonariusz bez stawki treningowej daje prośbę o stawkę, a koń bez opłaty — prośbę o opłatę.
+  const boarderMonth = (rates: RateChange[]) =>
+    composeSettlementList(
       {
         month: NOVEMBER,
         bookings: [...novemberRides, ride("2026-11-04", "kasia")],
-        rates: [RATE_120],
+        rates,
         costs: [],
         boardingHorses: [
           {
@@ -475,10 +477,18 @@ describe("composeSettlementsLink — Rozliczenia w bocznej kolumnie i w główne
       NOW,
     );
 
-    expect(composeSettlementsLink({ today: TODAY, settlementsTotal })).toMatchObject({
-      fact: "listopad: 360,00 zł",
-      warn: false,
+  it("pensjonariusz bez stawki treningowej: zamiast sumy rekreacji prośba „Ustaw stawkę”", () => {
+    expect(composeSettlementsLink({ today: TODAY, settlementsTotal: boarderMonth([RATE_120]) })).toMatchObject({
+      fact: "Ustaw stawkę",
+      warn: true,
     });
+  });
+
+  it("stawki są, ale koń bez opłaty za pensjonat: prośba „Ustaw opłatę za pensjonat”", () => {
+    const TRAINING_150: RateChange = { id: 2, riderKey: null, kind: "training", fromMonth: "2026-11", amount: 15000 };
+    expect(
+      composeSettlementsLink({ today: TODAY, settlementsTotal: boarderMonth([RATE_120, TRAINING_150]) }),
+    ).toMatchObject({ fact: "Ustaw opłatę za pensjonat", warn: true });
   });
 
   it("bez wczytanej listy rozliczeń link zostaje, bez informacji", () => {

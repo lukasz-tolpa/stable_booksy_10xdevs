@@ -139,7 +139,7 @@ export interface SettlementSection {
   rows: SettlementRow[];
   /** Ośrodek nie ma stawki rodzaju sekcji — karty bez kwot, sekcja bez sumy. */
   needsRate: boolean;
-  /** Suma „do zapłaty” kart sekcji (karta bez kwoty — 0); `null` — bez stawki rodzaju sekcji. */
+  /** Suma „do zapłaty” kart sekcji; `null` — któraś karta nie ma „Do zapłaty” (bez stawki albo bez opłaty konia). */
   total: number | null;
   /** Np. `Rekreacja razem: 480,00 zł`; `null` — bez sumy. */
   totalText: string | null;
@@ -155,7 +155,7 @@ export interface SettlementList {
    * prosi „Ustaw stawkę”.
    */
   needsRate: boolean;
-  /** Suma miesiąca = suma sum sekcji; `null` — żadna sekcja nie ma sumy. */
+  /** Suma miesiąca = suma sum sekcji; `null` — któraś sekcja nie ma sumy (nigdy suma częściowa, spec #112). */
   total: number | null;
   /** Np. `Razem: 12 340,00 zł`. */
   totalText: string | null;
@@ -357,9 +357,14 @@ export function composeSettlementList(input: SettlementsInput, now: Date = new D
     sections.length === 0
       ? stableRateFor(input.rates, input.month.month) === null
       : sections.some((part) => part.needsRate);
-  const totals = sections.map((part) => part.total).filter((total) => total !== null);
-  const total =
-    sections.length === 0 ? (needsRate ? null : 0) : totals.length === 0 ? null : totals.reduce((a, b) => a + b, 0);
+  // Suma miesiąca nie bywa częściowa: tylko gdy każda sekcja ma sumę (spec #112).
+  const totals = sections.map((part) => part.total);
+  let total: number | null;
+  if (sections.length === 0) {
+    total = needsRate ? null : 0;
+  } else {
+    total = totals.every((part): part is number => part !== null) ? totals.reduce((a, b) => a + b, 0) : null;
+  }
   return {
     rows,
     sections,
@@ -377,7 +382,9 @@ function section(kind: RateKind, rows: readonly SettlementRow[], input: Settleme
   const heading = SETTLEMENT_TEXTS.sections[kind];
   const needsRate = stableRateFor(input.rates, input.month.month, kind) === null;
   const own = rows.filter((row) => row.kind === kind);
-  const total = needsRate ? null : own.reduce((sum, row) => sum + (row.due ?? 0), 0);
+  // Suma sekcji tylko, gdy każda jej karta ma „Do zapłaty” — bez stawki albo bez opłaty konia jej nie ma.
+  const total =
+    needsRate || own.some((row) => row.due === null) ? null : own.reduce((sum, row) => sum + (row.due ?? 0), 0);
   return {
     kind,
     heading,

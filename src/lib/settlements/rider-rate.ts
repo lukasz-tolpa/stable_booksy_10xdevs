@@ -7,8 +7,14 @@
 
 import { formatMoney } from "@/lib/format";
 import { currentMonth } from "@/lib/schedule/dates";
-import { rateSchedule, type RateChange, type RateKind } from "@/lib/settlements/rates";
-import { plannedRateText, rateChoices, type RateChoice } from "@/lib/settlements/settlements";
+import { rateFromMonth, rateSchedule, type RateChange, type RateFrom, type RateKind } from "@/lib/settlements/rates";
+import {
+  plannedRateText,
+  rateChoices,
+  riderKindIn,
+  type RateChoice,
+  type SettlementBoardingHorse,
+} from "@/lib/settlements/settlements";
 import { SETTLEMENT_TEXTS } from "@/lib/settlements/texts";
 
 export interface RiderRateView {
@@ -47,4 +53,19 @@ export function composeRiderRate(
     hint: training ? SETTLEMENT_TEXTS.riderRate.trainingHint : SETTLEMENT_TEXTS.riderRate.hint,
     choices: rateChoices(month),
   };
+}
+
+/**
+ * Zapisywana stawka indywidualna jeźdźca: miesiąc „od” z wyboru formularza (względem bieżącego miesiąca)
+ * i rodzaj — rodzaj jeźdźca w tym właśnie miesiącu (`riderKindIn`; pensjonariusz — treningowa), więc stawka
+ * „od następnego miesiąca” dla konia, który wtedy przyjeżdża albo już wyjechał, ma rodzaj tamtego miesiąca.
+ */
+export function riderRateStart(
+  horses: readonly SettlementBoardingHorse[],
+  riderKey: string,
+  from: RateFrom,
+  now: Date = new Date(),
+): { kind: RateKind; fromMonth: string } {
+  const fromMonth = rateFromMonth(from, currentMonth(now));
+  return { kind: riderKindIn(horses, riderKey, fromMonth), fromMonth };
 }

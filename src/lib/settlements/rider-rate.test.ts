@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { RateChange } from "@/lib/settlements/rates";
-import { composeRiderRate } from "@/lib/settlements/rider-rate";
+import { composeRiderRate, riderRateStart } from "@/lib/settlements/rider-rate";
+import type { SettlementBoardingHorse } from "@/lib/settlements/settlements";
 
 /** 20 listopada 2026, 14:30 w Warszawie — bieżący miesiąc to listopad 2026. */
 const NOW = new Date("2026-11-20T13:30:00Z");
@@ -99,5 +100,36 @@ describe("composeRiderRate — pensjonariusz", () => {
     expect(composeRiderRate([STABLE_120], "anna", NOW).hint).toBe(
       "Stawka indywidualna zastępuje stawkę ośrodka, np. karnet albo 0,00 zł dla jeźdźca, który pomaga w ośrodku. Zmiana nie przelicza minionych miesięcy.",
     );
+  });
+});
+
+// Oracle: spec #112 — rodzaj stawki indywidualnej to rodzaj jeźdźca w miesiącu, od którego stawka obowiązuje
+// (reguła „pensjonariusz w miesiącu”), nie w bieżącym.
+describe("riderRateStart — od kiedy i jakiego rodzaju jest zapisywana stawka indywidualna", () => {
+  const horse = (arrivalDay: string, departureDay: string | null): SettlementBoardingHorse => ({
+    horseId: 7,
+    name: "Hrabia",
+    riderKey: "kasia",
+    riderName: "Katarzyna Zając",
+    stays: [{ arrivalDay, departureDay }],
+  });
+
+  it("koń przyjeżdża w grudniu: stawka od listopada rekreacyjna, od grudnia treningowa", () => {
+    const horses = [horse("2026-12-05", null)];
+    expect(riderRateStart(horses, "kasia", "biezacy", NOW)).toEqual({ kind: "recreation", fromMonth: "2026-11" });
+    expect(riderRateStart(horses, "kasia", "nastepny", NOW)).toEqual({ kind: "training", fromMonth: "2026-12" });
+  });
+
+  it("koń wyjechał w listopadzie: stawka od listopada treningowa, od grudnia rekreacyjna", () => {
+    const horses = [horse("2026-08-10", "2026-11-10")];
+    expect(riderRateStart(horses, "kasia", "biezacy", NOW)).toEqual({ kind: "training", fromMonth: "2026-11" });
+    expect(riderRateStart(horses, "kasia", "nastepny", NOW)).toEqual({ kind: "recreation", fromMonth: "2026-12" });
+  });
+
+  it("jeździec bez koni — zawsze rekreacyjna", () => {
+    expect(riderRateStart([horse("2026-08-10", null)], "anna", "nastepny", NOW)).toEqual({
+      kind: "recreation",
+      fromMonth: "2026-12",
+    });
   });
 });

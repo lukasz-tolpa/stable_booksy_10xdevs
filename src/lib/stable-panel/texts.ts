@@ -58,6 +58,8 @@ export const PANEL_TEXTS = {
     anyDay: "dowolny dzień",
     /** Przy „Rozliczeniach”, gdy ośrodek nie ma stawki (zamiast sumy miesiąca). */
     setRate: "Ustaw stawkę",
+    /** Rozliczenia ze stawkami, ale koń pensjonatowy bez opłaty za pensjonat — suma miesiąca czeka na nią. */
+    setBoardingFee: "Ustaw opłatę za pensjonat",
     /** `dziś: 3` — zapisy dziś. */
     todayPrefix: "dziś:",
     /** `2 z 3 z kontem` — aktywni instruktorzy z kontem. */
