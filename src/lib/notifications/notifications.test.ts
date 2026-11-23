@@ -194,7 +194,7 @@ describe("treść i cel powiadomienia", () => {
   it.each([
     ["owner", "booking_pending", "Nowy zapis czeka na przyjęcie", "/osrodek/zapisy-do-przyjecia"],
     ["owner", "booking_cancelled_by_rider", "Jeździec odwołał zapis", "/osrodek/zapisy?dzien=2026-11-25"],
-    ["instructor", "booking_pending", "Nowy zapis czeka na przyjęcie", "/instruktor"],
+    ["instructor", "booking_pending", "Nowy zapis czeka na przyjęcie", "/instruktor/zapisy-do-przyjecia"],
     ["instructor", "booking_cancelled_by_rider", "Jeździec odwołał zapis", "/instruktor"],
   ] as const)("%s: %s — „%s”, prowadzi do %s", (viewer, kind, title, href) => {
     const [item] = composeNotifications(input({ viewer, stored: [stored({ kind })] }), NOW);

@@ -1,6 +1,10 @@
 import { INSTRUCTOR_HOME_ROUTE, RIDER_BOOKINGS_ROUTE, type InstructorStanding } from "@/lib/auth/roles";
 import { slotStartsAt } from "@/lib/bookings/slots";
-import { PENDING_BOOKINGS_ROUTE, STABLE_DAY_BOOKINGS_ROUTE } from "@/lib/bookings/stable-redirect";
+import {
+  INSTRUCTOR_PENDING_BOOKINGS_ROUTE,
+  PENDING_BOOKINGS_ROUTE,
+  STABLE_DAY_BOOKINGS_ROUTE,
+} from "@/lib/bookings/stable-redirect";
 import { bookingStateAt } from "@/lib/bookings/status";
 import { formatCount, type PluralForms } from "@/lib/format";
 import type { UserRole } from "@/types";
@@ -119,12 +123,15 @@ const UNKNOWN_RIDER = "(jeździec)";
 
 /**
  * Dokąd prowadzi powiadomienie: jeździec — „Moje zapisy”; właściciel — „Zapisy do przyjęcia” (nowy zapis
- * oczekujący) albo zapisy dnia slotu (odwołanie); instruktor z kontem — „Moje sloty”.
+ * oczekujący) albo zapisy dnia slotu (odwołanie); instruktor z kontem — swoje „Zapisy do przyjęcia” (#126) albo
+ * „Moje sloty” (odwołanie).
  */
 function hrefOf(kind: NotificationKind, day: string, viewer: NotificationViewer): string {
   if (!STABLE_KINDS.includes(kind)) return RIDER_BOOKINGS_ROUTE;
+  if (kind === "booking_pending") {
+    return viewer === "instructor" ? INSTRUCTOR_PENDING_BOOKINGS_ROUTE : PENDING_BOOKINGS_ROUTE;
+  }
   if (viewer === "instructor") return INSTRUCTOR_HOME_ROUTE;
-  if (kind === "booking_pending") return PENDING_BOOKINGS_ROUTE;
   return `${STABLE_DAY_BOOKINGS_ROUTE}?${new URLSearchParams({ dzien: day }).toString()}`;
 }
 
