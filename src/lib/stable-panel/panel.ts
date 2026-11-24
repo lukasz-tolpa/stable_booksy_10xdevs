@@ -1,5 +1,12 @@
-import { OWNER_MONTH_SUMMARY_ROUTE, OWNER_SCHEDULE_ROUTE, OWNER_SETTLEMENTS_ROUTE } from "@/lib/auth/roles";
-import { STABLE_DAY_BOOKINGS_ROUTE } from "@/lib/bookings/stable-redirect";
+import {
+  OWNER_MONTH_SUMMARY_ROUTE,
+  OWNER_SCHEDULE_ROUTE,
+  OWNER_SETTLEMENTS_ROUTE,
+  PENDING_BOOKINGS_ROUTE,
+  STABLE_DAY_BOOKINGS_ROUTE,
+} from "@/lib/auth/roles";
+import { isActiveBooking } from "@/lib/bookings/status";
+import { formatWaitingCount } from "@/lib/bookings/waiting";
 import { INSTRUCTORS_ROUTE } from "@/lib/instructors/redirect";
 import { OWNER_PLACE_OCCUPANCY_ROUTE } from "@/lib/place-occupancy/routes";
 import { PLACES_ROUTE } from "@/lib/places/redirect";
@@ -139,7 +146,7 @@ export function composeWeek(input: WeekInput): WeekView {
   const days = Array.from({ length: WEEK_LENGTH }, (_, offset): WeekDay => {
     const day = addDays(input.today, offset);
     const schedule = input.days.find((entry) => entry.day === day);
-    const active = input.bookings.filter((entry) => entry.day === day && entry.status === "active");
+    const active = input.bookings.filter((entry) => entry.day === day && isActiveBooking(entry));
     const seats = schedule?.slots.reduce((sum, slot) => sum + slot.seats, 0) ?? 0;
     const booked = active.length;
     const withoutHorse = active.filter((entry) => entry.horseId === null).length;
@@ -202,6 +209,8 @@ export interface SideColumnInput {
    * panel czyta z niej tylko sumę. `null` — nie wczytano.
    */
   settlementsTotal: Pick<SettlementList, "total" | "needsRate"> | null;
+  /** Zapisy do przyjęcia ośrodka (`countPendingBookings`, #128); `null` — nie wczytano. */
+  pendingCount: number | null;
 }
 
 export interface SideLink {
@@ -275,6 +284,20 @@ export function composeSettlementsLink(input: Pick<SideColumnInput, "today" | "s
 }
 
 /**
+ * Link „Zapisy do przyjęcia” z liczbą czekających (#128), np. `3 czekają` — wymaga uwagi, gdy ktoś czeka.
+ * W bocznej kolumnie zawsze; poniżej 1000 px (licznik ma też dolny pasek) w kolumnie głównej, gdy ktoś czeka.
+ */
+export function composePendingBookingsLink(input: Pick<SideColumnInput, "pendingCount">): SideLink {
+  const { pendingCount } = input;
+  return {
+    name: PANEL_TEXTS.side.pendingBookings,
+    href: PENDING_BOOKINGS_ROUTE,
+    fact: pendingCount === null ? null : formatWaitingCount(pendingCount),
+    warn: (pendingCount ?? 0) > 0,
+  };
+}
+
+/**
  * Link „Pensjonariusze” (#114) z liczbą koni pensjonatowych ośrodka, np. `2 konie pensjonatowe`. Dolny pasek
  * go nie mieści, więc jak Podsumowanie miesiąca jest w bocznej kolumnie i poniżej 1000 px w kolumnie głównej.
  */
@@ -334,6 +357,7 @@ export function composeSideColumn(input: SideColumnInput, now: Date = new Date()
       fact: today ? `${texts.todayPrefix} ${formatNumber(today.booked)}` : null,
       warn: false,
     },
+    composePendingBookingsLink(input),
     {
       name: texts.horses,
       href: HORSES_ROUTE,

@@ -268,11 +268,12 @@ begin;
 do $$
 begin
   if pg_get_function_result('public.get_slot_occupancy(bigint, date)'::regprocedure)
-     <> 'TABLE(instructor_id bigint, hour smallint, taken integer)' then
+     <> 'TABLE(instructor_id bigint, hour smallint, taken integer, waiting integer)' then
     raise exception 'FAIL: get_slot_occupancy zwraca %',
       pg_get_function_result('public.get_slot_occupancy(bigint, date)'::regprocedure);
   end if;
-  raise notice 'PASS: get_slot_occupancy zwraca tylko (instruktor, godzina, liczba zajetych miejsc)';
+  -- waiting (#128): liczba zapisow oczekujacych - tez sama liczba (widocznosc: waiting_counts.sql).
+  raise notice 'PASS: get_slot_occupancy zwraca tylko (instruktor, godzina, liczba zajetych miejsc, liczba czekajacych)';
 end $$;
 
 set local role authenticated;

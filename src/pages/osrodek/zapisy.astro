@@ -2,6 +2,8 @@
 import { CalendarX2, ChevronLeft, ChevronRight } from "lucide-react";
 import Layout from "@/layouts/Layout.astro";
 import Banner from "@/components/Banner.astro";
+import DangerDetails from "@/components/bookings/DangerDetails.astro";
+import PendingBookingRow from "@/components/bookings/PendingBookingRow.astro";
 import Topbar from "@/components/Topbar.astro";
 import Card from "@/components/ui/Card.astro";
 import GhostButton from "@/components/ui/GhostButton.astro";
@@ -10,8 +12,10 @@ import EmptyState from "@/components/ui/EmptyState.astro";
 import FailureState from "@/components/ui/FailureState.astro";
 import Tag from "@/components/ui/Tag.astro";
 import { listBoardingHorses } from "@/lib/boarding/queries";
-import { getDayBookings } from "@/lib/bookings/queries";
+import { composeDayPendingSlots, type PendingSlot } from "@/lib/bookings/pending";
+import { getDayBookings, getPendingBookings } from "@/lib/bookings/queries";
 import { composeDayBookingSections, NO_HORSE, type DayBookingSections } from "@/lib/bookings/rows";
+import { PENDING_BOOKINGS_ROUTE } from "@/lib/auth/roles";
 import { stableBookingSuccessMessage } from "@/lib/bookings/stable-redirect";
 import { formatClockHour, formatLongDateWithYear } from "@/lib/format";
 import { addDays, parseScheduleDate, todayIso } from "@/lib/schedule/dates";
@@ -25,6 +29,9 @@ import { logError } from "@/lib/log";
 // Dostęp pilnuje middleware (mapa tras w @/lib/auth/roles). Przydział konia działa także
 // w dniach minionych (uzupełnienie statystyk); odwołanie — tylko przed terminem jazdy:
 // próg pilnuje endpoint, a strona chowa akcję przy zapisach, które się zaczęły.
+// Zapisy oczekujące dnia (#128) stoją nad aktywnymi, wyróżnione, przy swoich slotach — z tymi samymi
+// „Przyjmij” i „Odrzuć” co na „Zapisach do przyjęcia” (decyzja wraca na ten dzień). Jeźdźca zapisu
+// oczekującego (imię, e-mail) daje ta sama funkcja bazy co „Zapisom do przyjęcia” — RLS profili go nie odda.
 const { profile } = Astro.locals;
 const error = Astro.url.searchParams.get("error");
 const success = Astro.url.searchParams.get("sukces");
@@ -37,6 +44,7 @@ const supabase = createClient(Astro.request.headers, Astro.cookies);
 
 let scheduleDay: ScheduleDayData | null = null;
 let sections: DayBookingSections = { active: [], cancelled: [] };
+let pendingSlots: PendingSlot[] = [];
 let loadFailed = false;
 
 if (supabase && profile) {
@@ -45,12 +53,14 @@ if (supabase && profile) {
     if (stableId !== null) {
       scheduleDay = await getScheduleDay(supabase, stableId, day);
       if (scheduleDay) {
-        const [bookings, horses, places, boarding] = await Promise.all([
+        const [bookings, horses, places, boarding, pending] = await Promise.all([
           getDayBookings(supabase, scheduleDay.id),
           listStableHorses(supabase, stableId),
           listStablePlaces(supabase, stableId),
           listBoardingHorses(supabase, { stableId }),
+          getPendingBookings(supabase),
         ]);
+        pendingSlots = composeDayPendingSlots(pending, day);
         sections = composeDayBookingSections({
           bookings,
           horses,
@@ -125,6 +135,43 @@ const successMessage = stableBookingSuccessMessage(success);
         </Card>
       ) : (
         <>
+          {pendingSlots.length > 0 && (
+            <section class="section" aria-labelledby="pending-heading">
+              <Card class="pending-card">
+                <h2 id="pending-heading">Czekają na przyjęcie</h2>
+                <p class="section-lead">
+                  Zapis oczekujący nie zajmuje miejsca, dopóki go nie przyjmiesz.{" "}
+                  <a href={PENDING_BOOKINGS_ROUTE}>Wszystkie zapisy do przyjęcia</a>
+                </p>
+                <ul class="slots">
+                  {pendingSlots.map((slot) => (
+                    <li class="pending-slot">
+                      <div class="pending-slot__head">
+                        <span class="row__when">{formatClockHour(slot.hour)}</span>
+                        <span class="row__meta">
+                          <span class="row__strong">{slot.instructorName}</span>
+                          <span class="row__sub">{slot.placeName}</span>
+                          {slot.kind === SLOT_KIND.training && <Tag variant="primary">{TRAINING_SLOT_TAG}</Tag>}
+                          {slot.full ? (
+                            <Tag variant="warn">{slot.seatsLabel}</Tag>
+                          ) : (
+                            <span class="row__sub mono-nums">{slot.seatsLabel}</span>
+                          )}
+                          <Tag variant="warn">{slot.waitingLabel}</Tag>
+                        </span>
+                      </div>
+                      <ul class="rows">
+                        {slot.rows.map((row) => (
+                          <PendingBookingRow rider={row} day={day} />
+                        ))}
+                      </ul>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            </section>
+          )}
+
           <section class="section" aria-labelledby="active-heading">
             <Card>
               <h2 id="active-heading">Aktywne</h2>
@@ -174,11 +221,10 @@ const successMessage = stableBookingSuccessMessage(success);
                         </form>
                         {row.cancellable && (
                           /* Jeden krok potwierdzenia bez JavaScriptu (US 83): odwołania nie da się cofnąć. */
-                          <details class="cancel">
-                            <summary>
+                          <DangerDetails label="Odwołaj zapis">
+                            <Fragment slot="icon">
                               <CalendarX2 className="size-4" />
-                              Odwołaj zapis
-                            </summary>
+                            </Fragment>
                             <form method="post" action="/api/bookings/stable-cancel" class="cancel__confirm">
                               <input type="hidden" name="bookingId" value={row.id} />
                               <input type="hidden" name="day" value={day} />
@@ -190,7 +236,7 @@ const successMessage = stableBookingSuccessMessage(success);
                                 Potwierdź odwołanie
                               </button>
                             </form>
-                          </details>
+                          </DangerDetails>
                         )}
                       </div>
                     </li>
@@ -255,6 +301,40 @@ const successMessage = stableBookingSuccessMessage(success);
   }
   .muted-heading {
     color: var(--muted);
+  }
+
+  /* Zapisy oczekujące są wyróżnione (#128): obrys i pasek w kolorze uwagi, sloty jeden pod drugim. */
+  .section :global(.pending-card) {
+    border-color: var(--warn);
+    border-left-width: 5px;
+  }
+  .section-lead {
+    margin: -6px 0 14px;
+    font-size: 14.5px;
+    color: var(--muted);
+  }
+  .section-lead a {
+    color: var(--primary-strong);
+    font-weight: 600;
+  }
+  .slots {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 12px;
+  }
+  .pending-slot {
+    padding: 12px 14px;
+    border-radius: var(--r);
+    background: var(--surface-2);
+  }
+  .pending-slot__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px 14px;
+    margin-bottom: 10px;
   }
 
   /* Ten sam wzorzec wiersza co „Moje zapisy". */
@@ -340,46 +420,7 @@ const successMessage = stableBookingSuccessMessage(success);
     outline-offset: 2px;
   }
 
-  .btn-danger,
-  .cancel summary {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    min-height: 44px;
-    padding: 10px 15px;
-    border-radius: 999px;
-    font-family: var(--font-display);
-    font-size: 14px;
-    font-weight: 600;
-    line-height: 1;
-    white-space: nowrap;
-    cursor: pointer;
-    transition:
-      background 0.15s,
-      border-color 0.15s;
-  }
-  .cancel summary {
-    list-style: none;
-    border: 1px solid var(--danger);
-    background: var(--surface);
-    color: var(--danger-ink);
-  }
-  .cancel summary::-webkit-details-marker {
-    display: none;
-  }
-  .cancel summary:hover {
-    background: var(--danger-soft);
-  }
-  /* `[open]` ustawia przeglądarka — analiza selektorów Astro go nie widzi. */
-  .cancel:global([open]) summary {
-    background: var(--danger-soft);
-  }
-  .cancel summary:focus-visible,
-  .btn-danger:focus-visible {
-    outline: 2px solid var(--danger);
-    outline-offset: 2px;
-  }
+  /* Wygląd kroku potwierdzenia („Odwołaj zapis”, „Potwierdź odwołanie”) należy do `DangerDetails`. */
   .cancel__confirm {
     margin-top: 10px;
     display: flex;
@@ -391,13 +432,5 @@ const successMessage = stableBookingSuccessMessage(success);
     margin: 0;
     font-size: 14.5px;
     max-width: 52ch;
-  }
-  .btn-danger {
-    border: 1px solid var(--danger);
-    background: var(--danger);
-    color: var(--surface);
-  }
-  .btn-danger:hover {
-    background: var(--danger-ink);
   }
 </style>

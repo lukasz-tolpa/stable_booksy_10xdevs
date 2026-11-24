@@ -1,0 +1,71 @@
+---
+// „Odrzuć” zapis oczekujący z powodem, który jeździec zobaczy (#125, GLOSSARY „Odrzucenie zapisu”). Jeden krok
+// potwierdzenia bez JavaScriptu, jak „Odwołaj zapis” na liście dnia (`DangerDetails`): pole powodu i przycisk
+// „Potwierdź odrzucenie”. Te same reguły powodu (wymagany, do `REJECTION_REASON_MAX` znaków) sprawdzają
+// przeglądarka, endpoint i baza. Wspólny dla „Zapisów do przyjęcia” i (#128) zapisów dnia.
+import { X } from "lucide-react";
+import DangerDetails from "@/components/bookings/DangerDetails.astro";
+import { REJECTION_REASON_MAX } from "@/lib/bookings/decisions";
+
+interface Props {
+  bookingId: number;
+  /** Jeździec w etykiecie pola — etykiety na liście wielu zapisów są rozróżnialne. */
+  riderName: string;
+  /** Dzień zapisów dnia, na które wrócić po odrzuceniu (#128); bez niego — „Zapisy do przyjęcia”. */
+  day?: string;
+}
+
+const { bookingId, riderName, day } = Astro.props;
+const fieldId = `reject-reason-${String(bookingId)}`;
+---
+
+<DangerDetails label="Odrzuć">
+  <Fragment slot="icon"><X className="size-4" aria-hidden="true" /></Fragment>
+  <form method="post" action="/api/bookings/reject" class="reject__form">
+    <input type="hidden" name="bookingId" value={bookingId} />
+    {day && <input type="hidden" name="day" value={day} />}
+    <label for={fieldId}>Powód odrzucenia — {riderName}</label>
+    <textarea id={fieldId} name="reason" rows="3" maxlength={REJECTION_REASON_MAX} required></textarea>
+    <p class="reject__hint">Jeździec zobaczy ten powód w swoich zapisach.</p>
+    <button type="submit" class="btn-danger">Potwierdź odrzucenie</button>
+  </form>
+</DangerDetails>
+
+<style>
+  .reject__form {
+    margin-top: 10px;
+    display: grid;
+    gap: 6px;
+    max-width: 52ch;
+  }
+  label {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  textarea {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border-2);
+    border-radius: var(--r);
+    background: var(--surface);
+    color: var(--fg);
+    font: inherit;
+    font-size: 15px;
+    resize: vertical;
+  }
+  textarea:focus-visible {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-soft);
+  }
+  .reject__hint {
+    margin: 0;
+    color: var(--muted);
+    font-size: 13.5px;
+  }
+  .reject__form .btn-danger {
+    justify-self: start;
+    margin-top: 4px;
+  }
+</style>

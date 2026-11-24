@@ -4,6 +4,7 @@ import {
   RIDER_A_STATE,
   STABLE_NAME,
   STABLE_STATE,
+  acceptPendingBooking,
   asError,
   assertSlotsRendered,
   bookButton,
@@ -21,7 +22,8 @@ import {
  * Ryzyko #6 (pętla jeźdźca przestaje działać w przeglądarce) i połowa #3 (sukces
  * bez zapisu w bazie), w modelu „zapis na miejsce u instruktora" (ADR-0002, #41).
  * Wyrocznia: ośrodek wystawia miejsce w grafiku, jeździec zapisuje się na nie bez
- * wyboru konia, zapis pojawia się na liście dnia ośrodka jako „bez konia", ośrodek
+ * wyboru konia, zapis czeka na przyjęcie (#124), ośrodek go przyjmuje, zapis pojawia się
+ * na liście dnia ośrodka jako „bez konia", ośrodek
  * przydziela konia (jeździec go widzi) i odwołuje zapis (#42), jeździec zapisuje się
  * ponownie na zwolnione miejsce i sam odwołuje. Dowodem trwałości jest plakietka
  * „Twój zapis", wiersz w „Moje zapisy" i lista dnia ośrodka — nigdy baner sukcesu ani
@@ -107,17 +109,28 @@ test("jeździec przechodzi pełną pętlę: grafik ośrodka → slot instruktora
       await expect(bookButton(page, 11, OTHER_INSTRUCTOR)).toHaveCount(0);
     });
 
-    await test.step("zapis u Karola o 13:00 zostaje oznaczony jako mój, bez wyboru konia", async () => {
+    await test.step("zapis u Karola o 13:00 czeka na przyjęcie, bez wyboru konia", async () => {
       await bookButton(page, HOUR, INSTRUCTOR).click();
       await page.waitForURL(/sukces=1/);
-      await expect(page.getByText("Zapisano na jazdę.")).toBeVisible();
-      await expect(slotItem(page, HOUR, INSTRUCTOR)).toContainText("Twój zapis");
+      await expect(
+        page.getByText(
+          "Zapisano na jazdę. Zapis czeka na przyjęcie przez ośrodek — Twój slot jest oznaczony poniżej.",
+          { exact: true },
+        ),
+      ).toBeVisible();
+      await expect(slotItem(page, HOUR, INSTRUCTOR)).toContainText("Czekasz na przyjęcie");
       state.booked = true;
-      await expect(slotItem(page, HOUR, INSTRUCTOR)).toContainText("0 z 1 wolne");
       await expect(bookButton(page, HOUR, INSTRUCTOR)).toHaveCount(0);
-      // Jedna godzina — jeden zapis: u Joanny o 13 nie da się już zapisać.
+      // Jedna godzina — jeden zapis, także oczekujący: u Joanny o 13 nie da się już zapisać.
       await expect(bookButton(page, HOUR, OTHER_INSTRUCTOR)).toHaveCount(0);
       await expect(slotItem(page, HOUR, OTHER_INSTRUCTOR)).toContainText("Masz już zapis o tej godzinie");
+    });
+
+    await test.step("ośrodek przyjmuje zapis — jeździec ma swoje miejsce", async () => {
+      await acceptPendingBooking(stablePage, { hour: HOUR, instructor: INSTRUCTOR, rider: RIDER_A_NAME });
+      await page.reload();
+      await expect(slotItem(page, HOUR, INSTRUCTOR)).toContainText("Twój zapis");
+      await expect(slotItem(page, HOUR, INSTRUCTOR)).toContainText("0 z 1 wolne");
     });
 
     await test.step("zapis pojawia się na liście dnia ośrodka, jeszcze bez konia", async () => {
@@ -185,8 +198,11 @@ test("jeździec przechodzi pełną pętlę: grafik ośrodka → slot instruktora
       await expect(slotItem(page, HOUR, INSTRUCTOR)).toContainText("1 z 1 wolne");
       await bookButton(page, HOUR, INSTRUCTOR).click();
       await page.waitForURL(/sukces=1/);
-      await expect(slotItem(page, HOUR, INSTRUCTOR)).toContainText("Twój zapis");
+      await expect(slotItem(page, HOUR, INSTRUCTOR)).toContainText("Czekasz na przyjęcie");
       state.booked = true;
+      await acceptPendingBooking(stablePage, { hour: HOUR, instructor: INSTRUCTOR, rider: RIDER_A_NAME });
+      await page.reload();
+      await expect(slotItem(page, HOUR, INSTRUCTOR)).toContainText("Twój zapis");
     });
 
     await test.step("zapis jest w Moich zapisach i daje się odwołać", async () => {
@@ -209,7 +225,8 @@ test("jeździec przechodzi pełną pętlę: grafik ośrodka → slot instruktora
     });
 
     await test.step("odwołanie znika z listy ośrodka i zwalnia miejsce", async () => {
-      await stablePage.reload();
+      // Przyjęcie ponownego zapisu przeniosło ośrodek na „Zapisy do przyjęcia” — wracamy na listę dnia.
+      await stablePage.goto(`/osrodek/zapisy?dzien=${stable.day}`);
       await expect(dayBookingRow(stablePage, "Aktywne", HOUR, INSTRUCTOR)).toHaveCount(0);
       await expect(
         dayBookingRow(stablePage, "Odwołane", HOUR, INSTRUCTOR).filter({ hasText: "przez jeźdźca" }).first(),

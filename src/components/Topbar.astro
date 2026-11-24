@@ -2,6 +2,7 @@
 /* eslint-disable astro/no-unused-css-selector -- reguły na `[open]` są używane;
    atrybut dokłada przeglądarka po kliknięciu, więc nie ma go w statycznym markupie */
 import Logo from "@/components/Logo.astro";
+import NotificationBell from "@/components/NotificationBell.astro";
 import RoleBadge from "@/components/ui/RoleBadge.astro";
 import StableTabBar from "@/components/stable-panel/StableTabBar.astro";
 import { homeRouteForAccount, isUserRole, roleBadgeLabel, stableTabBarSections } from "@/lib/auth/roles";
@@ -40,6 +41,11 @@ const homeInTabBar = stableTabBarSections(instructorStanding, Astro.url.pathname
            klawiatury i `aria-expanded` od przeglądarki. Powyżej `md` przycisk znika,
            a zawartość wraca do paska (patrz reguły `.menu` w stylach). */
         <>
+          {/* Dzwonek powiadomień (#129) stoi poza menu: liczba nieprzeczytanych ma być widoczna także
+              na telefonie, bez rozwijania menu. Powyżej `md` przechodzi na prawy koniec paska. */}
+          <div class="nav-bell">
+            <NotificationBell />
+          </div>
           {/* Pole wyboru jest tu przełącznikiem menu, bo `<details>` się nie nadaje:
               jego zawartość siedzi w shadow DOM za slotem, więc powyżej `md`, gdy
               panel ma wrócić do paska, adres wychodził z zerową szerokością.
@@ -154,6 +160,8 @@ const homeInTabBar = stableTabBarSections(instructorStanding, Astro.url.pathname
     align-items: center;
     min-height: 44px;
     padding: 8px 14px;
+    /* Obok dzwonka (#129) pasek ma mniej miejsca — „Wyloguj się” nie łamie się na dwa wiersze, ustępuje adres. */
+    white-space: nowrap;
     border: 0;
     border-radius: 999px;
     background: none;
@@ -195,8 +203,12 @@ const homeInTabBar = stableTabBarSections(instructorStanding, Astro.url.pathname
     opacity: 0;
     pointer-events: none;
   }
-  .menu-button {
+  .nav-bell {
     margin-left: auto;
+    display: flex;
+  }
+  .menu-button {
+    margin-left: 4px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -304,6 +316,10 @@ const homeInTabBar = stableTabBarSections(instructorStanding, Astro.url.pathname
        paska jako zwykły blok w rzędzie, niezależnie od stanu przełącznika. */
     .menu-button {
       display: none;
+    }
+    .nav-bell {
+      order: 1;
+      margin-left: 4px;
     }
     .menu-body,
     .menu-toggle:checked ~ .menu-body {

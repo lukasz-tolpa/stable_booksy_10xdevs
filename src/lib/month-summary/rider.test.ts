@@ -21,6 +21,7 @@ function booking(day: string, hour: number, overrides: Partial<RiderBooking> = {
     horseName: "Bella",
     status: "active",
     cancelledBy: null,
+    rejectionReason: null,
     ...overrides,
   };
 }

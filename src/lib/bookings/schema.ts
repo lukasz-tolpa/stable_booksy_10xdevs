@@ -1,4 +1,10 @@
 import { z } from "zod";
+import {
+  REJECTION_REASON_MAX,
+  REJECT_NO_REASON,
+  REJECT_REASON_TOO_LONG,
+  decisionErrorMessage,
+} from "@/lib/bookings/decisions";
 import { formInt } from "@/lib/form-data";
 import { isValidIsoDate } from "@/lib/schedule/dates";
 
@@ -31,6 +37,24 @@ export const cancelSchema = z.object({
 });
 
 export type CancelInput = z.infer<typeof cancelSchema>;
+
+/** Formularz przyjęcia zapisu przez ośrodek (#124) — sam identyfikator zapisu, jak przy odwołaniu. */
+export const acceptSchema = cancelSchema;
+
+/**
+ * Formularz odrzucenia zapisu przez ośrodek (#125): zapis i powód, który jeździec zobaczy — przycięty,
+ * 1–`REJECTION_REASON_MAX` znaków. Te same reguły i komunikaty co w bazie (SB070/SB071), sprawdzane przed mutacją.
+ */
+export const rejectSchema = z.object({
+  bookingId: formInt("Nieprawidłowy zapis").pipe(z.number().positive({ error: "Nieprawidłowy zapis" })),
+  reason: z
+    .string({ error: decisionErrorMessage("reject", REJECT_NO_REASON) })
+    .trim()
+    .min(1, { error: decisionErrorMessage("reject", REJECT_NO_REASON) })
+    .max(REJECTION_REASON_MAX, { error: decisionErrorMessage("reject", REJECT_REASON_TOO_LONG) }),
+});
+
+export type RejectInput = z.infer<typeof rejectSchema>;
 
 /**
  * Formularz przydziału konia przez ośrodek (#42). Pusty wybór („bez konia") cofa przydział.

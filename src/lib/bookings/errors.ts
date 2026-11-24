@@ -29,8 +29,13 @@ export const NOT_MY_BOARDING_HORSE = "SB051";
 export const TRAINING_HORSE_NOT_CHOSEN = "SB052";
 /** Żaden koń pensjonariusza nie stoi w ośrodku w dniu jazdy. */
 export const NO_HORSE_ON_RIDE_DAY = "SB053";
+/**
+ * Slot już się zaczął — wyzwalacz `bookings_state_machine` (#124, migracja `20261209090000_booking_acceptance.sql`);
+ * ten sam próg co `hasSlotStarted` w endpoincie, który odpowiada wcześniej tym samym zdaniem.
+ */
+export const SLOT_STARTED = "SB064";
 
-/** Odmowy rodzaju slotu — jeden kod, jeden komunikat. */
+/** Odmowy rodzaju slotu i progu czasu — jeden kod, jeden komunikat. */
 const SLOT_KIND_MESSAGES = new Map<string, string>([
   [BOARDER_ON_RECREATION_SLOT, "Jako pensjonariusz jeździsz na swoim koniu — zapisz się na slot treningowy."],
   [
@@ -46,6 +51,7 @@ const SLOT_KIND_MESSAGES = new Map<string, string>([
     NO_HORSE_ON_RIDE_DAY,
     "Żaden z Twoich koni nie stoi w ośrodku w dniu jazdy, więc nie zapiszesz się na slot treningowy.",
   ],
+  [SLOT_STARTED, "Ta godzina już minęła. Wybierz późniejszy slot."],
 ]);
 
 const RIDER_HOUR_KEY = "bookings_rider_hour_key";

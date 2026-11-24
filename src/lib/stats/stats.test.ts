@@ -28,14 +28,17 @@ function day(iso: string, overrides: Partial<StatsScheduleDay> = {}): StatsSched
 function booking(iso: string, hour: number, overrides: Partial<StatsBooking> = {}): StatsBooking {
   // Odwołanie bez wskazanej strony to odwołanie jeźdźca — jak w bazie, gdzie odwołany zapis zawsze ją ma.
   const cancelledBy = overrides.status === "cancelled" ? "rider" : null;
+  // Bez wskazania — zapis aktywny albo odwołany po przyjęciu, jak każdy zapis sprzed zapisów oczekujących.
+  const status = overrides.status ?? "active";
   return {
     day: iso,
     horseId: BELLA,
     hour,
     instructorId: 1,
-    status: "active",
+    status,
     riderId: "rider-anna",
     cancelledBy,
+    wasAccepted: status === "active" || status === "cancelled",
     ...overrides,
   };
 }
@@ -659,6 +662,49 @@ describe("computeStableStats — odwołania jeźdźca i ośrodka", () => {
 
     expect(stats.summary.cancellations).toBe(1);
     expect(stats.riders.map((row) => [row.name, row.cancellations])).toEqual([["Anna Kowalska", 1]]);
+  });
+
+  it("wycofanie zapisu, który nie był przyjęty, nie jest odwołaniem — ani w okresie, ani przy jeźdźcu", () => {
+    const stats = computeStableStats(
+      input({
+        days: [day("2026-11-05")],
+        riders: RIDERS,
+        bookings: [
+          booking("2026-11-05", 10, { status: "cancelled", cancelledBy: "rider", horseId: null }),
+          booking("2026-11-05", 11, { status: "cancelled", cancelledBy: "rider", horseId: null, wasAccepted: false }),
+        ],
+      }),
+      NOW,
+    );
+
+    expect(stats.summary.cancellations).toBe(1);
+    expect(stats.riders.map((row) => [row.name, row.cancellations])).toEqual([["Anna Kowalska", 1]]);
+  });
+});
+
+describe("computeStableStats — zapisy oczekujące i odrzucone", () => {
+  it("zapis oczekujący (także wygasły) ani odrzucony nie zmienia żadnej liczby statystyk", () => {
+    const days = [day("2026-11-05"), day("2026-11-06")];
+    const riders = [
+      { id: "rider-anna", name: "Anna Kowalska" },
+      { id: "rider-piotr", name: "Piotr Nowak" },
+    ];
+    const bookings = [
+      booking("2026-11-05", 10),
+      booking("2026-11-05", 11, { status: "cancelled", horseId: null }),
+      booking("2026-11-06", 10, { horseId: KASZTAN }),
+    ];
+    const notActive = [
+      booking("2026-11-05", 10, { status: "pending", horseId: null, riderId: "rider-piotr" }),
+      booking("2026-11-06", 11, { status: "rejected", horseId: null, riderId: "rider-piotr" }),
+      booking("2026-11-06", 11, { status: "pending", horseId: KASZTAN }),
+    ];
+
+    const baseline = computeStableStats(input({ days, riders, bookings }), NOW);
+    const withNotActive = computeStableStats(input({ days, riders, bookings: [...bookings, ...notActive] }), NOW);
+
+    expect(baseline.summary).toEqual({ rides: 2, rideHours: 2, occupancyPercent: 25, cancellations: 1 });
+    expect(withNotActive).toEqual(baseline);
   });
 });
 

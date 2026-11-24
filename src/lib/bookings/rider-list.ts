@@ -1,16 +1,34 @@
 import type { RiderBooking } from "@/lib/bookings/queries";
+import { slotEndedAt } from "@/lib/bookings/rides";
 import { hasSlotStarted, unknownInstructorName } from "@/lib/bookings/slots";
-import { cancelledByLabel } from "@/lib/bookings/status";
+import {
+  bookingStateAt,
+  cancelledByLabel,
+  isActiveBooking,
+  isPendingOrActive,
+  type BookingState,
+} from "@/lib/bookings/status";
 import type { BookingStatus } from "@/types";
 
 /**
- * Lista zapisów jeźdźca: podział na „nadchodzące" (z akcją odwołania) i „historię"
- * (minione lub odwołane, bez akcji) oraz podpisy wiersza — instruktor, koń albo informacja
- * o oczekiwaniu na przydział, kto odwołał.
+ * Lista zapisów jeźdźca: podział na „nadchodzące" i „historię" (minione lub odwołane, bez akcji)
+ * oraz podpisy wiersza — instruktor, koń albo informacja o oczekiwaniu na przydział, stan zapisu
+ * („Czeka na przyjęcie”, „Wygasł — ośrodek nie zdecydował przed terminem”), kto odwołał.
  *
- * Próg „slot się zaczął" to `hasSlotStarted` — ten sam co przy zapisie i odwołaniu. `now`
- * jest wstrzykiwane parametrem, żeby testy nie zależały od zegara.
+ * Nadchodzące: zapisy aktywne i oczekujące, których slot się nie zaczął (z odwołaniem), oraz wygasłe
+ * (GLOSSARY „Wygaśnięcie zapisu”) i odrzucone („Odrzucony: <powód>”, GLOSSARY „Odrzucenie zapisu”) do końca
+ * swojego slotu (bez odwołania); potem trafiają do historii jak odwołane.
+ * Próg „slot się zaczął" to `hasSlotStarted` — ten sam co przy zapisie i odwołaniu, wygaśnięcie wyprowadza
+ * `bookingStateAt`. `now` jest wstrzykiwane parametrem, żeby testy nie zależały od zegara.
  */
+
+/**
+ * Jak pokazać stan zapisu: pigułką (`tag`) — oczekujący (wyróżniony `warn`, czeka na ośrodek) i wygasły (neutralna);
+ * tekstem (`text`) — odrzucony z powodem, bo powód ma do 300 znaków i nie mieści się w pigułce.
+ */
+export type RiderBookingStateView =
+  | { as: "tag"; label: string; variant: "warn" | "neutral" }
+  | { as: "text"; label: string };
 
 export interface RiderBookingRow {
   id: number;
@@ -21,12 +39,21 @@ export interface RiderBookingRow {
   /** Koń albo informacja o przydziale; `null` przy zapisie odwołanym (koń jest tylko przy aktywnym). */
   horseLabel: string | null;
   status: BookingStatus;
+  /** Stan widoczny dla jeźdźca — z wyprowadzonym wygaśnięciem (`bookingStateAt`). */
+  state: BookingState;
+  /**
+   * „Czeka na przyjęcie” / „Wygasł — ośrodek nie zdecydował przed terminem” / „Odrzucony: <powód>” i sposób pokazania;
+   * `null` przy aktywnym i odwołanym.
+   */
+  stateView: RiderBookingStateView | null;
+  /** Wiersz ma „Odwołaj”: zapis aktywny albo oczekujący, którego slot się nie zaczął. */
+  cancellable: boolean;
   /** „przez Ciebie" / „przez ośrodek" przy zapisie odwołanym, inaczej `null`. */
   cancelledByLabel: string | null;
 }
 
 export interface RiderBookingSections {
-  /** Aktywne zapisy, które się nie zaczęły — sortowane rosnąco (data, godzina). */
+  /** Aktywne i oczekujące zapisy, które się nie zaczęły, i wygasłe albo odrzucone do końca slotu — rosnąco. */
   upcoming: RiderBookingRow[];
   /** Minione i odwołane — sortowane malejąco (najnowsze na górze). */
   history: RiderBookingRow[];
@@ -36,6 +63,26 @@ export interface RiderBookingSections {
 export const HORSE_PENDING = "Koń zostanie przydzielony";
 /** Miniona jazda, do której ośrodek nie przydzielił konia. */
 export const HORSE_NOT_ASSIGNED = "Bez przydzielonego konia";
+/** Zapis oczekujący (GLOSSARY „Zapis oczekujący”). */
+export const PENDING_LABEL = "Czeka na przyjęcie";
+/** Zapis wygasły — ośrodek nie zdecydował do startu slotu (GLOSSARY „Wygaśnięcie zapisu”). */
+export const EXPIRED_LABEL = "Wygasł — ośrodek nie zdecydował przed terminem";
+
+/** Zapis odrzucony z powodem, który ośrodek podał albo który dało odrzucenie automatyczne („Brak miejsc”). */
+export function rejectedLabel(reason: string): string {
+  return `Odrzucony: ${reason}`;
+}
+
+const STATE_TAGS: Partial<Record<BookingState, RiderBookingStateView>> = {
+  pending: { as: "tag", label: PENDING_LABEL, variant: "warn" },
+  expired: { as: "tag", label: EXPIRED_LABEL, variant: "neutral" },
+};
+
+function stateView(booking: RiderBooking, state: BookingState): RiderBookingStateView | null {
+  // CHECK spójności: odrzucony zapis zawsze ma powód.
+  if (state === "rejected") return { as: "text", label: rejectedLabel(booking.rejectionReason ?? "") };
+  return STATE_TAGS[state] ?? null;
+}
 
 function byDayHourAsc(a: RiderBookingRow, b: RiderBookingRow): number {
   // Daty ISO porównują się poprawnie jako ciągi - ten sam idiom co `isPastDate`.
@@ -45,8 +92,10 @@ function byDayHourAsc(a: RiderBookingRow, b: RiderBookingRow): number {
   return a.hour - b.hour;
 }
 
-function horseLabel(booking: RiderBooking, upcoming: boolean): string | null {
-  if (booking.status === "cancelled") return null;
+function horseLabel(booking: RiderBooking, state: BookingState, upcoming: boolean): string | null {
+  // Zapis oczekujący ma konia tylko z zapisu (slot treningowy); przydziału ośrodka nie obiecuje.
+  if (state === "pending") return booking.horseName;
+  if (!isActiveBooking(booking)) return null;
   if (booking.horseName !== null) return booking.horseName;
   return upcoming ? HORSE_PENDING : HORSE_NOT_ASSIGNED;
 }
@@ -60,17 +109,25 @@ function cancelledByLine(booking: RiderBooking): string | null {
 export function splitRiderBookings(bookings: RiderBooking[], now: Date = new Date()): RiderBookingSections {
   const upcoming: RiderBookingRow[] = [];
   const history: RiderBookingRow[] = [];
+  const ended = slotEndedAt(now);
 
   for (const booking of bookings) {
-    const isUpcoming = booking.status === "active" && !hasSlotStarted(booking.day, booking.hour, now);
+    const state = bookingStateAt(booking, now);
+    const cancellable = isPendingOrActive({ status: state }) && !hasSlotStarted(booking.day, booking.hour, now);
+    // Wygasły i odrzucony zostają widoczne do końca swojego slotu, potem są historią.
+    const decided = state === "expired" || state === "rejected";
+    const isUpcoming = cancellable || (decided && !ended(booking.day, booking.hour));
     const row: RiderBookingRow = {
       id: booking.id,
       day: booking.day,
       hour: booking.hour,
       stableName: booking.stableName,
       instructorName: booking.instructorName ?? unknownInstructorName(booking.instructorId),
-      horseLabel: horseLabel(booking, isUpcoming),
+      horseLabel: horseLabel(booking, state, isUpcoming),
       status: booking.status,
+      state,
+      stateView: stateView(booking, state),
+      cancellable,
       cancelledByLabel: cancelledByLine(booking),
     };
 

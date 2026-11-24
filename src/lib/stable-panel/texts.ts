@@ -42,6 +42,8 @@ export const PANEL_TEXTS = {
     heading: "Ośrodek",
     schedule: "Grafik",
     bookings: "Zapisy",
+    /** Zapisy oczekujące ośrodka (#124) — strona `/osrodek/zapisy-do-przyjecia`. */
+    pendingBookings: "Zapisy do przyjęcia",
     horses: "Konie",
     /** Konie pensjonatowe i pobyty (#114) — strona `/osrodek/pensjonariusze`. */
     boarders: "Pensjonariusze",

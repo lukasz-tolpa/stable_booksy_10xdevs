@@ -1,6 +1,7 @@
 -- Dowod zapisu na miejsce u instruktora (#41, ADR-0002, GLOSSARY "Slot", "Limit miejsc").
 --
--- Jezdziec zapisuje sie na slot (dzien grafiku, instruktor, godzina) zwyklym INSERT-em pod RLS;
+-- Jezdziec zapisuje sie na slot (dzien grafiku, instruktor, godzina) zwyklym INSERT-em pod RLS - zapis
+-- czeka na przyjecie (#124), miejsce zajmuje przyjecie przez wlasciciela (public.accept_booking);
 -- reguly pilnuje baza:
 --   * aktywnych zapisow w slocie nie wiecej niz limit miejsc        -> SB009 (wyzwalacz)
 --   * slot z limitem zero jest pelny od poczatku                     -> SB009
@@ -87,13 +88,13 @@ declare
   b record;
   v_constraint text;
 begin
-  -- 1. Wolne miejsce: zapis przechodzi i nie ma konia.
+  -- 1. Wolne miejsce: zapis przechodzi jako oczekujacy i nie ma konia.
   insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id)
   values (v_day, v_joanna, 13, c_anna)
   returning id into v_id;
   select status, horse_id, cancelled_by into b from public.bookings where id = v_id;
-  if b.status = 'active' and b.horse_id is null and b.cancelled_by is null then
-    raise notice 'PASS 1: zapis na wolne miejsce przeszedl, bez konia';
+  if b.status = 'pending' and b.horse_id is null and b.cancelled_by is null then
+    raise notice 'PASS 1: zapis na wolne miejsce przeszedl jako oczekujacy, bez konia';
   else
     raise exception 'FAIL 1: zapis status=% kon=% kto_odwolal=%', b.status, b.horse_id, b.cancelled_by;
   end if;
@@ -180,7 +181,7 @@ begin
     raise notice 'PASS 9b: jezdziec nie przydzieli sobie konia (42501)';
   end;
 
-  -- 10. Jezdziec nie wstawi od razu odwolanego zapisu (polityka INSERT wymaga aktywnego).
+  -- 10. Jezdziec nie wstawi od razu odwolanego zapisu (polityka INSERT wymaga oczekujacego).
   begin
     insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status, cancelled_at, cancelled_by)
     values (v_day, v_joanna, 14, c_anna, 'cancelled', now(), 'rider');
@@ -188,6 +189,14 @@ begin
   exception when insufficient_privilege then
     raise notice 'PASS 10: wstawienie odwolanego zapisu odrzucone przez RLS';
   end;
+end $$;
+
+\echo '=== Zapis na miejsce: wlasciciel przyjmuje zapisy Anny (Joanna o 13, Karol o 11) ==='
+
+set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
+do $$ begin
+  perform public.accept_booking(b.id) from public.bookings b
+  where b.schedule_day_id = current_setting('app.day')::bigint and b.status = 'pending';
 end $$;
 
 \echo '=== Zapis na miejsce: jezdziec Piotr (RLS) ==='
@@ -239,6 +248,12 @@ begin
   raise notice 'PASS 14: zapis na wolny slot innego jezdzca przeszedl';
 end $$;
 
+set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
+do $$ begin
+  perform public.accept_booking(b.id) from public.bookings b
+  where b.schedule_day_id = current_setting('app.day')::bigint and b.status = 'pending';
+end $$;
+
 \echo '=== Zapis na miejsce: kon przy zapisie i spojnosc pol (postgres) ==='
 
 reset role;
@@ -272,8 +287,8 @@ begin
   raise notice 'PASS 16: ten sam kon w dwoch roznych godzinach';
 
   -- 16b. ...ale nie dwa razy w tej samej godzinie: o 11 Anna jest u Karola, Piotr u Joanny.
-  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, horse_id)
-  values (v_day, v_joanna, 11, '44444444-4444-4444-4444-444444444444', v_kasztan);
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, horse_id, status)
+  values (v_day, v_joanna, 11, '44444444-4444-4444-4444-444444444444', v_kasztan, 'active');
   begin
     update public.bookings set horse_id = v_kasztan
     where schedule_day_id = v_day and hour = 11 and status = 'active'
@@ -315,9 +330,9 @@ begin
     raise exception 'FAIL 19: status=% kon=% kto_odwolal=%', b.status, b.horse_id, b.cancelled_by;
   end if;
 
-  -- 20. Odwolanie zwolnilo miejsce: Joanna o 13 znow przyjmuje zapis.
-  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id)
-  values (v_day, v_joanna, 13, '44444444-4444-4444-4444-444444444444');
+  -- 20. Odwolanie zwolnilo miejsce: Joanna o 13 znow przyjmuje zapis aktywny.
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status)
+  values (v_day, v_joanna, 13, '44444444-4444-4444-4444-444444444444', 'active');
   raise notice 'PASS 20: odwolanie zwolnilo miejsce w slocie';
 end $$;
 

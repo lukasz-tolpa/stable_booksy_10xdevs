@@ -1,21 +1,35 @@
 ---
 import { instructorTabs } from "@/lib/auth/roles";
+import { loadPendingCount } from "@/lib/bookings/pending-count";
+import { navCounter } from "@/lib/bookings/waiting";
 
-// Zakładki przestrzeni instruktora: „Moje sloty” i „Podsumowanie miesiąca” (#90) u każdego instruktora
-// z kontem, między nimi „Grafik” u instruktora z uprawnieniem do układania grafiku (#79). Pusta lista
-// (właściciel, zdezaktywowany) — pasek się nie pokazuje; mapa stanów konta w @/lib/auth/roles decyduje, nie strona.
-const tabs = instructorTabs(Astro.locals.instructorStanding);
+// Zakładki przestrzeni instruktora — „Moje sloty”, „Zapisy do przyjęcia” (#126) i „Podsumowanie miesiąca” (#90)
+// u każdego instruktora z kontem, przed podsumowaniem „Grafik” u instruktora z uprawnieniem do układania grafiku
+// (#79). Pusta lista (właściciel, zdezaktywowany) — pasek się nie pokazuje; mapa stanów konta w @/lib/auth/roles
+// decyduje, nie strona.
+const standing = Astro.locals.instructorStanding;
 const current = Astro.url.pathname.replace(/\/$/, "");
+// Plakietka „Zapisów do przyjęcia” (#128: zapisy na swoje sloty) — jeden odczyt na żądanie, tylko gdy pasek jest.
+const pendingCount = instructorTabs(standing).length > 0 ? await loadPendingCount(Astro) : null;
+const tabs = instructorTabs(standing, pendingCount);
 ---
 
 {
   tabs.length > 0 && (
     <nav class="tabs" aria-label="Przestrzeń instruktora">
-      {tabs.map((tab) => (
-        <a href={tab.href} aria-current={tab.href === current ? "page" : undefined}>
-          {tab.label}
-        </a>
-      ))}
+      {tabs.map((tab) => {
+        const counter = navCounter(tab.label, tab.badge ?? null);
+        return (
+          <a href={tab.href} aria-current={tab.href === current ? "page" : undefined} aria-label={counter?.label}>
+            {tab.label}
+            {counter && (
+              <span class="counter mono-nums" aria-hidden="true">
+                {counter.text}
+              </span>
+            )}
+          </a>
+        );
+      })}
     </nav>
   )
 }
@@ -47,6 +61,17 @@ const current = Astro.url.pathname.replace(/\/$/, "");
   .tabs a[aria-current="page"] {
     color: var(--primary-strong);
     background: var(--primary-soft);
+  }
+  .counter {
+    margin-left: 8px;
+    min-width: 20px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: var(--warn-ink);
+    color: var(--surface);
+    font-size: 12px;
+    font-weight: 700;
+    text-align: center;
   }
   .tabs a:focus-visible {
     outline: 2px solid var(--primary);

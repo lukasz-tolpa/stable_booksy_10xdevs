@@ -85,6 +85,20 @@ describe("composeSettlementList — lista rozliczeń miesiąca", () => {
     expect(list.total).toBe(24000);
   });
 
+  it("zapis oczekujący (także wygasły) ani odrzucony nie jest jazdą do rozliczenia", () => {
+    const bookings = [ride("2026-10-02", "anna", "Anna Kowalska"), ride("2026-10-03", "piotr", "Piotr Nowak")];
+    const notActive: SettlementBooking[] = [
+      { ...ride("2026-10-09", "anna", "Anna Kowalska"), status: "pending" },
+      { ...ride("2026-10-10", "zenon", "Zenon Żak"), status: "rejected" },
+      { ...ride("2026-10-10", "zenon", "Zenon Żak", 11), status: "pending" },
+    ];
+
+    const baseline = composeSettlementList(input({ bookings }), NOW);
+
+    expect(baseline.total).toBe(24000);
+    expect(composeSettlementList(input({ bookings: [...bookings, ...notActive] }), NOW)).toEqual(baseline);
+  });
+
   it("jeźdźcy alfabetycznie po polsku, „(bez nazwiska)” jak w Podsumowaniu miesiąca, zanonimizowani pominięci", () => {
     const list = composeSettlementList(
       input({
@@ -161,7 +175,7 @@ describe("composeSettlementList — lista rozliczeń miesiąca", () => {
 
 describe("settlementBookings — zapisy miesiąca z odczytu Podsumowania miesiąca", () => {
   it("nazwa jeźdźca z profilu, zanonimizowany bez nazwy, termin i status bez zmian", () => {
-    const base = { horseId: null, instructorId: 1, cancelledBy: null } as const;
+    const base = { horseId: null, instructorId: 1, cancelledBy: null, wasAccepted: true } as const;
     expect(
       settlementBookings({
         bookings: [

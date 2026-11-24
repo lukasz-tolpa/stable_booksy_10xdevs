@@ -55,6 +55,7 @@ describe("computeSlotHours", () => {
             status: "free",
             kind: "recreation",
             horses: [],
+            waiting: null,
           },
         ],
       },
@@ -130,6 +131,26 @@ describe("computeSlotHours", () => {
     );
 
     expect(hours[0].slots.map((s) => s.status)).toEqual(["mine", "unavailable"]);
+  });
+
+  // Spec #122, AC #124: na stronie dnia przy slocie, na który jeździec czeka, „Czekasz na przyjęcie” zamiast
+  // „Zapisz się”; zapis oczekujący zajmuje godzinę jeźdźca jak aktywny (jeden zapis na godzinę).
+  it("własny zapis oczekujący czeka na przyjęcie, a inni instruktorzy w tej godzinie są niedostępni", () => {
+    const hours = computeSlotHours(
+      input({
+        seats: [
+          { instructorId: JOANNA.id, hour: 10, seats: 1, placeId: HALA.id, kind: "recreation" },
+          { instructorId: KAROL.id, hour: 10, seats: 1, placeId: HALA.id, kind: "recreation" },
+        ],
+        myBookings: [{ instructorId: JOANNA.id, hour: 10, pending: true }],
+      }),
+    );
+
+    expect(hours[0].slots.map((s) => [s.instructorName, s.status, s.freeSeats])).toEqual([
+      // Zapis oczekujący nie zajmuje miejsca (ADR 0006).
+      ["Joanna Wrona", "pending", 1],
+      ["Karol Jasny", "unavailable", 1],
+    ]);
   });
 
   it("slot z limitem zero nie jest pokazywany, a godzina bez żadnego miejsca znika", () => {
@@ -298,6 +319,43 @@ describe("computeSlotHours — rodzaj slotu wobec jeźdźca", () => {
   });
 });
 
+// Oracle: ADR 0006, spec #122 (US 6, 7) — kto widzi liczbę czekających na slot, rozstrzyga baza
+// (`get_slot_occupancy`, dowód: supabase/tests/waiting_counts.sql): pensjonariusz przy slotach treningowych, także 0
+// przy slocie bez zapisów; jeździec rekreacyjny nie. Dzień pokazuje liczbę dokładnie tak, jak ją dostał.
+describe("computeSlotHours — liczba czekających na przyjęcie", () => {
+  it("liczba czekających z odczytu zajętości — także 0 — trafia do slotu bez zmian", () => {
+    const hours = computeSlotHours(
+      input({
+        seats: MIXED_DAY,
+        standing: boarder(),
+        occupancy: [
+          { instructorId: JOANNA.id, hour: 10, taken: 1, waiting: null },
+          { instructorId: KAROL.id, hour: 10, taken: 0, waiting: 0 },
+        ],
+      }),
+    );
+
+    expect(hours[0].slots.map((slot) => [slot.kind, slot.waiting, slot.freeSeats])).toEqual([
+      ["recreation", null, 1],
+      ["training", 0, 3],
+    ]);
+  });
+
+  it("slot bez wiersza zajętości albo z liczbą ukrytą przez bazę nie pokazuje liczby czekających", () => {
+    const missing = computeSlotHours(input({ seats: MIXED_DAY, standing: boarder() }));
+    const hidden = computeSlotHours(
+      input({
+        seats: MIXED_DAY,
+        standing: boarder(),
+        occupancy: [{ instructorId: KAROL.id, hour: 10, taken: 1, waiting: null }],
+      }),
+    );
+
+    expect(missing[0].slots.map((slot) => slot.waiting)).toEqual([null, null]);
+    expect(hidden[0].slots[1].waiting).toBeNull();
+  });
+});
+
 describe("riderSeesDay", () => {
   const trainingOnly: SlotSeats[] = [
     { instructorId: KAROL.id, hour: 10, seats: 3, placeId: HALA.id, kind: "training" },
@@ -354,6 +412,10 @@ describe("slotStatusLabel", () => {
     expect(slotStatusLabel("mine")).toBe("Twój zapis");
     expect(slotStatusLabel("full")).toBe("Brak miejsc");
     expect(slotStatusLabel("unavailable")).toBe("Masz już zapis o tej godzinie");
+  });
+
+  it("własny zapis oczekujący to „Czekasz na przyjęcie”", () => {
+    expect(slotStatusLabel("pending")).toBe("Czekasz na przyjęcie");
   });
 
   it("slot nie dla pensjonariusza i slot treningowy bez konia mają własne podpisy", () => {

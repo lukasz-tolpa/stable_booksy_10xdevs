@@ -5,11 +5,10 @@
  * stado i instruktorzy ośrodka; tu są mapowane na wspólny kształt `SummaryBooking`.
  */
 
-import { OWNER_MONTH_SUMMARY_ROUTE } from "@/lib/auth/roles";
+import { OWNER_MONTH_SUMMARY_ROUTE, STABLE_DAY_BOOKINGS_ROUTE } from "@/lib/auth/roles";
 import { horsesOf, isBoarderWith, type BoardingHorse } from "@/lib/boarding/month";
 import { unknownHorseName } from "@/lib/bookings/rows";
 import { unknownInstructorName } from "@/lib/bookings/slots";
-import { STABLE_DAY_BOOKINGS_ROUTE } from "@/lib/bookings/stable-redirect";
 import { monthSearch, type SummaryMonth } from "@/lib/month-summary/month";
 import {
   composeMonthSummary,

@@ -1,0 +1,88 @@
+---
+import { Bell } from "lucide-react";
+import { NOTIFICATIONS_ROUTE, isUserRole } from "@/lib/auth/roles";
+import { logError } from "@/lib/log";
+import { bellBadge, bellLabel, countUnread, notificationViewerOf } from "@/lib/notifications/notifications";
+import { loadNotificationsInput } from "@/lib/notifications/queries";
+import { createClient } from "@/lib/supabase";
+
+// Dzwonek w górnym pasku (#129, GLOSSARY „Powiadomienie”): prowadzi do strony „Powiadomienia” i pokazuje
+// liczbę nieprzeczytanych — nowszych od ostatniego otwarcia tej strony. Liczy się przy wejściu na stronę,
+// nie na żywo. Kto dostaje dzwonek — `notificationViewerOf`; awaria odczytu zostawia dzwonek bez liczby.
+const { user, profile, instructorStanding } = Astro.locals;
+const viewer =
+  user && profile && isUserRole(profile.role) ? notificationViewerOf(profile.role, instructorStanding) : null;
+
+let unread = 0;
+if (viewer && profile) {
+  const supabase = createClient(Astro.request.headers, Astro.cookies);
+  if (supabase) {
+    try {
+      unread = countUnread(await loadNotificationsInput(supabase, profile.id, viewer));
+    } catch (error) {
+      logError("component:notification-bell", error);
+    }
+  }
+}
+const badge = bellBadge(unread);
+const current = Astro.url.pathname === NOTIFICATIONS_ROUTE;
+---
+
+{
+  viewer && (
+    <a
+      href={NOTIFICATIONS_ROUTE}
+      class="bell"
+      aria-label={bellLabel(unread)}
+      aria-current={current ? "page" : undefined}
+      data-notification-bell
+    >
+      <Bell className="size-5" aria-hidden="true" />
+      {badge && (
+        <span class="badge mono-nums" aria-hidden="true">
+          {badge}
+        </span>
+      )}
+    </a>
+  )
+}
+
+<style>
+  .bell {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    /* 44 px - minimalny cel dotykowy, jak przycisk menu obok. */
+    width: 44px;
+    height: 44px;
+    border-radius: 999px;
+    color: var(--fg);
+    transition: background 0.15s;
+  }
+  .bell:hover,
+  .bell[aria-current="page"] {
+    background: var(--primary-soft);
+    color: var(--primary-strong);
+  }
+  .bell:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+  .badge {
+    position: absolute;
+    top: 4px;
+    right: 2px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: var(--accent);
+    color: var(--color-primary-foreground);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 18px;
+    text-align: center;
+  }
+</style>

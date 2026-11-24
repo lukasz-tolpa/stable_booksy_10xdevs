@@ -66,8 +66,9 @@ begin
   insert into public.schedule_days (stable_id, day, open_hour, close_hour)
   values (v_debem, v_today - 20, 10, 12)
   returning id into v_day;
-  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, horse_id, status)
-  values (v_day, v_joanna, 10, null, v_hrabia, 'active');
+  -- Wyzwalacz bookings_acceptance tez jest wylaczony - znacznik przyjecia wpisany wprost (#123).
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, horse_id, status, accepted_at)
+  values (v_day, v_joanna, 10, null, v_hrabia, 'active', now());
   set local session_replication_role = origin;
 
   perform set_config('app.debem', v_debem::text, true);

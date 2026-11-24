@@ -18,6 +18,7 @@ function booking(overrides: Partial<RiderBooking>): RiderBooking {
     horseName: null,
     status: "active",
     cancelledBy: null,
+    rejectionReason: null,
     ...overrides,
   };
 }
@@ -128,5 +129,99 @@ describe("splitRiderBookings", () => {
 
   it("pusta lista daje dwie puste sekcje", () => {
     expect(splitRiderBookings([], NOW)).toEqual({ upcoming: [], history: [] });
+  });
+
+  it("zapis oczekujący przyszły jest w nadchodzących ze znacznikiem „Czeka na przyjęcie” i da się go odwołać", () => {
+    const { upcoming, history } = splitRiderBookings([booking({ status: "pending" })], NOW);
+
+    expect(history).toHaveLength(0);
+    expect(upcoming[0]).toMatchObject({
+      state: "pending",
+      stateView: { as: "tag", label: "Czeka na przyjęcie", variant: "warn" },
+      cancellable: true,
+      // Koń przydziela ośrodek dopiero zapisowi przyjętemu — oczekujący nie obiecuje przydziału.
+      horseLabel: null,
+    });
+  });
+
+  it("zapis oczekujący na slot treningowy pokazuje konia pensjonariusza z zapisu", () => {
+    const { upcoming } = splitRiderBookings([booking({ status: "pending", horseName: "Hrabia" })], NOW);
+
+    expect(upcoming[0].horseLabel).toBe("Hrabia");
+  });
+
+  it("zapis aktywny nadchodzący nie ma znacznika stanu i da się go odwołać", () => {
+    const { upcoming } = splitRiderBookings([booking({})], NOW);
+
+    expect(upcoming[0]).toMatchObject({ state: "active", stateView: null, cancellable: true });
+  });
+
+  it("zapis oczekujący, którego slot się zaczął, jest wygasły: do końca slotu w nadchodzących, bez odwołania", () => {
+    // 13:30 — slot o 13 trwa.
+    const { upcoming, history } = splitRiderBookings([booking({ status: "pending", day: TODAY, hour: 13 })], NOW);
+
+    expect(history).toHaveLength(0);
+    expect(upcoming[0]).toMatchObject({
+      state: "expired",
+      stateView: { as: "tag", label: "Wygasł — ośrodek nie zdecydował przed terminem", variant: "neutral" },
+      cancellable: false,
+      horseLabel: null,
+    });
+  });
+
+  it("po terminie slotu wygasły zapis trafia do historii", () => {
+    const { upcoming, history } = splitRiderBookings(
+      [
+        booking({ id: 1, status: "pending", day: TODAY, hour: 12 }),
+        booking({ id: 2, status: "pending", day: "2026-08-19" }),
+      ],
+      NOW,
+    );
+
+    expect(upcoming).toHaveLength(0);
+    expect(history.map((r) => [r.id, r.state, r.stateView?.label, r.horseLabel])).toEqual([
+      [1, "expired", "Wygasł — ośrodek nie zdecydował przed terminem", null],
+      [2, "expired", "Wygasł — ośrodek nie zdecydował przed terminem", null],
+    ]);
+  });
+
+  it("zapis odrzucony do końca slotu jest w nadchodzących z powodem, bez odwołania i bez konia", () => {
+    const { upcoming, history } = splitRiderBookings(
+      [booking({ status: "rejected", rejectionReason: "Na tę godzinę mamy już komplet." })],
+      NOW,
+    );
+
+    expect(history).toHaveLength(0);
+    expect(upcoming[0]).toMatchObject({
+      state: "rejected",
+      stateView: { as: "text", label: "Odrzucony: Na tę godzinę mamy już komplet." },
+      cancellable: false,
+      horseLabel: null,
+      cancelledByLabel: null,
+    });
+  });
+
+  it("odrzucenie automatyczne pokazuje swój powód jak ręczne", () => {
+    const { upcoming } = splitRiderBookings([booking({ status: "rejected", rejectionReason: "Brak miejsc" })], NOW);
+
+    expect(upcoming[0].stateView).toEqual({ as: "text", label: "Odrzucony: Brak miejsc" });
+  });
+
+  it("zapis odrzucony, którego slot trwa, zostaje w nadchodzących; po terminie slotu trafia do historii", () => {
+    // 13:30 — slot o 13 trwa, slot o 12 się skończył.
+    const { upcoming, history } = splitRiderBookings(
+      [
+        booking({ id: 1, status: "rejected", rejectionReason: "Brak miejsc", day: TODAY, hour: 13 }),
+        booking({ id: 2, status: "rejected", rejectionReason: "Brak miejsc", day: TODAY, hour: 12 }),
+        booking({ id: 3, status: "rejected", rejectionReason: "Brak miejsc", day: "2026-08-19" }),
+      ],
+      NOW,
+    );
+
+    expect(upcoming.map((r) => r.id)).toEqual([1]);
+    expect(history.map((r) => [r.id, r.stateView?.label, r.cancellable])).toEqual([
+      [2, "Odrzucony: Brak miejsc", false],
+      [3, "Odrzucony: Brak miejsc", false],
+    ]);
   });
 });

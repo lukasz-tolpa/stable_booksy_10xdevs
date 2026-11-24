@@ -1,0 +1,143 @@
+---
+// Treść „Zapisów do przyjęcia” (#124, #125, #126; GLOSSARY „Zapis oczekujący”, „Przyjęcie zapisu”, „Odrzucenie
+// zapisu”), wspólna dla właściciela (zapisy oczekujące całego ośrodka) i instruktora z kontem (na jego sloty):
+// nagłówek, opis, komunikat wyniku, potem stan — awaria odczytu, pusta lista albo dni z zapisami i akcjami
+// „Przyjmij” / „Odrzuć”. Czyje zapisy, rozstrzyga funkcja bazy z sesji; strona tylko je wczytuje i podaje tutaj.
+// Przyjęcie ponad limit miejsc, po starcie slotu i zapisu, który przestał czekać, odrzuca baza — tu tylko wolne
+// miejsca. Odrzucenie wymaga powodu, który jeździec zobaczy; zapis jeźdźca, któremu ośrodek odrzucił już zapis na
+// ten slot, jest oznaczony.
+import Banner from "@/components/Banner.astro";
+import PendingBookingRow from "@/components/bookings/PendingBookingRow.astro";
+import Card from "@/components/ui/Card.astro";
+import EmptyState from "@/components/ui/EmptyState.astro";
+import FailureState from "@/components/ui/FailureState.astro";
+import Tag from "@/components/ui/Tag.astro";
+import type { PendingBookingsDay } from "@/lib/bookings/pending";
+import { formatClockHour, formatLongDateWithYear } from "@/lib/format";
+import { SLOT_KIND, TRAINING_SLOT_TAG } from "@/lib/schedule/kind";
+
+interface Props {
+  lead: string;
+  days: PendingBookingsDay[];
+  loadFailed: boolean;
+  success: string | null;
+  error: string | null;
+}
+
+const { lead, days, loadFailed, success, error } = Astro.props;
+---
+
+<h1>Zapisy do przyjęcia</h1>
+<p class="page-lead">{lead}</p>
+
+{
+  success && (
+    <div class="notice">
+      <Banner variant="success">{success}</Banner>
+    </div>
+  )
+}
+{
+  error && (
+    <div class="notice">
+      <Banner variant="error">{error}</Banner>
+    </div>
+  )
+}
+
+{
+  loadFailed ? (
+    <FailureState>
+      <p>Nie udało się wczytać zapisów do przyjęcia.</p>
+      <p>Odśwież stronę za chwilę.</p>
+    </FailureState>
+  ) : days.length === 0 ? (
+    <div class="section">
+      <Card>
+        <EmptyState>
+          <p>Nikt nie czeka na przyjęcie.</p>
+          <p>Gdy jeździec zapisze się na jazdę, jego zapis pojawi się tutaj.</p>
+        </EmptyState>
+      </Card>
+    </div>
+  ) : (
+    days.map((day) => (
+      <section class="section" aria-label={formatLongDateWithYear(day.day)}>
+        <Card>
+          <h2>{formatLongDateWithYear(day.day)}</h2>
+          <ul class="rows">
+            {day.rows.map((row) => (
+              <PendingBookingRow rider={row}>
+                <span slot="when" class="row__when">
+                  {formatClockHour(row.hour)}
+                </span>
+                <span class="row__slot">
+                  <span>{row.instructorName}</span>
+                  <span class="row__sub">{row.placeName}</span>
+                  {row.kind === SLOT_KIND.training && <Tag variant="primary">{TRAINING_SLOT_TAG}</Tag>}
+                  {row.full ? (
+                    <Tag variant="warn">{row.seatsLabel}</Tag>
+                  ) : (
+                    <span class="row__sub mono-nums">{row.seatsLabel}</span>
+                  )}
+                  {/* Inni czekający na ten slot (#128, US 26). */}
+                  {row.othersWaitingLabel && <span class="row__sub mono-nums">{row.othersWaitingLabel}</span>}
+                </span>
+              </PendingBookingRow>
+            ))}
+          </ul>
+        </Card>
+      </section>
+    ))
+  )
+}
+
+<style>
+  h1 {
+    font-size: 32px;
+  }
+  .page-lead {
+    margin: 10px 0 0;
+    font-size: 15.5px;
+    color: var(--muted);
+    max-width: 62ch;
+  }
+  .notice {
+    margin-top: 16px;
+  }
+  .section {
+    display: block;
+    margin-top: 18px;
+  }
+  h2 {
+    font-size: 20px;
+    margin: 0 0 14px;
+  }
+
+  /* Wiersz zapisu oczekującego (układ, jeździec, akcje) należy do `PendingBookingRow`; tu godzina i fakty slotu. */
+  .rows {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .row__when {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .row__slot {
+    flex-basis: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 12px;
+    min-width: 0;
+  }
+  .row__sub {
+    color: var(--muted);
+    font-size: 14.5px;
+    overflow-wrap: anywhere;
+  }
+</style>

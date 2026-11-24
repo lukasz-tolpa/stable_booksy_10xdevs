@@ -37,6 +37,7 @@ function booking(day: string, overrides: Partial<StatsBooking> = {}): StatsBooki
     status: "active",
     riderId: "r1",
     cancelledBy: null,
+    wasAccepted: true,
     ...overrides,
   };
 }
@@ -158,6 +159,21 @@ describe("composeWeek", () => {
     expect(week.unscheduledText).toBe("1 dzień bez grafiku");
   });
 
+  it("zapis oczekujący ani odrzucony nie zajmuje miejsca: tydzień i licznik „bez konia” bez zmian", () => {
+    const days = [scheduleDay(TODAY, [2, 1]), scheduleDay("2026-11-21", [1])];
+    const bookings = [booking(TODAY, { horseId: null }), booking("2026-11-21")];
+    const notActive = [
+      booking(TODAY, { status: "pending", horseId: null, riderId: "r2", wasAccepted: false }),
+      booking(TODAY, { hour: 11, status: "rejected", horseId: null, riderId: "r3", wasAccepted: false }),
+      booking("2026-11-21", { status: "pending", horseId: null, riderId: "r2", wasAccepted: false }),
+    ];
+
+    const baseline = composeWeek({ today: TODAY, days, bookings });
+
+    expect(baseline).toMatchObject({ booked: 2, seats: 4 });
+    expect(composeWeek({ today: TODAY, days, bookings: [...bookings, ...notActive] })).toEqual(baseline);
+  });
+
   it("tydzień ułożony w całości nie ma dopisku o dniach bez grafiku", () => {
     const days = week7().map((day) => scheduleDay(day, [5]));
     const week = composeWeek({ today: TODAY, days, bookings: [] });
@@ -214,15 +230,26 @@ describe("composeSideColumn", () => {
   const accounts = [{ instructor_id: 1 }, { instructor_id: 3 }, { instructor_id: 4 }];
   const places = [{ active: true }, { active: false }];
 
-  it("prowadzi do sekcji ośrodka: Grafik na jutro, Zapisy na dziś, Konie, Pensjonariusze, Place, Zajętość placów, Instruktorzy, Podsumowanie miesiąca, Rozliczenia, Statystyki", () => {
+  it("prowadzi do sekcji ośrodka: Grafik na jutro, Zapisy na dziś, Zapisy do przyjęcia, Konie, Pensjonariusze, Place, Zajętość placów, Instruktorzy, Podsumowanie miesiąca, Rozliczenia, Statystyki", () => {
     const links = composeSideColumn(
-      { today: TODAY, week, horses, instructors, accounts, places, monthBookings: [], settlementsTotal: null },
+      {
+        today: TODAY,
+        week,
+        horses,
+        instructors,
+        accounts,
+        places,
+        monthBookings: [],
+        settlementsTotal: null,
+        pendingCount: null,
+      },
       NOW,
     );
 
     expect(links.map((link) => [link.name, link.href])).toEqual([
       ["Grafik", "/osrodek/grafik?dzien=2026-11-21"],
       ["Zapisy", "/osrodek/zapisy?dzien=2026-11-20"],
+      ["Zapisy do przyjęcia", "/osrodek/zapisy-do-przyjecia"],
       ["Konie", "/osrodek/konie"],
       ["Pensjonariusze", "/osrodek/pensjonariusze"],
       ["Place", "/osrodek/place"],
@@ -236,13 +263,25 @@ describe("composeSideColumn", () => {
 
   it("przy każdym linku krótka informacja: jutro bez grafiku, aktywne zapisy dziś, aktywne konie ośrodka, konie pensjonatowe, aktywne place, instruktorzy z kontem spośród aktywnych", () => {
     const links = composeSideColumn(
-      { today: TODAY, week, horses, instructors, accounts, places, monthBookings: [], settlementsTotal: null },
+      {
+        today: TODAY,
+        week,
+        horses,
+        instructors,
+        accounts,
+        places,
+        monthBookings: [],
+        settlementsTotal: null,
+        pendingCount: 2,
+      },
       NOW,
     );
 
     expect(links.map((link) => [link.fact, link.warn])).toEqual([
       ["jutro: brak grafiku", true],
       ["dziś: 2", false],
+      // Zapisy czekające na decyzję ośrodka wymagają uwagi (#128).
+      ["2 czekają", true],
       ["2 aktywne", false],
       ["1 koń pensjonatowy", false],
       ["1 aktywny", false],
@@ -252,6 +291,29 @@ describe("composeSideColumn", () => {
       [null, false],
       ["dowolny okres", false],
     ]);
+  });
+
+  it("Zapisy do przyjęcia: liczba czekających — bez czekających spokojnie, bez odczytu bez informacji", () => {
+    const factOf = (pendingCount: number | null) =>
+      composeSideColumn(
+        {
+          today: TODAY,
+          week,
+          horses,
+          instructors,
+          accounts,
+          places,
+          monthBookings: [],
+          settlementsTotal: null,
+          pendingCount,
+        },
+        NOW,
+      ).find((link) => link.name === "Zapisy do przyjęcia");
+
+    expect(factOf(1)).toMatchObject({ fact: "1 czeka", warn: true });
+    expect(factOf(5)).toMatchObject({ fact: "5 czeka", warn: true });
+    expect(factOf(0)).toMatchObject({ fact: "nikt nie czeka", warn: false });
+    expect(factOf(null)).toMatchObject({ fact: null, warn: false });
   });
 
   it("Podsumowanie miesiąca podaje jazdy bieżącego miesiąca do teraz — bez odwołań, nadchodzących i poprzedniego miesiąca", () => {
@@ -273,6 +335,7 @@ describe("composeSideColumn", () => {
           booking("2026-11-05", { status: "cancelled", horseId: null, cancelledBy: "rider" }),
         ],
         settlementsTotal: null,
+        pendingCount: null,
       },
       NOW,
     );
@@ -292,6 +355,7 @@ describe("composeSideColumn", () => {
         places,
         monthBookings: [],
         settlementsTotal: null,
+        pendingCount: null,
       },
       NOW,
     );
@@ -310,7 +374,8 @@ describe("composeSideColumn", () => {
         places,
         monthBookings: [],
         settlementsTotal: null,
-      })[2]?.fact;
+        pendingCount: null,
+      }).find((link) => link.name === "Konie")?.fact;
 
     expect([factFor(1), factFor(4), factFor(5), factFor(12), factFor(22)]).toEqual([
       "1 aktywny",
@@ -332,11 +397,13 @@ describe("composeSideColumn", () => {
         places: null,
         monthBookings: null,
         settlementsTotal: null,
+        pendingCount: null,
       },
       NOW,
     );
 
     expect(links.map((link) => link.fact)).toEqual([
+      null,
       null,
       null,
       null,
@@ -351,6 +418,7 @@ describe("composeSideColumn", () => {
     expect(links.map((link) => link.href)).toEqual([
       "/osrodek/grafik?dzien=2026-11-21",
       "/osrodek/zapisy?dzien=2026-11-20",
+      "/osrodek/zapisy-do-przyjecia",
       "/osrodek/konie",
       "/osrodek/pensjonariusze",
       "/osrodek/place",
@@ -513,12 +581,13 @@ describe("composeSettlementsLink — Rozliczenia w bocznej kolumnie i w główne
         places: null,
         monthBookings: null,
         settlementsTotal,
+        pendingCount: null,
       },
       NOW,
     );
 
-    expect(links[8]).toEqual(composeSettlementsLink({ today: TODAY, settlementsTotal }));
-    expect(links[8]?.fact).toBe("listopad: 480,00 zł");
+    expect(links[9]).toEqual(composeSettlementsLink({ today: TODAY, settlementsTotal }));
+    expect(links[9]?.fact).toBe("listopad: 480,00 zł");
   });
 });
 

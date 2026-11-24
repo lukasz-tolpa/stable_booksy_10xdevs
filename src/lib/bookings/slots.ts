@@ -23,24 +23,32 @@ export interface SlotOccupancy {
   instructorId: number;
   hour: number;
   taken: number;
+  /**
+   * Zapisy oczekujące slotu (#128, ADR 0006); `null` (albo brak) — baza tej liczby wołającemu nie pokazuje
+   * (jeździec rekreacyjny, slot rekreacyjny u jeźdźca). Kto ją widzi, dostaje wiersz każdego slotu dnia, także 0.
+   */
+  waiting?: number | null;
 }
 
-/** Własny aktywny zapis jeźdźca w oglądanym dniu. */
+/** Własny zapis jeźdźca w oglądanym dniu: aktywny albo oczekujący (`pending`). */
 export interface MySlot {
   instructorId: number;
   hour: number;
+  /** Zapis czeka na przyjęcie przez ośrodek (GLOSSARY „Zapis oczekujący”). */
+  pending?: boolean;
 }
 
 /**
- * `free` — są wolne miejsca; `mine` — własny aktywny zapis; `full` — brak wolnych miejsc;
- * `unavailable` — jeździec ma już aktywny zapis o tej godzinie u innego instruktora (baza
- * odmówiłaby drugiego zapisu na tę godzinę); `not_for_me` — slot rekreacyjny u pensjonariusza (SB049);
+ * `free` — są wolne miejsca; `mine` — własny aktywny zapis; `pending` — własny zapis czeka na przyjęcie;
+ * `full` — brak wolnych miejsc; `unavailable` — jeździec ma już zapis (aktywny albo oczekujący) o tej
+ * godzinie u innego instruktora (baza odmówiłaby drugiego zapisu na tę godzinę); `not_for_me` — slot rekreacyjny u pensjonariusza (SB049);
  * `no_horse` — slot treningowy, a żaden koń pensjonariusza nie stoi tego dnia w ośrodku (SB053).
  */
-export type SlotStatus = "free" | "mine" | "full" | "unavailable" | "not_for_me" | "no_horse";
+export type SlotStatus = "free" | "mine" | "pending" | "full" | "unavailable" | "not_for_me" | "no_horse";
 
 const SLOT_STATUS_LABELS: Record<Exclude<SlotStatus, "free">, string> = {
   mine: "Twój zapis",
+  pending: "Czekasz na przyjęcie",
   full: "Brak miejsc",
   unavailable: "Masz już zapis o tej godzinie",
   not_for_me: "Slot rekreacyjny — nie dla pensjonariuszy",
@@ -104,6 +112,11 @@ export interface RiderSlot {
   kind: SlotKind;
   /** Konie pensjonariusza do zapisu na slot treningowy (jeden — przydzielony od razu, kilka — wybór); inaczej pusto. */
   horses: RiderHorse[];
+  /**
+   * Ile zapisów czeka na przyjęcie na ten slot (#128, ADR 0006) — tak, jak podała baza (pensjonariusz przy slocie
+   * treningowym); `null` — baza tej liczby nie pokazuje (jeździec rekreacyjny widzi tylko wolne miejsca i swój zapis).
+   */
+  waiting: number | null;
 }
 
 export interface SlotHour {
@@ -144,11 +157,12 @@ function slotKey(instructorId: number, hour: number): string {
 function statusOf(
   slot: SlotSeats,
   freeSeats: number,
-  mine: Set<string>,
+  mine: Map<string, MySlot>,
   myHours: Set<number>,
   standing: RiderStanding,
 ): SlotStatus {
-  if (mine.has(slotKey(slot.instructorId, slot.hour))) return "mine";
+  const own = mine.get(slotKey(slot.instructorId, slot.hour));
+  if (own) return own.pending ? "pending" : "mine";
   if (myHours.has(slot.hour)) return "unavailable";
   if (standing.boarder && slot.kind === SLOT_KIND.recreation) return "not_for_me";
   if (standing.boarder && standing.horses.length === 0) return "no_horse";
@@ -158,8 +172,8 @@ function statusOf(
 export function computeSlotHours(input: SlotHoursInput): SlotHour[] {
   const names = new Map(input.instructors.map((instructor) => [instructor.id, instructor.name]));
   const placeName = placeNamer(input.places);
-  const taken = new Map(input.occupancy.map((entry) => [slotKey(entry.instructorId, entry.hour), entry.taken]));
-  const mine = new Set(input.myBookings.map((booking) => slotKey(booking.instructorId, booking.hour)));
+  const occupancy = new Map(input.occupancy.map((entry) => [slotKey(entry.instructorId, entry.hour), entry]));
+  const mine = new Map(input.myBookings.map((booking) => [slotKey(booking.instructorId, booking.hour), booking]));
   const myHours = new Set(input.myBookings.map((booking) => booking.hour));
   const byHour = new Map<number, RiderSlot[]>();
 
@@ -171,7 +185,8 @@ export function computeSlotHours(input: SlotHoursInput): SlotHour[] {
     if (slot.hour < input.openHour || slot.hour >= input.closeHour) continue;
     if (input.currentHour !== null && slot.hour <= input.currentHour) continue;
 
-    const freeSeats = Math.max(0, slot.seats - (taken.get(slotKey(slot.instructorId, slot.hour)) ?? 0));
+    const entry = occupancy.get(slotKey(slot.instructorId, slot.hour));
+    const freeSeats = Math.max(0, slot.seats - (entry?.taken ?? 0));
     const slots = byHour.get(slot.hour) ?? [];
     slots.push({
       instructorId: slot.instructorId,
@@ -182,6 +197,9 @@ export function computeSlotHours(input: SlotHoursInput): SlotHour[] {
       status: statusOf(slot, freeSeats, mine, myHours, standing),
       kind: slot.kind,
       horses: standing.boarder && slot.kind === SLOT_KIND.training ? standing.horses : [],
+      // Kto widzi liczbę czekających, rozstrzyga baza: wołający, który ją widzi, dostaje wiersz każdego slotu
+      // (także 0); brak wiersza albo NULL — liczba niewidoczna.
+      waiting: entry?.waiting ?? null,
     });
     byHour.set(slot.hour, slots);
   }
@@ -222,4 +240,32 @@ export function currentWarsawHour(now: Date = new Date()): number {
 export function hasSlotStarted(day: string, hour: number, now: Date = new Date()): boolean {
   const today = todayIso(now);
   return isPastDate(day, today) || (day === today && hour <= currentWarsawHour(now));
+}
+
+const WARSAW_WALL_CLOCK = new Intl.DateTimeFormat("en-CA", {
+  timeZone: SCHEDULE_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
+/**
+ * Chwila startu slotu (dzień grafiku × godzina w Europe/Warsaw) — ten sam próg co `hasSlotStarted`,
+ * jako punkt w czasie (czas powiadomienia o wygaśnięciu zapisu). Przesunięcie strefy bierzemy z zegara
+ * ściennego Warszawy w chwili „ta godzina w UTC”: sloty leżą daleko od nocnej zmiany czasu.
+ */
+export function slotStartsAt(day: string, hour: number): Date {
+  const asUtc = new Date(`${day}T${String(hour).padStart(2, "0")}:00:00Z`);
+  const part = Object.fromEntries(WARSAW_WALL_CLOCK.formatToParts(asUtc).map(({ type, value }) => [type, value]));
+  const wallClock = Date.UTC(
+    Number(part.year),
+    Number(part.month) - 1,
+    Number(part.day),
+    Number(part.hour),
+    Number(part.minute),
+  );
+  return new Date(asUtc.getTime() - (wallClock - asUtc.getTime()));
 }

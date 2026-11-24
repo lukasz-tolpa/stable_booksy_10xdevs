@@ -1,5 +1,4 @@
 import { INSTRUCTOR_LABEL, ROLE_LABELS, STABLE_LABEL, USER_ROLES } from "@/lib/auth/constants";
-import { STABLE_DAY_BOOKINGS_ROUTE } from "@/lib/bookings/stable-redirect";
 import { INSTRUCTORS_ROUTE } from "@/lib/instructors/redirect";
 import type { ScheduleCaller } from "@/lib/schedule/errors";
 import type { UserRole } from "@/types";
@@ -80,6 +79,41 @@ export const INSTRUCTOR_MONTH_SUMMARY_ROUTE = `${INSTRUCTOR_HOME_ROUTE}/podsumow
 export const RIDER_MONTH_SUMMARY_ROUTE = `${ROLE_HOME.rider}/podsumowanie`;
 
 /**
+ * Strona „Powiadomienia” (#129) — wspólna dla każdej roli, poza przestrzeniami ról (dzwonek w górnym pasku).
+ * Wymaga sesji; konto instruktora bez ośrodka i zdezaktywowany instruktor przenosi middleware jak z każdej trasy.
+ */
+export const NOTIFICATIONS_ROUTE = "/powiadomienia";
+
+/** „Moje zapisy” jeźdźca — nadchodzące, odrzucone, wygasłe i historia. */
+export const RIDER_BOOKINGS_ROUTE = `${ROLE_HOME.rider}/zapisy`;
+
+/** Lista zapisów dnia ośrodka — cel powrotu z przydziału konia i odwołania zapisu. */
+export const STABLE_DAY_BOOKINGS_ROUTE = `${ROLE_HOME.instructor}/zapisy`;
+
+/** „Zapisy do przyjęcia” ośrodka (#124) — zapisy oczekujące; cel powrotu z przyjęcia zapisu. */
+export const PENDING_BOOKINGS_ROUTE = `${ROLE_HOME.instructor}/zapisy-do-przyjecia`;
+
+/** „Zapisy do przyjęcia” instruktora z kontem (#126) — zapisy oczekujące na jego sloty, w jego przestrzeni. */
+export const INSTRUCTOR_PENDING_BOOKINGS_ROUTE = `${INSTRUCTOR_HOME_ROUTE}/zapisy-do-przyjecia`;
+
+/**
+ * Strona ośrodka, z której konto ogląda zapisy: właściciel (cały ośrodek) albo instruktor z kontem (swoje sloty,
+ * z uprawnieniem do układania grafiku i bez). Rozstrzyga ją mapa `STANDINGS`.
+ */
+export type StableViewer = "owner" | "instructor";
+
+/** „Zapisy do przyjęcia” każdej strony ośrodka — jedyna tabela (powrót z decyzji, powiadomienia, zakładki). */
+const PENDING_BOOKINGS_ROUTES: Record<StableViewer, string> = {
+  owner: PENDING_BOOKINGS_ROUTE,
+  instructor: INSTRUCTOR_PENDING_BOOKINGS_ROUTE,
+};
+
+/** „Zapisy do przyjęcia” strony ośrodka `viewer`. */
+export function pendingBookingsRouteOf(viewer: StableViewer): string {
+  return PENDING_BOOKINGS_ROUTES[viewer];
+}
+
+/**
  * Kim jest konto `instructor` w ośrodku — wynika z danych w bazie, nie z roli konta (ADR-0004):
  * `none` — konto bez instruktora (rejestracja „Ośrodek”, ośrodek jeszcze niezałożony),
  * `owner` — instruktor właściciel ośrodka, `instructor` — instruktor z kontem bez praw właściciela,
@@ -101,27 +135,42 @@ export interface InstructorLink {
   arrangesSchedule: boolean;
 }
 
+/** Ikona sekcji ośrodka w dolnym pasku na telefonie — klucz, który pasek zamienia na obrazek. */
+export type SectionIcon = "panel" | "schedule" | "bookings" | "pending-bookings" | "horses" | "instructors" | "stats";
+
 /** Zakładka w przestrzeni instruktora albo sekcja przestrzeni ośrodka. */
 export interface InstructorTab {
   href: string;
   label: string;
+  /** Krótszy podpis w dolnym pasku sekcji na telefonie, gdy pełny się nie mieści. */
+  shortLabel?: string;
+  /** Ikona sekcji w dolnym pasku ośrodka; zakładki instruktora jej nie mają. */
+  icon?: SectionIcon;
+  /**
+   * Liczba na plakietce pozycji (#128) — przy „Zapisach do przyjęcia” konta liczba zapisów, które czekają na jego
+   * decyzję; `null` albo brak — bez plakietki (zero albo liczby nie wczytano).
+   */
+  badge?: number | null;
 }
 
 /** Zakładki przestrzeni instruktora wspólne dla stanów z uprawnieniem do grafiku i bez. */
 const MY_SLOTS_TAB: InstructorTab = { href: INSTRUCTOR_HOME_ROUTE, label: "Moje sloty" };
 const MONTH_SUMMARY_TAB: InstructorTab = { href: INSTRUCTOR_MONTH_SUMMARY_ROUTE, label: "Podsumowanie miesiąca" };
+/** Zapisy oczekujące na sloty instruktora (#126) — przyjmuje je i odrzuca jak właściciel, tylko na swoich slotach. */
+const PENDING_BOOKINGS_TAB: InstructorTab = { href: INSTRUCTOR_PENDING_BOOKINGS_ROUTE, label: "Zapisy do przyjęcia" };
 
 /**
  * Sekcje przestrzeni ośrodka właściciela — dolny pasek nawigacji na telefonie (spec #83), żeby
  * panel, Grafik, Zapisy, Konie, Instruktorzy i Statystyki były pod ręką na każdej stronie ośrodka.
  */
 const STABLE_SECTIONS: readonly InstructorTab[] = [
-  { href: ROLE_HOME.instructor, label: "Panel" },
-  { href: OWNER_SCHEDULE_ROUTE, label: "Grafik" },
-  { href: STABLE_DAY_BOOKINGS_ROUTE, label: "Zapisy" },
-  { href: `${ROLE_HOME.instructor}/konie`, label: "Konie" },
-  { href: INSTRUCTORS_ROUTE, label: "Instruktorzy" },
-  { href: `${ROLE_HOME.instructor}/statystyki`, label: "Statystyki" },
+  { href: ROLE_HOME.instructor, label: "Panel", icon: "panel" },
+  { href: OWNER_SCHEDULE_ROUTE, label: "Grafik", icon: "schedule" },
+  { href: STABLE_DAY_BOOKINGS_ROUTE, label: "Zapisy", icon: "bookings" },
+  { href: PENDING_BOOKINGS_ROUTE, label: "Zapisy do przyjęcia", shortLabel: "Przyjęcia", icon: "pending-bookings" },
+  { href: `${ROLE_HOME.instructor}/konie`, label: "Konie", icon: "horses" },
+  { href: INSTRUCTORS_ROUTE, label: "Instruktorzy", icon: "instructors" },
+  { href: `${ROLE_HOME.instructor}/statystyki`, label: "Statystyki", icon: "stats" },
 ];
 
 /**
@@ -129,8 +178,9 @@ const STABLE_SECTIONS: readonly InstructorTab[] = [
  * trasa startowa, ścieżki chronione, na których konto może zostać (`staysOn`; z pozostałych
  * middleware przenosi je na `home`), etykieta pigułki roli w górnym pasku, strona grafiku dnia
  * (`schedule`, `null` — konto grafiku nie układa), czyje komunikaty grafiku dostaje (`scheduleCaller`;
- * instruktor także po utracie uprawnienia) i zakładki przestrzeni instruktora (`tabs`; pusta lista —
- * bez paska zakładek).
+ * instruktor także po utracie uprawnienia), zakładki przestrzeni instruktora (`tabs`; pusta lista —
+ * bez paska zakładek) i strona ośrodka, z której konto ogląda zapisy (`stableViewer`; `null` — żadna: konto bez
+ * ośrodka, zdezaktywowany instruktor).
  * Właściciel mieszka w przestrzeni ośrodka, instruktor — w „Moje sloty”; konto bez ośrodka nie
  * wychodzi poza zakładanie ośrodka, a konto z ośrodkiem na nie nie wchodzi; zdezaktywowany
  * instruktor widzi wyłącznie ekran nieaktywnego konta, aktywne konto na ten ekran nie wchodzi.
@@ -145,6 +195,7 @@ const STANDINGS: Record<
     scheduleCaller: ScheduleCaller;
     tabs: readonly InstructorTab[];
     sections: readonly InstructorTab[];
+    stableViewer: StableViewer | null;
   }
 > = {
   none: {
@@ -155,6 +206,7 @@ const STANDINGS: Record<
     scheduleCaller: "owner",
     tabs: [],
     sections: [],
+    stableViewer: null,
   },
   owner: {
     home: ROLE_HOME.instructor,
@@ -164,6 +216,7 @@ const STANDINGS: Record<
     scheduleCaller: "owner",
     tabs: [],
     sections: STABLE_SECTIONS,
+    stableViewer: "owner",
   },
   instructor: {
     home: INSTRUCTOR_HOME_ROUTE,
@@ -171,8 +224,9 @@ const STANDINGS: Record<
     badgeLabel: INSTRUCTOR_LABEL,
     schedule: null,
     scheduleCaller: "instructor",
-    tabs: [MY_SLOTS_TAB, MONTH_SUMMARY_TAB],
+    tabs: [MY_SLOTS_TAB, PENDING_BOOKINGS_TAB, MONTH_SUMMARY_TAB],
     sections: [],
+    stableViewer: "instructor",
   },
   "arranging-instructor": {
     home: INSTRUCTOR_HOME_ROUTE,
@@ -180,8 +234,9 @@ const STANDINGS: Record<
     badgeLabel: INSTRUCTOR_LABEL,
     schedule: INSTRUCTOR_SCHEDULE_ROUTE,
     scheduleCaller: "instructor",
-    tabs: [MY_SLOTS_TAB, { href: INSTRUCTOR_SCHEDULE_ROUTE, label: "Grafik" }, MONTH_SUMMARY_TAB],
+    tabs: [MY_SLOTS_TAB, PENDING_BOOKINGS_TAB, { href: INSTRUCTOR_SCHEDULE_ROUTE, label: "Grafik" }, MONTH_SUMMARY_TAB],
     sections: [],
+    stableViewer: "instructor",
   },
   inactive: {
     home: INACTIVE_INSTRUCTOR_ROUTE,
@@ -191,6 +246,7 @@ const STANDINGS: Record<
     scheduleCaller: "instructor",
     tabs: [],
     sections: [],
+    stableViewer: null,
   },
 };
 
@@ -236,6 +292,7 @@ const PROTECTED_PREFIXES: readonly RouteGuard[] = [
   { prefix: INSTRUCTOR_HOME_ROUTE, role: "instructor" },
   { prefix: ROLE_HOME.rider, role: "rider" },
   { prefix: LEGACY_HOME_ROUTE, role: null },
+  { prefix: NOTIFICATIONS_ROUTE, role: null },
 ];
 
 /**
@@ -271,9 +328,39 @@ export function scheduleCallerFor(standing: InstructorStanding | null): Schedule
   return standing === null ? "owner" : STANDINGS[standing].scheduleCaller;
 }
 
-/** Zakładki przestrzeni instruktora — pusta lista, gdy konto ich nie ma (pasek się nie pokazuje). */
-export function instructorTabs(standing: InstructorStanding | null): readonly InstructorTab[] {
-  return standing === null ? [] : STANDINGS[standing].tabs;
+/** Strona ośrodka, z której konto ogląda zapisy (`STANDINGS`); `null` — konto bez niej (także jeździec). */
+export function stableViewerOf(standing: InstructorStanding | null): StableViewer | null {
+  return standing === null ? null : STANDINGS[standing].stableViewer;
+}
+
+/**
+ * Czyje „Zapisy do przyjęcia” — cel powrotu z przyjęcia i odrzucenia: instruktor z kontem — jego strona; właściciel
+ * i konta bez strony ośrodka — strona ośrodka.
+ */
+export function pendingBookingsRouteFor(standing: InstructorStanding | null): string {
+  return pendingBookingsRouteOf(stableViewerOf(standing) ?? "owner");
+}
+
+/** Plakietka z liczbą zapisów do przyjęcia na pozycji, która prowadzi do „Zapisów do przyjęcia” konta. */
+function withPendingBadge(
+  tabs: readonly InstructorTab[],
+  standing: InstructorStanding | null,
+  pendingCount: number | null,
+): readonly InstructorTab[] {
+  if (pendingCount === null) return tabs;
+  const target = pendingBookingsRouteFor(standing);
+  return tabs.map((tab) => (tab.href === target ? { ...tab, badge: pendingCount } : tab));
+}
+
+/**
+ * Zakładki przestrzeni instruktora — pusta lista, gdy konto ich nie ma (pasek się nie pokazuje). `pendingCount`
+ * (#128) trafia na plakietkę „Zapisów do przyjęcia”.
+ */
+export function instructorTabs(
+  standing: InstructorStanding | null,
+  pendingCount: number | null = null,
+): readonly InstructorTab[] {
+  return withPendingBadge(standing === null ? [] : STANDINGS[standing].tabs, standing, pendingCount);
 }
 
 /** Sekcje przestrzeni ośrodka — tylko u właściciela; pusta lista, gdy konto ich nie ma (pasek się nie pokazuje). */
@@ -299,10 +386,15 @@ export function currentSection(pathname: string, sections: readonly InstructorTa
 /**
  * Sekcje dolnego paska na stronie `pathname`: tylko u właściciela i tylko w przestrzeni ośrodka
  * (na stronie głównej i innych stronach spoza sekcji pasek się nie pokazuje). Pusta lista — bez paska.
+ * `pendingCount` (#128) trafia na plakietkę „Zapisów do przyjęcia”.
  */
-export function stableTabBarSections(standing: InstructorStanding | null, pathname: string): readonly InstructorTab[] {
+export function stableTabBarSections(
+  standing: InstructorStanding | null,
+  pathname: string,
+  pendingCount: number | null = null,
+): readonly InstructorTab[] {
   const sections = stableSections(standing);
-  return currentSection(pathname, sections) === null ? [] : sections;
+  return currentSection(pathname, sections) === null ? [] : withPendingBadge(sections, standing, pendingCount);
 }
 
 /** Etykieta pigułki roli w górnym pasku: instruktor bez praw właściciela to „Instruktor”, nie „Ośrodek”. */

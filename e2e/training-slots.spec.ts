@@ -4,6 +4,7 @@ import {
   RIDER_A_STATE,
   STABLE_NAME,
   STABLE_STATE,
+  acceptPendingBooking,
   bookButton,
   dayBookingRow,
   runSql,
@@ -108,7 +109,17 @@ test("właściciel układa slot treningowy, pensjonariuszka zapisuje się na swo
       await bookButton(boarder, 10, OWNER).click();
       await boarder.waitForURL(/sukces=1/);
 
-      await expect(boarder.getByText("Zapisano na jazdę.", { exact: false })).toBeVisible();
+      await expect(
+        boarder.getByText(
+          "Zapisano na jazdę. Zapis czeka na przyjęcie przez ośrodek — Twój slot jest oznaczony poniżej.",
+          { exact: true },
+        ),
+      ).toBeVisible();
+      await expect(slotItem(boarder, 10, OWNER).getByText("Czekasz na przyjęcie", { exact: true })).toBeVisible();
+
+      // Zapis pensjonariuszki czeka na przyjęcie (#124) — ośrodek go przyjmuje, koń zostaje przy zapisie.
+      await acceptPendingBooking(page, { hour: 10, instructor: OWNER, rider: BOARDER.name });
+      await boarder.reload();
       await expect(slotItem(boarder, 10, OWNER).getByText("Twój zapis", { exact: true })).toBeVisible();
     } finally {
       await boarderContext.close();

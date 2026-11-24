@@ -1,0 +1,53 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import PendingBookingsBody from "@/components/bookings/PendingBookingsBody.astro";
+import Topbar from "@/components/Topbar.astro";
+import { composePendingBookings, type PendingBookingsDay } from "@/lib/bookings/pending";
+import { getPendingBookings } from "@/lib/bookings/queries";
+import { pendingBookingsSuccessMessage } from "@/lib/bookings/stable-redirect";
+import { logError } from "@/lib/log";
+import { createClient } from "@/lib/supabase";
+
+// „Zapisy do przyjęcia” właściciela (#124, #125): zapisy oczekujące całego ośrodka, najbliższe terminy na górze.
+// Dostęp pilnuje middleware (mapa tras w @/lib/auth/roles); ośrodek bierze funkcja bazy z sesji. Treść i akcje —
+// `PendingBookingsBody`, wspólna z „Zapisami do przyjęcia” instruktora (#126).
+const { profile } = Astro.locals;
+const error = Astro.url.searchParams.get("error");
+const success = pendingBookingsSuccessMessage(Astro.url.searchParams.get("sukces"));
+
+const supabase = createClient(Astro.request.headers, Astro.cookies);
+
+let days: PendingBookingsDay[] = [];
+let loadFailed = false;
+
+if (supabase && profile) {
+  try {
+    days = composePendingBookings(await getPendingBookings(supabase));
+  } catch (error) {
+    loadFailed = true;
+    logError("page:osrodek/zapisy-do-przyjecia", error);
+  }
+} else {
+  // Brak klienta Supabase lub profilu to awaria konfiguracji, nie pusta lista.
+  loadFailed = true;
+}
+---
+
+<Layout title="Zapisy do przyjęcia">
+  <Topbar />
+  <main class="container-narrow page">
+    <PendingBookingsBody
+      lead="Jeźdźcy, którzy zapisali się na jazdę i czekają na przyjęcie. Przyjęty zapis zajmuje miejsce w slocie, a gdy slot się zapełni, pozostałe zapisy na niego odrzucają się same z powodem „Brak miejsc”."
+      days={days}
+      loadFailed={loadFailed}
+      success={success}
+      error={error}
+    />
+  </main>
+</Layout>
+
+<style>
+  .page {
+    padding-block: 24px 56px;
+  }
+</style>

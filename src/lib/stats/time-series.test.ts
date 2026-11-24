@@ -14,6 +14,7 @@ function booking(iso: string, hour: number, overrides: Partial<StatsBooking> = {
     status: "active",
     riderId: "rider-1",
     cancelledBy,
+    wasAccepted: true,
     ...overrides,
   };
 }

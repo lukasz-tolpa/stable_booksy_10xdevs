@@ -291,6 +291,13 @@ end $$;
 
 set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
 
+-- Zapisy jezdzcow czekaja na przyjecie (#124); konia przydziela sie zapisowi aktywnemu.
+do $$
+begin
+  perform public.accept_booking(current_setting(k)::bigint)
+  from unnest(array['app.kasia_10', 'app.kasia_11', 'app.anna_10']) k;
+end $$;
+
 do $$
 declare
   v_kasia bigint := current_setting('app.kasia_10')::bigint;

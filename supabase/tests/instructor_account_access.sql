@@ -58,8 +58,8 @@ begin
   insert into public.schedule_slots (schedule_day_id, instructor_id, hour, seats)
   select v_day, v_karol, h, case when h = 15 then 1 else 0 end from generate_series(10, 15) h;
 
-  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id)
-  values (v_day, v_karol, 15, '44444444-4444-4444-4444-444444444444');
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status)
+  values (v_day, v_karol, 15, '44444444-4444-4444-4444-444444444444', 'active');
   insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status, cancelled_at, cancelled_by)
   values (v_day, v_joanna, 13, '44444444-4444-4444-4444-444444444444', 'cancelled', now(), 'rider');
   update public.bookings set horse_id = v_bella
@@ -167,7 +167,9 @@ begin
   end if;
   raise notice 'PASS: z grafiku czyta tylko dni ze swoimi slotami';
 
-  select count(*), count(*) filter (where instructor_id <> v_joanna)
+  -- Instruktorka widzi liczbe czekajacych na swoich slotach, wiec dostaje wiersz kazdego z nich (#128); zajety
+  -- zapisem aktywnym - jeden (Anna o 11).
+  select count(*) filter (where taken > 0), count(*) filter (where instructor_id <> v_joanna)
     into v, v_foreign
   from public.get_slot_occupancy(v_stable_a, current_date + 1);
   if v <> 1 or v_foreign <> 0 then

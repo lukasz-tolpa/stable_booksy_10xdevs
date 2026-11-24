@@ -77,16 +77,16 @@ begin
   update public.bookings set horse_id = v_bella where id = v_booking;
 
   -- Odwolany zapis Piotra u Karola o 14 (przetrwa wypisanie Karola).
-  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id)
-  values (v_day, v_karol, 14, c_piotr)
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status)
+  values (v_day, v_karol, 14, c_piotr, 'active')
   returning id into v_cancelled_karol;
   update public.bookings set status = 'cancelled', cancelled_at = now(), cancelled_by = 'rider'
   where id = v_cancelled_karol;
 
   -- Odwolany zapis Piotra u Joanny o 15, z Kasztanem przed odwolaniem (przetrwa skrocenie dnia,
   -- a odwolanie zwalnia Kasztana).
-  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, horse_id)
-  values (v_day, v_joanna, 15, c_piotr, v_kasztan)
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, horse_id, status)
+  values (v_day, v_joanna, 15, c_piotr, v_kasztan, 'active')
   returning id into v_cancelled_hour;
   update public.bookings set status = 'cancelled', cancelled_at = now(), cancelled_by = 'rider'
   where id = v_cancelled_hour;

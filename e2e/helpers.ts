@@ -100,6 +100,43 @@ export function dayBookingRow(page: Page, section: "Aktywne" | "Odwołane", hour
     .filter({ hasText: instructor });
 }
 
+/** „Zapisy do przyjęcia” ośrodka (#124) — zapisy oczekujące jeźdźców. */
+export const PENDING_BOOKINGS_ROUTE = "/osrodek/zapisy-do-przyjecia";
+
+/** „Zapisy do przyjęcia” instruktora z kontem (#126) — zapisy oczekujące na jego sloty. */
+export const INSTRUCTOR_PENDING_BOOKINGS_ROUTE = "/instruktor/zapisy-do-przyjecia";
+
+/** Wiersz zapisu oczekującego na „Zapisach do przyjęcia”: godzina, instruktor i jeździec. */
+export function pendingBookingRow(page: Page, hour: number, instructor: string, rider: string): Locator {
+  return page
+    .getByRole("listitem")
+    .filter({ has: page.getByText(`${String(hour)}:00`, { exact: true }) })
+    .filter({ hasText: instructor })
+    .filter({ hasText: rider });
+}
+
+/**
+ * Ośrodek przyjmuje zapis oczekujący jeźdźca (#124) — wspólny krok każdego scenariusza, w którym jeździec
+ * zapisuje się na jazdę i potrzebuje zapisu aktywnego (zapis jeźdźca zawsze czeka na przyjęcie). Dowód
+ * z bazy: po przekierowaniu strona jest wyrenderowana z bazy i wiersza już na niej nie ma. `route` —
+ * czyje „Zapisy do przyjęcia”: domyślnie właściciela, instruktor z kontem ma swoje (#126).
+ */
+export async function acceptPendingBooking(
+  stablePage: Page,
+  booking: { hour: number; instructor: string; rider: string },
+  route: string = PENDING_BOOKINGS_ROUTE,
+): Promise<void> {
+  await stablePage.goto(route);
+  await expect(stablePage.getByRole("heading", { level: 1, name: "Zapisy do przyjęcia" })).toBeVisible();
+  const row = pendingBookingRow(stablePage, booking.hour, booking.instructor, booking.rider);
+  await row.getByRole("button", { name: "Przyjmij", exact: true }).click();
+  await stablePage.waitForURL(/sukces=przyjecie/);
+  await expect(
+    stablePage.getByRole("status").getByText("Zapis przyjęty. Jeździec ma miejsce w slocie.", { exact: true }),
+  ).toBeVisible();
+  await expect(pendingBookingRow(stablePage, booking.hour, booking.instructor, booking.rider)).toHaveCount(0);
+}
+
 /** Nadchodzący zapis w „Moje zapisy" — wiersz z przyciskiem „Odwołaj". */
 export function upcomingRow(page: Page, stable: string, instructor: string): Locator {
   return page

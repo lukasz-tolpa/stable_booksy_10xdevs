@@ -52,6 +52,7 @@ function booking(overrides: Partial<DayBooking>): DayBooking {
     anonymised: false,
     status: "active",
     cancelledBy: null,
+    wasAccepted: true,
     ...overrides,
   };
 }
@@ -237,5 +238,31 @@ describe("composeDayBookingSections — zapisy odwołane", () => {
     ]);
 
     expect(result.active[0].horseOptions.map((h) => h.name)).toEqual(["Bella", "Kasztan"]);
+  });
+
+  it("wycofany przez jeźdźca zapis oczekujący (bez przyjęcia) nie trafia do odwołanych — po prostu znika", () => {
+    const result = sections([
+      booking({ id: 1, hour: 10, status: "cancelled", cancelledBy: "rider", riderName: "Piotr Nowak" }),
+      booking({ id: 2, hour: 11, status: "cancelled", cancelledBy: "rider", wasAccepted: false }),
+    ]);
+
+    expect(result.cancelled.map((r) => r.id)).toEqual([1]);
+    expect(result.active).toEqual([]);
+  });
+});
+
+describe("composeDayBookingSections — zapisy oczekujące i odrzucone", () => {
+  // Zapisy oczekujące dostaną na liście dnia własną sekcję (#122); do tego czasu nie zmieniają żadnej sekcji.
+  it("zapis oczekujący ani odrzucony nie trafia do żadnej sekcji i nie zajmuje konia", () => {
+    const shown = [
+      booking({ id: 1, hour: 10, riderName: "Piotr Nowak" }),
+      booking({ id: 2, hour: 11, status: "cancelled", cancelledBy: "rider" }),
+    ];
+    const notActive = [
+      booking({ id: 3, hour: 10, status: "pending", horseId: 1 }),
+      booking({ id: 4, hour: 10, status: "rejected", riderName: "Zenon Ząb" }),
+    ];
+
+    expect(sections([...shown, ...notActive])).toEqual(sections(shown));
   });
 });

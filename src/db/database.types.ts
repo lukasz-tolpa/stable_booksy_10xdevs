@@ -69,6 +69,7 @@ export type Database = {
       };
       bookings: {
         Row: {
+          accepted_at: string | null;
           cancelled_at: string | null;
           cancelled_by: string | null;
           created_at: string;
@@ -76,11 +77,15 @@ export type Database = {
           hour: number;
           id: number;
           instructor_id: number;
+          rejected_at: string | null;
+          rejection_reason: string | null;
+          rejection_source: string | null;
           rider_id: string | null;
           schedule_day_id: number;
           status: string;
         };
         Insert: {
+          accepted_at?: string | null;
           cancelled_at?: string | null;
           cancelled_by?: string | null;
           created_at?: string;
@@ -88,11 +93,15 @@ export type Database = {
           hour: number;
           id?: never;
           instructor_id: number;
+          rejected_at?: string | null;
+          rejection_reason?: string | null;
+          rejection_source?: string | null;
           rider_id?: string | null;
           schedule_day_id: number;
           status?: string;
         };
         Update: {
+          accepted_at?: string | null;
           cancelled_at?: string | null;
           cancelled_by?: string | null;
           created_at?: string;
@@ -100,6 +109,9 @@ export type Database = {
           hour?: number;
           id?: never;
           instructor_id?: number;
+          rejected_at?: string | null;
+          rejection_reason?: string | null;
+          rejection_source?: string | null;
           rider_id?: string | null;
           schedule_day_id?: number;
           status?: string;
@@ -401,6 +413,71 @@ export type Database = {
           },
         ];
       };
+      notification_views: {
+        Row: {
+          profile_id: string;
+          seen_at: string;
+        };
+        Insert: {
+          profile_id: string;
+          seen_at: string;
+        };
+        Update: {
+          profile_id?: string;
+          seen_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "notification_views_profile_id_fkey";
+            columns: ["profile_id"];
+            isOneToOne: true;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      notifications: {
+        Row: {
+          booking_id: number;
+          created_at: string;
+          id: number;
+          kind: string;
+          reason: string | null;
+          recipient_id: string;
+        };
+        Insert: {
+          booking_id: number;
+          created_at?: string;
+          id?: never;
+          kind: string;
+          reason?: string | null;
+          recipient_id: string;
+        };
+        Update: {
+          booking_id?: number;
+          created_at?: string;
+          id?: never;
+          kind?: string;
+          reason?: string | null;
+          recipient_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "notifications_booking_id_fkey";
+            columns: ["booking_id"];
+            isOneToOne: false;
+            referencedRelation: "bookings";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "notifications_recipient_id_fkey";
+            columns: ["recipient_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       places: {
         Row: {
           active: boolean;
@@ -688,6 +765,7 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      accept_booking: { Args: { p_booking_id: number }; Returns: string };
       add_boarding_horse: {
         Args: { p_arrival: string; p_name: string; p_rider_email: string };
         Returns: number;
@@ -700,6 +778,7 @@ export type Database = {
         Args: { p_booking_id: number; p_horse_id?: number };
         Returns: undefined;
       };
+      count_pending_bookings: { Args: never; Returns: number };
       create_stable: {
         Args: { p_city: string; p_instructor_name: string; p_name: string };
         Returns: number;
@@ -715,6 +794,21 @@ export type Database = {
           hour: number;
           rider_key: string;
           rider_name: string;
+        }[];
+      };
+      get_my_notifications: {
+        Args: never;
+        Returns: {
+          booking_id: number;
+          created_at: string;
+          day: string;
+          hour: number;
+          id: number;
+          instructor_name: string;
+          kind: string;
+          reason: string;
+          rider_name: string;
+          stable_name: string;
         }[];
       };
       get_my_slot_bookings: {
@@ -738,6 +832,25 @@ export type Database = {
           taken: boolean;
         }[];
       };
+      get_pending_bookings: {
+        Args: never;
+        Returns: {
+          booking_id: number;
+          created_at: string;
+          day: string;
+          hour: number;
+          instructor_id: number;
+          instructor_name: string;
+          kind: string;
+          place_name: string;
+          rejected_before: boolean;
+          rider_email: string;
+          rider_id: string;
+          rider_name: string;
+          seats: number;
+          taken: number;
+        }[];
+      };
       get_place_occupancy: {
         Args: { p_day: string; p_stable_id: number };
         Returns: {
@@ -755,6 +868,7 @@ export type Database = {
           hour: number;
           instructor_id: number;
           taken: number;
+          waiting: number;
         }[];
       };
       get_stable_boarding_horses: {
@@ -802,6 +916,7 @@ export type Database = {
           instructor_id: number;
         }[];
       };
+      mark_notifications_seen: { Args: never; Returns: string };
       my_instructor: {
         Args: never;
         Returns: {
@@ -812,6 +927,10 @@ export type Database = {
           stable_name: string;
           stable_owner_id: string;
         }[];
+      };
+      reject_booking: {
+        Args: { p_booking_id: number; p_reason: string };
+        Returns: string;
       };
       revoke_instructor_invitation: {
         Args: { p_instructor_id: number };

@@ -20,6 +20,7 @@ function booking(day: string, hour: number, overrides: Partial<StatsBooking> = {
     status: "active",
     riderId: "anna",
     cancelledBy: null,
+    wasAccepted: true,
     ...overrides,
   };
 }
@@ -102,6 +103,19 @@ describe("composeOwnerMonthSummary — podsumowanie miesiąca u właściciela", 
       ["Usunięci jeźdźcy", 1, 0],
     ]);
     expect(view.list.totalText).toBe("2 jazdy · 1 jeździec");
+  });
+
+  it("zapis oczekujący (także wygasły) ani odrzucony nie jest jazdą i nie zmienia podsumowania", () => {
+    const bookings = [booking("2026-11-06", 10), booking("2026-11-07", 11, { instructorId: KAROL })];
+    const notActive = [
+      booking("2026-11-06", 11, { status: "pending", horseId: null, wasAccepted: false }),
+      booking("2026-11-08", 10, { status: "rejected", horseId: null, riderId: "bez-nazwy", wasAccepted: false }),
+    ];
+
+    const baseline = composeOwnerMonthSummary(input({ bookings }), NOW);
+
+    expect(baseline.list.totalText).toBe("2 jazdy · 1 jeździec");
+    expect(composeOwnerMonthSummary(input({ bookings: [...bookings, ...notActive] }), NOW)).toEqual(baseline);
   });
 
   it("przełącznik miesięcy prowadzi po stronie podsumowania właściciela", () => {

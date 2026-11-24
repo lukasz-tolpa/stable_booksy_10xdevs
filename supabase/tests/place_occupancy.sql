@@ -78,13 +78,13 @@ declare
   v_day_id bigint := current_setting('app.day_id')::bigint;
   v_cancelled bigint;
 begin
-  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id) values
-    (v_day_id, current_setting('app.joanna')::bigint, 10, '33333333-3333-3333-3333-333333333333'),
-    (v_day_id, current_setting('app.karol')::bigint, 10, '44444444-4444-4444-4444-444444444444'),
-    (v_day_id, current_setting('app.marek')::bigint, 10, '12121212-1212-1212-1212-121212121212');
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status) values
+    (v_day_id, current_setting('app.joanna')::bigint, 10, '33333333-3333-3333-3333-333333333333', 'active'),
+    (v_day_id, current_setting('app.karol')::bigint, 10, '44444444-4444-4444-4444-444444444444', 'active'),
+    (v_day_id, current_setting('app.marek')::bigint, 10, '12121212-1212-1212-1212-121212121212', 'active');
 
-  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id)
-  values (v_day_id, current_setting('app.karol')::bigint, 11, '33333333-3333-3333-3333-333333333333')
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status)
+  values (v_day_id, current_setting('app.karol')::bigint, 11, '33333333-3333-3333-3333-333333333333', 'active')
   returning id into v_cancelled;
   update public.bookings set status = 'cancelled', cancelled_at = now(), cancelled_by = 'stable'
   where id = v_cancelled;

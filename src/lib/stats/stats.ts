@@ -5,6 +5,7 @@
 
 import { isRide, SLOT_DURATION_HOURS, slotEndedAt, type SlotEnded } from "@/lib/bookings/rides";
 import { unknownHorseName } from "@/lib/bookings/rows";
+import { isCancellationOfAccepted } from "@/lib/bookings/status";
 import { HORSE_KIND, type HorseKind } from "@/lib/stables/kind";
 import type { DateRange } from "@/lib/schedule/dates";
 import { SLOT_KIND, SLOT_KIND_TEXTS, type SlotKind } from "@/lib/schedule/kind";
@@ -37,7 +38,7 @@ export interface StatsScheduleDay {
   slots: StatsSlot[];
 }
 
-/** Zapis (aktywny albo odwołany) z terminem: dniem grafiku i godziną. */
+/** Zapis ośrodka (każdy stan) z terminem: dniem grafiku i godziną. */
 export interface StatsBooking {
   day: string;
   /** Przydzielony koń; `null` — zapis bez konia (koń przy zapisie jest opcjonalny, ADR-0002). */
@@ -48,8 +49,10 @@ export interface StatsBooking {
   status: BookingStatus;
   /** Konto jeźdźca, który złożył zapis; `null`, gdy konto usunięto (jeździec zanonimizowany). */
   riderId: string | null;
-  /** Kto odwołał zapis; `null` dla zapisu aktywnego. */
+  /** Kto odwołał zapis; `null` dla zapisu nieodwołanego. */
   cancelledBy: CancelledBy | null;
+  /** Zapis był przyjęty (aktywny) — `bookings.accepted_at`; odwołanie liczy się tylko wtedy (`isCancellationOfAccepted`). */
+  wasAccepted: boolean;
   /** Rodzaj slotu zapisu (#115); brak — slot rekreacyjny, jak domyślnie w bazie. */
   slotKind?: SlotKind;
 }
@@ -216,8 +219,9 @@ export function computeStableStats(input: StatsInput, now: Date = new Date()): S
 
   // Jazda — wspólna definicja z `@/lib/bookings/rides` (ta sama co w Podsumowaniu miesiąca).
   const rideBookings = pastBookings.filter((booking) => isRide(booking, ended));
-  // Odwołanie liczy się według terminu zapisu, bez względu na to, kiedy je kliknięto.
-  const cancelledBookings = pastBookings.filter((booking) => booking.status === "cancelled");
+  // Odwołanie liczy się według terminu zapisu, bez względu na to, kiedy je kliknięto — i tylko odwołanie
+  // zapisu przyjętego: wycofanie zapisu oczekującego nie jest odwołaniem jazdy (#122).
+  const cancelledBookings = pastBookings.filter(isCancellationOfAccepted);
   const rides = rideBookings.length;
   const cancellations = cancelledBookings.length;
 

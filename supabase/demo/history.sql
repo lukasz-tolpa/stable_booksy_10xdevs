@@ -80,12 +80,13 @@ begin
   -- Aktywne zapisy w minionych godzinach = jazdy, kazda z koniem. Kandydaci (kon, godzina)
   -- wedlug dawnego wzoru; w godzinie pierwszy kandydat dostaje jednego jezdzca, drugi -
   -- drugiego, trzeci odpada (jezdziec ma najwyzej jeden zapis na godzine).
-  insert into public.bookings (schedule_day_id, instructor_id, horse_id, hour, rider_id)
+  insert into public.bookings (schedule_day_id, instructor_id, horse_id, hour, rider_id, status)
   select c.schedule_day_id,
          i.id,
          c.horse_id,
          c.hr::smallint,
-         case when (c.rank + c.doy + c.hr) % 2 = 0 then v_anna else v_piotr end
+         case when (c.rank + c.doy + c.hr) % 2 = 0 then v_anna else v_piotr end,
+         'active'
   from (
     select sdh.schedule_day_id,
            sdh.horse_id,
@@ -108,12 +109,14 @@ begin
 
   -- Odwolania Piotra: bez konia, u instruktora wedlug tego samego podzialu; tylko w godzinach,
   -- w ktorych Piotr nie ma jazdy (odwolany zapis nie zajmuje miejsca, ale zostawiamy wzor czytelny).
-  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status, cancelled_at, cancelled_by)
+  -- Kazde odwolanie historii dotyczy zapisu przyjetego (accepted_at) - liczy sie w statystykach odwolan.
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status, accepted_at, cancelled_at, cancelled_by)
   select sdh.schedule_day_id,
          i.id,
          hr::smallint,
          v_piotr,
          'cancelled',
+         sd.day - interval '2 days',
          sd.day - interval '1 day',
          'rider'
   from public.schedule_day_horses sdh
@@ -149,8 +152,8 @@ begin
 
   -- Odwolania przez osrodek: Anna u Joanny o 15:00. Odwolany zapis nie zajmuje miejsca
   -- (wyzwalacz limitu pomija nieaktywne) i nie ma konia (odwolanie czysci przydzial).
-  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status, cancelled_at, cancelled_by)
-  select sd.id, i.id, 15, v_anna, 'cancelled', sd.day - interval '1 day', 'stable'
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status, accepted_at, cancelled_at, cancelled_by)
+  select sd.id, i.id, 15, v_anna, 'cancelled', sd.day - interval '2 days', sd.day - interval '1 day', 'stable'
   from public.schedule_days sd
   join public.instructors i on i.stable_id = v_stable and i.name = 'Joanna Wrona'
   where sd.stable_id = v_stable
@@ -158,8 +161,8 @@ begin
     and extract(doy from sd.day)::int % 3 = 0;
 
   -- Odwolanie, ktorego slot zniknal: o 16:00, poza godzinami dnia 10-16 - jak po skroceniu dnia.
-  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status, cancelled_at, cancelled_by)
-  select sd.id, i.id, 16, v_anna, 'cancelled', sd.day - interval '1 day', 'stable'
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status, accepted_at, cancelled_at, cancelled_by)
+  select sd.id, i.id, 16, v_anna, 'cancelled', sd.day - interval '2 days', sd.day - interval '1 day', 'stable'
   from public.schedule_days sd
   join public.instructors i on i.stable_id = v_stable and i.name = 'Karol Jasny'
   where sd.stable_id = v_stable
@@ -242,12 +245,74 @@ begin
   where sd.stable_id = v_stable and sd.day < current_date;
 
   -- Kon nie podany - wyzwalacz bookings_slot_rules przydziela jedynego konia pensjonariuszki z pobytem.
-  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id)
-  select sl.schedule_day_id, sl.instructor_id, sl.hour, v_kasia
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status)
+  select sl.schedule_day_id, sl.instructor_id, sl.hour, v_kasia, 'active'
   from public.schedule_slots sl
   join public.schedule_days sd on sd.id = sl.schedule_day_id
   where sd.stable_id = v_stable and sd.day < current_date and sl.kind = 'training' and sl.seats > 0;
 
   raise notice 'Sloty treningowe historii demo zaladowane.';
+end
+$$;
+
+-- #125 Zapisy oczekujace i odrzucony (spec #122): za trzy dni (pojutrze ma sloty treningowe seeda) Stadnina
+-- Pod Dębem ma grafik 10-16 z Karolem Jasnym (Duży plac, bez konta - „Moje sloty” Joanny zostaja jak w seedzie)
+-- po 1 miejscu, Bella i Kasztan pracuja. Na „Zapisach do przyjecia” czekaja: Anna i Piotr na jedno miejsce
+-- u Karola o 10, Piotr u Karola o 12. Zapis Anny u Karola o 14 osrodek odrzucil z powodem (jedyna sciezka
+-- odrzucenia, private.reject_bookings), a Anna zapisala sie tam ponownie - osrodek widzi „wczesniej odrzucony
+-- na ten slot”.
+-- Jutrzejszy grafik seeda i zarezerwowane sloty e2e zostaja nietkniete.
+-- Idempotentne.
+do $$
+declare
+  v_stable bigint;
+  v_day bigint;
+  v_karol bigint;
+  v_anna constant uuid := '33333333-3333-3333-3333-333333333333';
+  v_piotr constant uuid := '44444444-4444-4444-4444-444444444444';
+  v_rejected bigint;
+begin
+  select id into strict v_stable from public.stables where name = 'Stadnina Pod Dębem';
+
+  if exists (select 1 from public.schedule_days where stable_id = v_stable and day = current_date + 3) then
+    raise notice 'Zapisy oczekujace historii demo sa juz zaladowane - bez zmian.';
+    return;
+  end if;
+
+  select id into strict v_karol from public.instructors where stable_id = v_stable and name = 'Karol Jasny';
+
+  insert into public.schedule_days (stable_id, day, open_hour, close_hour)
+  values (v_stable, current_date + 3, 10, 16)
+  returning id into v_day;
+
+  insert into public.schedule_day_horses (schedule_day_id, horse_id, stable_id)
+  select v_day, h.id, v_stable
+  from public.horses h
+  where h.stable_id = v_stable and h.kind = 'stable' and h.name in ('Bella', 'Kasztan');
+
+  insert into public.schedule_day_instructors (schedule_day_id, instructor_id, stable_id)
+  values (v_day, v_karol, v_stable);
+
+  insert into public.schedule_slots (schedule_day_id, instructor_id, hour, seats, place_id, kind)
+  select v_day, v_karol, hr, 1, p.id, 'recreation'
+  from public.places p
+  cross join generate_series(10, 15) as hr
+  where p.stable_id = v_stable and p.name = 'Duży plac';
+
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status)
+  values (v_day, v_karol, 10, v_anna, 'pending'),
+         (v_day, v_karol, 10, v_piotr, 'pending'),
+         (v_day, v_karol, 12, v_piotr, 'pending');
+
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status)
+  values (v_day, v_karol, 14, v_anna, 'pending')
+  returning id into v_rejected;
+  perform private.reject_bookings(
+    array[v_rejected], 'stable', 'Kasztan tego dnia ma lżejszą pracę — zapisz się proszę na inną godzinę.'
+  );
+  insert into public.bookings (schedule_day_id, instructor_id, hour, rider_id, status)
+  values (v_day, v_karol, 14, v_anna, 'pending');
+
+  raise notice 'Zapisy oczekujace historii demo zaladowane.';
 end
 $$;

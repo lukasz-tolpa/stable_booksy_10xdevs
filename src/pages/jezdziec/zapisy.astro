@@ -101,14 +101,24 @@ function formatDay(day: string): string {
                     <span class="row__sub">{row.stableName}</span>
                     <span class="row__horse">{row.instructorName}</span>
                     {row.horseLabel && <span class="row__sub">{row.horseLabel}</span>}
+                    {/* Zapis oczekujący (#124) i wygasły w trakcie slotu — pigułka, cały tekst elementu to sam stan;
+                        odrzucony (#125) — „Odrzucony: <powód>” tekstem (sposób pokazania daje `stateView`). */}
+                    {row.stateView &&
+                      (row.stateView.as === "text" ? (
+                        <span class="row__rejected">{row.stateView.label}</span>
+                      ) : (
+                        <Tag variant={row.stateView.variant}>{row.stateView.label}</Tag>
+                      ))}
                   </span>
-                  <form method="post" action="/api/bookings/cancel" class="row__action">
-                    <input type="hidden" name="bookingId" value={row.id} />
-                    <button type="submit">
-                      <CalendarX2 className="size-4" />
-                      Odwołaj
-                    </button>
-                  </form>
+                  {row.cancellable && (
+                    <form method="post" action="/api/bookings/cancel" class="row__action">
+                      <input type="hidden" name="bookingId" value={row.id} />
+                      <button type="submit">
+                        <CalendarX2 className="size-4" />
+                        Odwołaj
+                      </button>
+                    </form>
+                  )}
                 </li>
               ))}
             </ul>
@@ -135,6 +145,12 @@ function formatDay(day: string): string {
                     {/* Cały tekst tego elementu to samo słowo - scenariusz odwołania
                         szuka wiersza po dokładnym dopasowaniu. */}
                     {row.status === "cancelled" && <Tag>odwołany</Tag>}
+                    {row.stateView &&
+                      (row.stateView.as === "text" ? (
+                        <span class="row__rejected">{row.stateView.label}</span>
+                      ) : (
+                        <Tag variant={row.stateView.variant}>{row.stateView.label}</Tag>
+                      ))}
                     {row.cancelledByLabel && <span class="row__sub">{row.cancelledByLabel}</span>}
                   </span>
                 </li>
@@ -260,6 +276,17 @@ function formatDay(day: string): string {
     color: var(--muted);
     font-size: 14.5px;
     overflow-wrap: anywhere;
+  }
+  /* Pełne zdanie z powodem odrzucenia — łamie się w wierszu jak opis, nie jak pigułka. */
+  .row__rejected {
+    flex-basis: 100%;
+    color: var(--danger-ink);
+    font-size: 14.5px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+  .rows--history .row__rejected {
+    color: var(--muted);
   }
   .rows--history .row__when,
   .rows--history .row__horse {

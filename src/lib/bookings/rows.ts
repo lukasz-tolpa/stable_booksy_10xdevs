@@ -1,6 +1,6 @@
 import type { DayBooking } from "@/lib/bookings/queries";
 import { hasSlotStarted, unknownInstructorName } from "@/lib/bookings/slots";
-import { cancelledByLabel } from "@/lib/bookings/status";
+import { cancelledByLabel, isActiveBooking, isCancellationOfAccepted } from "@/lib/bookings/status";
 import { horsesOnDay, type BoardingHorse } from "@/lib/boarding/month";
 import { placeNamer, type PlaceName } from "@/lib/places/names";
 import { SLOT_KIND, type SlotKind } from "@/lib/schedule/kind";
@@ -9,7 +9,7 @@ import { seatKey } from "@/lib/schedule/sheet";
 
 /**
  * Składanie listy zapisów dnia ośrodka (FR-005): aktywne (godzina, instruktor, jeździec, koń,
- * przydział konia, odwołanie) i pod nimi odwołane, z oznaczeniem, kto odwołał.
+ * przydział konia, odwołanie) i pod nimi odwołane (tylko zapisy, które były przyjęte), z oznaczeniem, kto odwołał.
  *
  * Koń przy zapisie jest opcjonalny (ADR-0002) — przydziela go ośrodek. Nazwy koni dokłada się
  * z listy stada (także koni pensjonatowych). Przy slocie treningowym (#115) koniem jest koń pensjonatowy
@@ -144,7 +144,7 @@ export function composeDayBookingSections(input: DayBookingSectionsInput): DayBo
     if (horse.riderKey === null) continue;
     boarderHorses.set(horse.riderKey, [...(boarderHorses.get(horse.riderKey) ?? []), named(horse.horseId)]);
   }
-  const activeBookings = bookings.filter((booking) => booking.status === "active");
+  const activeBookings = bookings.filter(isActiveBooking);
 
   const active = activeBookings
     .map((booking): ActiveBookingRow => {
@@ -175,8 +175,9 @@ export function composeDayBookingSections(input: DayBookingSectionsInput): DayBo
     })
     .sort(byHourInstructorRider);
 
+  // Wycofany zapis oczekujący (bez przyjęcia) nie jest odwołaniem jazdy — po prostu znika z listy (US 34).
   const cancelled = bookings
-    .filter((booking) => booking.status === "cancelled")
+    .filter(isCancellationOfAccepted)
     .map(
       (booking): CancelledBookingRow => ({
         id: booking.id,
