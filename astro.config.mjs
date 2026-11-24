@@ -16,6 +16,11 @@ export default defineConfig({
   integrations: [react(), sitemap({ filter: isInSitemap })],
   vite: {
     plugins: [tailwindcss()],
+    server: {
+      // Worktree agentów podpinają node_modules głównego checkoutu (scripts/agent-worktree.mjs) —
+      // bez tego wykluczenia serwer obserwuje kolejne kopie zależności i pada na EMFILE.
+      watch: { ignored: ["**/.claude/worktrees/**"] },
+    },
     resolve: {
       // Zależności przeglądarkowe jsPDF (PDF rozliczenia, spec #100) — poza paczką workera.
       alias: Object.fromEntries(
